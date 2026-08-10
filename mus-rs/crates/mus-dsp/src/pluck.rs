@@ -109,6 +109,11 @@ pub struct PluckPatch {
     pub courses: usize,
     /// Spectral dimension d, with f_k proportional to k^(1/d) (`dimension`).
     pub spectral_dimension: f64,
+    /// External excitation mix (`sing`): 0 = pluck burst only, 1 = the
+    /// track's sample alone drives the strings through the shared bridge.
+    pub sing: f64,
+    /// Seconds into the sample the drive starts reading (`sing_at`).
+    pub sing_at: f64,
 }
 
 impl Default for PluckPatch {
@@ -137,6 +142,8 @@ impl Default for PluckPatch {
             curvature: 0.28,
             courses: 11,
             spectral_dimension: 1.35,
+            sing: 0.0,
+            sing_at: 0.0,
         }
     }
 }
@@ -180,6 +187,8 @@ impl From<&BTreeMap<String, String>> for PluckPatch {
             curvature: parsed(map, "curvature", d.curvature).clamp(0.0, 1.0),
             courses: parsed_usize(map, "courses", d.courses).clamp(3, 24),
             spectral_dimension: parsed(map, "dimension", d.spectral_dimension).clamp(0.55, 3.0),
+            sing: parsed(map, "sing", d.sing).clamp(0.0, 1.0),
+            sing_at: parsed(map, "sing_at", d.sing_at).clamp(0.0, 600.0),
         }
     }
 }
@@ -685,6 +694,12 @@ pub struct StringNetworkVoice {
     /// Per-edge |angle| applied this sample (forward + reverse pass),
     /// kept for [`Self::render_traced`] telemetry; never read by audio.
     edge_activity: Vec<f64>,
+    /// External bridge drive (`sing`): the track's sample, offset by
+    /// `sing_at`, fed to every course during the slot. `None` when
+    /// sing = 0 so the un-sung path stays byte-identical.
+    external: Option<Vec<f64>>,
+    external_gain: f64,
+    drive_samples: usize,
     active_count: usize,
     sample_index: usize,
     total_samples: usize,
@@ -723,6 +738,62 @@ impl StringNetworkVoice {
         )
     }
 
+    pub fn guitar_sung(
+        params: &BTreeMap<String, String>,
+        frequencies_hz: &[f64],
+        slot_s: f64,
+        gliss_ratio: f64,
+        external: &[f32],
+    ) -> Self {
+        let mut voice = Self::new(
+            params,
+            frequencies_hz,
+            slot_s,
+            gliss_ratio,
+            StringNetworkMode::Guitar,
+        );
+        voice.attach_external(external);
+        voice
+    }
+
+    pub fn weave_sung(
+        params: &BTreeMap<String, String>,
+        frequencies_hz: &[f64],
+        slot_s: f64,
+        gliss_ratio: f64,
+        external: &[f32],
+    ) -> Self {
+        let mut voice = Self::new(
+            params,
+            frequencies_hz,
+            slot_s,
+            gliss_ratio,
+            StringNetworkMode::Weave,
+        );
+        voice.attach_external(external);
+        voice
+    }
+
+    /// The `sing` seam: bridge-common drive for every course during the
+    /// slot. At sing = 0 nothing is attached and the render stays
+    /// byte-identical to the un-sung path (tested).
+    fn attach_external(&mut self, external: &[f32]) {
+        if self.patch.sing <= 1e-12 {
+            return;
+        }
+        let offset = (self.patch.sing_at * SR_F64).round() as usize;
+        let window: Vec<f64> = external
+            .iter()
+            .skip(offset)
+            .take(self.drive_samples)
+            .map(|&sample| sample as f64)
+            .collect();
+        // Injected coherently into n courses; keep the summed direct
+        // level roughly count-independent.
+        self.external_gain = self.patch.sing * 0.9 / (self.strings.len().max(1) as f64).sqrt();
+        self.external = Some(window);
+    }
+
     fn new(
         params: &BTreeMap<String, String>,
         frequencies_hz: &[f64],
@@ -742,7 +813,9 @@ impl StringNetworkVoice {
         let slot_samples = (slot_s.max(0.0) * SR_F64).round().max(1.0) as usize;
         let strum_samples = (patch.strum_ms.abs() * SR_F64 / 1000.0).round() as usize;
         let pitch_count = frequencies_hz.len().max(1);
-        let base_level = 0.82 / (pitch_count as f64).sqrt();
+        // The pluck articulates less as the external drive takes over;
+        // at sing = 1 the sample is the only excitation.
+        let base_level = 0.82 / (pitch_count as f64).sqrt() * (1.0 - patch.sing);
         let mut starts = vec![0_usize; frequencies_hz.len()];
         if patch.strum_ms >= 0.0 {
             for (order, start) in starts.iter_mut().enumerate() {
@@ -873,6 +946,9 @@ impl StringNetworkVoice {
             active_count,
             sample_index: 0,
             total_samples,
+            external: None,
+            external_gain: 0.0,
+            drive_samples: slot_samples,
             previous_input: 0.0,
             previous_output: 0.0,
         }
@@ -986,9 +1062,16 @@ impl StringNetworkVoice {
         }
         let body_output = self.scatter_body();
 
+        let drive = match &self.external {
+            Some(window) => {
+                self.external_gain * window.get(self.sample_index).copied().unwrap_or(0.0)
+            }
+            None => 0.0,
+        };
         let mut contact_output = 0.0;
         for index in 0..self.strings.len() {
-            let excitation = self.strings[index].excitation_at(self.sample_index);
+            let excitation = self.strings[index].excitation_at(self.sample_index)
+                + drive * self.strings[index].coupling_scale;
             let value = self.waves[index] + excitation;
             let (feedback, contact) = self.strings[index].apply_contact(value, self.patch.buzz);
             self.contact[index] = contact;
@@ -1115,6 +1198,29 @@ pub fn weave_note(
     gliss_ratio: f64,
 ) -> Vec<f32> {
     StringNetworkVoice::weave(params, frequencies_hz, slot_s, gliss_ratio).render()
+}
+
+/// `sing > 0`: the guitar driven by an external sample through the
+/// shared bridge (cuerdas simpaticas).
+pub fn pluck_note_sung(
+    params: &BTreeMap<String, String>,
+    frequencies_hz: &[f64],
+    slot_s: f64,
+    gliss_ratio: f64,
+    external: &[f32],
+) -> Vec<f32> {
+    StringNetworkVoice::guitar_sung(params, frequencies_hz, slot_s, gliss_ratio, external).render()
+}
+
+/// `sing > 0`: the weave driven by an external sample.
+pub fn weave_note_sung(
+    params: &BTreeMap<String, String>,
+    frequencies_hz: &[f64],
+    slot_s: f64,
+    gliss_ratio: f64,
+    external: &[f32],
+) -> Vec<f32> {
+    StringNetworkVoice::weave_sung(params, frequencies_hz, slot_s, gliss_ratio, external).render()
 }
 
 #[cfg(test)]

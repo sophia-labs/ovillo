@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 
-use mus_dsp::pluck::{pluck_note, weave_note, StringNetworkVoice};
+use mus_dsp::pluck::{pluck_note, pluck_note_sung, weave_note, StringNetworkVoice};
 use mus_dsp::SR_F64;
 
 fn params(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
@@ -461,5 +461,57 @@ fn traced_render_is_byte_identical_and_shaped() {
     assert!(
         trace.data.iter().any(|value| *value > 0.0),
         "energy telemetry is live"
+    );
+}
+
+#[test]
+fn sing_zero_limit_and_offset_law() {
+    let external: Vec<f32> = (0..48_000)
+        .map(|i| (0.4 * (2.0 * std::f64::consts::PI * 220.0 * i as f64 / SR_F64).sin()) as f32)
+        .collect();
+    // sing=0: byte-identical whether or not a sample is attached.
+    let patch = isolated(&[("sus", "1.5")]);
+    assert_eq!(
+        pluck_note(&patch, &[220.0], 0.5, 1.0),
+        pluck_note_sung(&patch, &[220.0], 0.5, 1.0, &external),
+        "sing=0 must not touch the render"
+    );
+    // sing_at offset equals pre-slicing the take by the same amount.
+    let sung = isolated(&[("sus", "1.5"), ("sing", "1")]);
+    let mut offset = sung.clone();
+    offset.insert("sing_at".to_string(), "0.25".to_string());
+    assert_eq!(
+        pluck_note_sung(&offset, &[220.0], 0.5, 1.0, &external),
+        pluck_note_sung(&sung, &[220.0], 0.5, 1.0, &external[12_000..]),
+        "sing_at is exactly a read offset"
+    );
+}
+
+#[test]
+fn sung_drive_is_selective_and_silent_safe() {
+    // sing=1 removes the pluck burst entirely: silence in, silence out.
+    let sung = isolated(&[("sing", "1"), ("sus", "2")]);
+    let zeros = vec![0.0_f32; 48_000];
+    let silent = pluck_note_sung(&sung, &[220.0], 0.5, 1.0, &zeros);
+    assert!(silent.iter().all(|sample| sample.abs() < 1e-9));
+
+    // Fretting works: driving AT the course frequency rings the post-
+    // drive tail far more than driving between courses.
+    let tone = |frequency: f64| -> Vec<f32> {
+        (0..24_000)
+            .map(|i| {
+                (0.3 * (2.0 * std::f64::consts::PI * frequency * i as f64 / SR_F64).sin()) as f32
+            })
+            .collect()
+    };
+    let on = pluck_note_sung(&sung, &[220.0], 0.5, 1.0, &tone(220.0));
+    let off = pluck_note_sung(&sung, &[220.0], 0.5, 1.0, &tone(303.0));
+    assert!(on.iter().chain(off.iter()).all(|sample| sample.is_finite()));
+    let tail = |y: &[f32]| rms(&y[(0.55 * SR_F64) as usize..(0.9 * SR_F64) as usize]);
+    assert!(
+        tail(&on) > tail(&off) * 4.0,
+        "resonant tail on={:.6} off={:.6}",
+        tail(&on),
+        tail(&off)
     );
 }

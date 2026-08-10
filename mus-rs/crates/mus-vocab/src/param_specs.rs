@@ -191,6 +191,8 @@ pub fn param_specs() -> Vec<ParamSpec> {
         ParamSpec { name: "curvature", layer: Extension, kind: Ratio { min: 0.0, max: 1.0, default: Some(0.28) }, doc: "state-energy deformation of weave coupling; scattering stays pointwise lossless" },
         ParamSpec { name: "courses", layer: Extension, kind: Count { min: 3, max: 24, default: Some(11) }, doc: "target total weave courses, played plus virtual" },
         ParamSpec { name: "dimension", layer: Extension, kind: Ratio { min: 0.55, max: 3.0, default: Some(1.35) }, doc: "Weyl-inspired spectral-dimension exponent spacing the virtual courses (a scaffold, not a measured graph spectrum)" },
+        ParamSpec { name: "sing", layer: Extension, kind: Ratio { min: 0.0, max: 1.0, default: Some(0.0) }, doc: "external excitation: the instrument's sample drives the strings through the shared bridge; 0 = pluck only, 1 = the sample alone" },
+        ParamSpec { name: "sing_at", layer: Extension, kind: Seconds { min: 0.0, max: 600.0, default: Some(0.0) }, doc: "offset into the sample the sing drive reads from — scrub the take across events" },
     ]
 }
 

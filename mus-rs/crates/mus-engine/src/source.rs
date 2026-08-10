@@ -11,7 +11,7 @@
 use std::collections::BTreeMap;
 
 use mus_dsp::pitch::{pitch_polyline, varispeed, vocode};
-use mus_dsp::pluck::{pluck_note, weave_note};
+use mus_dsp::pluck::{pluck_note, pluck_note_sung, weave_note, weave_note_sung};
 use mus_dsp::synth::{synth_note, Patch};
 use mus_notation::Note;
 
@@ -70,10 +70,36 @@ pub fn resolve(
         let freqs: Vec<f64> = ev.midis.iter().map(|&m| midi_to_hz(m, a4)).collect();
         // The pluck and weave voices are POST-PARITY (mus-x): no oracle
         // line to cite. Everything else about the event pipeline treats
-        // them exactly like the subtractive synth output.
-        match patch_map.get("synth").map(String::as_str) {
-            Some("pluck") => x = pluck_note(&patch_map, &freqs, slot_s, ratio),
-            Some("weave") => x = weave_note(&patch_map, &freqs, slot_s, ratio),
+        // them exactly like the subtractive synth output. `sing > 0`
+        // additionally drives the string network with the instrument's
+        // own sample through the shared bridge (cuerdas simpaticas);
+        // a missing sample= is a logged refusal, rendered un-sung.
+        let sing = patch_map
+            .get("sing")
+            .and_then(|value| value.parse::<f64>().ok())
+            .unwrap_or(0.0);
+        let sung_audio = if sing > 0.0 {
+            match voice.samples.first() {
+                Some(sample_ref) => Some(cache.load(&sample_ref.path)?),
+                None => {
+                    bad.push(format!(
+                        "b{bar} {abbr}: sing>0 needs a sample= on the instrument; rendering un-sung"
+                    ));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        match (patch_map.get("synth").map(String::as_str), &sung_audio) {
+            (Some("pluck"), Some(audio)) => {
+                x = pluck_note_sung(&patch_map, &freqs, slot_s, ratio, audio.as_slice())
+            }
+            (Some("weave"), Some(audio)) => {
+                x = weave_note_sung(&patch_map, &freqs, slot_s, ratio, audio.as_slice())
+            }
+            (Some("pluck"), None) => x = pluck_note(&patch_map, &freqs, slot_s, ratio),
+            (Some("weave"), None) => x = weave_note(&patch_map, &freqs, slot_s, ratio),
             _ => {
                 let patch = Patch::from(&patch_map);
                 x = synth_note(&patch, &freqs, slot_s, ratio);

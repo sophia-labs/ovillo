@@ -1,0 +1,31 @@
+# score: Canto del telar
+# summary: sing demo (cuerdas simpaticas) — one vowel take driving the weave lattice, then the sung guitar; bars re-fret the resonator under the voice
+# tempo: 60
+# time: 4/4
+# key: Em
+# bars: 8
+# reverb: 1.5
+# master: rms=-16
+
+# text @b1: the take never plucks anything. sing=1 means the voice IS the
+# text @b1: excitation: it enters every course through the shared bridge, and
+# text @b1: the chord written in the bar decides which strings answer.
+# text @b5: the same take, now sung INTO the guitar (sing=0.65): the pluck
+# text @b5: still articulates the fret change, the voice rings the strings
+# text @b5: and the six sympathetic opens underneath.
+
+# instruments:
+#   tl = telar (treble, synth=weave, sample=sing_take.wav, sing=1, sus=3.5, damp=0.25, pos=0.2, pick=0.4, body=0.6, courses=13, dimension=1.6, couple=0.09, chirality=0.6, orbit=0.2, orbit_depth=0.4, curvature=0.15, strum=0, send=0.25)
+#   gt = guitarra cantada (treble, synth=pluck, sample=sing_take.wav, sing=0.65, sus=3.0, damp=0.30, pos=0.16, pick=0.5, body=0.5, symp=0.35, strum=14, send=0.20)
+
+# section: la voz en el telar [1-4]
+bar 1: tl=<E3 B3 E4 G4>w[sing_at=0]  gt=-
+bar 2: tl=<C3 G3 E4 G4>w[sing_at=4]  gt=-
+bar 3: tl=<A2 E3 C4 A4>w[sing_at=8]  gt=-
+bar 4: tl=<B2 F#3 D#4 A4>w[sing_at=12]  gt=-
+
+# section: la voz en la guitarra [5-8]
+bar 5: tl=-  gt=<E2 B2 E3 G3 B3 E4>w[sing_at=0]
+bar 6: tl=-  gt=<C3 G3 C4 E4 G4>w[sing_at=4]
+bar 7: tl=-  gt=<A2 E3 A3 C4 E4>w[sing_at=8]
+bar 8: tl=-  gt=<B2 F#3 B3 D#4 F#4>w[sing_at=12]
