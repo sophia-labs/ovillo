@@ -902,10 +902,34 @@ mod tests {
 
     fn append_param_to_first_event(content: &str) -> String {
         let mut cursor = 0;
-        for token in content.split_whitespace() {
-            let start = content[cursor..].find(token).unwrap() + cursor;
-            cursor = start + token.len();
-            let value = token.split_once('=').map_or(token, |(_, value)| value);
+        while cursor < content.len() {
+            let Some(offset) = content[cursor..].find(|c: char| !c.is_whitespace()) else {
+                break;
+            };
+            let start = cursor + offset;
+            let mut end = content[start..]
+                .find(char::is_whitespace)
+                .map(|i| start + i)
+                .unwrap_or(content.len());
+            // A chord token contains spaces: `tl=<C3 G3 E4>w[...]`. Extend
+            // the span past the closing `>` through its duration/suffix so
+            // the probe param lands on the whole event, not a fragment.
+            let value_start = content[start..end]
+                .find('=')
+                .map(|i| start + i + 1)
+                .unwrap_or(start);
+            if content[value_start..].starts_with('<') {
+                if let Some(close) = content[value_start..].find('>') {
+                    let after = value_start + close;
+                    end = content[after..]
+                        .find(char::is_whitespace)
+                        .map(|i| after + i)
+                        .unwrap_or(content.len());
+                }
+            }
+            let token = &content[start..end];
+            cursor = end;
+            let value = &content[value_start.min(end)..end];
             if value.starts_with('{')
                 || value.starts_with('R')
                 || value.starts_with('r')
@@ -918,12 +942,7 @@ mod tests {
             } else {
                 format!("{token}[wc_probe=1]")
             };
-            return format!(
-                "{}{}{}",
-                &content[..start],
-                replacement,
-                &content[start + token.len()..]
-            );
+            return format!("{}{}{}", &content[..start], replacement, &content[end..]);
         }
         panic!("bar 2 has no sounding event: {content}");
     }
