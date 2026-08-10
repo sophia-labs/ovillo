@@ -28,7 +28,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::io::{BufRead, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use mus_dsp::pluck::StringNetworkVoice;
@@ -58,6 +58,19 @@ struct RenderedEntry {
     duration_seconds: f64,
 }
 
+/// A memoized `renderScene` result (PW7). Keyed by content
+/// (`sceneJson`+`root`), same discipline as [`RenderedEntry`]/[`Service::
+/// render_score`] — the render is a pure function of those two inputs.
+struct SceneRenderedEntry {
+    pcm_path: PathBuf,
+    frames: usize,
+    channels: u16,
+    sample_rate: u32,
+    render_digest: String,
+    render_ms: u128,
+    receipt: Value,
+}
+
 #[derive(Serialize)]
 struct ErrorBody {
     code: &'static str,
@@ -68,6 +81,7 @@ struct Service {
     docs: HashMap<String, LoadedDoc>,
     renders: HashMap<String, RenderedEntry>,
     probes: HashMap<String, Value>,
+    scene_renders: HashMap<String, SceneRenderedEntry>,
     tmp_dir: PathBuf,
 }
 
@@ -80,6 +94,7 @@ impl Service {
             docs: HashMap::new(),
             renders: HashMap::new(),
             probes: HashMap::new(),
+            scene_renders: HashMap::new(),
             tmp_dir,
         })
     }
@@ -99,10 +114,12 @@ impl Service {
             "renderScore" => self.render_score(params),
             "vocab" => Ok(crate::vocab_dump::dump()),
             "renderWeaveProbe" => self.render_weave_probe(params),
+            "renderScene" => self.render_scene(params),
             other => Err(ErrorBody {
                 code: "unknown-method",
                 message: format!(
-                    "no method {other:?} (protocol v0: ping, load, renderScore, vocab, renderWeaveProbe)"
+                    "no method {other:?} (protocol v0: ping, load, renderScore, vocab, \
+                     renderWeaveProbe, renderScene)"
                 ),
             }),
         }
@@ -329,6 +346,78 @@ impl Service {
             "badTokens": e.bad_tokens,
             "warnings": e.warnings,
             "durationSeconds": e.duration_seconds,
+        }))
+    }
+
+    /// `renderScene {sceneJson, root}` (PW7) → the spatial scene renderer,
+    /// memoized by content exactly like [`Service::render_score`]:
+    /// `sha256(sceneJson \0 root)` is the cache key, first call renders
+    /// and writes `<key>.f32`, later calls are instant cache hits. Same
+    /// PCM-envelope response shape as `renderScore` — `pcmPath`/`frames`/
+    /// `channels`/`sampleRate`/`layout`/`renderDigest`/`renderMs` — with
+    /// the spatial render receipt attached under `receipt` in place of
+    /// `renderScore`'s score-specific stats fields (event/skip counts
+    /// etc. have no scene-rendering analog). Stereo only, matching that
+    /// fixed shape (`channels`/`layout` are always 2 / `interleaved-
+    /// f32le`) — FOA is a CLI-only (`--foa`, to-file) output, not wired
+    /// through this method.
+    fn render_scene(&mut self, params: &Value) -> Result<Value, ErrorBody> {
+        let scene_json = params["sceneJson"].as_str().ok_or_else(|| ErrorBody {
+            code: "bad-request",
+            message: "renderScene: params.sceneJson (string) is required".into(),
+        })?;
+        let root = params["root"].as_str().ok_or_else(|| ErrorBody {
+            code: "bad-request",
+            message: "renderScene: params.root (string) is required".into(),
+        })?;
+
+        let key = sha256_bytes(format!("{scene_json}\u{0}{root}").as_bytes());
+        if !self.scene_renders.contains_key(&key) {
+            let scene: mus_dsp::scene::SpatialScene =
+                serde_json::from_str(scene_json).map_err(|e| ErrorBody {
+                    code: "bad-scene-json",
+                    message: e.to_string(),
+                })?;
+            let started = Instant::now();
+            let (interleaved, receipt) = mus_dsp::scene::render_stereo(&scene, Path::new(root))
+                .map_err(|e| ErrorBody {
+                    code: e.code(),
+                    message: e.to_string(),
+                })?;
+            let render_ms = started.elapsed().as_millis();
+
+            let pcm_path = self.tmp_dir.join(format!("{key}.f32"));
+            let mut bytes = Vec::with_capacity(interleaved.len() * 4);
+            for s in &interleaved {
+                bytes.extend_from_slice(&s.to_le_bytes());
+            }
+            let render_digest = sha256_bytes(&bytes);
+            std::fs::write(&pcm_path, &bytes).map_err(|e| ErrorBody {
+                code: "render-failed",
+                message: format!("write {}: {e}", pcm_path.display()),
+            })?;
+
+            let entry = SceneRenderedEntry {
+                frames: interleaved.len() / 2,
+                channels: 2,
+                sample_rate: receipt.sample_rate,
+                render_digest,
+                render_ms,
+                receipt: serde_json::to_value(&receipt).unwrap_or(Value::Null),
+                pcm_path,
+            };
+            self.scene_renders.insert(key.clone(), entry);
+        }
+        let e = &self.scene_renders[&key];
+        Ok(json!({
+            "pcmPath": e.pcm_path.to_string_lossy(),
+            "frames": e.frames,
+            "channels": e.channels,
+            "sampleRate": e.sample_rate,
+            "layout": "interleaved-f32le",
+            "renderDigest": e.render_digest,
+            "renderMs": e.render_ms,
+            "receipt": e.receipt,
         }))
     }
 }

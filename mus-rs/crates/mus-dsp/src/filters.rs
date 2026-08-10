@@ -490,6 +490,46 @@ pub fn sosfilt(sos: &[[f64; 6]], x: &[f32], zi: Option<&[[f64; 2]]>) -> (Vec<f32
     (y, state)
 }
 
+/// `f64`-native sibling of [`sosfilt`], for pipelines that keep audio at
+/// `float64` throughout (as `spatial_render.py`'s object/room path does —
+/// `sf.read(..., dtype="float64")` never narrows to `float32` until the
+/// final WAV write) rather than `mus_audio.py`'s `float32` engine. Same
+/// direct-form-II-transposed recursion, same per-section state shape;
+/// only the sample type avoids the f32 truncation on every store that
+/// [`sosfilt`] does on its last line.
+pub fn sosfilt_f64(
+    sos: &[[f64; 6]],
+    x: &[f64],
+    zi: Option<&[[f64; 2]]>,
+) -> (Vec<f64>, Vec<[f64; 2]>) {
+    let n_sections = sos.len();
+    let mut state: Vec<[f64; 2]> = match zi {
+        Some(z) => {
+            debug_assert_eq!(
+                z.len(),
+                n_sections,
+                "sosfilt_f64: zi shape must match sos sections"
+            );
+            z.to_vec()
+        }
+        None => vec![[0.0; 2]; n_sections],
+    };
+
+    let mut y = Vec::with_capacity(x.len());
+    for &xn in x {
+        let mut xc = xn;
+        for (s, row) in sos.iter().enumerate() {
+            let [b0, b1, b2, _a0, a1, a2] = *row;
+            let x_new = b0 * xc + state[s][0];
+            state[s][0] = b1 * xc - a1 * x_new + state[s][1];
+            state[s][1] = b2 * xc - a2 * x_new;
+            xc = x_new;
+        }
+        y.push(xc);
+    }
+    (y, state)
+}
+
 /// `scipy.signal.sosfilt_zi(sos)`: steady-state initial conditions for the
 /// step response, per section, with the cumulative DC-gain scale factor
 /// (`H(1) = sum(b)/sum(a)`) carried across sections.

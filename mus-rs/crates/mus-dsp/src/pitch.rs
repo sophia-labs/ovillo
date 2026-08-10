@@ -36,7 +36,7 @@ const HOP: usize = 512;
 /// call this on values whose fractional part is essentially never exactly
 /// 0.5 (irrational rates) — but this matches the oracle's actual rounding
 /// rule rather than assuming the tie case never bites.
-fn py_round(x: f64) -> f64 {
+pub(crate) fn py_round(x: f64) -> f64 {
     let floor = x.floor();
     let diff = x - floor;
     if diff < 0.5 {
@@ -124,7 +124,7 @@ fn fix_length(x: &[f32], size: usize) -> Vec<f32> {
 /// `process` + a flushing `process(None, ..)` is libsoxr's own
 /// `soxr_oneshot()` recipe (create, process, flush, delete) — the whole
 /// buffer at once, matching librosa's non-streaming use.
-fn soxr_resample(x: &[f32], in_rate: f64, out_rate: f64) -> Vec<f32> {
+pub(crate) fn soxr_resample(x: &[f32], in_rate: f64, out_rate: f64) -> Vec<f32> {
     if x.is_empty() {
         return Vec::new();
     }
@@ -158,7 +158,13 @@ fn soxr_resample(x: &[f32], in_rate: f64, out_rate: f64) -> Vec<f32> {
 /// `librosa.resample(y, orig_sr=.., target_sr=.., res_type="soxr_hq")`:
 /// soxr HQ, then hard-trimmed/zero-padded to `ceil(len(y) * ratio)` —
 /// `fix=True` is librosa's default and `mus_audio.py` never overrides it.
-fn resample_soxr(x: &[f32], orig_sr: f64, target_sr: f64) -> Vec<f32> {
+///
+/// `pub(crate)`, not private: `scene.rs` (PW7) calls this directly for
+/// the scene renderer's own resample step (`_load_object_audio`'s caller
+/// resamples to the *scene's* sample rate, not this crate's fixed [`SR`]
+/// — see [`load_decode_native`]), rather than duplicating the soxr HQ
+/// setup a second time.
+pub(crate) fn resample_soxr(x: &[f32], orig_sr: f64, target_sr: f64) -> Vec<f32> {
     if orig_sr == target_sr {
         return x.to_vec();
     }
@@ -701,7 +707,12 @@ fn interleaved_to_mono<T: Copy>(
 /// never hits either the resample branch or the stereo branch, so both
 /// are covered by this module's synthetic-wav unit tests instead of a
 /// fixture.
-pub fn load_decode<P: AsRef<Path>>(path: P) -> hound::Result<Vec<f32>> {
+/// Shared decode step behind [`load_decode`] and [`load_decode_native`]:
+/// PCM_16 or float32 mono-averaged samples at the file's own sample rate
+/// — no resampling. Split out so the scene renderer (PW7) can reuse the
+/// exact same format dispatch/mono-average without a second, divergent
+/// implementation of it.
+fn decode_mono<P: AsRef<Path>>(path: P) -> hound::Result<(Vec<f32>, u32)> {
     let mut reader = hound::WavReader::open(path)?;
     let spec = reader.spec();
     let channels = spec.channels as usize;
@@ -717,10 +728,25 @@ pub fn load_decode<P: AsRef<Path>>(path: P) -> hound::Result<Vec<f32>> {
         }
         _ => return Err(hound::Error::Unsupported),
     };
+    Ok((mono, spec.sample_rate))
+}
 
-    if spec.sample_rate as usize == SR {
+pub fn load_decode<P: AsRef<Path>>(path: P) -> hound::Result<Vec<f32>> {
+    let (mono, sample_rate) = decode_mono(path)?;
+    if sample_rate as usize == SR {
         Ok(mono)
     } else {
-        Ok(resample_soxr(&mono, spec.sample_rate as f64, SR_F64))
+        Ok(resample_soxr(&mono, sample_rate as f64, SR_F64))
     }
+}
+
+/// `_load_object_audio` (`spatial_render.py`): decode to mono at the
+/// file's own native sample rate, with **no** resampling — the scene
+/// renderer (PW7's `scene.rs`) only resamples when a stem's rate differs
+/// from the *scene's* declared rate (via [`resample_soxr`], called by the
+/// caller), unlike [`load_decode`] above, which always targets this
+/// crate's fixed [`SR`]. Same PCM_16/float32 decode either way — see
+/// [`decode_mono`].
+pub fn load_decode_native<P: AsRef<Path>>(path: P) -> hound::Result<(Vec<f32>, u32)> {
+    decode_mono(path)
 }

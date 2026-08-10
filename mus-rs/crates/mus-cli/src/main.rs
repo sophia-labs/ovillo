@@ -8,7 +8,7 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 /// `mus.audio.render-receipt.v1`: peak/RMS/digests (the original WF1
@@ -143,6 +143,51 @@ fn run() -> Result<(), String> {
         }
         return Ok(());
     }
+    if command == "scene-render" {
+        let scene_path = PathBuf::from(args.next().ok_or_else(usage)?);
+        let mut root: Option<PathBuf> = None;
+        let mut output: Option<PathBuf> = None;
+        let mut foa = false;
+        let mut compact = false;
+        while let Some(arg) = args.next() {
+            match arg.as_str() {
+                "--root" => root = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
+                "-o" => output = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
+                "--foa" => foa = true,
+                "--json" => compact = true,
+                "--help" | "-h" => {
+                    println!("{}", usage());
+                    return Ok(());
+                }
+                _ => return Err(format!("unknown argument {arg}\n{}", usage())),
+            }
+        }
+        let root =
+            root.ok_or_else(|| format!("scene-render requires --root <dir>\n{}", usage()))?;
+        let output = output.unwrap_or_else(|| scene_path.with_extension("wav"));
+        return match run_scene_render(&scene_path, &root, &output, foa) {
+            Ok(receipt) => {
+                let text = if compact {
+                    serde_json::to_string(&receipt)
+                } else {
+                    serde_json::to_string_pretty(&receipt)
+                }
+                .map_err(|e| e.to_string())?;
+                println!("{text}");
+                Ok(())
+            }
+            Err(message) => {
+                // Same "refusals as structured errors" contract as `render`
+                // (see below): a JSON object on stdout either way.
+                let error = serde_json::json!({
+                    "schema": "mus.spatial-render-error.v1",
+                    "error": message,
+                });
+                println!("{error}");
+                Err(message)
+            }
+        };
+    }
     if command != "render" {
         return Err(usage());
     }
@@ -226,6 +271,32 @@ fn run_render(
     ))
 }
 
+/// `mus scene-render <scene.json> --root <dir> [-o out.wav] [--foa]`: the
+/// spatial scene renderer (PW7). Prints `mus_dsp::scene::RenderReceipt`
+/// as JSON (matching `render`'s always-JSON-on-stdout, refusal-or-not,
+/// contract above) and writes the rendered PCM as a `FLOAT`-subtype WAV
+/// — stereo equal-power-plus-diffuse by default, 4-channel ACN/SN3D FOA
+/// under `--foa`.
+fn run_scene_render(
+    scene_path: &Path,
+    root: &Path,
+    output: &Path,
+    foa: bool,
+) -> Result<mus_dsp::scene::RenderReceipt, String> {
+    let scene = mus_dsp::scene::SpatialScene::read(scene_path).map_err(|e| e.to_string())?;
+    let (interleaved, channels, receipt) = if foa {
+        let (pcm, receipt) = mus_dsp::scene::render_foa(&scene, root).map_err(|e| e.to_string())?;
+        (pcm, 4u16, receipt)
+    } else {
+        let (pcm, receipt) =
+            mus_dsp::scene::render_stereo(&scene, root).map_err(|e| e.to_string())?;
+        (pcm, 2u16, receipt)
+    };
+    mus_dsp::scene::write_wav_f32(&interleaved, channels, scene.sample_rate, output)
+        .map_err(|e| e.to_string())?;
+    Ok(receipt)
+}
+
 fn head_selection_of(graph: &mus_graph::ScoreGraph) -> serde_json::Value {
     if graph.contested_lineages().is_empty() {
         return serde_json::Value::String("sole".into());
@@ -245,5 +316,5 @@ fn head_selection_of(graph: &mus_graph::ScoreGraph) -> serde_json::Value {
 }
 
 fn usage() -> String {
-    "usage:\n  mus check <score.mus> [--base DIR] [--json]\n  mus render <score.mus> [--base DIR] [-o <out.wav>] [--json]\n\nAtril swap:\n  MUS_CHECK_CMD=\"/Users/vera/dev/sophia/mus/mus-rs/target/release/mus check\"".into()
+    "usage:\n  mus check <score.mus> [--base DIR] [--json]\n  mus render <score.mus> [--base DIR] [-o <out.wav>] [--json]\n  mus scene-render <scene.json> --root <dir> [-o <out.wav>] [--foa] [--json]\n\nAtril swap:\n  MUS_CHECK_CMD=\"/Users/vera/dev/sophia/mus/mus-rs/target/release/mus check\"".into()
 }
