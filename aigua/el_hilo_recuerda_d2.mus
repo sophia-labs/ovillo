@@ -1,0 +1,39 @@
+# score: El hilo recuerda (draft 2)
+# summary: draft 2 of the TTS triptych — the chant now sings OVER its lattice halo instead of drowning in it: dry voice track in parallel, resonator tamed (short ring, dark damp, lpf), words intelligible
+# tempo: 70
+# time: 4/4
+# key: Em
+# bars: 10
+# reverb: 1.6
+# master: rms=-16
+
+# text @b1: draft 1's lesson: sing=1 is ALL wet — the direct voice never
+# text @b1: reaches the mix, and sus=4 let the lattice accumulate into wash.
+# text @b1: draft 2: vd carries the words dry (off= scrubs the take per bar);
+# text @b1: hi is the halo behind them — sus=1.6, damp=0.45, lpf, fewer
+# text @b1: courses, quieter send. the halo breathes with the phrase now.
+# text @b5: bars 5-10 unchanged from draft 1 — those sections worked.
+
+# instruments:
+#   vd = la voz directa (treble, sample=tts_hilo_canto.wav, mode=varispeed, gain=1, send=0.10)
+#   hi = el telar detras (treble, synth=weave, sample=tts_hilo_canto.wav, sing=1, sus=1.6, damp=0.45, pos=0.2, pick=0.4, body=0.45, courses=11, dimension=1.6, couple=0.07, chirality=0.6, orbit=0.25, orbit_depth=0.35, curvature=0.2, strum=0, gain=-5, send=0.18)
+#   su = el susurro en la guitarra (treble, synth=pluck, sample=tts_hilo_susurro.wav, sing=0.7, sus=3.2, damp=0.30, pos=0.16, pick=0.5, body=0.5, symp=0.4, strum=12, send=0.22)
+#   cv = la voz picada (treble, sample=tts_hilo_habla.wav, mode=varispeed, gain=-3, send=0.18)
+
+# section: el canto sobre el telar [1-4]
+bar 1: vd=Xw[atk=0.02,rel=0.08]  hi=<E3 B3 E4 G4>w[sing_at=0,lpf=7000]  su=-  cv=-
+bar 2: vd=Xw[off=3430,atk=0.02,rel=0.08]  hi=<C3 G3 E4 G4>w[sing_at=3.4,lpf=7000]  su=-  cv=-
+bar 3: vd=Xw[off=6860,atk=0.02,rel=0.08]  hi=<A2 E3 C4 A4>w[sing_at=6.9,lpf=7000]  su=-  cv=-
+bar 4: vd=Xw[off=10290,atk=0.02,rel=0.08]  hi=<B2 F#3 D#4 A4>w[sing_at=10.3,lpf=7000]  su=-  cv=-
+
+# section: la voz picada [5-6]
+bar 5: vd=-  hi=-  su=-  cv=Xq[chop=8] Xq[st=7,chop=8] Xe[st=-5] Xe[st=12,stut=3] Xh[gwarble=6,glow=7]
+bar 6: vd=-  hi=-  su=-  cv=Xh[gharm=0+3+7+12,glow=5] Xq[st=-12,chop=16] Xq[st=5,stut=4]
+
+# section: el susurro en la guitarra [7-8]
+bar 7: vd=-  hi=-  su=<E2 B2 E3 G3 B3 E4>w[sing_at=0]  cv=-
+bar 8: vd=-  hi=-  su=<A2 E3 A3 C4 E4>w[sing_at=3.4]  cv=-
+
+# section: todos los hilos [9-10]
+bar 9: vd=Xw[off=13710,atk=0.02,rel=0.08]  hi=<E3 B3 E4 G4 B4>w[sing_at=13.7,lpf=6500]  su=<E2 B2 E3 G3 B3 E4>w[sing_at=6.9]  cv=Xh[gharm=0+4+7,glow=6] Xh[st=-7,chop=8]
+bar 10: vd=Xw[off=17140,atk=0.02,rel=0.3]  hi=<E2 B2 E3 G3 B3 E4>w[sing_at=17.1,sus=4,lpf=6000]  su=-  cv=-
