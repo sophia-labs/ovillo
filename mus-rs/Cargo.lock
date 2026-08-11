@@ -382,6 +382,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mus-gesture"
+version = "0.1.0"
+dependencies = [
+ "mus-watsn",
+ "np-rand",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "mus-graph"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,27 @@
+[package]
+name = "mus-gesture"
+version = "0.1.0"
+description = "Exact graph-constrained inverse rotation compiler: SO(n) targets to authored-edge Givens schedules with thermodynamic timing and replayable receipts"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Consensus rule 1: mus-gesture emits `mus_watsn::OperatorProgram` and reuses
+# its Givens kernel and work ledger. It never defines a second executor.
+mus-watsn = { path = "../mus-watsn" }
+# Receipts are serde JSON with a deterministic field order (handoff Commit D).
+# `float_roundtrip` is load-bearing, not decorative: serde_json's default
+# deserializer is a fast approximate float parser that can land one ulp away
+# from the value it was handed, which would make a receipt fail to replay
+# after a round trip through JSON. With the feature on, parsing is exact.
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+# Content digests for graph / target / tree / friction metric, matching the
+# digest convention already used by mus-oplog and mus-vocab.
+sha2 = "0.10"
+
+[dev-dependencies]
+# NumPy-stream-compatible gaussians: deterministic Haar SO(n) sampling for the
+# randomized property gates. Test-only; the library itself pulls in no RNG.
+np-rand = { path = "../np-rand" }
