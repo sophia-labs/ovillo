@@ -57,6 +57,8 @@ pub const SYNTH_KEYS: &[&str] = &[
     "dimension",
     "sing",
     "sing_at",
+    "bow",
+    "bow_speed",
 ];
 
 #[derive(Debug, Clone)]

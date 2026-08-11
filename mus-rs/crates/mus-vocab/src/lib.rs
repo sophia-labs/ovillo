@@ -105,7 +105,7 @@ pub fn header_kind(key: &str) -> Option<HeaderKind> {
 pub fn automation_class(name: &str) -> &'static str {
     match name {
         "couple" | "chirality" | "orbit" | "orbit_depth" | "curvature" | "body" | "buzz"
-        | "sing" | "sus" | "damp" => "block",
+        | "sing" | "bow" | "bow_speed" | "sus" | "damp" => "block",
         _ => "static",
     }
 }

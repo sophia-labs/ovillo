@@ -39,6 +39,17 @@
 //! contractive loop and body losses used here, the unforced network is
 //! non-expansive. This is the module's mathematical safety contract and is
 //! tested directly below and in `tests/pluck_invariants.rs`.
+//!
+//! ## Bow
+//!
+//! `bow` breaks that contract on purpose and says so. A friction port at
+//! the excitation point reads the loop value as a string-velocity proxy
+//! and injects a force from a falling friction curve — negative
+//! resistance, an energy SOURCE. Nothing above bounds it. What bounds it
+//! is measurement over a declared corner grid, in the invariants file,
+//! pending the round-3 nonlinear source-port work contract. Where the v1
+//! curve does not produce a tone, the region is declared rather than
+//! hidden: see [`BOW_GAIN`].
 
 use std::collections::BTreeMap;
 use std::f64::consts::{LN_10, PI};
@@ -114,6 +125,11 @@ pub struct PluckPatch {
     pub sing: f64,
     /// Seconds into the sample the drive starts reading (`sing_at`).
     pub sing_at: f64,
+    /// Bow pressure (`bow`): 0 = no bow (hard zero limit), 1 = full weight.
+    pub bow: f64,
+    /// Bow velocity (`bow_speed`), 0..1 mapped to [`BOW_VELOCITY_MIN`]
+    /// ..[`BOW_VELOCITY_MAX`] in wave units.
+    pub bow_speed: f64,
 }
 
 impl Default for PluckPatch {
@@ -144,6 +160,8 @@ impl Default for PluckPatch {
             spectral_dimension: 1.35,
             sing: 0.0,
             sing_at: 0.0,
+            bow: 0.0,
+            bow_speed: 0.5,
         }
     }
 }
@@ -189,6 +207,8 @@ impl From<&BTreeMap<String, String>> for PluckPatch {
             spectral_dimension: parsed(map, "dimension", d.spectral_dimension).clamp(0.55, 3.0),
             sing: parsed(map, "sing", d.sing).clamp(0.0, 1.0),
             sing_at: parsed(map, "sing_at", d.sing_at).clamp(0.0, 600.0),
+            bow: parsed(map, "bow", d.bow).clamp(0.0, 1.0),
+            bow_speed: parsed(map, "bow_speed", d.bow_speed).clamp(0.0, 1.0),
         }
     }
 }
@@ -197,6 +217,92 @@ impl From<&BTreeMap<String, String>> for PluckPatch {
 pub enum StringNetworkMode {
     Guitar,
     Weave,
+}
+
+/// Static friction coefficient of the bow-hair/string contact (PW10 §B).
+pub const BOW_MU_S: f64 = 0.8;
+/// Dynamic (fully slipping) friction coefficient.
+pub const BOW_MU_D: f64 = 0.3;
+/// Characteristic slip velocity of the hyperbolic friction curve, in the
+/// same wave units as the loop value.
+pub const BOW_V0: f64 = 0.1;
+/// Bow velocity at `bow_speed = 0`, in wave units.
+pub const BOW_VELOCITY_MIN: f64 = 0.05;
+/// Bow velocity at `bow_speed = 1`, in wave units.
+pub const BOW_VELOCITY_MAX: f64 = 0.4;
+/// Force scale converting the dimensionless friction coefficient into the
+/// loop's wave units, at `bow = 1`.
+///
+/// Not a spec constant — the spec fixes `mu_s`/`mu_d`/`v0` and leaves the
+/// gain to be tuned against the invariants, so here is the measurement.
+/// What sets it is a two-sided trade, not the boundedness bound: the
+/// friction only sustains once its small-signal slope beats the loop loss
+/// (`BOW_GAIN * bow * (mu_s - mu_d) * v0 / (v0 + v_bow)^2 > 3 ln 10 /
+/// (sus * f0)`), which is a minimum-bow-force curve rising with bow speed
+/// — Schelleng's diagram, arrived at rather than imposed. Raising the gain
+/// widens the speaking region and coarsens the tone. Measured on a 196 Hz
+/// note: "speaks" = late-window RMS at least 100x the same note un-bowed;
+/// "tonality" = harmonic / between-harmonic power of a held note at
+/// `bow = 0.7, bow_speed = 0.5, sus = 2.5` (a plucked onset measures
+/// 4.4e3); "corner peak" = worst |sample| over the bowed corner grid.
+///
+/// | gain | speaking region                    | tonality | corner peak |
+/// |------|------------------------------------|----------|-------------|
+/// | 0.06 | bow >= 0.4, only to bow_speed 0.2  | 2.0e6    | 1.70        |
+/// | 0.10 | bow >= 0.4 to 0.5; bow >= 0.6 all  | 9.1e5    | 1.73        |
+/// | 0.15 | bow >= 0.4, every bow_speed        | 2.9e5    | 1.78        |
+/// | 0.25 | bow >= 0.2, only to bow_speed 0.8  | 7.3e4    | 1.80        |
+///
+/// 0.15 is the smallest gain whose speaking region covers the whole
+/// `bow_speed` range at moderate pressure, while a held note still
+/// measures ~66x more harmonic than a plucked onset. The boundedness bound
+/// is nowhere near binding at any of these: the corner grid's worst peak,
+/// 2.13, belongs to the UN-bowed pluck.
+///
+/// DECLARED DOMAIN — both edges measured at this gain and refused rather
+/// than papered over (`tests/pluck_invariants.rs`):
+/// - below the minimum force (e.g. `bow = 0.1` at `bow_speed >= 0.2`) the
+///   string does not speak; the bow only slows the pluck's decay. Real
+///   behaviour, and the reason no sustain law is claimed there.
+/// - `bow_speed = 0` (0.05 wave units) with `bow >= 0.6` collapses to
+///   noise: tonality 0.69, against 3.2e4 for the same pressure at
+///   `bow_speed = 0.5`. Too much pressure for the speed is a crushed tone
+///   on a real instrument too, but what v1 produces there is broadband
+///   chatter rather than a periodic crunch, so that corner is DECLARED
+///   UNUSABLE, not offered as a timbre.
+pub const BOW_GAIN: f64 = 0.15;
+
+/// One-pole coefficient of the per-course DC blocker on the injected bow
+/// force (~5 Hz corner at 48 kHz).
+///
+/// DECLARED DEVIATION from PW10 §B's mechanism v1, with its reason. The
+/// friction characteristic is a relay: Coulomb friction does not vanish as
+/// `dv -> 0`, it jumps between `+-mu_s`. Its static part is therefore a
+/// constant force, and a single-delay-line loop has a comb peak at 0 Hz
+/// (a real string, with its inverting terminations, does not — that DC
+/// mode is an artifact of the discrete loop, not physics). Injecting the
+/// raw force pumps that artifact: the loop DC climbs to `v_bow`, which is
+/// exactly the friction discontinuity, and the port drops into a sliding
+/// mode that pins the course instead of letting it ring. Measured, at
+/// `bow = 0.7, bow_speed = 0.5, sus = 2.5`, 196 Hz: raw force sustains
+/// 0.0021 RMS at tonality 1.16 (a hiss — a pluck onset is 4.4e3); the same
+/// patch with the force DC-blocked sustains 0.031 RMS at tonality 2.0e6
+/// (a tone). The blocker removes only what the loop should not have been
+/// able to store; it is below every played fundamental and does not touch
+/// the friction's audio-band behaviour.
+pub const BOW_DC_POLE: f64 = 6.5e-4;
+
+/// Hyperbolic (Coulomb + Stribeck) friction characteristic.
+///
+/// `mu(dv) = sign(dv) * (mu_d + (mu_s - mu_d) / (1 + |dv| / v0))` — full
+/// static grip at vanishing relative velocity, falling to the dynamic
+/// coefficient as the string slips past the hair. The falling branch has
+/// negative slope, which is exactly the negative resistance that makes a
+/// bowed string sustain; it is also why the bow is an energy SOURCE and
+/// not covered by the module's rotation/passivity argument.
+fn bow_friction(relative_velocity: f64) -> f64 {
+    relative_velocity.signum()
+        * (BOW_MU_D + (BOW_MU_S - BOW_MU_D) / (1.0 + relative_velocity.abs() / BOW_V0))
 }
 
 /// Content-keyed seed (doctrine A7): no global random stream and no event
@@ -417,6 +523,8 @@ struct DelayString {
     loop_gain: f64,
     energy_smooth: f64,
     contact_memory: f64,
+    /// Slow mean of the injected bow force (see [`BOW_DC_POLE`]).
+    bow_dc: f64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -476,6 +584,7 @@ impl DelayString {
             loop_gain: 0.999,
             energy_smooth: 0.0,
             contact_memory: 0.0,
+            bow_dc: 0.0,
         }
     }
 
@@ -818,8 +927,14 @@ impl StringNetworkVoice {
         let strum_samples = (patch.strum_ms.abs() * SR_F64 / 1000.0).round() as usize;
         let pitch_count = frequencies_hz.len().max(1);
         // The pluck articulates less as the external drive takes over;
-        // at sing = 1 the sample is the only excitation.
-        let base_level = 0.82 / (pitch_count as f64).sqrt() * (1.0 - patch.sing);
+        // at sing = 1 the sample is the only excitation. The bow displaces
+        // the burst the same way (a bowed string is not plucked first),
+        // and the two sustained excitations compose by multiplying what
+        // each leaves of the burst — no hidden priority. This scale is
+        // read once at construction: automating `bow` mid-note moves the
+        // friction drive, never the burst that already happened.
+        let base_level =
+            0.82 / (pitch_count as f64).sqrt() * (1.0 - patch.sing) * (1.0 - patch.bow);
         let mut starts = vec![0_usize; frequencies_hz.len()];
         if patch.strum_ms >= 0.0 {
             for (order, start) in starts.iter_mut().enumerate() {
@@ -1073,10 +1188,48 @@ impl StringNetworkVoice {
             }
             None => 0.0,
         };
+        // The bow bites only while the note is held (the same drive window
+        // `sing` reads through) and only on ACTIVE courses: sympathetic
+        // open strings and Weave's virtual courses are not under the hair,
+        // they answer through the bridge.
+        let bowing = self.patch.bow > 1e-12 && self.sample_index < self.drive_samples;
+        let bow_velocity = BOW_VELOCITY_MIN
+            + (BOW_VELOCITY_MAX - BOW_VELOCITY_MIN) * self.patch.bow_speed.clamp(0.0, 1.0);
+
         let mut contact_output = 0.0;
         for index in 0..self.strings.len() {
-            let excitation = self.strings[index].excitation_at(self.sample_index)
+            let mut excitation = self.strings[index].excitation_at(self.sample_index)
                 + drive * self.strings[index].coupling_scale;
+            if bowing && index < self.active_count {
+                // v1 coupling: explicit and ONE-STEP. The loop value that
+                // has just arrived at the excitation point stands in for
+                // the string velocity under the hair, the friction force
+                // it implies is injected at the same point the pluck burst
+                // enters, and nothing is iterated. The physical model
+                // solves force and velocity simultaneously (the friction
+                // curve intersected with the string's wave impedance line,
+                // McIntyre-Woodhouse); iterating this to convergence — or
+                // better, the closed-form intersection — is the upgrade.
+                //
+                // HONESTY (PW10 §B, house law): the bow is an energy
+                // SOURCE. The falling friction branch is negative
+                // resistance; it PUMPS the network. The module's rotation
+                // argument bounds the unforced network only and says
+                // nothing here, so no passivity is claimed for any patch
+                // with bow > 0. What is claimed is empirical: measured
+                // boundedness over a declared corner grid, below. The
+                // round-3 ask this defers to is the nonlinear source-port
+                // work contract — a ledger that accounts the bow's
+                // injected work per sample instead of measuring its peak.
+                let relative_velocity = bow_velocity - self.waves[index];
+                let force = BOW_GAIN
+                    * self.patch.bow
+                    * bow_friction(relative_velocity)
+                    * self.strings[index].coupling_scale;
+                let string = &mut self.strings[index];
+                string.bow_dc += BOW_DC_POLE * (force - string.bow_dc);
+                excitation += force - string.bow_dc;
+            }
             let value = self.waves[index] + excitation;
             let (feedback, contact) = self.strings[index].apply_contact(value, self.patch.buzz);
             self.contact[index] = contact;
@@ -1153,6 +1306,12 @@ impl StringNetworkVoice {
                         self.patch.sing * 0.9 / (self.strings.len().max(1) as f64).sqrt();
                 }
             }
+            // Pressure and speed are re-read every sample, so a crescendo
+            // is a trajectory of `Bow` frames. Retargeting cannot restore
+            // the pluck burst: `1 - bow` was applied to the excitation
+            // table at construction (documented there).
+            ControlTarget::Bow => self.patch.bow = value.clamp(0.0, 1.0),
+            ControlTarget::BowSpeed => self.patch.bow_speed = value.clamp(0.0, 1.0),
             ControlTarget::Sus => {
                 // Decay retargets from here on; buffer length and onset
                 // tension were sized at construction and stay put.
@@ -1259,6 +1418,8 @@ pub enum ControlTarget {
     Body,
     Buzz,
     Sing,
+    Bow,
+    BowSpeed,
     Sus,
     Damp,
 }
@@ -1274,6 +1435,8 @@ impl ControlTarget {
             "body" => Self::Body,
             "buzz" => Self::Buzz,
             "sing" => Self::Sing,
+            "bow" => Self::Bow,
+            "bow_speed" => Self::BowSpeed,
             "sus" => Self::Sus,
             "damp" => Self::Damp,
             _ => return None,

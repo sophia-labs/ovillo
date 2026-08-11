@@ -4,6 +4,12 @@
 //! tests assert the promises that matter: deterministic identity, tuning,
 //! T60, spatial pluck physics, dispersion, tension relaxation, physical
 //! bends, block/stream parity, audible topology, and boundedness.
+//!
+//! The bow (PW10 §B) is the one excitation that is an energy SOURCE, so
+//! its laws are stated differently: sustain, release and boundedness are
+//! measured, the numbers are recorded in the assertions, and the region
+//! where the v1 friction curve does NOT hold is asserted as a refusal
+//! rather than quietly avoided.
 
 use std::collections::BTreeMap;
 
@@ -96,6 +102,30 @@ fn goertzel(values: &[f32], frequency: f64) -> f64 {
         state_1 = state_0;
     }
     state_1 * state_1 + state_2 * state_2 - coefficient * state_1 * state_2
+}
+
+/// How periodic a window is at `f0`: power summed over the first ten
+/// harmonics against power summed at the ten half-way points between them.
+/// A plucked onset measures ~4.4e3; broadband chatter measures ~1.
+fn tonality(values: &[f32], f0: f64) -> f64 {
+    let harmonic: f64 = (1..=10).map(|k| goertzel(values, k as f64 * f0)).sum();
+    let between: f64 = (1..=10)
+        .map(|k| goertzel(values, (k as f64 + 0.5) * f0))
+        .sum::<f64>()
+        .max(1e-30);
+    harmonic / between
+}
+
+fn peak(values: &[f32]) -> f32 {
+    values
+        .iter()
+        .fold(0.0_f32, |maximum, value| maximum.max(value.abs()))
+}
+
+fn window(values: &[f32], start_s: f64, end_s: f64) -> &[f32] {
+    let start = ((start_s * SR_F64) as usize).min(values.len());
+    let end = ((end_s * SR_F64) as usize).min(values.len());
+    &values[start..end.max(start)]
 }
 
 fn spectral_peak(values: &[f32], center_hz: f64, fractional_span: f64) -> f64 {
@@ -556,6 +586,271 @@ fn trajectory_laws() {
     let (again, _) = StringNetworkVoice::weave(&patch, &[110.0, 165.0], 0.6, 1.0)
         .render_traced_with(256, &[frame]);
     assert_eq!(framed, again);
+}
+
+// ---------------------------------------------------------------- the bow
+//
+// PW10 §B. The bow is an energy SOURCE: none of the rotation/passivity
+// arguments above reach it, and nothing below claims they do. These laws
+// are empirical, and the domain they hold on is declared.
+
+#[test]
+fn bow_zero_limit_is_byte_identical() {
+    // Hard zero limit: with bow = 0 the friction port must not exist, at
+    // any bow_speed, in either voice. Byte identity, not a tolerance.
+    let held = &[("sus", "1.5")];
+    let reference = pluck_note(&isolated(held), &[196.0], 0.6, 1.0);
+    for (key, value) in [
+        ("bow", "0"),
+        ("bow_speed", "0"),
+        ("bow_speed", "0.5"),
+        ("bow_speed", "1"),
+    ] {
+        let mut patch = isolated(held);
+        patch.insert(key.to_string(), value.to_string());
+        assert_eq!(
+            reference,
+            pluck_note(&patch, &[196.0], 0.6, 1.0),
+            "{key}={value} must be inert while bow = 0"
+        );
+    }
+    let woven = params(&[
+        ("synth", "weave"),
+        ("sus", "1.2"),
+        ("courses", "9"),
+        ("couple", "0.2"),
+        ("body", "0.4"),
+    ]);
+    let mut bowless = woven.clone();
+    bowless.insert("bow".to_string(), "0".to_string());
+    bowless.insert("bow_speed".to_string(), "0.9".to_string());
+    assert_eq!(
+        weave_note(&woven, &[110.0, 165.0], 0.5, 1.0),
+        weave_note(&bowless, &[110.0, 165.0], 0.5, 1.0),
+        "the weave voice keeps the same zero limit"
+    );
+}
+
+#[test]
+fn bow_holds_a_tone_the_pluck_has_already_lost() {
+    // 196 Hz, T60 = 1.2 s, a 2 s slot: by 1.6 s the plucked string is 60 dB
+    // down and still falling, while the bow is still driving.
+    let held = &[("sus", "1.2")];
+    let dry = pluck_note(&isolated(held), &[196.0], 2.0, 1.0);
+    let bowed = pluck_note(
+        &isolated(&[("sus", "1.2"), ("bow", "0.6"), ("bow_speed", "0.5")]),
+        &[196.0],
+        2.0,
+        1.0,
+    );
+    let late_dry = rms(window(&dry, 1.6, 1.95));
+    let late_bowed = rms(window(&bowed, 1.6, 1.95));
+    let early_bowed = rms(window(&bowed, 0.6, 0.95));
+    let factor = late_bowed / late_dry.max(1e-12);
+    println!(
+        "bow sustain: late bowed={late_bowed:.6}, late dry={late_dry:.6}, \
+         factor={factor:.1}, early bowed={early_bowed:.6}"
+    );
+    // MEASURED: dry 5.02e-6, bowed 2.60e-2 — a factor of 5179.
+    assert!(
+        factor > 1_000.0,
+        "bowed/un-bowed late RMS factor {factor:.1} (measured 5179)"
+    );
+    // Held, not merely louder: the late window is no quieter than the
+    // early one (measured late/early = 1.00 — a flat sustain).
+    assert!(
+        late_bowed > early_bowed * 0.7,
+        "late={late_bowed:.6} early={early_bowed:.6} — the tone must hold"
+    );
+    // And it is a TONE, not sustained noise: harmonic power dominates.
+    let periodicity = tonality(window(&bowed, 1.5, 1.95), 196.0);
+    println!("bow tonality: {periodicity:.3e}");
+    assert!(
+        periodicity > 1.0e3,
+        "harmonic/between-harmonic power {periodicity:.3e} (measured 3.2e4)"
+    );
+
+    // DECLARED DOMAIN, refused rather than smoothed over: below the
+    // minimum bow force the string does not speak. A light bow drawn fast
+    // only slows the pluck's decay — Schelleng's lower bound, emergent.
+    let too_light = pluck_note(
+        &isolated(&[("sus", "1.2"), ("bow", "0.1"), ("bow_speed", "1")]),
+        &[196.0],
+        2.0,
+        1.0,
+    );
+    let light_factor = rms(window(&too_light, 1.6, 1.95)) / late_dry.max(1e-12);
+    println!("below minimum bow force: factor={light_factor:.2}");
+    assert!(
+        light_factor < 100.0,
+        "bow=0.1 at bow_speed=1 must NOT be claimed to sustain \
+         (factor {light_factor:.2}, measured 2.11)"
+    );
+}
+
+#[test]
+fn bow_releases_at_the_slot_edge() {
+    // The friction port stops with the slot, and what is left is an
+    // ordinary decaying string: 1.5 s later it must be far quieter.
+    let held = pluck_note(
+        &isolated(&[("bow", "0.7"), ("bow_speed", "0.5"), ("sus", "3")]),
+        &[196.0],
+        1.0,
+        1.0,
+    );
+    let at_slot = rms(window(&held, 0.8, 1.0));
+    let after = rms(window(&held, 2.4, 2.6));
+    let ratio = after / at_slot.max(1e-12);
+    println!("bow release: at slot={at_slot:.6}, slot+1.5 s={after:.6}, ratio={ratio:.4}");
+    assert!(
+        at_slot > 1e-3,
+        "the bowed slot must be audible: {at_slot:.6}"
+    );
+    // MEASURED 0.0209 (-33.6 dB), consistent with the string's own
+    // T60 = 3 s once the source is removed.
+    assert!(
+        ratio < 0.10,
+        "post-slot tail must decay: {ratio:.4} of the held level"
+    );
+}
+
+#[test]
+fn bow_stays_bounded_over_the_corner_grid() {
+    // Empirical boundedness over the (bow, bow_speed, sus, damp) corners,
+    // with body/symp/buzz at maximum and a 1.2 s slot — long enough for
+    // the friction port to reach steady state at every sus.
+    let mut worst = 0.0_f32;
+    let mut worst_case = String::new();
+    for bow in ["0", "0.5", "1"] {
+        for bow_speed in ["0", "0.5", "1"] {
+            for sus in ["0.05", "2.5", "20"] {
+                for damp in ["0", "0.35", "0.95"] {
+                    let audio = pluck_note(
+                        &isolated(&[
+                            ("bow", bow),
+                            ("bow_speed", bow_speed),
+                            ("sus", sus),
+                            ("damp", damp),
+                            ("body", "1"),
+                            ("symp", "1"),
+                            ("buzz", "1"),
+                        ]),
+                        &[82.4069, 110.0, 146.832],
+                        1.2,
+                        1.0,
+                    );
+                    assert!(
+                        audio.iter().all(|sample| sample.is_finite()),
+                        "non-finite at bow={bow} bow_speed={bow_speed} sus={sus} damp={damp}"
+                    );
+                    let corner = peak(&audio);
+                    if corner > worst {
+                        worst = corner;
+                        worst_case =
+                            format!("bow={bow} bow_speed={bow_speed} sus={sus} damp={damp}");
+                    }
+                }
+            }
+        }
+    }
+    println!("bow corner grid: worst peak {worst:.4} at {worst_case}");
+    // MEASURED: 2.13, and it belongs to the UN-bowed pluck (bow=0,
+    // sus=20, damp=0); the worst bowed corner is 1.78. The bound is the
+    // module's existing 8.0 measurement bound and is NOT widened here.
+    assert!(worst <= 8.0, "bowed corner grid peak {worst} is bounded");
+
+    // The exotic neighbours: full bow on the extreme weave patch, and on
+    // a bent extreme guitar (delay-line retuning does work on the state,
+    // so this is the case that historically peaks highest).
+    let woven = params(&[
+        ("synth", "weave"),
+        ("sus", "5"),
+        ("damp", "0.9"),
+        ("courses", "24"),
+        ("couple", "0.45"),
+        ("chirality", "1"),
+        ("orbit", "20"),
+        ("orbit_depth", "1"),
+        ("curvature", "1"),
+        ("body", "1"),
+        ("bow", "1"),
+        ("bow_speed", "1"),
+    ]);
+    let woven_audio = weave_note(&woven, &[82.4069, 110.0, 146.832], 1.2, 1.0);
+    let extreme = params(&[
+        ("synth", "pluck"),
+        ("sus", "20"),
+        ("damp", "0"),
+        ("pos", "0.02"),
+        ("pick", "1"),
+        ("stiff", "1"),
+        ("tension", "80"),
+        ("buzz", "1"),
+        ("body", "1"),
+        ("symp", "1"),
+        ("detune", "60"),
+        ("bow", "1"),
+        ("bow_speed", "0.5"),
+    ]);
+    let bent_audio = pluck_note(&extreme, &[82.4069, 110.0, 146.832], 1.2, 1.5);
+    for (name, audio, measured) in [
+        ("weave extreme + bow", &woven_audio, 0.73),
+        ("bent extreme + bow", &bent_audio, 0.35),
+    ] {
+        assert!(audio.iter().all(|sample| sample.is_finite()), "{name}");
+        let corner = peak(audio);
+        println!("{name}: peak {corner:.4} (measured {measured})");
+        assert!(corner <= 8.0, "{name} peak {corner} is bounded");
+    }
+}
+
+#[test]
+fn bow_render_is_deterministic() {
+    let patch = isolated(&[("sus", "1.5"), ("bow", "0.6"), ("bow_speed", "0.5")]);
+    let a = pluck_note(&patch, &[196.0], 1.0, 1.0);
+    let b = pluck_note(&patch, &[196.0], 1.0, 1.0);
+    assert_eq!(a, b, "a bowed note is a pure function of its patch");
+    let faster = isolated(&[("sus", "1.5"), ("bow", "0.6"), ("bow_speed", "0.9")]);
+    assert_ne!(
+        a,
+        pluck_note(&faster, &[196.0], 1.0, 1.0),
+        "bow_speed is audible once the bow is down"
+    );
+}
+
+#[test]
+fn bow_crescendo_rises_through_the_note() {
+    // The trajectory law for a source: 40 frames walk `bow` from 0 to 0.8
+    // across a 4 s slot, and the energy envelope follows. Sampled in three
+    // windows the note grows monotonically — a real crescendo, played by
+    // control frames rather than by an amplitude envelope.
+    let patch = isolated(&[("sus", "1.2"), ("bow_speed", "0.35")]);
+    let at = |seconds: f64| (seconds * SR_F64) as usize;
+    let trajectory: Vec<ControlFrame> = (0..=40)
+        .map(|step| ControlFrame {
+            at_sample: at(0.1 * step as f64),
+            sets: vec![(ControlTarget::Bow, 0.8 * step as f64 / 40.0)],
+        })
+        .collect();
+    let (audio, _) =
+        StringNetworkVoice::guitar(&patch, &[196.0], 4.0, 1.0).render_traced_with(256, &trajectory);
+    assert!(audio.iter().all(|sample| sample.is_finite()));
+    let early = rms(window(&audio, 1.2, 1.5));
+    let middle = rms(window(&audio, 2.4, 2.7));
+    let late = rms(window(&audio, 3.6, 3.9));
+    println!("bow crescendo: {early:.6} -> {middle:.6} -> {late:.6}");
+    // MEASURED: 1.48e-3 -> 1.19e-2 -> 1.92e-2 (x8.0, then x1.61).
+    assert!(
+        middle > early * 2.0,
+        "crescendo must rise: {early:.6} -> {middle:.6}"
+    );
+    assert!(
+        late > middle * 1.15,
+        "crescendo must keep rising: {middle:.6} -> {late:.6}"
+    );
+    let crescendo_peak = peak(&audio);
+    println!("bow crescendo peak: {crescendo_peak:.4}");
+    assert!(crescendo_peak <= 8.0, "peak {crescendo_peak} is bounded");
 }
 
 #[test]

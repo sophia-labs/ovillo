@@ -196,6 +196,11 @@ impl AriadneParams {
             ControlTarget::Damp => self.damp.value() as f64,
             // Not exposed at P1 — no sidechain, so no drive to mix in.
             ControlTarget::Sing => 0.0,
+            // The bow is not exposed at P1 either. `AUTOMATABLE` never
+            // asks for these (the arm exists for exhaustiveness), and 0 is
+            // the bow's hard zero limit: the friction port stays shut and
+            // the plugin renders exactly the un-bowed voice.
+            ControlTarget::Bow | ControlTarget::BowSpeed => 0.0,
         }
     }
 }
