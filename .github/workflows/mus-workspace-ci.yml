@@ -17,6 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # mus-dsp links the soxr resampler; without the system library the
+      # whole battery dies at build — which is exactly what happened on
+      # every run from the first (caught 2026-08-11, red push #3: the net
+      # was cast and nobody read what it caught).
+      - name: system libraries
+        run: sudo apt-get update && sudo apt-get install -y libsoxr-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
