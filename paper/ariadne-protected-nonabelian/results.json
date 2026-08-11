@@ -1,0 +1,242 @@
+{
+  "audio": {
+    "yang_braid": {
+      "endpoint_state_distance": 1.193343015907006,
+      "relative_rms_distance": 1.1641392169850853,
+      "rms_level_difference_db": 0.0009511641791708128,
+      "spectral_centroid_a_hz": 248.33912689027693,
+      "spectral_centroid_b_hz": 260.2030817606766
+    },
+    "z3": {
+      "endpoint_distance": 1.4142135623730951,
+      "path_one_cell_shift": -1,
+      "path_two_cell_shift": 0
+    }
+  },
+  "certificate": {
+    "adiabatic": {
+      "loop_a": [
+        {
+          "duration": 16.0,
+          "full_unitarity_error_fro": 4.497235029412527e-15,
+          "leakage_fro": 0.32963150080031844,
+          "minimum_retained_singular_value": 0.9469946703508687,
+          "projective_holonomy_error_fro": 0.038858609166211415
+        },
+        {
+          "duration": 32.0,
+          "full_unitarity_error_fro": 3.1687024028317448e-15,
+          "leakage_fro": 0.10361976452768415,
+          "minimum_retained_singular_value": 0.9961996261708665,
+          "projective_holonomy_error_fro": 0.009979511599575174
+        },
+        {
+          "duration": 64.0,
+          "full_unitarity_error_fro": 3.69835819727993e-15,
+          "leakage_fro": 0.047690863903108005,
+          "minimum_retained_singular_value": 0.9993484137603506,
+          "projective_holonomy_error_fro": 0.0023563794543978367
+        },
+        {
+          "duration": 128.0,
+          "full_unitarity_error_fro": 7.037275280423636e-15,
+          "leakage_fro": 0.019792911586114265,
+          "minimum_retained_singular_value": 0.9998919610175919,
+          "projective_holonomy_error_fro": 0.0005060660148142474
+        }
+      ],
+      "loop_b": [
+        {
+          "duration": 16.0,
+          "full_unitarity_error_fro": 3.1190038334920933e-15,
+          "leakage_fro": 0.14829272974812055,
+          "minimum_retained_singular_value": 0.991940626462264,
+          "projective_holonomy_error_fro": 0.04831609600000776
+        },
+        {
+          "duration": 32.0,
+          "full_unitarity_error_fro": 3.4488898684434074e-15,
+          "leakage_fro": 0.07031025889395814,
+          "minimum_retained_singular_value": 0.9978167226408227,
+          "projective_holonomy_error_fro": 0.008502083553451495
+        },
+        {
+          "duration": 64.0,
+          "full_unitarity_error_fro": 4.839846769502291e-15,
+          "leakage_fro": 0.032198755725216854,
+          "minimum_retained_singular_value": 0.99957490831364,
+          "projective_holonomy_error_fro": 0.0025665148453998736
+        },
+        {
+          "duration": 128.0,
+          "full_unitarity_error_fro": 4.179837775987233e-15,
+          "leakage_fro": 0.015618363648153857,
+          "minimum_retained_singular_value": 0.9998850545482956,
+          "projective_holonomy_error_fro": 0.0004603572529318249
+        }
+      ],
+      "maximum_duration_leakage_fro": 0.019792911586114265,
+      "maximum_duration_projective_error_fro": 0.0005060660148142474
+    },
+    "analytic_second_chern": 1.0,
+    "claim_scope": [
+      "The rank-two bundle has nonzero second Chern number and remains in the same phase under the tested gap-preserving homotopy.",
+      "The two Kato/Wilson gates are noncommuting and remain noncommuting over the declared perturbation family.",
+      "Each full-space unitary is exactly lowered to a zero-work real orthogonal graph program.",
+      "Individual Wilson matrices are geometric and path-dependent; this is not a fault-tolerant or quantized gate claim.",
+      "The Z3 operators are an exact algebraic acoustic-pump target; this package does not rederive the published waveguide Hamiltonian."
+    ],
+    "critical_gap_at_origin": 0.0,
+    "loop_a": {
+      "determinant_error": 2.532306526238827e-15,
+      "eigenphases": [
+        -0.9219435972809356,
+        0.9219435972809333
+      ],
+      "full_unitarity_error_fro": 4.4500250126163585e-15,
+      "minimum_adjacent_overlap": 0.9997446667016395,
+      "minimum_gap": 2.0906050019287132,
+      "occupied_unitarity_error_fro": 2.8130215626473606e-15,
+      "points": 193,
+      "projector_return_error_fro": 0.0
+    },
+    "loop_b": {
+      "determinant_error": 1.5700924586837755e-15,
+      "eigenphases": [
+        -0.8602599980602429,
+        0.8602599980602443
+      ],
+      "full_unitarity_error_fro": 1.156008090089311e-14,
+      "minimum_adjacent_overlap": 0.9997989284958734,
+      "minimum_gap": 2.000159163976385,
+      "occupied_unitarity_error_fro": 7.09831646169733e-15,
+      "points": 193,
+      "projector_return_error_fro": 0.0
+    },
+    "loop_commutator_norm_fro": 1.6876418776589002,
+    "loop_group_commutator_distance_fro": 1.6876418776589,
+    "loop_order_state_distance": 1.1933430159070046,
+    "lowering_a": {
+      "all_gates_on_graph": true,
+      "determinant_error": 2.220446049250313e-16,
+      "gate_count": 28,
+      "graph_edges": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "maximum_basis_energy_error": 6.661338147750939e-16,
+      "orthogonality_error_fro": 8.494764733969125e-16,
+      "real_dimension": 8,
+      "reconstruction_error_fro": 4.25711247885452e-15
+    },
+    "lowering_b": {
+      "all_gates_on_graph": true,
+      "determinant_error": 0.0,
+      "gate_count": 28,
+      "graph_edges": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "maximum_basis_energy_error": 4.440892098500626e-16,
+      "orthogonality_error_fro": 7.052419703602143e-16,
+      "real_dimension": 8,
+      "reconstruction_error_fro": 1.0807604439440591e-14
+    },
+    "model": "4D Wilson-Dirac rank-two bundle + exact acoustic Z3 pump algebra",
+    "numerical_second_chern": {
+      "estimate": 0.9965881059699271,
+      "grid": 12,
+      "integer_error": 0.003411894030072915,
+      "nearest_integer": 1,
+      "sampled_gap": 2.0138843976445044
+    },
+    "perturbations": {
+      "maximum_loop_unitarity_error_fro": 1.6169922033862924e-14,
+      "maximum_second_chern_error": 0.07499535983153349,
+      "minimum_nonabelian_commutator_norm_fro": 1.3133096470903456,
+      "minimum_sampled_gap": 1.7713890821273026,
+      "minimum_sampled_homotopy_gap": 1.9638610623402508,
+      "perturbations": 12
+    },
+    "second_chern_convention": "degree(d/|d|): T4 -> S4",
+    "trivial_second_chern": {
+      "estimate": 0.0003063847846279023,
+      "grid": 12,
+      "integer_error": 0.0003063847846279023,
+      "nearest_integer": 0,
+      "sampled_gap": 2.4972940324630573
+    },
+    "z3_pump": {
+      "c3_order_three_error_fro": 0.0,
+      "c3_prime_order_three_error_fro": 0.0,
+      "cells": 7,
+      "commutator_norm_fro": 6.48074069840786,
+      "dimension": 21,
+      "final_internal_state_match": true,
+      "inverse_error_fro": 0.0,
+      "path_one_cell_shift": -1,
+      "path_two_cell_shift": 0
+    }
+  },
+  "interpretation": [
+    "The second Chern number protects the rank-two bundle phase while the sampled gap remains open.",
+    "The Wilson-loop matrices are non-Abelian but remain geometric, path-dependent gates rather than individually quantized gates.",
+    "The exact Z3 pump algebra supplies a discrete, literature-grounded acoustic routing target whose order changes transport.",
+    "The realified full-space holonomies compile to authored graph-edge Givens schedules and preserve the declared Euclidean state energy.",
+    "The WAVs are deterministic research listening stimuli, not a listener-study result or a measured physical metamaterial."
+  ],
+  "mode": "full",
+  "schema": "ariadne-protected-nonabelian/1"
+}
