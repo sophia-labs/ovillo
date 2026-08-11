@@ -34,6 +34,7 @@ test = ["jsonschema>=4.20", "rdflib>=7"]
 [project.scripts]
 mus-analysis = "mus_analysis.cli:main"
 mus-spatial = "mus_analysis.spatial_cli:main"
+garganta-evolve = "mus_analysis.garganta_cli:main"
 
 [tool.setuptools]
 packages = ["mus_analysis"]
