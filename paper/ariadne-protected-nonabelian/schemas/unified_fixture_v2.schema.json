@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia-labs.example/schemas/ariadne-unified-instrument-fixture-v2.json",
+  "title": "Ariadne unified protected instrument fixture v2",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "source_commit",
+    "generation_mode",
+    "oracle",
+    "claim",
+    "epistemic_claim",
+    "family",
+    "topology",
+    "controls",
+    "lowering",
+    "physical_observable",
+    "finite_time",
+    "state_connection",
+    "open_system",
+    "audibility",
+    "artifacts",
+    "acceptance",
+    "negative_results"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ariadne.unified-instrument.fixture.v2"
+    },
+    "source_commit": {
+      "$ref": "#/$defs/sha40"
+    },
+    "generation_mode": {
+      "enum": ["quick", "full"]
+    },
+    "oracle": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["source_tree_sha256", "environment", "random_seeds", "numeric_conventions"],
+      "properties": {
+        "source_tree_sha256": { "$ref": "#/$defs/sha256" },
+        "environment": {
+          "type": "object",
+          "required": ["python", "platform", "numpy", "mode"]
+        },
+        "random_seeds": { "type": "object" },
+        "numeric_conventions": { "type": "object" }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference_level",
+        "production_level",
+        "satisfied_gates",
+        "withheld_stronger_claims",
+        "evidence_classes",
+        "scope"
+      ],
+      "properties": {
+        "reference_level": { "$ref": "#/$defs/nullableClaim" },
+        "production_level": { "$ref": "#/$defs/nullableClaim" },
+        "satisfied_gates": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/claimLevel" }
+        },
+        "withheld_stronger_claims": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        },
+        "evidence_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/evidenceClass" }
+        },
+        "scope": { "type": "string", "minLength": 1 }
+      }
+    },
+    "epistemic_claim": { "type": "object" },
+    "family": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "family_digest_sha256",
+        "operator_category",
+        "parameters",
+        "basis",
+        "regions",
+        "metric",
+        "complex_structure",
+        "complex_dimension",
+        "real_dimension",
+        "symmetry",
+        "regional_participation",
+        "coupling_homotopy"
+      ],
+      "properties": {
+        "family_digest_sha256": { "$ref": "#/$defs/sha256" },
+        "complex_dimension": { "const": 16 },
+        "real_dimension": { "const": 32 },
+        "regions": {
+          "type": "array",
+          "prefixItems": [
+            { "const": "string" },
+            { "const": "body" },
+            { "const": "near_field" },
+            { "const": "late_room" }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "regional_participation": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+        }
+      }
+    },
+    "topology": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "bundle_rank_complex",
+        "torus_dimension",
+        "second_chern",
+        "orientation",
+        "exact_gap",
+        "degree_certificate",
+        "lattice_gauge_certificates",
+        "analytic_perturbation_box"
+      ],
+      "properties": {
+        "bundle_rank_complex": { "const": 2 },
+        "torus_dimension": { "const": 4 },
+        "second_chern": { "const": 1 },
+        "exact_gap": {
+          "type": "object",
+          "required": ["protected_cluster_gap", "coupling_homotopy_isospectral"],
+          "properties": {
+            "protected_cluster_gap": { "type": "number", "exclusiveMinimum": 0.0 },
+            "coupling_homotopy_isospectral": { "const": true }
+          }
+        },
+        "lattice_gauge_certificates": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["grid", "estimate", "nearest_integer", "branch_safe"],
+            "properties": {
+              "grid": { "type": "integer", "minimum": 4 },
+              "nearest_integer": { "type": "integer" },
+              "branch_safe": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["control_map", "basepoint", "same_basepoint", "A", "B", "nonabelian", "gauge_covariance", "path_laws"],
+      "properties": {
+        "basepoint": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": "number" }
+        },
+        "same_basepoint": { "const": true },
+        "A": { "$ref": "#/$defs/path" },
+        "B": { "$ref": "#/$defs/path" },
+        "nonabelian": {
+          "type": "object",
+          "required": ["commutator_fro", "commutator_operator_norm"],
+          "properties": {
+            "commutator_fro": { "type": "number", "exclusiveMinimum": 0.0 },
+            "commutator_operator_norm": { "type": "number", "exclusiveMinimum": 0.0 }
+          }
+        }
+      }
+    },
+    "lowering": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["graph", "law", "arbitrary_so_2n_refused", "programs"],
+      "properties": {
+        "arbitrary_so_2n_refused": { "const": true },
+        "programs": {
+          "type": "object",
+          "required": ["A", "B", "preparation", "readout"]
+        }
+      }
+    },
+    "physical_observable": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "source_port",
+        "radiation_port",
+        "preparation_is_fixed_and_order_independent",
+        "readout_is_fixed_and_order_independent",
+        "prepared_state_is_protected",
+        "calibrated_transfer_gain",
+        "state_persistence",
+        "causal_room_feedback"
+      ],
+      "properties": {
+        "preparation_is_fixed_and_order_independent": { "const": true },
+        "readout_is_fixed_and_order_independent": { "const": true },
+        "prepared_state_is_protected": { "const": true },
+        "calibrated_transfer_gain": { "type": "number", "exclusiveMinimum": 0.0 }
+      }
+    },
+    "finite_time": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "theorem",
+        "requested_projector_error",
+        "minimum_sufficient_duration_seconds",
+        "one_second_theorem_receipt",
+        "numerical_replays",
+        "one_second_promoted"
+      ],
+      "properties": {
+        "requested_projector_error": { "type": "number", "exclusiveMinimum": 0.0 },
+        "one_second_promoted": { "const": false }
+      }
+    },
+    "state_connection": { "type": "object" },
+    "open_system": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["ledger_equation", "passive_radiation", "rank_contraction_policy", "AB_whole_instrument_ledger", "BA_whole_instrument_ledger"],
+      "properties": {
+        "passive_radiation": { "const": true }
+      }
+    },
+    "audibility": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "causal_carrier",
+        "sidecar_oscillator_bank",
+        "shared_gain_pair",
+        "level_matched_control_pair",
+        "relative_rms_waveform_distance",
+        "spectral_matching_claimed",
+        "listener_discrimination_claimed"
+      ],
+      "properties": {
+        "sidecar_oscillator_bank": { "const": false },
+        "spectral_matching_claimed": { "const": false },
+        "listener_discrimination_claimed": { "const": false }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "required": ["operator_tables", "compiled_words", "results", "audio"]
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": { "type": "boolean" },
+      "required": [
+        "model_python_replay",
+        "analytic_global_gap",
+        "independent_second_chern_estimators",
+        "all_compiler_factors_orthogonal_symplectic",
+        "persistent_state_required",
+        "protected_preparation_from_string_port",
+        "room_feedback_causal",
+        "passive_radiation_energy_closure",
+        "one_second_adiabatic_theorem_budget",
+        "production_rust_replay",
+        "lean_kernel_check",
+        "current_raw_weave_integration",
+        "listener_study"
+      ]
+    },
+    "negative_results": { "type": "object" }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sha40": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "claimLevel": {
+      "enum": [
+        "order-dependent",
+        "closed-control",
+        "geometric",
+        "gapped-family",
+        "topological-bundle",
+        "adiabatic-realization",
+        "protected-acoustic",
+        "fault-tolerant"
+      ]
+    },
+    "nullableClaim": {
+      "anyOf": [
+        { "$ref": "#/$defs/claimLevel" },
+        { "type": "null" }
+      ]
+    },
+    "evidenceClass": {
+      "enum": [
+        "theorem",
+        "validated_numerics",
+        "reference_oracle",
+        "production_measurement",
+        "production_replay",
+        "listener_evidence"
+      ]
+    },
+    "path": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "base", "axes", "radii", "points", "path_projector_digest_sha256", "certificate"],
+      "properties": {
+        "name": { "enum": ["A", "B"] },
+        "base": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": "number" }
+        },
+        "axes": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "integer", "minimum": 0, "maximum": 3 }
+        },
+        "radii": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "number" }
+        },
+        "points": { "type": "integer", "minimum": 17 },
+        "path_projector_digest_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}
