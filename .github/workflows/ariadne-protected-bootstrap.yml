@@ -24,7 +24,10 @@ jobs:
           echo "33b6ba6ee27a16f011d8cd69fb60fddc907cb99299db92c33f4e8abac390e639  /tmp/ariadne-protected-bootstrap.tar.gz" | sha256sum -c -
           tar -xzf /tmp/ariadne-protected-bootstrap.tar.gz
           rm -rf .bootstrap
-          rm -f .github/workflows/ariadne-protected-bootstrap.yml
+          # GITHUB_TOKEN may not create or modify workflow files. Land the
+          # research tree first; the final workflow is added by the initiating
+          # user after this materialization commit succeeds.
+          rm -f .github/workflows/ariadne-protected-nonabelian.yml
 
       - name: Commit materialized research branch
         run: |
