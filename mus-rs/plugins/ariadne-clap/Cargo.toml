@@ -1,0 +1,21 @@
+[package]
+name = "ariadne-clap"
+version = "0.1.0"
+description = "P1 CLAP instrument wrapper around mus-dsp's StringNetworkVoice — the kernel is the product, the plugin is a window (PW9 §3)"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# `cdylib` is what a host loads; `lib` is what the unit tests link against.
+# Without `lib` the processor struct would be untestable from `cargo test`.
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+# Pinned to a rev, not a branch: a plugin ABI is not a moving target.
+# `default-features = false` drops the `vst3` feature deliberately —
+# nih-plug's VST3 export links `vst3-sys`, which is GPLv3, and this
+# workspace is MIT. VST3 is therefore NOT free for us; see README.
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "f36931f7af4646065488a9845d8f8c2f95252c23", default-features = false }
+mus-dsp = { path = "../../crates/mus-dsp" }
+mus-vocab = { path = "../../crates/mus-vocab" }
