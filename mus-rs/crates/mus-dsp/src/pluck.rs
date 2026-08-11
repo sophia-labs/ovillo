@@ -126,6 +126,57 @@ pub struct PluckPatch {
     /// Bow velocity (`bow_speed`), 0..1 mapped to [`BOW_VELOCITY_MIN`]
     /// ..[`BOW_VELOCITY_MAX`] in wave units.
     pub bow_speed: f64,
+    /// Retuning policy for the 16-sample coefficient update
+    /// (`retune`, Ariadne Phase 0 §A). See [`RetuneMode`].
+    pub retune: RetuneMode,
+}
+
+/// What the engine does to allpass filter *state* when a retune rewrites
+/// an allpass *coefficient* (Ariadne Phase 0 §A).
+///
+/// [`DelayString::update_loop`] runs every 16 samples and rewrites three
+/// allpass coefficients: two dispersion sections and the fractional-delay
+/// section. Historically it rewrote them with the filter memory silently
+/// retained, which reinterprets the stored state under a new metric — the
+/// hidden control work `.string-research/NEXT-PHASE-REPORT.md` §3
+/// measured at up to `9.386` in an adversarial sweep.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RetuneMode {
+    /// Rewrite the coefficient and keep `(x1, y1)`. This is what the
+    /// engine has always done and what every existing render is; it is
+    /// the default, and the Phase 0 byte law protects it.
+    #[default]
+    Legacy,
+    /// Apply `mus_watsn::neutral_allpass_state_transport` at each
+    /// coefficient change: preserve the normalized coordinate
+    /// `z = s/sqrt(1-a^2)` with `s = x1 - a*y1`, retaining `y1` and
+    /// reconstructing `x1`. Coefficient-update work drops to roundoff.
+    ///
+    /// The *delay line's* reinterpretation when `integer_delay` changes
+    /// is NOT repaired by this mode — that is Phase 3's open transport
+    /// problem, and `update_loop` says so at the site.
+    NeutralFilters,
+}
+
+impl RetuneMode {
+    /// Parse the `retune` param. Unrecognised values fall back to
+    /// [`RetuneMode::Legacy`], the same "invalid input degrades to a safe
+    /// default" discipline `bodyp` applies to an out-of-domain string.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "legacy" => Self::Legacy,
+            "neutral_filters" => Self::NeutralFilters,
+            _ => return None,
+        })
+    }
+
+    /// The canonical param spelling of this mode.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Legacy => "legacy",
+            Self::NeutralFilters => "neutral_filters",
+        }
+    }
 }
 
 impl Default for PluckPatch {
@@ -160,6 +211,7 @@ impl Default for PluckPatch {
             breath: 0.0,
             bow: 0.0,
             bow_speed: 0.5,
+            retune: RetuneMode::Legacy,
         }
     }
 }
@@ -224,6 +276,15 @@ impl From<&BTreeMap<String, String>> for PluckPatch {
             breath: parsed(map, "breath", d.breath).clamp(0.0, 1.0),
             bow: parsed(map, "bow", d.bow).clamp(0.0, 1.0),
             bow_speed: parsed(map, "bow_speed", d.bow_speed).clamp(0.0, 1.0),
+            // Enum clamp, `bodyp`'s discipline: an unrecognised `retune`
+            // value degrades to legacy rather than erroring. Absent and
+            // unparseable both mean "render exactly as this engine always
+            // has", which is the Phase 0 byte law's cheapest possible
+            // failure mode.
+            retune: map
+                .get("retune")
+                .and_then(|value| RetuneMode::from_name(value))
+                .unwrap_or(d.retune),
         }
     }
 }
@@ -482,8 +543,58 @@ impl FirstOrderAllpass {
         }
     }
 
-    fn set_coefficient(&mut self, coefficient: f64) {
-        self.coefficient = coefficient.clamp(-0.999_5, 0.999_5);
+    /// Retune this section under `mode` (Ariadne Phase 0 §A).
+    ///
+    /// Returns the control work done on the declared allpass storage
+    /// `E_a(s) = s^2 / (2 (1 - a^2))`, but ONLY when `account` is set:
+    /// `None` means "not measured", never "measured zero". Work
+    /// accounting is observation, and per Phase 0 §B observation is a
+    /// render-entry-point decision, not part of the score — so with the
+    /// observer off, legacy pays no arithmetic it did not pay before.
+    ///
+    /// Byte-inert no-op law, in BOTH modes: if the clamped coefficient is
+    /// bit-identical to the current one, nothing is written. `to_bits`
+    /// rather than `==` so that `-0.0` and `+0.0` are not conflated.
+    fn retune_coefficient(
+        &mut self,
+        coefficient: f64,
+        mode: RetuneMode,
+        account: bool,
+    ) -> Option<f64> {
+        let new_coefficient = coefficient.clamp(-0.999_5, 0.999_5);
+        if new_coefficient.to_bits() == self.coefficient.to_bits() {
+            return account.then_some(0.0);
+        }
+        match mode {
+            // Historical behavior, bit for bit: the coefficient is
+            // overwritten and `(x1, y1)` stand. The energy readings are
+            // pure observation — they touch no state.
+            RetuneMode::Legacy => {
+                let work = account.then(|| {
+                    let before =
+                        mus_watsn::allpass_storage_energy(self.coefficient, self.x1, self.y1);
+                    let after =
+                        mus_watsn::allpass_storage_energy(new_coefficient, self.x1, self.y1);
+                    after - before
+                });
+                self.coefficient = new_coefficient;
+                work
+            }
+            RetuneMode::NeutralFilters => {
+                let (x1, y1, receipt) = mus_watsn::neutral_allpass_state_transport(
+                    self.coefficient,
+                    new_coefficient,
+                    self.x1,
+                    self.y1,
+                );
+                self.coefficient = receipt.new_coefficient;
+                self.x1 = x1;
+                self.y1 = y1;
+                // The transport computes the receipt either way, so unlike
+                // legacy there is nothing extra to skip here.
+                account.then_some(receipt.control_work)
+            }
+        }
     }
 
     fn tick(&mut self, input: f64) -> f64 {
@@ -539,6 +650,39 @@ fn allpass_coefficient_for_delay(delay_samples: f64, omega: f64) -> f64 {
     ((1.0 - ratio) / (1.0 + ratio)).clamp(-0.999_5, 0.999_5)
 }
 
+/// Per-course observer accumulators (Ariadne Phase 0 §B).
+///
+/// Every field is a running integral from sample 0, written ONLY while
+/// the observer is enabled and read by nothing on the audio path. Signs
+/// follow the ledger convention: `inject_*` and `work_*` add energy to
+/// the declared state, `loss_*` removes it.
+#[derive(Debug, Default, Clone, Copy)]
+struct StringEnergyAccount {
+    /// Pluck-burst injection, `w*e + e^2/2` at the excitation point.
+    inject_burst: f64,
+    /// `sing` external-drive injection, attributed after the burst.
+    inject_drive: f64,
+    /// `breath` noise injection, attributed after the drive.
+    inject_breath: f64,
+    /// `bow` friction-port injection, attributed last.
+    inject_bow: f64,
+    /// Exact one-zero damping dissipation (`mus_watsn::onezero`).
+    loss_damping: f64,
+    /// Exact loop-gain attenuation, `(1 - g^2) v^2 / 2`.
+    loss_loop_gain: f64,
+    /// Exact contact removal — the energy `apply_contact` radiates.
+    loss_contact: f64,
+    /// Allpass coefficient-update work (the Phase 0 §A quantity).
+    work_allpass_retune: f64,
+    /// Largest single-update `|work|` seen on any of the three sections.
+    work_allpass_retune_peak: f64,
+    /// Change in declared active-line energy caused solely by
+    /// `integer_delay` changing — Phase 3's unsolved transport, measured.
+    work_line_reinterpretation: f64,
+    /// Largest single `|integer_delay|`-change reinterpretation.
+    work_line_reinterpretation_peak: f64,
+}
+
 #[derive(Debug)]
 struct DelayString {
     line: Vec<f64>,
@@ -563,6 +707,13 @@ struct DelayString {
     contact_memory: f64,
     /// Slow mean of the injected bow force (see [`BOW_DC_POLE`]).
     bow_dc: f64,
+    /// Phase 0 §A retuning policy, fixed at construction (`retune` is a
+    /// static param — there is no `ControlTarget` for it).
+    retune: RetuneMode,
+    /// Phase 0 §B observer switch. False on every ordinary render.
+    observe: bool,
+    /// Observer accumulators; inert while `observe` is false.
+    account: StringEnergyAccount,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -577,6 +728,7 @@ struct DelayStringSpec {
     slot_samples: usize,
     coupling_scale: f64,
     max_downward_ratio: f64,
+    retune: RetuneMode,
 }
 
 impl DelayString {
@@ -623,6 +775,54 @@ impl DelayString {
             energy_smooth: 0.0,
             contact_memory: 0.0,
             bow_dc: 0.0,
+            retune: spec.retune,
+            observe: false,
+            account: StringEnergyAccount::default(),
+        }
+    }
+
+    /// Declared Euclidean research metric over the ACTIVE delay segment:
+    /// the `integer_delay` most recently written cells, the ones the read
+    /// tap will still visit. Cells outside that window hold stale data
+    /// from earlier cycles and are deliberately excluded — including them
+    /// would report the buffer's history, not the string's state.
+    fn line_energy(&self) -> f64 {
+        let length = self.line.len();
+        let mut total = 0.0;
+        for step in 1..=self.integer_delay.min(length) {
+            let cell = self.line[(self.write_index + length - step) % length];
+            total += cell * cell;
+        }
+        0.5 * total
+    }
+
+    /// Declared storage of the three allpass sections plus the one-zero
+    /// damping filter — the string's filter memory, in the same units as
+    /// [`Self::line_energy`].
+    fn filter_energy(&self) -> f64 {
+        let mut total = mus_watsn::onezero_storage_energy(self.damp, self.damping_x1);
+        for section in &self.dispersion {
+            total += mus_watsn::allpass_storage_energy(section.coefficient, section.x1, section.y1);
+        }
+        total += mus_watsn::allpass_storage_energy(
+            self.fractional.coefficient,
+            self.fractional.x1,
+            self.fractional.y1,
+        );
+        total
+    }
+
+    /// Total declared stored energy of this course.
+    fn stored_energy(&self) -> f64 {
+        self.line_energy() + self.filter_energy()
+    }
+
+    /// Record one allpass coefficient-update work reading.
+    fn record_allpass_work(&mut self, work: Option<f64>) {
+        if let Some(work) = work {
+            self.account.work_allpass_retune += work;
+            self.account.work_allpass_retune_peak =
+                self.account.work_allpass_retune_peak.max(work.abs());
         }
     }
 
@@ -663,8 +863,15 @@ impl DelayString {
             }
             effective_dispersion *= 0.72;
         }
-        for section in &mut self.dispersion {
-            section.set_coefficient(effective_dispersion);
+        // Phase 0 §A, sites 1 and 2 of 3: the dispersion pair.
+        let retune = self.retune;
+        let account = self.observe;
+        let mut dispersion_work = [None, None];
+        for (section, work) in self.dispersion.iter_mut().zip(dispersion_work.iter_mut()) {
+            *work = section.retune_coefficient(effective_dispersion, retune, account);
+        }
+        for work in dispersion_work {
+            self.record_allpass_work(work);
         }
         let dispersion_delay = if effective_dispersion.abs() > 1e-12 {
             2.0 * allpass_phase_delay(effective_dispersion, omega)
@@ -683,9 +890,34 @@ impl DelayString {
             integer_delay -= 1;
             fractional_delay += 1.0;
         }
-        self.integer_delay = integer_delay;
-        self.fractional
-            .set_coefficient(allpass_coefficient_for_delay(fractional_delay, omega));
+        // DELIBERATELY UNSOLVED (Ariadne Phase 3, consensus §6): changing
+        // `integer_delay` resizes the active delay segment while every
+        // cell keeps its value. That is the same silent reinterpretation
+        // the allpass sites above now repair, applied to a state whose
+        // RANK changes — and no metric-consistent transport for it exists
+        // yet. `NEXT-PHASE-REPORT.md` §4 shows the tempting shortcut
+        // (scalar-normalized resampling) closes the energy ledger while
+        // destroying waveform fidelity (correlation as low as 0.471), so
+        // it is explicitly NOT applied here under either mode. What Phase
+        // 0 does instead is MEASURE the reinterpretation, so Phase 3
+        // inherits a number rather than an assumption.
+        if account && integer_delay != self.integer_delay {
+            let before = self.line_energy();
+            self.integer_delay = integer_delay;
+            let jump = self.line_energy() - before;
+            self.account.work_line_reinterpretation += jump;
+            self.account.work_line_reinterpretation_peak =
+                self.account.work_line_reinterpretation_peak.max(jump.abs());
+        } else {
+            self.integer_delay = integer_delay;
+        }
+        // Phase 0 §A, site 3 of 3: the fractional-delay section.
+        let fractional_work = self.fractional.retune_coefficient(
+            allpass_coefficient_for_delay(fractional_delay, omega),
+            retune,
+            account,
+        );
+        self.record_allpass_work(fractional_work);
 
         // Fundamental T60 calibration. The allpasses have unit magnitude;
         // divide out the damping filter's fundamental magnitude so `sus`
@@ -702,13 +934,25 @@ impl DelayString {
         let read_index =
             (self.write_index + self.line.len() - self.integer_delay) % self.line.len();
         let delayed = self.line[read_index];
+        if self.observe {
+            // Exact, not an estimate: `mus_watsn::onezero` proves
+            // `u^2/2 + d*x1^2/2 - (y^2/2 + d*u^2/2) = d*(1-d)*(u-x1)^2/2`
+            // is an identity for this filter.
+            self.account.loss_damping +=
+                mus_watsn::onezero_dissipation(self.damp, delayed, self.damping_x1);
+        }
         let mut value = (1.0 - self.damp) * delayed + self.damp * self.damping_x1;
         self.damping_x1 = delayed;
         if self.dispersion[0].coefficient.abs() > 1e-12 {
             value = self.dispersion[0].tick(value);
             value = self.dispersion[1].tick(value);
         }
-        value = self.fractional.tick(value) * self.loop_gain;
+        value = self.fractional.tick(value);
+        if self.observe {
+            let gain = self.loop_gain;
+            self.account.loss_loop_gain += 0.5 * (1.0 - gain * gain) * value * value;
+        }
+        value *= self.loop_gain;
         self.energy_smooth = 0.999 * self.energy_smooth + 0.001 * value * value;
         value
     }
@@ -737,6 +981,11 @@ impl DelayString {
         let hardness = 1.0 + 11.0 * buzz;
         let compressed_magnitude = clearance + (hardness * over).tanh() / hardness;
         let feedback = value.signum() * compressed_magnitude.min(magnitude);
+        if self.observe {
+            // The contact is contractive by construction, so this is a
+            // genuine removal from the loop, not a tap.
+            self.account.loss_contact += 0.5 * (value * value - feedback * feedback);
+        }
         let removed = value - feedback;
         let radiation = removed - 0.78 * self.contact_memory;
         self.contact_memory = removed;
@@ -901,6 +1150,32 @@ pub struct StringNetworkVoice {
     total_samples: usize,
     previous_input: f64,
     previous_output: f64,
+    /// Phase 0 §B observer switch, set by the render entry point and by
+    /// nothing else. Observation is not part of the score, so there is no
+    /// patch param and no [`ControlTarget`] for it.
+    observe: bool,
+    /// Network-level observer accumulators; inert while `observe` is false.
+    account: NetworkEnergyAccount,
+}
+
+/// Network-level observer accumulators (Ariadne Phase 0 §B). Running
+/// integrals from sample 0; written only while the observer is enabled.
+#[derive(Debug, Default, Clone, Copy)]
+struct NetworkEnergyAccount {
+    /// Body-mode decay loss, `(1 - r^2) * (q^2 + p^2) / 2` per tick.
+    loss_body: f64,
+    /// Measured work of the Weave scattering pass. Every rotation is an
+    /// exact Givens, so this is a roundoff-level control, not a term the
+    /// ledger expects to be large.
+    work_scatter: f64,
+    /// Measured work of the body-coupling rotation pass, same argument.
+    /// Excludes `free_tick` decay, which is counted as `loss_body`.
+    work_body_scatter: f64,
+    /// Sum of squared output samples (pre-master, post-DC-blocker). The
+    /// audio tap READS `incoming`; it never removes energy from the loop,
+    /// so this is recorded as an observation and is deliberately NOT a
+    /// term in the state ledger. See `PHASE0-TRANSIENT-REPORT.md`.
+    output_energy: f64,
 }
 
 impl StringNetworkVoice {
@@ -1051,6 +1326,7 @@ impl StringNetworkVoice {
                 slot_samples,
                 coupling_scale: 1.0,
                 max_downward_ratio: 2.4,
+                retune: patch.retune,
             };
             let excitation =
                 physical_excitation(frequency, slot_s, &patch, course_index, mode, base_level);
@@ -1071,6 +1347,7 @@ impl StringNetworkVoice {
                     slot_samples,
                     coupling_scale: 0.78,
                     max_downward_ratio: 2.4,
+                    retune: patch.retune,
                 };
                 let detuned_excitation = physical_excitation(
                     detuned_f0,
@@ -1100,6 +1377,7 @@ impl StringNetworkVoice {
                         slot_samples,
                         coupling_scale: patch.symp,
                         max_downward_ratio: 1.25,
+                        retune: patch.retune,
                     };
                     strings.push(DelayString::new(spec, Vec::new()));
                 }
@@ -1128,6 +1406,7 @@ impl StringNetworkVoice {
                         slot_samples,
                         coupling_scale: 1.0,
                         max_downward_ratio: 1.3,
+                        retune: patch.retune,
                     };
                     strings.push(DelayString::new(spec, Vec::new()));
                     ordinal += 1;
@@ -1177,7 +1456,36 @@ impl StringNetworkVoice {
             orbit_phase: 0.0,
             previous_input: 0.0,
             previous_output: 0.0,
+            observe: false,
+            account: NetworkEnergyAccount::default(),
         }
+    }
+
+    /// Arm the Phase 0 §B observer on this voice and every course.
+    /// Private: the only way in is a render entry point.
+    fn set_observer(&mut self, observe: bool) {
+        self.observe = observe;
+        for string in &mut self.strings {
+            string.observe = observe;
+        }
+    }
+
+    /// Total declared stored energy of the whole network: every course's
+    /// active delay segment and filter memory, plus every body mode.
+    fn stored_energy(&self) -> f64 {
+        let strings: f64 = self.strings.iter().map(DelayString::stored_energy).sum();
+        strings + self.body_energy()
+    }
+
+    fn body_energy(&self) -> f64 {
+        self.body
+            .iter()
+            .map(|mode| 0.5 * (mode.q * mode.q + mode.p * mode.p))
+            .sum()
+    }
+
+    fn wave_energy(&self) -> f64 {
+        0.5 * self.waves.iter().map(|wave| wave * wave).sum::<f64>()
     }
 
     pub fn is_finished(&self) -> bool {
@@ -1239,10 +1547,17 @@ impl StringNetworkVoice {
 
     fn scatter_body(&mut self) -> f64 {
         let count = self.waves.len();
+        let observe = self.observe;
         if count == 0 || self.patch.body <= 1e-12 {
+            let mut decayed = 0.0;
             for mode in &mut self.body {
+                let before = 0.5 * (mode.q * mode.q + mode.p * mode.p);
                 mode.free_tick();
+                if observe {
+                    decayed += before - 0.5 * (mode.q * mode.q + mode.p * mode.p);
+                }
             }
+            self.account.loss_body += decayed;
             return 0.0;
         }
         let chirality = if self.mode == StringNetworkMode::Weave {
@@ -1253,8 +1568,13 @@ impl StringNetworkVoice {
         let forward_weight = 0.5 * (1.0 + chirality);
         let backward_weight = 0.5 * (1.0 - chirality);
         let mut body_output = 0.0;
+        let mut decayed = 0.0;
         for mode in &mut self.body {
+            let before = 0.5 * (mode.q * mode.q + mode.p * mode.p);
             mode.free_tick();
+            if observe {
+                decayed += before - 0.5 * (mode.q * mode.q + mode.p * mode.p);
+            }
             let base_angle = self.patch.body * mode.coupling;
             for index in 0..count {
                 let angle = base_angle * self.strings[index].coupling_scale * forward_weight;
@@ -1270,6 +1590,7 @@ impl StringNetworkVoice {
             }
             body_output += mode.radiation * mode.q;
         }
+        self.account.loss_body += decayed;
         body_output
     }
 
@@ -1283,10 +1604,32 @@ impl StringNetworkVoice {
             self.waves[index] = wave;
             self.incoming[index] = wave;
         }
+        // Phase 0 §B: every observer reading below is taken from state
+        // that the audio step has already finished writing, and no
+        // observer value is ever read back by the audio path.
+        let observe = self.observe;
+        let waves_before_scatter = if observe { self.wave_energy() } else { 0.0 };
         if self.mode == StringNetworkMode::Weave {
             self.scatter_weave();
         }
+        if observe {
+            self.account.work_scatter += self.wave_energy() - waves_before_scatter;
+        }
+        // The body rotations move energy between the waves and the modal
+        // momenta; `free_tick` decay is booked separately as `loss_body`,
+        // so it is added back to isolate the rotation's own work.
+        let before_body = if observe {
+            self.wave_energy() + self.body_energy()
+        } else {
+            0.0
+        };
+        let body_loss_before = self.account.loss_body;
         let body_output = self.scatter_body();
+        if observe {
+            let after_body = self.wave_energy() + self.body_energy();
+            self.account.work_body_scatter +=
+                after_body - before_body + (self.account.loss_body - body_loss_before);
+        }
 
         let drive = match &self.external {
             Some(window) => {
@@ -1327,9 +1670,22 @@ impl StringNetworkVoice {
             } else {
                 0.0
             };
-            let mut excitation = self.strings[index].excitation_at(self.sample_index)
-                + drive * coupling_scale
-                + breath;
+            let burst = self.strings[index].excitation_at(self.sample_index);
+            let drive_here = drive * coupling_scale;
+            if observe {
+                // Ordered attribution, declared: the sources are booked in
+                // the order burst, drive, breath, bow, each against the
+                // wave the previous ones already raised. The split of a
+                // sum of squares is order-dependent; this is the order.
+                let wave = self.waves[index];
+                let account = &mut self.strings[index].account;
+                account.inject_burst += wave * burst + 0.5 * burst * burst;
+                let after_burst = wave + burst;
+                account.inject_drive += after_burst * drive_here + 0.5 * drive_here * drive_here;
+                let after_drive = after_burst + drive_here;
+                account.inject_breath += after_drive * breath + 0.5 * breath * breath;
+            }
+            let mut excitation = burst + drive_here + breath;
             if bowing && index < self.active_count {
                 // v1 coupling: explicit and ONE-STEP. The loop value that
                 // has just arrived at the excitation point stands in for
@@ -1354,9 +1710,15 @@ impl StringNetworkVoice {
                 let relative_velocity = bow_velocity - self.waves[index];
                 let force =
                     BOW_GAIN * self.patch.bow * bow_friction(relative_velocity) * coupling_scale;
+                let wave_before_bow = self.waves[index] + excitation;
                 let string = &mut self.strings[index];
                 string.bow_dc += BOW_DC_POLE * (force - string.bow_dc);
-                excitation += force - string.bow_dc;
+                let injected = force - string.bow_dc;
+                if observe {
+                    string.account.inject_bow +=
+                        wave_before_bow * injected + 0.5 * injected * injected;
+                }
+                excitation += injected;
             }
             let value = self.waves[index] + excitation;
             let (feedback, contact) = self.strings[index].apply_contact(value, self.patch.buzz);
@@ -1388,7 +1750,15 @@ impl StringNetworkVoice {
         self.orbit_phase =
             (self.orbit_phase + 2.0 * PI * self.patch.orbit_hz / SR_F64).rem_euclid(2.0 * PI);
         self.sample_index += 1;
-        (0.72 * output) as f32
+        let scaled = 0.72 * output;
+        if observe {
+            // Recorded, but NOT a ledger term: the pickup reads `incoming`
+            // and the body's radiation reads `mode.q` — neither removes
+            // anything from the state it observes. Treating the output as
+            // a loss would double-count. See PHASE0-TRANSIENT-REPORT.md.
+            self.account.output_energy += 0.5 * scaled * scaled;
+        }
+        scaled as f32
     }
 
     /// Fill a host-provided block and return the number of live samples.
@@ -1469,10 +1839,39 @@ impl StringNetworkVoice {
     /// to [`Self::render_traced`] (tested). Determinism law: the output
     /// is a pure function of (patch, notes, external, trajectory).
     pub fn render_traced_with(
-        mut self,
+        self,
         stride: usize,
         trajectory: &[ControlFrame],
     ) -> (Vec<f32>, WeaveTrace) {
+        let (audio, trace, _) = self.render_traced_core(stride, trajectory, false);
+        (audio, trace)
+    }
+
+    /// The Phase 0 §B observer seam: the same render, with the energy
+    /// ledger recorded. `observe` is a render-entry-point argument and
+    /// deliberately not a patch param — observation is not part of the
+    /// score, so it cannot be authored, automated, or digested into a
+    /// receipt.
+    ///
+    /// **Byte law:** the returned audio is bit-for-bit what
+    /// [`Self::render_traced_with`] returns for the same inputs. Every
+    /// observer reading is taken from state the audio step has already
+    /// written, and no accumulator is ever read back. Tested directly.
+    pub fn render_traced_observed(
+        self,
+        stride: usize,
+        trajectory: &[ControlFrame],
+    ) -> (Vec<f32>, WeaveTrace, EnergyTrace) {
+        self.render_traced_core(stride, trajectory, true)
+    }
+
+    fn render_traced_core(
+        mut self,
+        stride: usize,
+        trajectory: &[ControlFrame],
+        observe: bool,
+    ) -> (Vec<f32>, WeaveTrace, EnergyTrace) {
+        self.set_observer(observe);
         let mut frames: Vec<&ControlFrame> = trajectory.iter().collect();
         frames.sort_by_key(|frame| frame.at_sample);
         let stride = stride.max(1);
@@ -1482,6 +1881,8 @@ impl StringNetworkVoice {
         let total = self.total_samples;
         let trace_frames = total.div_ceil(stride);
         let mut data = Vec::with_capacity(trace_frames * (2 * courses + 1));
+        let mut energy = EnergyTrace::new(stride, courses, observe.then_some(trace_frames));
+        let initial_energy = if observe { self.stored_energy() } else { 0.0 };
         let mut audio = vec![0.0_f32; total];
         let mut next_frame = 0;
         for (index, slot) in audio.iter_mut().enumerate() {
@@ -1501,8 +1902,13 @@ impl StringNetworkVoice {
                     data.push(*edge as f32);
                 }
                 data.push(phase_now as f32);
+                if observe {
+                    energy.push_frame(&self);
+                }
             }
         }
+        energy.initial_energy = initial_energy;
+        energy.final_energy = if observe { self.stored_energy() } else { 0.0 };
         (
             audio,
             WeaveTrace {
@@ -1513,6 +1919,7 @@ impl StringNetworkVoice {
                 frames: trace_frames,
                 data,
             },
+            energy,
         )
     }
 
@@ -1521,6 +1928,195 @@ impl StringNetworkVoice {
     /// a participant, and an empty trajectory is exactly no trajectory.
     pub fn render_traced(self, stride: usize) -> (Vec<f32>, WeaveTrace) {
         self.render_traced_with(stride, &[])
+    }
+}
+
+/// Column names of [`EnergyTrace::data`], in order. Energies are declared
+/// stored energy at the frame's sample; every `inject_*`, `loss_*` and
+/// `work_*` column is a RUNNING INTEGRAL from sample 0, so the ledger
+/// between any two frames is a subtraction.
+pub const ENERGY_TRACE_COLUMNS: &[&str] = &[
+    "state_total",
+    "line_energy",
+    "filter_energy",
+    "body_energy",
+    "contact_state",
+    "inject_burst",
+    "inject_drive",
+    "inject_breath",
+    "inject_bow",
+    "loss_damping",
+    "loss_loop_gain",
+    "loss_contact",
+    "loss_body",
+    "work_scatter",
+    "work_body_scatter",
+    "work_allpass_retune",
+    "work_line_reinterpretation",
+    "output_energy",
+];
+
+/// Per-course columns of [`EnergyTrace::course_data`], in order.
+pub const ENERGY_TRACE_COURSE_COLUMNS: &[&str] = &["line_energy", "filter_energy"];
+
+/// Ariadne Phase 0 §B telemetry: an observer-only energy ledger over the
+/// whole production network.
+///
+/// The declared state is the union of every course's ACTIVE delay segment
+/// (Euclidean `sum(cell^2)/2`), every course's filter memory (three
+/// first-order allpass storages `E_a` plus the one-zero damping storage
+/// `E_z`), and every body mode's `(q^2 + p^2)/2`. The ledger law it
+/// satisfies is
+///
+/// ```text
+/// final - initial = sum(inject) + sum(work) - sum(loss)
+/// ```
+///
+/// with `output_energy` recorded but NOT a term: the pickup and the body
+/// radiation are taps that read state without removing it.
+///
+/// When the observer is disabled `frames` is 0 and both vectors are empty.
+#[derive(Debug, Clone, Default)]
+pub struct EnergyTrace {
+    pub stride: usize,
+    pub courses: usize,
+    pub frames: usize,
+    /// Frame-major, [`ENERGY_TRACE_COLUMNS`] values per frame.
+    pub data: Vec<f64>,
+    /// Frame-major, `courses * ENERGY_TRACE_COURSE_COLUMNS.len()` per frame.
+    pub course_data: Vec<f64>,
+    /// Declared stored energy before the first sample.
+    pub initial_energy: f64,
+    /// Declared stored energy after the last sample.
+    pub final_energy: f64,
+    /// Largest single-update allpass coefficient work over the render,
+    /// maximized across courses (the Phase 0 §A law-4 quantity).
+    pub allpass_update_peak: f64,
+    /// Largest single `integer_delay`-change line reinterpretation over
+    /// the render, maximized across courses (Phase 3's open problem).
+    pub line_reinterpretation_peak: f64,
+}
+
+impl EnergyTrace {
+    fn new(stride: usize, courses: usize, frames: Option<usize>) -> Self {
+        let frames = frames.unwrap_or(0);
+        Self {
+            stride,
+            courses,
+            frames: 0,
+            data: Vec::with_capacity(frames * ENERGY_TRACE_COLUMNS.len()),
+            course_data: Vec::with_capacity(frames * courses * ENERGY_TRACE_COURSE_COLUMNS.len()),
+            initial_energy: 0.0,
+            final_energy: 0.0,
+            allpass_update_peak: 0.0,
+            line_reinterpretation_peak: 0.0,
+        }
+    }
+
+    /// Read one frame off the voice. `&StringNetworkVoice` by design:
+    /// an observer that cannot reach `&mut` cannot perturb the render.
+    fn push_frame(&mut self, voice: &StringNetworkVoice) {
+        let mut line = 0.0;
+        let mut filter = 0.0;
+        let mut contact_state = 0.0;
+        let mut inject = [0.0_f64; 4];
+        let mut loss = [0.0_f64; 3];
+        let mut work = [0.0_f64; 2];
+        for string in &voice.strings {
+            let course_line = string.line_energy();
+            let course_filter = string.filter_energy();
+            line += course_line;
+            filter += course_filter;
+            contact_state += 0.5 * string.contact_memory * string.contact_memory;
+            let account = &string.account;
+            inject[0] += account.inject_burst;
+            inject[1] += account.inject_drive;
+            inject[2] += account.inject_breath;
+            inject[3] += account.inject_bow;
+            loss[0] += account.loss_damping;
+            loss[1] += account.loss_loop_gain;
+            loss[2] += account.loss_contact;
+            work[0] += account.work_allpass_retune;
+            work[1] += account.work_line_reinterpretation;
+            self.allpass_update_peak = self
+                .allpass_update_peak
+                .max(account.work_allpass_retune_peak);
+            self.line_reinterpretation_peak = self
+                .line_reinterpretation_peak
+                .max(account.work_line_reinterpretation_peak);
+            self.course_data.push(course_line);
+            self.course_data.push(course_filter);
+        }
+        let body = voice.body_energy();
+        let network = &voice.account;
+        self.data.extend_from_slice(&[
+            line + filter + body,
+            line,
+            filter,
+            body,
+            contact_state,
+            inject[0],
+            inject[1],
+            inject[2],
+            inject[3],
+            loss[0],
+            loss[1],
+            loss[2],
+            network.loss_body,
+            network.work_scatter,
+            network.work_body_scatter,
+            work[0],
+            work[1],
+            network.output_energy,
+        ]);
+        self.frames += 1;
+    }
+
+    /// One column of one frame.
+    pub fn get(&self, frame: usize, column: &str) -> Option<f64> {
+        let index = ENERGY_TRACE_COLUMNS.iter().position(|c| *c == column)?;
+        self.data
+            .get(frame * ENERGY_TRACE_COLUMNS.len() + index)
+            .copied()
+    }
+
+    /// The last recorded value of one column.
+    pub fn last(&self, column: &str) -> Option<f64> {
+        self.get(self.frames.checked_sub(1)?, column)
+    }
+
+    /// Ledger residual over the whole render: what the accounted flows
+    /// predict for the final state, minus the state actually measured.
+    /// Zero to roundoff is the Phase 0 §B gate.
+    pub fn ledger_residual(&self) -> f64 {
+        let sum = |names: &[&str]| -> f64 {
+            names
+                .iter()
+                .map(|name| self.last(name).unwrap_or(0.0))
+                .sum()
+        };
+        let injected = sum(&[
+            "inject_burst",
+            "inject_drive",
+            "inject_breath",
+            "inject_bow",
+        ]);
+        let lost = sum(&[
+            "loss_damping",
+            "loss_loop_gain",
+            "loss_contact",
+            "loss_body",
+        ]);
+        let worked = sum(&[
+            "work_scatter",
+            "work_body_scatter",
+            "work_allpass_retune",
+            "work_line_reinterpretation",
+        ]);
+        // The final frame is sampled at the last stride boundary, so
+        // compare against the state at that same frame, not `final_energy`.
+        let measured = self.last("state_total").unwrap_or(0.0);
+        (self.initial_energy + injected + worked - lost) - measured
     }
 }
 
@@ -1704,6 +2300,120 @@ mod mathematical_tests {
         let closed_form = weave_holonomy_defect(angle_a, angle_b);
         assert!((measured - closed_form).abs() < 1e-13);
         assert!(closed_form > 0.1, "defect={closed_form}");
+    }
+
+    /// Ariadne Phase 0 §A, the structural half of the legacy byte
+    /// argument: `retune=legacy` reaches no state arithmetic at all.
+    /// The transport is unreachable from this arm, so no future change to
+    /// `mus_watsn::neutral_allpass_state_transport` can move a legacy
+    /// render — which is a stronger statement than any A/B of outputs.
+    #[test]
+    fn legacy_mode_never_calls_the_transport() {
+        let mut section = FirstOrderAllpass {
+            coefficient: 0.05,
+            x1: 0.37,
+            y1: -0.29,
+        };
+        let before = section;
+        let work = section.retune_coefficient(0.96, RetuneMode::Legacy, true);
+        assert_eq!(section.coefficient, 0.96);
+        assert_eq!(section.x1.to_bits(), before.x1.to_bits(), "x1 is retained");
+        assert_eq!(section.y1.to_bits(), before.y1.to_bits(), "y1 is retained");
+        // The honest positive control: legacy retuning silently
+        // reinterprets stored energy, and here is the number.
+        assert!(
+            work.expect("accounted").abs() > 0.01,
+            "legacy coefficient change does hidden work: {work:?}"
+        );
+    }
+
+    /// The neutral arm applies exactly the mus-watsn law — the engine
+    /// does not re-derive it, so this test compares against the module.
+    #[test]
+    fn neutral_mode_applies_the_mus_watsn_transport() {
+        for (old, new) in [(0.05, 0.96), (-0.7, 0.4), (0.92, -0.98), (0.0, 0.61)] {
+            let mut section = FirstOrderAllpass {
+                coefficient: old,
+                x1: 0.37,
+                y1: -0.29,
+            };
+            let work = section
+                .retune_coefficient(new, RetuneMode::NeutralFilters, true)
+                .expect("accounted");
+            let (x1, y1, receipt) =
+                mus_watsn::neutral_allpass_state_transport(old, new, 0.37, -0.29);
+            assert_eq!(section.x1.to_bits(), x1.to_bits());
+            assert_eq!(section.y1.to_bits(), y1.to_bits());
+            assert_eq!(work.to_bits(), receipt.control_work.to_bits());
+            assert!(work.abs() <= 1e-12, "neutral work {work} is at roundoff");
+        }
+    }
+
+    /// Byte-inert no-op, in BOTH modes: an unchanged clamped coefficient
+    /// performs no state arithmetic whatsoever.
+    #[test]
+    fn a_noop_coefficient_update_is_byte_inert_in_both_modes() {
+        for mode in [RetuneMode::Legacy, RetuneMode::NeutralFilters] {
+            let mut section = FirstOrderAllpass {
+                coefficient: 0.71,
+                x1: -0.33,
+                y1: 0.27,
+            };
+            let before = section;
+            // Same value, and a value the clamp maps onto the same one.
+            for request in [0.71_f64, 4.0, -4.0, 0.71] {
+                let clamped = request.clamp(-0.999_5, 0.999_5);
+                if clamped.to_bits() != section.coefficient.to_bits() {
+                    section = before;
+                    continue;
+                }
+                let work = section.retune_coefficient(request, mode, true);
+                assert_eq!(work, Some(0.0), "{mode:?} no-op reports zero work");
+            }
+            assert_eq!(section.coefficient.to_bits(), before.coefficient.to_bits());
+            assert_eq!(section.x1.to_bits(), before.x1.to_bits());
+            assert_eq!(section.y1.to_bits(), before.y1.to_bits());
+        }
+    }
+
+    /// Work accounting is observation: with the observer off, nothing is
+    /// measured (`None`), which is not the same claim as "measured zero".
+    #[test]
+    fn unobserved_updates_report_nothing_rather_than_zero() {
+        let mut section = FirstOrderAllpass {
+            coefficient: 0.05,
+            x1: 0.37,
+            y1: -0.29,
+        };
+        assert_eq!(
+            section.retune_coefficient(0.96, RetuneMode::Legacy, false),
+            None
+        );
+        assert_eq!(
+            section.retune_coefficient(0.05, RetuneMode::Legacy, false),
+            None,
+            "even a no-op reports nothing when unobserved"
+        );
+    }
+
+    #[test]
+    fn retune_parses_as_an_enum_with_a_legacy_fallback() {
+        let patch = |value: &str| {
+            PluckPatch::from(&BTreeMap::from([("retune".to_string(), value.to_string())])).retune
+        };
+        assert_eq!(patch("legacy"), RetuneMode::Legacy);
+        assert_eq!(patch("neutral_filters"), RetuneMode::NeutralFilters);
+        assert_eq!(
+            patch("neutral"),
+            RetuneMode::Legacy,
+            "Phase 4's name is not live yet"
+        );
+        assert_eq!(patch(""), RetuneMode::Legacy);
+        assert_eq!(
+            PluckPatch::from(&BTreeMap::new()).retune,
+            RetuneMode::Legacy,
+            "absent means legacy"
+        );
     }
 
     #[test]

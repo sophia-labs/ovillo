@@ -412,13 +412,23 @@ fn bounded_and_finite_over_extreme_controls() {
         let bent_peak = bent
             .iter()
             .fold(0.0_f32, |maximum, sample| maximum.max(sample.abs()));
-        // Delay-line retuning during a bend performs work on the state —
-        // the predicted gap in the rotation proof, measured: this exact
-        // weave patch peaks 3.24 unbent and 5.38 during an upward-fifth
-        // bend (a bounded ~0.3 s transient that then decays to silence;
-        // the fretting hand doing work on a shortening string is real
-        // physics). Bound is measurement + headroom, not a passivity
-        // claim; energy-compensated retuning is the P0 follow-up.
+        // This exact weave patch peaks 3.24 unbent and 5.38 during an
+        // upward-fifth bend — a bounded ~0.3 s transient that then decays
+        // to silence. The bound is measurement + headroom, not a
+        // passivity claim.
+        //
+        // CORRECTED (Ariadne Phase 0 §C,
+        // `.string-research/PHASE0-TRANSIENT-REPORT.md`). This comment
+        // used to attribute the transient to retuning work — "the
+        // fretting hand doing work on a shortening string". Instrumenting
+        // the network falsified that: over this render the retuning work
+        // is NEGATIVE (-3.32 allpass, -20.44 delay line, declared
+        // Euclidean metric), total stored energy FALLS 1.3% across the
+        // peak, and the delay-line energy is flat to 1.2%. The transient
+        // is a body-resonance sweep — the glide drags the partials across
+        // the fixed modal body, roughly doubling body-mode energy, and
+        // `body=0` removes 98.9% of the excess. Repairing the allpass
+        // transport (`retune=neutral_filters`) moves the peak by -3.6%.
         assert!(bent_peak <= 8.0, "bent network peak {bent_peak} is bounded");
     }
 }
