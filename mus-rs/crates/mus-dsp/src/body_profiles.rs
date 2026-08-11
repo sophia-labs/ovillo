@@ -210,30 +210,6 @@ pub fn profile_for(name: &str) -> &'static BodyProfile {
         .unwrap_or(&PROFILES[0])
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn unrecognised_name_falls_back_to_guitar() {
-        assert_eq!(profile_for("banjo").name, "guitar");
-        assert_eq!(profile_for("").name, "guitar");
-        assert_eq!(
-            profile_for("Guitar").name,
-            "guitar",
-            "case-sensitive, falls back rather than panicking"
-        );
-    }
-
-    #[test]
-    fn every_registered_name_resolves_to_itself() {
-        for profile in PROFILES {
-            assert_eq!(profile_for(profile.name).name, profile.name);
-            assert!(!profile.modes.is_empty());
-        }
-    }
-}
-
 // ===================================================================
 // GARGANTA rung 1 — vowel bodies (design profiles, not measurements).
 //
@@ -296,3 +272,27 @@ pub const VOWEL_U_MODES: [(f64, f64, f64, f64); 5] = [
     (3300.0, 0.04, 0.0038, 0.35),
     (2900.0, 0.06, 0.0105, 1.10),
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unrecognised_name_falls_back_to_guitar() {
+        assert_eq!(profile_for("banjo").name, "guitar");
+        assert_eq!(profile_for("").name, "guitar");
+        assert_eq!(
+            profile_for("Guitar").name,
+            "guitar",
+            "case-sensitive, falls back rather than panicking"
+        );
+    }
+
+    #[test]
+    fn every_registered_name_resolves_to_itself() {
+        for profile in PROFILES {
+            assert_eq!(profile_for(profile.name).name, profile.name);
+            assert!(!profile.modes.is_empty());
+        }
+    }
+}
