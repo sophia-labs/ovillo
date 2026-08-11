@@ -22,6 +22,7 @@
 //! record the measured divergence and surface it, never to widen a
 //! tolerance silently. Refusal is a result.
 
+pub mod body_profiles;
 pub mod bus;
 pub mod filters;
 pub mod fixtures;

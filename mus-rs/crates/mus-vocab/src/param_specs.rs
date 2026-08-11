@@ -193,6 +193,7 @@ pub fn param_specs() -> Vec<ParamSpec> {
         ParamSpec { name: "dimension", layer: Extension, kind: Ratio { min: 0.55, max: 3.0, default: Some(1.35) }, doc: "Weyl-inspired spectral-dimension exponent spacing the virtual courses (a scaffold, not a measured graph spectrum)" },
         ParamSpec { name: "sing", layer: Extension, kind: Ratio { min: 0.0, max: 1.0, default: Some(0.0) }, doc: "external excitation: the instrument's sample drives the strings through the shared bridge; 0 = pluck only, 1 = the sample alone" },
         ParamSpec { name: "sing_at", layer: Extension, kind: Seconds { min: 0.0, max: 600.0, default: Some(0.0) }, doc: "offset into the sample the sing drive reads from — scrub the take across events" },
+        ParamSpec { name: "bodyp", layer: Extension, kind: Enum { values: &["guitar", "violin", "cello", "bass", "mandolin"], default: Some("guitar") }, doc: "body profile: literature-informed design modal table per instrument family (not a measurement); unrecognised names fall back to guitar" },
     ]
 }
 

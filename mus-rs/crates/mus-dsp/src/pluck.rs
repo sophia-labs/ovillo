@@ -45,22 +45,10 @@ use std::f64::consts::{LN_10, PI};
 
 use np_rand::{Pcg64, SeedSequence};
 
+use crate::body_profiles;
 use crate::SR_F64;
 
 const OPEN_GUITAR_STRINGS: [f64; 6] = [82.4069, 110.0, 146.832, 195.998, 246.942, 329.628];
-const BODY_MODE_SPECS: [(f64, f64, f64, f64); 10] = [
-    // frequency, T60, coupling angle at body=1, radiation weight
-    (98.0, 1.25, 0.0065, 0.78),
-    (186.0, 0.95, 0.0058, 0.72),
-    (221.0, 0.82, 0.0053, 0.66),
-    (286.0, 0.72, 0.0047, 0.58),
-    (365.0, 0.58, 0.0042, 0.50),
-    (455.0, 0.50, 0.0038, 0.43),
-    (610.0, 0.40, 0.0032, 0.34),
-    (835.0, 0.32, 0.0027, 0.27),
-    (1175.0, 0.25, 0.0022, 0.20),
-    (1580.0, 0.18, 0.0018, 0.14),
-];
 
 /// Everything read by the guitar and Weave string-network voices.
 ///
@@ -114,6 +102,10 @@ pub struct PluckPatch {
     pub sing: f64,
     /// Seconds into the sample the drive starts reading (`sing_at`).
     pub sing_at: f64,
+    /// Body profile selector (`bodyp`): `guitar|violin|cello|bass|
+    /// mandolin`, default `guitar`. Always one of the five registered
+    /// names after parsing — see [`PluckPatch::from`]'s enum-clamp note.
+    pub bodyp: String,
 }
 
 impl Default for PluckPatch {
@@ -144,6 +136,7 @@ impl Default for PluckPatch {
             spectral_dimension: 1.35,
             sing: 0.0,
             sing_at: 0.0,
+            bodyp: "guitar".to_string(),
         }
     }
 }
@@ -189,6 +182,22 @@ impl From<&BTreeMap<String, String>> for PluckPatch {
             spectral_dimension: parsed(map, "dimension", d.spectral_dimension).clamp(0.55, 3.0),
             sing: parsed(map, "sing", d.sing).clamp(0.0, 1.0),
             sing_at: parsed(map, "sing_at", d.sing_at).clamp(0.0, 600.0),
+            // Enum clamp: an unrecognised `bodyp` value falls back to
+            // guitar rather than erroring — the same "invalid input
+            // degrades to a safe default" discipline the numeric
+            // `.clamp()` calls above apply to out-of-range numbers,
+            // applied here to an out-of-domain string. `body_profiles::
+            // profile_for` does the lookup + fallback; storing its
+            // canonical `.name` here means `patch.bodyp` is always one of
+            // the five registered names after parsing, never an arbitrary
+            // string. There is no `mus_audio.py` oracle entry for
+            // `bodyp` (new engine-only surface, PW10 §A) — this fallback
+            // *is* the domain law, not a port of one.
+            bodyp: body_profiles::profile_for(
+                map.get("bodyp").map(String::as_str).unwrap_or(&d.bodyp),
+            )
+            .name
+            .to_string(),
         }
     }
 }
@@ -656,8 +665,13 @@ pub fn weave_holonomy_defect(angle_a: f64, angle_b: f64) -> f64 {
         .sqrt()
 }
 
-fn make_body(size: f64) -> Vec<BodyMode> {
-    BODY_MODE_SPECS
+/// Build the modal body for `profile_name` (falls back to guitar for an
+/// unrecognised name, per [`body_profiles::profile_for`]), scaled by
+/// `size` exactly as the single-table version always scaled
+/// `BODY_MODE_SPECS`.
+fn make_body(size: f64, profile_name: &str) -> Vec<BodyMode> {
+    body_profiles::profile_for(profile_name)
+        .modes
         .iter()
         .map(|&(frequency, t60, coupling, radiation)| {
             BodyMode::new(frequency / size, t60, coupling, radiation)
@@ -940,7 +954,7 @@ impl StringNetworkVoice {
         let total_samples = ((slot_s + tail).max(64.0 / SR_F64) * SR_F64) as usize;
         Self {
             mode,
-            body: make_body(patch.body_size),
+            body: make_body(patch.body_size, &patch.bodyp),
             patch,
             strings,
             waves: vec![0.0; n_strings],

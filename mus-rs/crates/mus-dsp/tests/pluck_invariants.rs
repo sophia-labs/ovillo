@@ -7,6 +7,7 @@
 
 use std::collections::BTreeMap;
 
+use mus_dsp::body_profiles;
 use mus_dsp::pluck::{
     pluck_note, pluck_note_sung, weave_note, ControlFrame, ControlTarget, StringNetworkVoice,
 };
@@ -639,4 +640,207 @@ fn closed_loop_commutator_is_path_dependent() {
         diff > scale * 0.01,
         "equal-endpoint loops must differ: diff={diff}, scale={scale}"
     );
+}
+
+// ---------------------------------------------------------------- PW10 §A
+// Body profiles (`bodyp`). The compat law is the hard one: `bodyp` absent
+// or `"guitar"` must render byte-identically to the pre-PW10 single-table
+// engine, for both pluck and weave. Since there is no pre-change binary to
+// diff against, the law is split into two independently-checkable halves:
+// (1) absent == "guitar" (below), and (2) the guitar table itself matches
+// the historical `BODY_MODE_SPECS` literal verbatim (next test). Together
+// they leave no room for the registry to have silently perturbed the
+// guitar sound while still passing (1) alone.
+
+#[test]
+fn bodyp_absent_equals_guitar_identity_pluck_and_weave() {
+    let pluck_absent = isolated(&[("sus", "2.0"), ("body", "0.6"), ("body_size", "1.1")]);
+    let mut pluck_guitar = pluck_absent.clone();
+    pluck_guitar.insert("bodyp".to_string(), "guitar".to_string());
+    let a = pluck_note(&pluck_absent, &[110.0, 164.8138], 1.0, 1.0);
+    let b = pluck_note(&pluck_guitar, &[110.0, 164.8138], 1.0, 1.0);
+    assert_eq!(a, b, "bodyp absent == bodyp=guitar (pluck)");
+    let a_again = pluck_note(&pluck_absent, &[110.0, 164.8138], 1.0, 1.0);
+    assert_eq!(a, a_again, "deterministic (pluck)");
+
+    let weave_absent = params(&[
+        ("synth", "weave"),
+        ("sus", "1.5"),
+        ("courses", "9"),
+        ("couple", "0.16"),
+        ("body", "0.5"),
+        ("body_size", "1.0"),
+    ]);
+    let mut weave_guitar = weave_absent.clone();
+    weave_guitar.insert("bodyp".to_string(), "guitar".to_string());
+    let wa = weave_note(&weave_absent, &[110.0, 165.0], 1.0, 1.0);
+    let wb = weave_note(&weave_guitar, &[110.0, 165.0], 1.0, 1.0);
+    assert_eq!(wa, wb, "bodyp absent == bodyp=guitar (weave)");
+    let wa_again = weave_note(&weave_absent, &[110.0, 165.0], 1.0, 1.0);
+    assert_eq!(wa, wa_again, "deterministic (weave)");
+
+    // An unrecognised name also falls back to guitar (the enum clamp),
+    // not just the absent-key path.
+    let mut pluck_bogus = pluck_absent.clone();
+    pluck_bogus.insert("bodyp".to_string(), "banjo".to_string());
+    let c = pluck_note(&pluck_bogus, &[110.0, 164.8138], 1.0, 1.0);
+    assert_eq!(a, c, "unrecognised bodyp falls back to guitar (pluck)");
+}
+
+#[test]
+fn guitar_body_profile_matches_the_historical_table_verbatim() {
+    // The pre-PW10 `BODY_MODE_SPECS` literal, transcribed here
+    // independently of `body_profiles.rs` so this test would catch a
+    // silent drift in the registry file even if the compat-identity test
+    // above somehow still passed.
+    const HISTORICAL_GUITAR_MODES: [(f64, f64, f64, f64); 10] = [
+        (98.0, 1.25, 0.0065, 0.78),
+        (186.0, 0.95, 0.0058, 0.72),
+        (221.0, 0.82, 0.0053, 0.66),
+        (286.0, 0.72, 0.0047, 0.58),
+        (365.0, 0.58, 0.0042, 0.50),
+        (455.0, 0.50, 0.0038, 0.43),
+        (610.0, 0.40, 0.0032, 0.34),
+        (835.0, 0.32, 0.0027, 0.27),
+        (1175.0, 0.25, 0.0022, 0.20),
+        (1580.0, 0.18, 0.0018, 0.14),
+    ];
+    assert_eq!(body_profiles::GUITAR_MODES, HISTORICAL_GUITAR_MODES);
+}
+
+#[test]
+fn every_body_profile_is_bounded_under_the_extreme_patch() {
+    // Measured peaks at this exact corner grid (unbent, gliss_ratio=1.0):
+    // pluck maxes out around 0.28 (bass); weave — which stacks 24 courses
+    // against body=1 and every scattering control maxed — maxes out
+    // around 5.29 (bass, whose 0.0070 coupling is the registry's
+    // highest). Bounds below carry headroom over that measurement, the
+    // same discipline `bounded_and_finite_over_extreme_controls` uses;
+    // this is not a passivity claim for the source-shaping params (buzz,
+    // tension, detune) that are already outside the rotation proof.
+    let profiles = ["guitar", "violin", "cello", "bass", "mandolin"];
+    for profile in profiles {
+        let pluck_patch = params(&[
+            ("synth", "pluck"),
+            ("sus", "0.05"),
+            ("damp", "0"),
+            ("pos", "0.02"),
+            ("pick", "1"),
+            ("stiff", "1"),
+            ("tension", "80"),
+            ("buzz", "1"),
+            ("body", "1"),
+            ("symp", "1"),
+            ("detune", "60"),
+            ("bodyp", profile),
+        ]);
+        let audio = pluck_note(&pluck_patch, &[82.4069, 110.0, 146.832], 0.45, 1.0);
+        assert!(
+            audio.iter().all(|s| s.is_finite()),
+            "{profile}: pluck finite"
+        );
+        let peak = audio.iter().fold(0.0_f32, |m, s| m.max(s.abs()));
+        assert!(peak <= 1.5, "{profile}: pluck extreme peak {peak} bounded");
+
+        let weave_patch = params(&[
+            ("synth", "weave"),
+            ("sus", "5"),
+            ("damp", "0.9"),
+            ("courses", "24"),
+            ("couple", "0.45"),
+            ("chirality", "1"),
+            ("orbit", "20"),
+            ("orbit_depth", "1"),
+            ("curvature", "1"),
+            ("body", "1"),
+            ("bodyp", profile),
+        ]);
+        let waudio = weave_note(&weave_patch, &[82.4069, 110.0, 146.832], 0.45, 1.0);
+        assert!(
+            waudio.iter().all(|s| s.is_finite()),
+            "{profile}: weave finite"
+        );
+        let wpeak = waudio.iter().fold(0.0_f32, |m, s| m.max(s.abs()));
+        assert!(
+            wpeak <= 7.0,
+            "{profile}: weave extreme peak {wpeak} bounded"
+        );
+    }
+}
+
+fn spectrum_vector(audio: &[f32], freqs: &[f64]) -> Vec<f64> {
+    freqs
+        .iter()
+        .map(|&f| goertzel(audio, f).max(0.0).sqrt())
+        .collect()
+}
+
+/// Relative RMS distance between two equal-length vectors, normalised by
+/// their combined magnitude so it is comparable across profile pairs of
+/// different overall loudness.
+fn rel_rms_distance(a: &[f64], b: &[f64]) -> f64 {
+    let diff = a
+        .iter()
+        .zip(b.iter())
+        .map(|(x, y)| (x - y).powi(2))
+        .sum::<f64>()
+        .sqrt();
+    let scale = ((a.iter().map(|v| v * v).sum::<f64>() + b.iter().map(|v| v * v).sum::<f64>())
+        / 2.0)
+        .sqrt();
+    diff / scale.max(1e-18)
+}
+
+#[test]
+fn body_profiles_are_pairwise_spectrally_distinct() {
+    let profiles = ["guitar", "violin", "cello", "bass", "mandolin"];
+    // Log-spaced band centers spanning every profile's modal range: the
+    // bass table anchors near 60 Hz, the violin/mandolin tables climb
+    // past 3 kHz.
+    let bands: Vec<f64> = (0..48)
+        .map(|i| 60.0 * (4000.0_f64 / 60.0).powf(i as f64 / 47.0))
+        .collect();
+    let spectra: Vec<Vec<f64>> = profiles
+        .iter()
+        .map(|&profile| {
+            let patch = params(&[
+                ("synth", "pluck"),
+                ("sus", "1.6"),
+                ("damp", "0.15"),
+                ("pos", "0.13"),
+                ("pick", "0.6"),
+                ("body", "1.0"),
+                ("body_size", "1.0"),
+                ("symp", "0"),
+                ("stiff", "0"),
+                ("tension", "0"),
+                ("buzz", "0"),
+                ("detune", "0"),
+                ("strum", "0"),
+                ("bodyp", profile),
+            ]);
+            let audio = pluck_note(&patch, &[110.0], 1.4, 1.0);
+            spectrum_vector(&audio, &bands)
+        })
+        .collect();
+    // Measured pairwise relative spectral distance across all 10 profile
+    // pairs at this patch ranged 0.50 (guitar vs cello — the two closest
+    // tables, both anchored near 100 Hz) to 1.39 (bass vs mandolin — the
+    // two farthest-apart body sizes). The floor sits at half the
+    // measured minimum: headroom under the closest pair, not at it.
+    let floor = 0.25;
+    let mut minimum = f64::INFINITY;
+    for i in 0..profiles.len() {
+        for j in (i + 1)..profiles.len() {
+            let distance = rel_rms_distance(&spectra[i], &spectra[j]);
+            minimum = minimum.min(distance);
+            assert!(
+                distance > floor,
+                "{} vs {}: relative spectral distance {distance:.4} <= floor {floor}",
+                profiles[i],
+                profiles[j]
+            );
+        }
+    }
+    println!("minimum pairwise relative spectral distance: {minimum:.4}");
 }
