@@ -135,10 +135,7 @@ fn max_abs_difference(left: &[f64; DIMENSION], right: &[f64; DIMENSION]) -> f64 
         .fold(0.0, f64::max)
 }
 
-fn apply_program(
-    program: &OperatorProgram,
-    input: [f64; DIMENSION],
-) -> [f64; DIMENSION] {
+fn apply_program(program: &OperatorProgram, input: [f64; DIMENSION]) -> [f64; DIMENSION] {
     let mut output = input;
     program.apply(&mut output).expect("dimension is fixed");
     output
