@@ -173,6 +173,26 @@ pub const PROFILES: &[BodyProfile] = &[
         name: "mandolin",
         modes: &MANDOLIN_MODES,
     },
+    BodyProfile {
+        name: "a",
+        modes: &VOWEL_A_MODES,
+    },
+    BodyProfile {
+        name: "e",
+        modes: &VOWEL_E_MODES,
+    },
+    BodyProfile {
+        name: "i",
+        modes: &VOWEL_I_MODES,
+    },
+    BodyProfile {
+        name: "o",
+        modes: &VOWEL_O_MODES,
+    },
+    BodyProfile {
+        name: "u",
+        modes: &VOWEL_U_MODES,
+    },
 ];
 
 /// Look up a profile by name, falling back to guitar (`PROFILES[0]`) for
@@ -213,3 +233,66 @@ mod tests {
         }
     }
 }
+
+// ===================================================================
+// GARGANTA rung 1 — vowel bodies (design profiles, not measurements).
+//
+// The vocal tract is a resonant filter whose formant pattern IS the
+// vowel; a formant pattern is a modal table; a modal table is a body.
+// These five tables park modes at literature-neighborhood formant
+// frequencies (F1-F4, Peterson/Barney-adjacent, adult singer register)
+// plus one shared "singer's formant" mode near 2.9 kHz (the F3-F5
+// cluster that makes trained voices project). T60s are formant-scale
+// (0.03-0.09 s — the tract is heavily damped; slightly ringier than
+// speech for musicality, declared). Radiation favors F2 (vowel
+// intelligibility) and the singer's formant (projection). A bowed
+// string wearing one of these IS the rung-1 primitive singer; the true
+// Kelly-Lochbaum tract is rung 3, handed to round 4.
+
+/// /a/ — open central: high F1, mid F2.
+pub const VOWEL_A_MODES: [(f64, f64, f64, f64); 5] = [
+    (710.0, 0.11, 0.0210, 0.95),
+    (1150.0, 0.09, 0.0200, 1.30),
+    (2500.0, 0.05, 0.0060, 0.60),
+    (3400.0, 0.04, 0.0040, 0.40),
+    (2900.0, 0.06, 0.0110, 1.20),
+];
+
+/// /e/ — mid front: F2 lifts toward 1.9 kHz.
+pub const VOWEL_E_MODES: [(f64, f64, f64, f64); 5] = [
+    (480.0, 0.11, 0.0210, 0.95),
+    (1900.0, 0.09, 0.0200, 1.30),
+    (2550.0, 0.05, 0.0060, 0.60),
+    (3450.0, 0.04, 0.0040, 0.40),
+    (2900.0, 0.06, 0.0110, 1.20),
+];
+
+/// /i/ — close front: lowest F1, highest F2; F3 rides at 2.95 kHz so
+/// the singer's-formant mode forms a genuine cluster with it (the
+/// bright "ee" ring).
+pub const VOWEL_I_MODES: [(f64, f64, f64, f64); 5] = [
+    (290.0, 0.11, 0.0210, 0.90),
+    (2250.0, 0.09, 0.0200, 1.40),
+    (2950.0, 0.05, 0.0060, 0.65),
+    (3550.0, 0.04, 0.0040, 0.40),
+    (2900.0, 0.06, 0.0110, 1.20),
+];
+
+/// /o/ — mid back rounded: F1 and F2 both low, F2 above /u/'s.
+pub const VOWEL_O_MODES: [(f64, f64, f64, f64); 5] = [
+    (420.0, 0.11, 0.0210, 1.00),
+    (800.0, 0.09, 0.0200, 1.25),
+    (2450.0, 0.05, 0.0060, 0.55),
+    (3350.0, 0.04, 0.0040, 0.38),
+    (2900.0, 0.06, 0.0110, 1.15),
+];
+
+/// /u/ — close back rounded: darkest pattern, both formants at the
+/// bottom of their ranges.
+pub const VOWEL_U_MODES: [(f64, f64, f64, f64); 5] = [
+    (310.0, 0.12, 0.0210, 1.00),
+    (700.0, 0.10, 0.0200, 1.20),
+    (2350.0, 0.05, 0.0055, 0.50),
+    (3300.0, 0.04, 0.0038, 0.35),
+    (2900.0, 0.06, 0.0105, 1.10),
+];

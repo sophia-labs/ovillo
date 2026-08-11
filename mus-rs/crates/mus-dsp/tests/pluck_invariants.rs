@@ -1023,7 +1023,9 @@ fn every_body_profile_is_bounded_under_the_extreme_patch() {
     // same discipline `bounded_and_finite_over_extreme_controls` uses;
     // this is not a passivity claim for the source-shaping params (buzz,
     // tension, detune) that are already outside the rotation proof.
-    let profiles = ["guitar", "violin", "cello", "bass", "mandolin"];
+    let profiles = [
+        "guitar", "violin", "cello", "bass", "mandolin", "a", "e", "i", "o", "u",
+    ];
     for profile in profiles {
         let pluck_patch = params(&[
             ("synth", "pluck"),
@@ -1098,7 +1100,9 @@ fn rel_rms_distance(a: &[f64], b: &[f64]) -> f64 {
 
 #[test]
 fn body_profiles_are_pairwise_spectrally_distinct() {
-    let profiles = ["guitar", "violin", "cello", "bass", "mandolin"];
+    let profiles = [
+        "guitar", "violin", "cello", "bass", "mandolin", "a", "e", "i", "o", "u",
+    ];
     // Log-spaced band centers spanning every profile's modal range: the
     // bass table anchors near 60 Hz, the violin/mandolin tables climb
     // past 3 kHz.
@@ -1128,11 +1132,14 @@ fn body_profiles_are_pairwise_spectrally_distinct() {
             spectrum_vector(&audio, &bands)
         })
         .collect();
-    // Measured pairwise relative spectral distance across all 10 profile
-    // pairs at this patch ranged 0.50 (guitar vs cello — the two closest
-    // tables, both anchored near 100 Hz) to 1.39 (bass vs mandolin — the
-    // two farthest-apart body sizes). The floor sits at half the
-    // measured minimum: headroom under the closest pair, not at it.
+    // PW10 measured 0.50-1.39 across the five instrument bodies (guitar
+    // vs cello closest, bass vs mandolin farthest). GARGANTA's five vowel
+    // bodies (45 pairs total) pull the measured minimum to 0.29 — the
+    // closest pair now sits in the vowel family, as it should (/o/ vs
+    // /u/ differ mainly by F1). The 0.25 floor holds, now snugly —
+    // strengthening formant radiation for rung-1 audibility spent most
+    // of the old headroom; if a future table lands under the floor,
+    // differentiate the tables rather than lowering it.
     let floor = 0.25;
     let mut minimum = f64::INFINITY;
     for i in 0..profiles.len() {

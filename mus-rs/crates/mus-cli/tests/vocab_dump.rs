@@ -111,7 +111,9 @@ fn vocab_dump_covers_the_registry() {
     // PW10 §A: bodyp is a typed enum with all five profiles, guitar default.
     assert_eq!(
         by_name("bodyp").unwrap()["control"]["values"],
-        serde_json::json!(["guitar", "violin", "cello", "bass", "mandolin"])
+        serde_json::json!([
+            "guitar", "violin", "cello", "bass", "mandolin", "a", "e", "i", "o", "u"
+        ])
     );
     assert_eq!(
         by_name("bodyp").unwrap()["control"]["default"],

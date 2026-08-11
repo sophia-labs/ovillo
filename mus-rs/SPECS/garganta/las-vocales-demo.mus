@@ -1,0 +1,44 @@
+# score: Las Vocales del Telar
+# summary: GARGANTA rung 1 — bowed strings wearing vowel bodies; the instrument's first syllables
+# tempo: 63
+# time: 3/4
+# key: Dm
+# bars: 22
+# reverb: 1.8
+# master: rms=-15
+
+# text @b1: a bowed string wearing /a/, then /e/, /i/, /o/, /u/ — the
+# text @b1: five mouths of one string. no samples, no voice but the loom's.
+# text @b9: two voices in thirds, vowels changing against each other.
+# text @b17: the chord that says "aiu".
+
+# instruments:
+#   v1 = voz una (treble, synth=weave, bodyp=a, bow=0.55, bow_speed=0.45, breath=0.18, sus=6, damp=0.22, courses=7, couple=0.07, detune=6, body=1.0, body_size=1.0, send=0.3, gain=-2)
+#   v2 = voz dos (treble, synth=weave, bodyp=o, bow=0.5, bow_speed=0.5, breath=0.15, sus=6, damp=0.24, courses=7, couple=0.07, detune=6, body=1.0, send=0.3, gain=-5)
+#   bj = el pecho (bass, synth=weave, bodyp=u, bow=0.45, bow_speed=0.35, sus=7, damp=0.3, courses=5, couple=0.05, body=0.9, body_size=1.2, send=0.2, gain=-6)
+
+# section: las cinco bocas [1-8]
+bar 1: v1={mf} D4h.[bodyp=a]  v2=-  bj=D2h.[bodyp=u]
+bar 2: v1=D4h.[bodyp=e]  v2=-  bj=-
+bar 3: v1=D4h.[bodyp=i]  v2=-  bj=D2h.[bodyp=o]
+bar 4: v1=D4h.[bodyp=o]  v2=-  bj=-
+bar 5: v1=D4h.[bodyp=u]  v2=-  bj=A1h.[bodyp=u]
+bar 6: v1=F4h[bodyp=a] E4q[bodyp=e]  v2=-  bj=-
+bar 7: v1=D4q[bodyp=i] E4q[bodyp=o] F4q[bodyp=u]  v2=-  bj=D2h.[bodyp=a]
+bar 8: v1=E4h.[bodyp=a,bow=0.65]  v2=-  bj=-
+# section: dos gargantas [9-16]
+bar 9: v1={mp} F4h.[bodyp=a]  v2={mp} D4h.[bodyp=o]  bj=D2h.[bodyp=u]
+bar 10: v1=F4h.[bodyp=i]  v2=D4h.[bodyp=e]  bj=-
+bar 11: v1=G4h.[bodyp=e]  v2=E4h.[bodyp=u]  bj=C2h.[bodyp=o]
+bar 12: v1=G4h.[bodyp=o]  v2=E4h.[bodyp=a]  bj=-
+bar 13: v1=A4h[bodyp=u] G4q[bodyp=o]  v2=F4h[bodyp=i] E4q[bodyp=e]  bj=Bb1h.[bodyp=a]
+bar 14: v1=F4h.[bodyp=e]  v2=D4h.[bodyp=a]  bj=-
+bar 15: v1=E4h.[bodyp=i,bow=0.6]  v2=C#4h.[bodyp=o]  bj=A1h.[bodyp=u]
+bar 16: v1=D4h.[bodyp=a,bow=0.4]  v2=D4h.[bodyp=u]  bj=-
+# section: la palabra [17-22]
+bar 17: v1={mf} <D4 A4>h.[bodyp=a]  v2=<F3 D4>h.[bodyp=a]  bj=D2h.[bodyp=a]
+bar 18: v1=<D4 A4>h.[bodyp=i]  v2=<F3 D4>h.[bodyp=i]  bj=D2h.[bodyp=i]
+bar 19: v1=<D4 A4>h.[bodyp=u]  v2=<F3 D4>h.[bodyp=u]  bj=D2h.[bodyp=u]
+bar 20: v1=<D4 G4>h.[bodyp=o]  v2=<E3 C4>h.[bodyp=o]  bj=C2h.[bodyp=o]
+bar 21: v1=<D4 A4>h.[bodyp=e,bow=0.6]  v2=<F3 D4>h.[bodyp=e]  bj=D2h.[bodyp=e]
+bar 22: v1=<D4 F4 A4>h.[bodyp=a,bow=0.35,breath=0.4]  v2=<D3 A3>h.[bodyp=a,bow=0.3]  bj=D2h.[bodyp=a,bow=0.3]
