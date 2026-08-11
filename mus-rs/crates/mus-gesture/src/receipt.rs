@@ -42,7 +42,10 @@ pub struct ReceiptGate {
 }
 
 impl ReceiptGate {
-    fn from_gate(gate: &GivensGate) -> Self {
+    /// Record a compiled gate. Public because Phase 2's closed-loop receipt
+    /// records the same gate shape for a word that is not a single tree-QR
+    /// certificate.
+    pub fn from_gate(gate: &GivensGate) -> Self {
         Self {
             edge: gate.edge.0,
             left: gate.left,
@@ -65,7 +68,10 @@ pub struct WorkResidual {
 }
 
 impl WorkResidual {
-    fn from_measurement(measurement: &WorkMeasurement) -> Self {
+    /// Record a `mus-watsn` ledger measurement. Public for the same reason as
+    /// [`ReceiptGate::from_gate`]: Phase 2's closed-loop receipt carries the
+    /// identical measured-work field and must not restate its shape.
+    pub fn from_measurement(measurement: &WorkMeasurement) -> Self {
         Self {
             metric: measurement.metric().to_string(),
             probe_states: measurement.probe_states(),

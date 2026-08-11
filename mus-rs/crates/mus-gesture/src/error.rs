@@ -99,6 +99,17 @@ pub enum GestureError {
     LeafOrderNotAPeel { position: usize, mode: usize },
     /// Total duration must be finite and strictly positive.
     InvalidDuration { duration: f64 },
+    /// A principal `SO(3)` angle handed to
+    /// [`crate::balanced_commutator_angle`] was outside `[0, pi]`, or was not
+    /// finite. The balanced inverse law has no other branch.
+    PrincipalAngleOutOfDomain { angle: f64 },
+    /// The exact closed-loop compiler is defined at
+    /// [`crate::CLOSED_LOOP_DIMENSION`] only. Gotô's theorem supplies
+    /// existence of a one-commutator representation in every compact connected
+    /// semisimple group, but a constructive choice of macro factors for
+    /// `SO(n)`, `n > 3`, is out of scope for this phase — so this is
+    /// [`ErrorClass::Unsupported`], not a claim of unreachability.
+    ClosedLoopDimension { dimension: usize },
     /// The exact word must contain `n(n-1)/2` gates for a full target.
     GateCountInvariant { expected: usize, actual: usize },
     /// The leaf-peel invariant failed mid-elimination.
@@ -135,10 +146,12 @@ impl GestureError {
             | Self::LeafOrderNotAPermutation { .. }
             | Self::LeafOrderNotAPeel { .. }
             | Self::InvalidDuration { .. }
+            | Self::PrincipalAngleOutOfDomain { .. }
             | Self::Program(_) => ErrorClass::Malformed,
             Self::TargetDeterminantNotUnit { .. }
             | Self::DisconnectedGraph { .. }
             | Self::CrossComponentTarget { .. } => ErrorClass::Unreachable,
+            Self::ClosedLoopDimension { .. } => ErrorClass::Unsupported,
             Self::GateCountInvariant { .. }
             | Self::PeelInvariant { .. }
             | Self::ReplayMismatch { .. } => ErrorClass::SolverFailed,
@@ -256,6 +269,14 @@ impl fmt::Display for GestureError {
             Self::InvalidDuration { duration } => {
                 write!(formatter, "duration {duration} must be finite and positive")
             }
+            Self::PrincipalAngleOutOfDomain { angle } => write!(
+                formatter,
+                "principal SO(3) angle {angle} must lie in [0, pi]"
+            ),
+            Self::ClosedLoopDimension { dimension } => write!(
+                formatter,
+                "the exact closed-loop compiler is defined at dimension 3; got {dimension}"
+            ),
             Self::GateCountInvariant { expected, actual } => write!(
                 formatter,
                 "tree-QR emitted {actual} gates, expected {expected}"

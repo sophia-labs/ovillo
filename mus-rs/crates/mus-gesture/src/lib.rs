@@ -24,9 +24,24 @@
 //! only for construction-time bookkeeping at `n <= 32`; nothing here runs in
 //! an audio callback.
 //!
-//! Consensus §5.2 also fixes the scope of this phase. The exact closed
-//! `SO(3)` compiler, the MUS-F inverse surface, deformation controls, and the
-//! topological lab are later commits and are deliberately absent.
+//! Consensus §5.2 fixes the scope. Phase 1 is the exact tree-QR compiler
+//! ([`compile`]); Phase 2 Commit F adds the exact **closed-control** `SO(3)`
+//! compiler in [`closed_loop`], which reuses that tree-QR as its lowering
+//! stage and adds nothing else to the executor surface. The MUS-F inverse
+//! surface, deformation controls, and the topological lab are later commits
+//! and are deliberately absent.
+//!
+//! # The closed-loop layer (Phase 2 A)
+//!
+//! ```text
+//! SO(3) target -> (phi, n) -> balanced local commutator angle t
+//!     -> conjugator S with S n0 = n      (deterministic branch)
+//!     -> macros A = S R01(t) S^-1, B = S R12(t) S^-1
+//!     -> tree-QR each, emit inverse(W_B) ++ inverse(W_A) ++ W_B ++ W_A
+//!     -> 12 authored-edge gates, every edge control back at zero
+//! ```
+//!
+//! See [`closed_loop`] for the convention derivation and the closure rule.
 //!
 //! # Deliberate deviations from the Python reference
 //!
@@ -72,6 +87,18 @@
 //! executable schedule, rather than the reference's uniform spread of the
 //! duration over gates that do nothing.
 //!
+//! A sixth is recorded in [`closed_loop`]:
+//! [`balanced_commutator_angle`] takes `[0, pi]` and returns
+//! [`GestureError::PrincipalAngleOutOfDomain`] outside it, where the reference
+//! accepts `pi + 1e-12` and silently clamps. The clamp is unnecessary here —
+//! [`principal_angle_axis`] derives the angle from a canonicalized quaternion,
+//! so `phi <= pi` holds by construction rather than by tolerance. A
+//! non-`SO(3)` closed-loop request is [`GestureError::ClosedLoopDimension`],
+//! the crate's only [`ErrorClass::Unsupported`] outcome: Gotô's theorem
+//! guarantees a one-commutator representation in every compact connected
+//! semisimple group, so refusing is a statement about this phase's
+//! constructive scope, not about reachability.
+//!
 //! # Dependencies
 //!
 //! `mus-watsn` is the only intra-workspace dependency, as consensus §5.2
@@ -112,6 +139,7 @@
 //! # Ok::<(), mus_gesture::GestureError>(())
 //! ```
 
+pub mod closed_loop;
 pub mod compile;
 pub mod digest;
 pub mod error;
@@ -124,6 +152,12 @@ pub mod search;
 pub mod target;
 pub mod work;
 
+pub use closed_loop::{
+    balanced_commutator_angle, compile_exact_closed_loop_so3, principal_angle_axis,
+    replay_closed_loop, ClosedLoopCertificate, ClosedLoopReceipt, ClosedLoopReplayReport,
+    ConjugatorBranch, EdgeClosureEntry, ANTIPODAL_SINE_THRESHOLD, CLOSED_LOOP_DIMENSION,
+    CLOSED_LOOP_GATE_COUNT, IDENTITY_ANGLE_TOLERANCE,
+};
 pub use compile::{
     compile, compile_block_diagonal, compile_on_tree, edge_closure, endpoint_operator,
     BlockDiagonalCertificate, CompileCertificate, GivensGate,
