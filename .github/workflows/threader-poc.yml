@@ -1,0 +1,35 @@
+name: Threader POC
+
+on:
+  push:
+    paths:
+      - "mus-rs/experiments/threader_poc/**"
+      - ".github/workflows/threader-poc.yml"
+  pull_request:
+    paths:
+      - "mus-rs/experiments/threader_poc/**"
+      - ".github/workflows/threader-poc.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mus-rs/experiments/threader_poc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: mus-rs/experiments/threader_poc/pyproject.toml
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e '.[test]'
+      - run: python -m compileall -q threader_poc tests
+      - run: pytest
+      - name: Smoke the executable miniature
+        run: python -m threader_poc.train --steps 12 --batch-size 4 --utterances 3 --refinement-steps 4 --output /tmp/threader-poc-smoke

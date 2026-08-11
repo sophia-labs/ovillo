@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sophia-threader-poc"
+version = "0.1.0"
+description = "Toy hierarchical inverse-instrument compiler for SPEAK/GARGANTA research"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+  "numpy>=2",
+  "torch>=2.4",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.scripts]
+threader-toy = "threader_poc.train:main"
+
+[tool.setuptools]
+packages = ["threader_poc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
