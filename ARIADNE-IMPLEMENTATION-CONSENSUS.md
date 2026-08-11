@@ -290,7 +290,7 @@ Only after the previous phases:
 | One reversible traceless deformation plus rotations generates `SL(n,R)` | Operator-level theorem under signed reversible assumptions; not yet a production actuator |
 | Passivity effect typing prevents unaccounted operations at the IR level | Established in quantized Lean skeleton; Rust soundness not yet proved |
 | Existing production bend is work-accounted | Not yet; internal instrumentation remains mandatory |
-| Current chirality audio is closed-loop holonomy | Not yet; exact same-endpoint production path remains to be rendered |
+| Current chirality audio is closed-loop holonomy | The exact same-endpoint production path IS rendered (Phase 2, `.string-research/PHASE2-REPORT.md`): closed 12-gate words with per-edge closure ≤ 4.44e-16 executed in the live Weave voice; the result is closed-control monodromy, not holonomy — §6 condition (1) met exactly per authored edge, (2)/(4)/(5) open, (3) partial |
 | Non-Abelian Ariadne transport is topologically protected | Not established |
 
 ---

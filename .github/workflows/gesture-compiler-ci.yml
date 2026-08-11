@@ -46,3 +46,4 @@ jobs:
           python -m json.tool paper/ariadne-protected-nonabelian/results.json >/dev/null
           python -m json.tool paper/ariadne-protected-nonabelian/fixture.json >/dev/null
           python -m json.tool mus-rs/crates/mus-gesture/fixtures/tree_qr_oracle.json >/dev/null
+          python -m json.tool mus-rs/crates/mus-gesture/fixtures/closed_loop_oracle.json >/dev/null
