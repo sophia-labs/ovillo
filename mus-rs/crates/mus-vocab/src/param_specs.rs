@@ -195,6 +195,8 @@ pub fn param_specs() -> Vec<ParamSpec> {
         ParamSpec { name: "sing_at", layer: Extension, kind: Seconds { min: 0.0, max: 600.0, default: Some(0.0) }, doc: "offset into the sample the sing drive reads from — scrub the take across events" },
         ParamSpec { name: "bodyp", layer: Extension, kind: Enum { values: &["guitar", "violin", "cello", "bass", "mandolin"], default: Some("guitar") }, doc: "body profile: literature-informed design modal table per instrument family (not a measurement); unrecognised names fall back to guitar" },
         ParamSpec { name: "breath", layer: Extension, kind: Ratio { min: 0.0, max: 1.0, default: Some(0.0) }, doc: "sustained breath excitation: content-keyed lowpassed noise injected at the bridge while the note holds its slot; 0 = pluck burst only" },
+        ParamSpec { name: "bow", layer: Extension, kind: Ratio { min: 0.0, max: 1.0, default: Some(0.0) }, doc: "bow pressure: a sustained friction port at the excitation point that answers the string; 0 = no bow, 1 = full weight and no pluck burst (an energy source, not a passive coupling)" },
+        ParamSpec { name: "bow_speed", layer: Extension, kind: Ratio { min: 0.0, max: 1.0, default: Some(0.5) }, doc: "bow velocity, 0.05..0.4 in wave units: slow and grainy through fast and glassy (inert while bow = 0)" },
     ]
 }
 

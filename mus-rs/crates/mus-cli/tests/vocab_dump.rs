@@ -122,4 +122,24 @@ fn vocab_dump_covers_the_registry() {
         serde_json::json!({"kind": "ratio", "min": 0.0, "max": 1.0, "default": 0.0}),
         "breath is a 0..1 ratio, defaulting to no breath"
     );
+
+    // PW10 §B: the bow is two ratios, both block-automatable (a crescendo
+    // is a `bow` trajectory), and `bow` defaults to its hard zero limit.
+    assert_eq!(
+        by_name("bow").unwrap()["control"],
+        serde_json::json!({"kind": "ratio", "min": 0.0, "max": 1.0, "default": 0.0}),
+        "bow is a 0..1 ratio defaulting to no bow"
+    );
+    assert_eq!(
+        by_name("bow_speed").unwrap()["control"],
+        serde_json::json!({"kind": "ratio", "min": 0.0, "max": 1.0, "default": 0.5}),
+        "bow_speed is a 0..1 ratio defaulting to mid travel"
+    );
+    for bowing in ["bow", "bow_speed"] {
+        assert_eq!(
+            by_name(bowing).unwrap()["automation"],
+            serde_json::json!("block"),
+            "{bowing} is retargetable mid-note"
+        );
+    }
 }
