@@ -727,7 +727,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         paths.sort();
-        assert_eq!(paths.len(), 18);
+        assert_eq!(paths.len(), 19);
         for path in paths {
             let source = std::fs::read_to_string(&path).unwrap();
             let original =

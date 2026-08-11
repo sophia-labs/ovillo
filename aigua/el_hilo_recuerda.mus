@@ -1,0 +1,39 @@
+# score: El hilo recuerda
+# summary: three machine voices made to sing weirdly — plainchant sung into the weave lattice, a whisper into the guitar's sympathetic strings, a spoken line chopped and harmonized by the glow chain
+# tempo: 70
+# time: 4/4
+# key: Em
+# bars: 10
+# reverb: 1.6
+# master: rms=-16
+
+# text @b1: the chant (gpt-audio, ballad) never plucks anything: sing=1, the
+# text @b1: voice is the excitation, and each bar re-frets the lattice under it.
+# text @b5: the spoken line (coral) is cut by the engine itself: chop deals the
+# text @b5: grains, stut retriggers, gwarble is the autotune artifact, gharm
+# text @b5: stacks it into a chord of itself.
+# text @b7: the whisper (cedar) drives the guitar at sing=0.7 — the pluck frets,
+# text @b7: the breath rings the six sympathetic opens.
+
+# instruments:
+#   hi = el canto en el telar (treble, synth=weave, sample=tts_hilo_canto.wav, sing=1, sus=4.0, damp=0.22, pos=0.2, pick=0.4, body=0.6, courses=15, dimension=1.6, couple=0.10, chirality=0.6, orbit=0.25, orbit_depth=0.5, curvature=0.2, strum=0, send=0.30)
+#   su = el susurro en la guitarra (treble, synth=pluck, sample=tts_hilo_susurro.wav, sing=0.7, sus=3.2, damp=0.30, pos=0.16, pick=0.5, body=0.5, symp=0.4, strum=12, send=0.22)
+#   cv = la voz picada (treble, sample=tts_hilo_habla.wav, mode=varispeed, gain=-3, send=0.18)
+
+# section: el canto entra al telar [1-4]
+bar 1: hi=<E3 B3 E4 G4>w[sing_at=0]  su=-  cv=-
+bar 2: hi=<C3 G3 E4 G4>w[sing_at=3.4]  su=-  cv=-
+bar 3: hi=<A2 E3 C4 A4>w[sing_at=6.9]  su=-  cv=-
+bar 4: hi=<B2 F#3 D#4 A4>w[sing_at=10.3]  su=-  cv=-
+
+# section: la voz picada [5-6]
+bar 5: hi=-  su=-  cv=Xq[chop=8] Xq[st=7,chop=8] Xe[st=-5] Xe[st=12,stut=3] Xh[gwarble=6,glow=7]
+bar 6: hi=-  su=-  cv=Xh[gharm=0+3+7+12,glow=5] Xq[st=-12,chop=16] Xq[st=5,stut=4]
+
+# section: el susurro en la guitarra [7-8]
+bar 7: hi=-  su=<E2 B2 E3 G3 B3 E4>w[sing_at=0]  cv=-
+bar 8: hi=-  su=<A2 E3 A3 C4 E4>w[sing_at=3.4]  cv=-
+
+# section: todos los hilos [9-10]
+bar 9: hi=<E3 B3 E4 G4 B4>w[sing_at=13.7]  su=<E2 B2 E3 G3 B3 E4>w[sing_at=6.9]  cv=Xh[gharm=0+4+7,glow=6] Xh[st=-7,chop=8]
+bar 10: hi=<E2 B2 E3 G3 B3 E4>w[sing_at=17.1,sus=6]  su=-  cv=-
