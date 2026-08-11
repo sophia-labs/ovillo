@@ -1,0 +1,86 @@
+name: Unified instrument reference (U0)
+
+on:
+  push:
+    branches:
+      - agent/weave-string-network
+      - agent/unified-instrument-math-brief
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install scientific runtime
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "numpy>=2" jsonschema
+
+      - name: Compile reference packet
+        working-directory: paper/ariadne-protected-nonabelian
+        run: python -m compileall -q unified_reference run_unified_experiments.py
+
+      # The mathematicians' own suite: exact algebra, topology estimators,
+      # Kato transport, compiler legality, persistence, ledgers, and a
+      # recomputation of every committed manifest byte count and SHA-256.
+      - name: Run unified reference suite (23 tests)
+        working-directory: paper/ariadne-protected-nonabelian
+        run: python -m unittest discover -s unified_reference/tests -v
+
+      - name: Validate fixture against schema (reject unknown versions)
+        working-directory: paper/ariadne-protected-nonabelian
+        run: |
+          python - <<'EOF'
+          import json
+          import jsonschema
+          fixture = json.load(open("unified_artifacts/unified_fixture_v2.json"))
+          schema = json.load(open("schemas/unified_fixture_v2.schema.json"))
+          jsonschema.validate(fixture, schema)
+          expected = "ariadne.unified-instrument.fixture.v2"
+          assert fixture["schema"] == expected, fixture["schema"]
+          print("fixture schema valid:", expected)
+          EOF
+
+      # The committed Rust test vectors must be exactly reproducible from
+      # the committed NPZ/JSON artifacts (seeded export, no drift).
+      - name: Regenerate Rust test vectors and diff against committed
+        run: |
+          cp paper/ariadne-protected-nonabelian/unified_artifacts/unified_rust_test_vectors.json /tmp/committed_vectors.json
+          python mus-rs/tools/unified_export_test_vectors.py
+          diff /tmp/committed_vectors.json paper/ariadne-protected-nonabelian/unified_artifacts/unified_rust_test_vectors.json
+
+  rust-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: mus-rs
+
+      # Acceptance tests 2-6 and 11 of RUST-API-CONTRACT.md: independent
+      # gate-by-gate replay of the committed A/B/preparation/readout words
+      # against NPZ-derived dense matrices, occupied eigenphases, and the
+      # non-Abelian witness.
+      - name: Cross-runtime replay (mus-watsn)
+        working-directory: mus-rs
+        run: cargo test -p mus-watsn

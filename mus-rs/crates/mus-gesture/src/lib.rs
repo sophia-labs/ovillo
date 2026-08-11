@@ -145,6 +145,7 @@ pub mod digest;
 pub mod error;
 pub mod graph;
 pub mod matrix;
+pub mod protected;
 pub mod receipt;
 pub mod rng;
 pub mod schedule;
@@ -169,6 +170,13 @@ pub use graph::{
     SpanningTree,
 };
 pub use matrix::Matrix;
+pub use protected::{
+    admit_physical_adiabatic, dirac_d, dirac_hamiltonian, dirac_radius, evaluate_claims,
+    jrs_adiabatic_bound, loop_a, loop_b, minimum_duration_for_jrs_budget, verify_path,
+    AdiabaticBoundCertificate, ClaimDecision, ClaimLevel, EvidenceClass, EvidenceInHand,
+    FamilyParameters, PathGapCertificate, ProtectedBudgets, ProtectedExecutionMode,
+    ProtectedRefusal, ProtectedRefusalDetail, SmoothTorusLoop,
+};
 pub use receipt::{
     replay, GestureReceipt, ReceiptGate, ReplayReport, WorkResidual, COMPILER_VERSION,
 };

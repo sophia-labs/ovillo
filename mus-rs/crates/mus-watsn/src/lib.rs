@@ -7,6 +7,8 @@
 //! ledger.
 
 pub mod allpass;
+pub mod complex;
+pub mod complex_program;
 pub mod delay;
 pub mod givens;
 pub mod ledger;
@@ -17,6 +19,11 @@ pub mod string;
 pub use allpass::{
     allpass_normalized_state, allpass_storage_energy, neutral_allpass_state_transport,
     AllpassSection, AllpassTransportReceipt,
+};
+pub use complex::{state_energy, Complex64};
+pub use complex_program::{
+    real_givens_symplectic_residual, ComplexGate, ComplexOperatorProgram, ComplexPhaseGate,
+    ComplexProgramError, ComplexProgramReceipt, ComplexTwoModeGate,
 };
 pub use delay::{
     quadratic_energy, resample_periodic_linear, resample_periodic_linear_neutral,
