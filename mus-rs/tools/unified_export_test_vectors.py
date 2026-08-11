@@ -129,6 +129,23 @@ def main() -> None:
         "commutator_fro": float(np.linalg.norm(wa @ wb - wb @ wa, ord="fro")),
     }
 
+    # persistent-state checkpoints (U3): the fixed calibrated preparation,
+    # then AB vs BA composition on the persistent state, plus the reset
+    # counterfeit — theory §13.3 semantics, exported as exact vectors.
+    prepared = np.asarray(tables["observable_prepared"], dtype=np.complex128)
+    dense_a = np.asarray(tables["loop_a_holonomy"], dtype=np.complex128)
+    dense_b = np.asarray(tables["loop_b_holonomy"], dtype=np.complex128)
+    final_ab = dense_b @ dense_a @ prepared
+    final_ba = dense_a @ dense_b @ prepared
+    reset_control = dense_b @ prepared  # reset between loops: A's effect erased
+    out["persistent"] = {
+        "prepared": cjson(prepared.reshape(1, -1))[0],
+        "final_ab": cjson(final_ab.reshape(1, -1))[0],
+        "final_ba": cjson(final_ba.reshape(1, -1))[0],
+        "ab_ba_distance": float(np.linalg.norm(final_ab - final_ba)),
+        "reset_counterfeit_distance": float(np.linalg.norm(final_ab - reset_control)),
+    }
+
     # random U(n) tree-compiler fixtures, dimensions 2..32 (exit gate U1)
     out["random_unitaries"] = []
     for n in (2, 3, 8, 32):

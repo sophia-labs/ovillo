@@ -22,8 +22,8 @@ pub use allpass::{
 };
 pub use complex::{state_energy, Complex64};
 pub use complex_program::{
-    real_givens_symplectic_residual, ComplexGate, ComplexOperatorProgram, ComplexPhaseGate,
-    ComplexProgramError, ComplexProgramReceipt, ComplexTwoModeGate,
+    apply_gate, real_givens_symplectic_residual, ComplexGate, ComplexOperatorProgram,
+    ComplexPhaseGate, ComplexProgramError, ComplexProgramReceipt, ComplexTwoModeGate,
 };
 pub use delay::{
     quadratic_energy, resample_periodic_linear, resample_periodic_linear_neutral,

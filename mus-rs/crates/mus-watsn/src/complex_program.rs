@@ -193,18 +193,7 @@ impl ComplexOperatorProgram {
             });
         }
         for gate in &self.gates {
-            match gate {
-                ComplexGate::Phase(phase) => {
-                    state[phase.mode] = state[phase.mode] * Complex64::unit_phasor(phase.phase);
-                }
-                ComplexGate::TwoMode(block) => {
-                    let [a, b, c, d] = block.matrix;
-                    let left = state[block.left];
-                    let right = state[block.right];
-                    state[block.left] = a * left + b * right;
-                    state[block.right] = c * left + d * right;
-                }
-            }
+            apply_gate(state, gate);
         }
         Ok(())
     }
@@ -247,6 +236,25 @@ impl ComplexOperatorProgram {
             dimension: self.dimension,
             gates,
             maximum_local_unitarity_error_fro: self.maximum_local_unitarity_error_fro,
+        }
+    }
+}
+
+/// The one gate-execution kernel (consensus rule 1: no second executor).
+/// [`ComplexOperatorProgram::apply`] and any scheduler that spreads a
+/// validated word's gates across time both call this; indices must already
+/// be validated against the state dimension.
+pub fn apply_gate(state: &mut [Complex64], gate: &ComplexGate) {
+    match gate {
+        ComplexGate::Phase(phase) => {
+            state[phase.mode] = state[phase.mode] * Complex64::unit_phasor(phase.phase);
+        }
+        ComplexGate::TwoMode(block) => {
+            let [a, b, c, d] = block.matrix;
+            let left = state[block.left];
+            let right = state[block.right];
+            state[block.left] = a * left + b * right;
+            state[block.right] = c * left + d * right;
         }
     }
 }
