@@ -67,3 +67,25 @@ Asks for the mathematicians:
 Area-function data for real vowels exists (Story et al. MRI corpora) —
 rung 3 tables should cite it and keep the design-profile honesty labels
 until a fit is actually performed.
+
+---
+
+## Rung-1 intelligibility results (2026-08-11, appended same day)
+
+1. **Hand-authored "apple"**: segmentally structured (vowel, closure,
+   burst, schwa, lateral — spectrogram shows true stop anatomy) but
+   NOT intelligible as the word (listener n=1: Vera, negative). The
+   burst rings pitched (a pluck, not aperiodic release); the vowels
+   are a harmonic comb at constant musical F0 (speech-mode gating cue
+   absent); formant transitions absent. Word-intelligibility is
+   UNCLAIMED at rung 1 and currently absent.
+2. **Evolutionary mimic floor** (speak_mimic.py, 220 gens x 32 against
+   a TTS target, 64-band log-mel MSE): 3.33 -> 1.92, plateau over the
+   final ~40 generations. **~1.9 log-mel units is the measured rung-1
+   residual** — the quantified size of what the engine cannot say
+   without formant transitions, a true noise burst, and F0 prosody.
+   This number is the empirical case for rungs 2-3 and the baseline
+   every later rung must beat.
+3. Priority order this fixes for rung 2/3: (a) formant transitions
+   (tract morphing / articulated junctions), (b) aperiodic burst
+   source, (c) F0 prosody + speech register (musical decorations off).
