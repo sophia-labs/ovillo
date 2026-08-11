@@ -119,3 +119,26 @@ The executable reference protocol and first implementation live in
 3. Priority order this fixes for rung 2/3: (a) formant transitions
    (tract morphing / articulated junctions), (b) aperiodic burst
    source, (c) F0 prosody + speech register (musical decorations off).
+
+## The two-machine plateau (2026-08-11, evening — unified-SOTA measurement)
+
+Same target, same 64-band log-mel loss, matched render budgets (~7k):
+
+```text
+rung-1 generic instrument + gesture ES        1.9204   (220 gens, plateaued)
+fitted speaker throat    + gesture ES         2.0162   (350 gens, plateaued;
+                                                        diagnostic pulse source)
+warm start (fitted states, no gesture)        3.6384
+```
+
+Two independent architectures — a generic string-network voice and the
+mathematicians' evolved Kelly-Lochbaum speaker throat — converge onto
+the same wall at ~1.9-2.0. The anatomy fit collapses the warm-start gap
+by 1.6 points (the resonator matters enormously) but cannot cross the
+floor, and neither machine can: the shared residual is what neither has
+— fast within-note articulation (G1), energy-honest closures/bursts
+(G2), and a physical fold source (G3; the fitted-throat run carries a
+declared-diagnostic Rosenberg pulse). This is the round-5 priority
+order confirmed empirically from two directions. Tool:
+`mus-rs/tools/speak_mimic_unified.py`; artifacts in the listening
+folder (`garganta-evolved/`).
