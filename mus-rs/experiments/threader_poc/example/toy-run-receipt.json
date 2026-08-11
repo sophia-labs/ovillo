@@ -1,0 +1,205 @@
+{
+  "artifacts": [
+    {
+      "dtype": "float32",
+      "name": "target_audio",
+      "sha256": "eb1e90ba65442466dcf48985adcd93cb46b4e3ffead343e089d78b5b9c00666d",
+      "shape": [
+        1,
+        4,
+        512
+      ]
+    },
+    {
+      "dtype": "float32",
+      "name": "amortized_audio",
+      "sha256": "9d525a2440cdee08ca7aff3e6c7b430c5d4499c098414948c366cb1c2a9bc518",
+      "shape": [
+        1,
+        4,
+        512
+      ]
+    },
+    {
+      "dtype": "float32",
+      "name": "refined_audio",
+      "sha256": "2a1f0a4ab687d99aa68e172772a06e7c741f59b57684d8fa5a7a1133b50e4323",
+      "shape": [
+        1,
+        4,
+        512
+      ]
+    },
+    {
+      "dtype": "float32",
+      "name": "refined_anatomy",
+      "sha256": "660ba398212810c22e3cd2bb609f12b31f3ec0b0155617514b65e308ce313955",
+      "shape": [
+        1,
+        3
+      ]
+    },
+    {
+      "dtype": "float32",
+      "name": "refined_local",
+      "sha256": "658044b259e1b327fba8b2bcb80b7939496357c6b8b1d9949343598b62f82549",
+      "shape": [
+        1,
+        4,
+        8,
+        6
+      ]
+    }
+  ],
+  "evaluation": {
+    "analysis": 0.21587727963924408,
+    "anatomy_90_coverage": 0.9270833134651184,
+    "anatomy_posterior_std_mean": 0.40285396575927734,
+    "anatomy_rmse": 0.398561030626297,
+    "contrast": 0.014421464875340462,
+    "latent": -1.3671449422836304,
+    "local_rmse": 0.5189874172210693,
+    "nuisance_rmse": 0.3039604723453522,
+    "program": 0.011766203679144382,
+    "reconstruction_snr_db": -2.861433982849121,
+    "spectral": 0.15993787348270416,
+    "total": -0.6122440695762634,
+    "voice_consistency": 0.05625125765800476,
+    "waveform": 0.050926949828863144
+  },
+  "history": [
+    {
+      "analysis": 0.46525368094444275,
+      "contrast": 0.0011503527639433742,
+      "latent": 11.451955795288086,
+      "program": 0.12841351330280304,
+      "spectral": 0.23234379291534424,
+      "step": 1.0,
+      "total": 9.305280685424805,
+      "voice_consistency": 0.05108371004462242,
+      "waveform": 0.05491698905825615
+    },
+    {
+      "analysis": 0.44772881269454956,
+      "contrast": 0.03955480456352234,
+      "latent": -0.6500462293624878,
+      "program": 0.5953858494758606,
+      "spectral": 0.22617588937282562,
+      "step": 100.0,
+      "total": 0.253529816865921,
+      "voice_consistency": 0.07187829911708832,
+      "waveform": 0.04206031560897827
+    },
+    {
+      "analysis": 0.3949083685874939,
+      "contrast": 0.03672837093472481,
+      "latent": -0.7916127443313599,
+      "program": 0.5396516919136047,
+      "spectral": 0.23194976150989532,
+      "step": 200.0,
+      "total": 0.12273581326007843,
+      "voice_consistency": 0.05926145240664482,
+      "waveform": 0.06129694730043411
+    },
+    {
+      "analysis": 0.3590635061264038,
+      "contrast": 0.014124834910035133,
+      "latent": -1.2686916589736938,
+      "program": 0.5289154052734375,
+      "spectral": 0.21353529393672943,
+      "step": 300.0,
+      "total": -0.30349382758140564,
+      "voice_consistency": 0.05225473642349243,
+      "waveform": 0.05025694891810417
+    },
+    {
+      "analysis": 0.34093260765075684,
+      "contrast": 0.03143129125237465,
+      "latent": -1.455663800239563,
+      "program": 0.43859726190567017,
+      "spectral": 0.2029150277376175,
+      "step": 400.0,
+      "total": -0.47090619802474976,
+      "voice_consistency": 0.048669543117284775,
+      "waveform": 0.05558614805340767
+    },
+    {
+      "analysis": 0.32518866658210754,
+      "contrast": 0.06744638830423355,
+      "latent": -1.294647216796875,
+      "program": 0.5301715731620789,
+      "spectral": 0.2185385823249817,
+      "step": 500.0,
+      "total": -0.3328621983528137,
+      "voice_consistency": 0.07525867223739624,
+      "waveform": 0.05478047579526901
+    },
+    {
+      "analysis": 0.34359827637672424,
+      "contrast": 0.021343285217881203,
+      "latent": -1.3993157148361206,
+      "program": 0.4872896075248718,
+      "spectral": 0.19198374450206757,
+      "step": 600.0,
+      "total": -0.4321455657482147,
+      "voice_consistency": 0.065765880048275,
+      "waveform": 0.05286836251616478
+    }
+  ],
+  "model_config": {
+    "analysis_hidden": 48,
+    "audio_channels": 48,
+    "log_std_max": 1.5,
+    "log_std_min": -5.0,
+    "posterior_hidden": 128,
+    "utterance_hidden": 96
+  },
+  "receipt_sha256": "0961d18d13179f6bcb92b87a8b3c915254814bc040994bb0c957c695bcdc1cba",
+  "refinement": {
+    "amortized_anatomy_rmse": 0.2999204695224762,
+    "amortized_local_rmse": 0.5135821104049683,
+    "amortized_snr_db": -2.816422462463379,
+    "amortized_waveform_l1": 0.23518909513950348,
+    "final_objective": 0.23606707155704498,
+    "improvement_ratio": 0.48438141223499154,
+    "initial_objective": 0.48735782504081726,
+    "refined_anatomy_rmse": 0.3105182945728302,
+    "refined_local_rmse": 0.5122067928314209,
+    "refined_snr_db": 0.3602508008480072,
+    "refined_waveform_l1": 0.1392955631017685
+  },
+  "renderer_config": {
+    "analysis_bands": 6,
+    "anatomy_dim": 3,
+    "frame_size": 64,
+    "gesture_dim": 2,
+    "harmonic_count": 10,
+    "nuisance_dim": 1,
+    "num_frames": 8,
+    "num_sections": 6,
+    "sample_rate": 4000,
+    "source_dim": 4
+  },
+  "runtime": {
+    "device": "cpu",
+    "numpy": "2.3.5",
+    "torch": "2.10.0+cpu",
+    "train_seconds": 30.909042816000238
+  },
+  "schema": "sophia.threader.toy-run-receipt.v0",
+  "train_config": {
+    "analysis_dropout": 0.15,
+    "batch_size": 16,
+    "cpu_threads": 1,
+    "device": "cpu",
+    "eval_batch_size": 32,
+    "learning_rate": 0.002,
+    "refinement_learning_rate": 0.03,
+    "refinement_steps": 60,
+    "seed": 7,
+    "steps": 600,
+    "supervised_fraction": 0.75,
+    "utterances_per_voice": 4,
+    "weight_decay": 1e-05
+  }
+}
