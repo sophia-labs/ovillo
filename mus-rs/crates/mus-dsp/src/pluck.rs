@@ -700,6 +700,10 @@ pub struct StringNetworkVoice {
     external: Option<Vec<f64>>,
     external_gain: f64,
     drive_samples: usize,
+    /// Orbit phase accumulator: advanced by 2*pi*orbit_hz/SR per sample so
+    /// retargeting `orbit` mid-note bends the field's speed without
+    /// jumping its position (crank semantics, PW9).
+    orbit_phase: f64,
     active_count: usize,
     sample_index: usize,
     total_samples: usize,
@@ -949,6 +953,7 @@ impl StringNetworkVoice {
             external: None,
             external_gain: 0.0,
             drive_samples: slot_samples,
+            orbit_phase: 0.0,
             previous_input: 0.0,
             previous_output: 0.0,
         }
@@ -968,7 +973,7 @@ impl StringNetworkVoice {
             self.edge_activity.iter_mut().for_each(|slot| *slot = 0.0);
             return;
         }
-        let phase = 2.0 * PI * self.patch.orbit_hz * self.sample_index as f64 / SR_F64;
+        let phase = self.orbit_phase;
         let total_energy = self
             .strings
             .iter()
@@ -1099,6 +1104,8 @@ impl StringNetworkVoice {
         let output = raw - self.previous_input + 0.995 * self.previous_output;
         self.previous_input = raw;
         self.previous_output = output;
+        self.orbit_phase =
+            (self.orbit_phase + 2.0 * PI * self.patch.orbit_hz / SR_F64).rem_euclid(2.0 * PI);
         self.sample_index += 1;
         (0.72 * output) as f32
     }
@@ -1124,20 +1131,73 @@ impl StringNetworkVoice {
         output
     }
 
-    /// Render while sampling telemetry every `stride` samples. The audio
-    /// is byte-identical to [`Self::render`] — the trace is a tap, never
-    /// a participant (tested in `pluck_invariants`).
-    pub fn render_traced(mut self, stride: usize) -> (Vec<f32>, WeaveTrace) {
+    /// Retarget one control now. Patch-only controls take effect on the
+    /// next sample (scatter/body/contact re-read the patch every sample);
+    /// `Sus`/`Damp` are additionally pushed into every course so the
+    /// 16-sample coefficient update picks them up. The loop-gain clamp
+    /// keeps every reachable state contractive, so no retarget can make
+    /// the network expansive.
+    pub fn apply_control(&mut self, target: ControlTarget, value: f64) {
+        match target {
+            ControlTarget::Couple => self.patch.couple = value.clamp(0.0, 0.45),
+            ControlTarget::Chirality => self.patch.chirality = value.clamp(-1.0, 1.0),
+            ControlTarget::OrbitHz => self.patch.orbit_hz = value.clamp(0.0, 20.0),
+            ControlTarget::OrbitDepth => self.patch.orbit_depth = value.clamp(0.0, 1.0),
+            ControlTarget::Curvature => self.patch.curvature = value.clamp(0.0, 1.0),
+            ControlTarget::Body => self.patch.body = value.clamp(0.0, 1.0),
+            ControlTarget::Buzz => self.patch.buzz = value.clamp(0.0, 1.0),
+            ControlTarget::Sing => {
+                self.patch.sing = value.clamp(0.0, 1.0);
+                if self.external.is_some() {
+                    self.external_gain =
+                        self.patch.sing * 0.9 / (self.strings.len().max(1) as f64).sqrt();
+                }
+            }
+            ControlTarget::Sus => {
+                // Decay retargets from here on; buffer length and onset
+                // tension were sized at construction and stay put.
+                self.patch.sus = value.clamp(0.05, 20.0);
+                for string in &mut self.strings {
+                    string.t60 = self.patch.sus;
+                }
+            }
+            ControlTarget::Damp => {
+                self.patch.damp = value.clamp(0.0, 0.95);
+                for string in &mut self.strings {
+                    string.damp = self.patch.damp;
+                }
+            }
+        }
+    }
+
+    /// Render under a control trajectory, tracing. Frames apply at their
+    /// sample boundary, in order; an empty trajectory is byte-identical
+    /// to [`Self::render_traced`] (tested). Determinism law: the output
+    /// is a pure function of (patch, notes, external, trajectory).
+    pub fn render_traced_with(
+        mut self,
+        stride: usize,
+        trajectory: &[ControlFrame],
+    ) -> (Vec<f32>, WeaveTrace) {
+        let mut frames: Vec<&ControlFrame> = trajectory.iter().collect();
+        frames.sort_by_key(|frame| frame.at_sample);
         let stride = stride.max(1);
         let courses = self.strings.len();
         let course_freqs: Vec<f64> = self.strings.iter().map(|string| string.f0).collect();
         let played = self.active_count;
         let total = self.total_samples;
-        let frames = total.div_ceil(stride);
-        let orbit_hz = self.patch.orbit_hz;
-        let mut data = Vec::with_capacity(frames * (2 * courses + 1));
+        let trace_frames = total.div_ceil(stride);
+        let mut data = Vec::with_capacity(trace_frames * (2 * courses + 1));
         let mut audio = vec![0.0_f32; total];
+        let mut next_frame = 0;
         for (index, slot) in audio.iter_mut().enumerate() {
+            while next_frame < frames.len() && frames[next_frame].at_sample <= index {
+                for &(target, value) in &frames[next_frame].sets {
+                    self.apply_control(target, value);
+                }
+                next_frame += 1;
+            }
+            let phase_now = self.orbit_phase;
             *slot = self.next_sample();
             if index.is_multiple_of(stride) {
                 for string in &self.strings {
@@ -1146,8 +1206,7 @@ impl StringNetworkVoice {
                 for edge in &self.edge_activity {
                     data.push(*edge as f32);
                 }
-                let phase = (2.0 * PI * orbit_hz * index as f64 / SR_F64).rem_euclid(2.0 * PI);
-                data.push(phase as f32);
+                data.push(phase_now as f32);
             }
         }
         (
@@ -1157,10 +1216,17 @@ impl StringNetworkVoice {
                 courses,
                 played,
                 course_freqs,
-                frames,
+                frames: trace_frames,
                 data,
             },
         )
+    }
+
+    /// Render while sampling telemetry every `stride` samples. The audio
+    /// is byte-identical to [`Self::render`] — the trace is a tap, never
+    /// a participant, and an empty trajectory is exactly no trajectory.
+    pub fn render_traced(self, stride: usize) -> (Vec<f32>, WeaveTrace) {
+        self.render_traced_with(stride, &[])
     }
 }
 
@@ -1177,6 +1243,52 @@ pub struct WeaveTrace {
     pub course_freqs: Vec<f64>,
     pub frames: usize,
     pub data: Vec<f32>,
+}
+
+/// A parameter the network can retarget mid-note at a sample boundary
+/// (PW9 §4). Only controls that are re-read from the patch every sample
+/// (or safely re-pushed into course state) are listed; topology and
+/// excitation-shaping parameters remain construction-static.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ControlTarget {
+    Couple,
+    Chirality,
+    OrbitHz,
+    OrbitDepth,
+    Curvature,
+    Body,
+    Buzz,
+    Sing,
+    Sus,
+    Damp,
+}
+
+impl ControlTarget {
+    pub fn from_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "couple" => Self::Couple,
+            "chirality" => Self::Chirality,
+            "orbit" => Self::OrbitHz,
+            "orbit_depth" => Self::OrbitDepth,
+            "curvature" => Self::Curvature,
+            "body" => Self::Body,
+            "buzz" => Self::Buzz,
+            "sing" => Self::Sing,
+            "sus" => Self::Sus,
+            "damp" => Self::Damp,
+            _ => return None,
+        })
+    }
+}
+
+/// One point on a control trajectory: at `at_sample`, retarget each
+/// listed control (engine clamps apply, same as parse-time). Frames are
+/// content: a trajectory-driven render is a pure function of
+/// (patch, notes, trajectory) — trajectories digest into receipts.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ControlFrame {
+    pub at_sample: usize,
+    pub sets: Vec<(ControlTarget, f64)>,
 }
 
 /// Render the deepened physical guitar. Existing callers keep the same

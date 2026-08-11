@@ -64,6 +64,7 @@ fn spec_json(spec: &ParamSpec) -> Value {
         "quote": CORE_QUOTE_PARAMS.contains(&spec.name),
         "doc": spec.doc,
         "control": kind_json(&spec.kind),
+        "automation": mus_vocab::automation_class(spec.name),
     })
 }
 

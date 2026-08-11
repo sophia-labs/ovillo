@@ -97,6 +97,19 @@ pub fn header_kind(key: &str) -> Option<HeaderKind> {
         .map(|(_, kind)| *kind)
 }
 
+/// PW9 automation classes: which params a live voice can retarget at a
+/// block boundary mid-note. "block" = safe to retarget (re-read every
+/// sample or re-pushed into course state); "static" = construction-only
+/// (topology, excitation shaping, timing). The engine's ControlTarget
+/// enum is the same registry's other face; keep them in step.
+pub fn automation_class(name: &str) -> &'static str {
+    match name {
+        "couple" | "chirality" | "orbit" | "orbit_depth" | "curvature" | "body" | "buzz"
+        | "sing" | "sus" | "damp" => "block",
+        _ => "static",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

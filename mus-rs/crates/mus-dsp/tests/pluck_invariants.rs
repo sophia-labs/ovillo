@@ -7,7 +7,9 @@
 
 use std::collections::BTreeMap;
 
-use mus_dsp::pluck::{pluck_note, pluck_note_sung, weave_note, StringNetworkVoice};
+use mus_dsp::pluck::{
+    pluck_note, pluck_note_sung, weave_note, ControlFrame, ControlTarget, StringNetworkVoice,
+};
 use mus_dsp::SR_F64;
 
 fn params(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
@@ -513,5 +515,128 @@ fn sung_drive_is_selective_and_silent_safe() {
         "resonant tail on={:.6} off={:.6}",
         tail(&on),
         tail(&off)
+    );
+}
+
+#[test]
+fn trajectory_laws() {
+    let patch = params(&[
+        ("synth", "weave"),
+        ("sus", "1.4"),
+        ("courses", "9"),
+        ("couple", "0.11"),
+        ("chirality", "0.4"),
+        ("body", "0.4"),
+        ("orbit", "0.5"),
+    ]);
+    // Law 1: no trajectory is exactly an empty trajectory.
+    let plain = weave_note(&patch, &[110.0, 165.0], 0.6, 1.0);
+    let (empty, _) =
+        StringNetworkVoice::weave(&patch, &[110.0, 165.0], 0.6, 1.0).render_traced_with(256, &[]);
+    assert_eq!(plain, empty);
+
+    // Law 2: a frame at sample 0 equals constructing with those values,
+    // for the pure-patch controls.
+    let mut retuned = patch.clone();
+    retuned.insert("couple".to_string(), "0.22".to_string());
+    retuned.insert("chirality".to_string(), "-0.6".to_string());
+    let constructed = weave_note(&retuned, &[110.0, 165.0], 0.6, 1.0);
+    let frame = ControlFrame {
+        at_sample: 0,
+        sets: vec![
+            (ControlTarget::Couple, 0.22),
+            (ControlTarget::Chirality, -0.6),
+        ],
+    };
+    let (framed, _) = StringNetworkVoice::weave(&patch, &[110.0, 165.0], 0.6, 1.0)
+        .render_traced_with(256, std::slice::from_ref(&frame));
+    assert_eq!(constructed, framed, "frame-at-zero equals construction");
+
+    // Law 3: trajectory renders are deterministic.
+    let (again, _) = StringNetworkVoice::weave(&patch, &[110.0, 165.0], 0.6, 1.0)
+        .render_traced_with(256, &[frame]);
+    assert_eq!(framed, again);
+}
+
+#[test]
+fn closed_loop_commutator_is_path_dependent() {
+    // The E15 primitive: two control loops with IDENTICAL endpoints —
+    // every retargeted scalar returns to its initial value — differing
+    // only in the order of operations. The vibrating state need not
+    // return: discrete ordered-product holonomy, inside one note.
+    let patch = params(&[
+        ("synth", "weave"),
+        ("sus", "2.0"),
+        ("courses", "9"),
+        ("couple", "0.12"),
+        ("chirality", "0.0"),
+        ("body", "0.45"),
+        ("orbit", "0.4"),
+        ("orbit_depth", "0.5"),
+    ]);
+    let s = |t: f64| (t * SR_F64) as usize;
+    let a_then_b = vec![
+        ControlFrame {
+            at_sample: s(0.20),
+            sets: vec![(ControlTarget::Couple, 0.34)],
+        },
+        ControlFrame {
+            at_sample: s(0.45),
+            sets: vec![(ControlTarget::Chirality, 0.85)],
+        },
+        ControlFrame {
+            at_sample: s(0.70),
+            sets: vec![(ControlTarget::Couple, 0.12)],
+        },
+        ControlFrame {
+            at_sample: s(0.95),
+            sets: vec![(ControlTarget::Chirality, 0.0)],
+        },
+    ];
+    let b_then_a = vec![
+        ControlFrame {
+            at_sample: s(0.20),
+            sets: vec![(ControlTarget::Chirality, 0.85)],
+        },
+        ControlFrame {
+            at_sample: s(0.45),
+            sets: vec![(ControlTarget::Couple, 0.34)],
+        },
+        ControlFrame {
+            at_sample: s(0.70),
+            sets: vec![(ControlTarget::Chirality, 0.0)],
+        },
+        ControlFrame {
+            at_sample: s(0.95),
+            sets: vec![(ControlTarget::Couple, 0.12)],
+        },
+    ];
+    let render = |trajectory: &[ControlFrame]| {
+        StringNetworkVoice::weave(&patch, &[110.0, 165.0], 1.2, 1.0)
+            .render_traced_with(256, trajectory)
+            .0
+    };
+    let ab = render(&a_then_b);
+    let ba = render(&b_then_a);
+    assert!(ab.iter().chain(ba.iter()).all(|v| v.is_finite()));
+    let peak = ab
+        .iter()
+        .chain(ba.iter())
+        .fold(0.0_f32, |m, v| m.max(v.abs()));
+    assert!(peak <= 8.0, "closed loops stay bounded: {peak}");
+    let diff = ab
+        .iter()
+        .zip(ba.iter())
+        .map(|(x, y)| (x - y) as f64 * (x - y) as f64)
+        .sum::<f64>()
+        .sqrt();
+    let scale = ab.iter().map(|v| *v as f64 * *v as f64).sum::<f64>().sqrt();
+    println!(
+        "closed-loop path distance: {:.4} (signal norm {:.4})",
+        diff, scale
+    );
+    assert!(
+        diff > scale * 0.01,
+        "equal-endpoint loops must differ: diff={diff}, scale={scale}"
     );
 }

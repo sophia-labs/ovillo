@@ -31,7 +31,7 @@ use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use mus_dsp::pluck::StringNetworkVoice;
+use mus_dsp::pluck::{ControlFrame, ControlTarget, StringNetworkVoice};
 use mus_engine::{render, sha256_bytes, ENGINE_VERSION};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -181,12 +181,45 @@ impl Service {
             });
         }
 
+        let mut trajectory: Vec<ControlFrame> = Vec::new();
+        if let Some(frames) = params["trajectory"].as_array() {
+            for frame in frames {
+                let at_s = frame["atSeconds"].as_f64().unwrap_or(0.0).clamp(0.0, 600.0);
+                let mut sets = Vec::new();
+                if let Some(map) = frame["set"].as_object() {
+                    for (name, value) in map {
+                        let target = ControlTarget::from_name(name).ok_or_else(|| ErrorBody {
+                            code: "unsupported-automation",
+                            message: format!(
+                                "renderWeaveProbe: {name:?} is not block-automatable \
+                                 (vocab automation classes name the legal set)"
+                            ),
+                        })?;
+                        let Some(number) = value.as_f64() else {
+                            return Err(ErrorBody {
+                                code: "bad-request",
+                                message: format!(
+                                    "renderWeaveProbe: trajectory value for {name:?} must be a number"
+                                ),
+                            });
+                        };
+                        sets.push((target, number));
+                    }
+                }
+                trajectory.push(ControlFrame {
+                    at_sample: (at_s * 48_000.0).round() as usize,
+                    sets,
+                });
+            }
+        }
+
         let canonical = json!({
             "params": patch,
             "midis": midis,
             "slotSeconds": slot_s,
             "glissRatio": gliss_ratio,
             "traceStride": stride,
+            "trajectory": params["trajectory"],
         });
         let probe_key = sha256_bytes(canonical.to_string().as_bytes());
         if !self.probes.contains_key(&probe_key) {
@@ -196,7 +229,7 @@ impl Service {
             } else {
                 StringNetworkVoice::weave(&patch, &freqs, slot_s, gliss_ratio)
             };
-            let (audio, trace) = voice.render_traced(stride);
+            let (audio, trace) = voice.render_traced_with(stride, &trajectory);
             let render_ms = started.elapsed().as_millis();
 
             let pcm_path = self.tmp_dir.join(format!("{probe_key}.probe.f32"));
