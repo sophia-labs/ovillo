@@ -68,6 +68,36 @@ Area-function data for real vowels exists (Story et al. MRI corpora) —
 rung 3 tables should cite it and keep the design-profile honesty labels
 until a fit is actually performed.
 
+### Rung-3 product contract — a throat from a provided voice sample
+
+The true tract is not only a hand-authored synthesizer. Its first
+product-facing inverse mode is:
+
+```text
+consented voice recording
+  -> static speaker anatomy posterior
+  + dynamic articulation paths
+  + separate laryngeal/source prior
+  + declared channel nuisance
+  -> one persistent throat reusable on new material
+```
+
+The output is an **acoustically equivalent speaker throat**, never an
+unqualified biological reconstruction: one waveform does not uniquely
+identify anatomy. GARGANTA therefore returns an isophonemy-deduplicated
+posterior ensemble, a MAP member for rendering, held-out fit receipts,
+and named weak anatomy directions.
+
+The binding test is frozen-anatomy generalization. Fit on the supplied
+sample, discard its articulation paths, and drive the inferred throat
+with phones and F0 trajectories absent from the sample. It is
+speaker-specific only if identity survives while content and prosody
+change; same-clip spectral imitation remains merely `resemblant`.
+
+The executable reference protocol and first implementation live in
+`SPEAKER-THROAT-EVOLUTION.md`; the round-5 binding amendment is
+`.string-research/ROUND-5A-SPEAKER-THROAT-AMENDMENT.md`.
+
 ---
 
 ## Rung-1 intelligibility results (2026-08-11, appended same day)
