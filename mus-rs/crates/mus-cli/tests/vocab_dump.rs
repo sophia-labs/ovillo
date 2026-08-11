@@ -142,4 +142,27 @@ fn vocab_dump_covers_the_registry() {
             "{bowing} is retargetable mid-note"
         );
     }
+
+    // Ariadne Phase 0 §A: `retune` is a two-value enum defaulting to the
+    // historical render, and it is STATIC — the retuning policy is fixed
+    // when the course is built, so there is no ControlTarget for it and a
+    // trajectory cannot change it mid-note.
+    assert_eq!(
+        by_name("retune").unwrap()["control"],
+        serde_json::json!({
+            "kind": "enum",
+            "values": ["legacy", "neutral_filters"],
+            "default": "legacy"
+        }),
+        "retune is a legacy-defaulting enum"
+    );
+    assert_eq!(
+        by_name("retune").unwrap()["automation"],
+        serde_json::json!("static"),
+        "retune is construction-time, not block-automatable"
+    );
+    assert_eq!(
+        by_name("retune").unwrap()["layer"],
+        serde_json::json!("extension")
+    );
 }

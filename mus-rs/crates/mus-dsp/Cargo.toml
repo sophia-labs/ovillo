@@ -9,6 +9,10 @@ repository.workspace = true
 [dependencies]
 hound = "3.5"
 libsoxr = "0.2.9"
+# Ariadne Phase 0 §A: `mus-watsn` owns the stage laws (exact allpass
+# storage + neutral state transport, one-zero damping dissipation). The
+# engine calls them; it does not re-derive them.
+mus-watsn = { path = "../mus-watsn" }
 np-rand = { path = "../np-rand" }
 realfft = "3"
 serde = { version = "1", features = ["derive"] }

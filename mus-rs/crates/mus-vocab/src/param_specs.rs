@@ -197,6 +197,7 @@ pub fn param_specs() -> Vec<ParamSpec> {
         ParamSpec { name: "breath", layer: Extension, kind: Ratio { min: 0.0, max: 1.0, default: Some(0.0) }, doc: "sustained breath excitation: content-keyed lowpassed noise injected at the bridge while the note holds its slot; 0 = pluck burst only" },
         ParamSpec { name: "bow", layer: Extension, kind: Ratio { min: 0.0, max: 1.0, default: Some(0.0) }, doc: "bow pressure: a sustained friction port at the excitation point that answers the string; 0 = no bow, 1 = full weight and no pluck burst (an energy source, not a passive coupling)" },
         ParamSpec { name: "bow_speed", layer: Extension, kind: Ratio { min: 0.0, max: 1.0, default: Some(0.5) }, doc: "bow velocity, 0.05..0.4 in wave units: slow and grainy through fast and glassy (inert while bow = 0)" },
+        ParamSpec { name: "retune", layer: Extension, kind: Enum { values: &["legacy", "neutral_filters"], default: Some("legacy") }, doc: "what a bend does to allpass filter memory: legacy retains it (the historical render, and the default), neutral_filters applies the exact energy-neutral state transport; unrecognised names fall back to legacy" },
     ]
 }
 
