@@ -107,4 +107,9 @@ fn vocab_dump_covers_the_registry() {
         by_name("dimension").unwrap()["control"]["max"],
         serde_json::json!(3.0)
     );
+    assert_eq!(
+        by_name("breath").unwrap()["control"],
+        serde_json::json!({"kind": "ratio", "min": 0.0, "max": 1.0, "default": 0.0}),
+        "breath is a 0..1 ratio, defaulting to no breath"
+    );
 }

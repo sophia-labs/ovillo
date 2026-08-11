@@ -114,6 +114,10 @@ pub struct PluckPatch {
     pub sing: f64,
     /// Seconds into the sample the drive starts reading (`sing_at`).
     pub sing_at: f64,
+    /// Sustained breath excitation mix, 0..1 (`breath`): content-keyed
+    /// lowpassed noise injected at the bridge while the note holds its
+    /// slot. 0 = pluck burst only.
+    pub breath: f64,
 }
 
 impl Default for PluckPatch {
@@ -144,6 +148,7 @@ impl Default for PluckPatch {
             spectral_dimension: 1.35,
             sing: 0.0,
             sing_at: 0.0,
+            breath: 0.0,
         }
     }
 }
@@ -189,6 +194,7 @@ impl From<&BTreeMap<String, String>> for PluckPatch {
             spectral_dimension: parsed(map, "dimension", d.spectral_dimension).clamp(0.55, 3.0),
             sing: parsed(map, "sing", d.sing).clamp(0.0, 1.0),
             sing_at: parsed(map, "sing_at", d.sing_at).clamp(0.0, 600.0),
+            breath: parsed(map, "breath", d.breath).clamp(0.0, 1.0),
         }
     }
 }
@@ -223,6 +229,29 @@ fn content_seed(
     eat((patch.pm as u64) | ((mode == StringNetworkMode::Weave) as u64) << 1);
     eat(course_index);
     hash
+}
+
+/// Breath's noise-stream seed. Built ON TOP of [`content_seed`] (same
+/// content-keyed material: f0, slot, pos/pick/stiff, pm/mode, course
+/// index) rather than a second independent hash, then tagged and
+/// avalanche-mixed (splitmix64 finalizer) so the breath stream never
+/// coincides with the pick-roughness stream that also reads
+/// `content_seed` directly. `content_seed` itself is untouched by this —
+/// the `breath=0` zero-limit law depends on the pick-roughness seed path
+/// changing nothing about its own computation.
+fn breath_seed(
+    f0: f64,
+    slot_s: f64,
+    patch: &PluckPatch,
+    course_index: u64,
+    mode: StringNetworkMode,
+) -> u64 {
+    let base = content_seed(f0, slot_s, patch, course_index, mode);
+    let mut seed = base ^ 0xB2EA_5EED_1234_5678_u64;
+    seed = (seed ^ (seed >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    seed = (seed ^ (seed >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    seed ^= seed >> 31;
+    seed
 }
 
 fn uniform_bipolar(rng: &mut Pcg64) -> f64 {
@@ -680,6 +709,41 @@ fn virtual_course_frequency(base: f64, ordinal: usize, dimension: f64) -> f64 {
     base * ratio
 }
 
+/// Per-course breath state: a content-keyed noise stream, one-pole
+/// lowpassed. Allocated only when `breath > 1e-12` at construction time
+/// (the discipline `sing`'s external drive already follows) — never in
+/// [`StringNetworkVoice::next_sample`], which only ticks existing state.
+struct BreathChannel {
+    rng: Pcg64,
+    /// One-pole coefficient `a` in `y += a * (x - y)`, mapped from the
+    /// per-course cutoff (`2.5 * f0`, clamped below `Nyquist * 0.45`) via
+    /// the standard `a = 1 - exp(-2*pi*fc/SR)` one-pole time constant.
+    filter_coefficient: f64,
+    filter_state: f64,
+}
+
+impl BreathChannel {
+    fn new(cutoff_hz: f64, seed: u64) -> Self {
+        let mut sequence = SeedSequence::new(seed);
+        let rng = Pcg64::from_seed_sequence(&mut sequence);
+        let omega = 2.0 * PI * cutoff_hz / SR_F64;
+        let filter_coefficient = (1.0 - (-omega).exp()).clamp(0.0, 1.0);
+        Self {
+            rng,
+            filter_coefficient,
+            filter_state: 0.0,
+        }
+    }
+
+    /// One lowpassed noise sample. Real-time-safe: no allocation, just a
+    /// PRNG draw and a one-pole update.
+    fn tick(&mut self) -> f64 {
+        let noise = uniform_bipolar(&mut self.rng);
+        self.filter_state += self.filter_coefficient * (noise - self.filter_state);
+        self.filter_state
+    }
+}
+
 /// Stateful real-time-safe kernel shared by offline MUS rendering and a
 /// future VST/CLAP wrapper. Construction allocates; [`next_sample`] and
 /// [`render_block`] do not.
@@ -700,6 +764,11 @@ pub struct StringNetworkVoice {
     external: Option<Vec<f64>>,
     external_gain: f64,
     drive_samples: usize,
+    /// Per-course breath noise channels (`breath`): bridge-common like
+    /// `sing`, one entry per string, empty when `breath <= 1e-12` at
+    /// construction so the render stays byte-identical to the un-breathed
+    /// path.
+    breath: Vec<BreathChannel>,
     /// Orbit phase accumulator: advanced by 2*pi*orbit_hz/SR per sample so
     /// retargeting `orbit` mid-note bends the field's speed without
     /// jumping its position (crank semantics, PW9).
@@ -818,8 +887,11 @@ impl StringNetworkVoice {
         let strum_samples = (patch.strum_ms.abs() * SR_F64 / 1000.0).round() as usize;
         let pitch_count = frequencies_hz.len().max(1);
         // The pluck articulates less as the external drive takes over;
-        // at sing = 1 the sample is the only excitation.
-        let base_level = 0.82 / (pitch_count as f64).sqrt() * (1.0 - patch.sing);
+        // at sing = 1 the sample is the only excitation. Breath scales the
+        // burst the same way: a fully breathed note is bow-bloom, not a
+        // pick attack.
+        let base_level =
+            0.82 / (pitch_count as f64).sqrt() * (1.0 - patch.sing) * (1.0 - patch.breath);
         let mut starts = vec![0_usize; frequencies_hz.len()];
         if patch.strum_ms >= 0.0 {
             for (order, start) in starts.iter_mut().enumerate() {
@@ -936,6 +1008,25 @@ impl StringNetworkVoice {
         }
 
         let n_strings = strings.len();
+        // Preallocated at construction only — never in `next_sample`. A
+        // note that never engages breath allocates nothing extra and its
+        // render stays byte-identical to the un-breathed path.
+        let breath = if patch.breath > 1e-12 {
+            let nyquist_limit = SR_F64 * 0.5 * 0.45;
+            strings
+                .iter()
+                .enumerate()
+                .map(|(index, string)| {
+                    let seed = breath_seed(string.f0, slot_s, &patch, index as u64, mode);
+                    // Per-course cutoff: 2.5 * f0, clamped below Nyquist *
+                    // 0.45 so high courses can't alias the lowpass itself.
+                    let cutoff_hz = (2.5 * string.f0).min(nyquist_limit);
+                    BreathChannel::new(cutoff_hz, seed)
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         let tail = (patch.sus * 0.78).min(4.0);
         let total_samples = ((slot_s + tail).max(64.0 / SR_F64) * SR_F64) as usize;
         Self {
@@ -953,6 +1044,7 @@ impl StringNetworkVoice {
             external: None,
             external_gain: 0.0,
             drive_samples: slot_samples,
+            breath,
             orbit_phase: 0.0,
             previous_input: 0.0,
             previous_output: 0.0,
@@ -1075,8 +1167,26 @@ impl StringNetworkVoice {
         };
         let mut contact_output = 0.0;
         for index in 0..self.strings.len() {
+            let coupling_scale = self.strings[index].coupling_scale;
+            // Sustained noise excitation, bridge-common like `sing`: only
+            // while this course is inside its own slot window, and only
+            // when the channel was preallocated (breath > 1e-12 at
+            // construction).
+            let start_sample = self.strings[index].start_sample;
+            let slot_samples = self.strings[index].slot_samples;
+            let in_slot = self.sample_index >= start_sample
+                && self.sample_index < start_sample + slot_samples;
+            let breath = if in_slot && self.patch.breath > 1e-12 {
+                match self.breath.get_mut(index) {
+                    Some(channel) => self.patch.breath * 0.25 * coupling_scale * channel.tick(),
+                    None => 0.0,
+                }
+            } else {
+                0.0
+            };
             let excitation = self.strings[index].excitation_at(self.sample_index)
-                + drive * self.strings[index].coupling_scale;
+                + drive * coupling_scale
+                + breath;
             let value = self.waves[index] + excitation;
             let (feedback, contact) = self.strings[index].apply_contact(value, self.patch.buzz);
             self.contact[index] = contact;
@@ -1166,6 +1276,13 @@ impl StringNetworkVoice {
                 for string in &mut self.strings {
                     string.damp = self.patch.damp;
                 }
+            }
+            ControlTarget::Breath => {
+                // Like `Sing`: the value always updates, but the noise
+                // channels themselves were only preallocated in `new()`
+                // when breath started above the threshold — a note that
+                // starts un-breathed cannot grow the subsystem mid-flight.
+                self.patch.breath = value.clamp(0.0, 1.0);
             }
         }
     }
@@ -1261,6 +1378,7 @@ pub enum ControlTarget {
     Sing,
     Sus,
     Damp,
+    Breath,
 }
 
 impl ControlTarget {
@@ -1276,6 +1394,7 @@ impl ControlTarget {
             "sing" => Self::Sing,
             "sus" => Self::Sus,
             "damp" => Self::Damp,
+            "breath" => Self::Breath,
             _ => return None,
         })
     }

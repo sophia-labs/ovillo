@@ -196,6 +196,11 @@ impl AriadneParams {
             ControlTarget::Damp => self.damp.value() as f64,
             // Not exposed at P1 — no sidechain, so no drive to mix in.
             ControlTarget::Sing => 0.0,
+            // Not exposed at P1 either (PW10 §C, landed after this
+            // skeleton): no `AriadneParams` field yet, so there is
+            // nothing to read. Wiring it in is P2 surface work, not an
+            // engine question.
+            ControlTarget::Breath => 0.0,
         }
     }
 }
