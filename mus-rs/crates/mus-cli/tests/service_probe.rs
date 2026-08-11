@@ -121,3 +121,115 @@ fn vocab_and_weave_probe_protocol() {
         serde_json::json!("unsupported-synth")
     );
 }
+
+/// Ariadne Phase 2 §B, the service half: `gesture` is a probe argument
+/// like `trajectory` — it changes the render, folds into the memo key,
+/// and refuses in typed form rather than clamping.
+#[test]
+fn weave_probe_gesture_word() {
+    let mut service = ServiceHandle::spawn();
+
+    let base = serde_json::json!({
+        "params": {"synth": "weave", "courses": 6, "couple": 0.18, "chirality": 0.5,
+                   "body": 0.4, "sus": 1.0},
+        "midis": [45, 52],
+        "slotSeconds": 0.4,
+    });
+    let plain = service.call(1, "renderWeaveProbe", base.clone());
+    assert_eq!(
+        plain["result"]["gesture"]["applied"],
+        serde_json::json!(0),
+        "no word means no gates: {plain}"
+    );
+
+    // An EMPTY word is the byte-identical zero limit — same digest, and
+    // therefore the same memo entry the un-gestured probe already has.
+    let mut empty = base.clone();
+    empty["gesture"] = serde_json::json!([]);
+    let empty_word = service.call(2, "renderWeaveProbe", empty);
+    assert_eq!(
+        empty_word["result"]["renderDigest"], plain["result"]["renderDigest"],
+        "an empty word renders the same bytes"
+    );
+
+    // A real word changes the render and gets its own memo entry.
+    let mut worded = base.clone();
+    worded["gesture"] = serde_json::json!([
+        {"atSeconds": 0.10, "courses": [0, 1], "theta": 0.41},
+        {"atSeconds": 0.10, "courses": [2, 4], "theta": -0.27},
+        {"atSeconds": 0.22, "courses": [1, 5], "theta": 0.63},
+    ]);
+    let gestured = service.call(3, "renderWeaveProbe", worded.clone());
+    let result = &gestured["result"];
+    assert_ne!(
+        result["probeKey"], plain["result"]["probeKey"],
+        "the word folds into the memo key"
+    );
+    assert_ne!(
+        result["renderDigest"], plain["result"]["renderDigest"],
+        "and it is audible"
+    );
+    assert_eq!(result["gesture"]["gates"], serde_json::json!(3));
+    assert_eq!(result["gesture"]["applied"], serde_json::json!(3));
+    let drift = result["gesture"]["worstPairEnergyDrift"]
+        .as_f64()
+        .expect("drift");
+    assert!(drift <= 1e-13, "gates are energy-neutral, drift {drift:e}");
+
+    // Memoized like every other probe: identical request, identical entry.
+    let again = service.call(4, "renderWeaveProbe", worded.clone());
+    assert_eq!(gestured["result"], again["result"]);
+
+    // Changing only an angle is a different render, not a cache hit.
+    let mut retuned = worded.clone();
+    retuned["gesture"][0]["theta"] = serde_json::json!(0.42);
+    let retuned = service.call(5, "renderWeaveProbe", retuned);
+    assert_ne!(
+        retuned["result"]["renderDigest"], result["renderDigest"],
+        "one angle is one render"
+    );
+
+    // Non-weave synth: gestures are the ring's seam, so this refuses.
+    let mut plucked = worded.clone();
+    plucked["params"]["synth"] = serde_json::json!("pluck");
+    let refusal = service.call(6, "renderWeaveProbe", plucked);
+    assert_eq!(
+        refusal["error"]["code"],
+        serde_json::json!("unsupported-gesture"),
+        "{refusal}"
+    );
+
+    // A course this network does not have: the engine's typed refusal,
+    // travelling out verbatim rather than clamped into range.
+    let mut out_of_range = worded.clone();
+    out_of_range["gesture"] = serde_json::json!([
+        {"atSeconds": 0.1, "courses": [0, 99], "theta": 0.2}
+    ]);
+    let refusal = service.call(7, "renderWeaveProbe", out_of_range);
+    assert_eq!(
+        refusal["error"]["code"],
+        serde_json::json!("gesture-course-out-of-range"),
+        "{refusal}"
+    );
+
+    // Malformed gates are bad requests, not silent defaults.
+    for bad in [
+        serde_json::json!([{"atSeconds": 0.1, "courses": [0], "theta": 0.2}]),
+        serde_json::json!([{"atSeconds": 0.1, "courses": [0, -1], "theta": 0.2}]),
+        serde_json::json!([{"atSeconds": 0.1, "courses": [0, 1]}]),
+        serde_json::json!([{"atSeconds": 0.1, "theta": 0.2}]),
+        // A word that is not a list of gates is refused rather than
+        // silently dropped — a dropped word renders the wrong probe.
+        serde_json::json!({"atSeconds": 0.1, "courses": [0, 1], "theta": 0.2}),
+        serde_json::json!("R01(0.4)"),
+    ] {
+        let mut malformed = worded.clone();
+        malformed["gesture"] = bad.clone();
+        let refusal = service.call(8, "renderWeaveProbe", malformed);
+        assert_eq!(
+            refusal["error"]["code"],
+            serde_json::json!("bad-request"),
+            "{bad} must refuse"
+        );
+    }
+}
