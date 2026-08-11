@@ -24,5 +24,21 @@ from .topology import (
     grassmann_hamiltonian, rectangular_parameter_loop, wilson_loop,
     verify_nonabelian_bundle,
 )
+from .protected import (
+    Dirac4DParameters, SecondChernEstimate,
+    KatoLoopCertificate, KatoLoop,
+    AdiabaticRunCertificate, AdiabaticConvergenceCertificate,
+    AcousticLoweringCertificate, AcousticLowering,
+    Z3PumpCertificate, Z3PumpOperators,
+    ProtectedPerturbationSummary, ProtectedNonAbelianCertificate,
+    ProtectedNonAbelianExperiment,
+    clifford_gammas, dirac4d_hamiltonian, occupied_projector,
+    analytic_second_chern, second_chern_degree, sampled_homotopy_gap,
+    wrap_torus, torus_rectangle_loop, torus_smooth_loop,
+    kato_direct_rotation, kato_wilson_loop,
+    simulate_adiabatic_loop, verify_adiabatic_convergence,
+    realify_unitary, lower_unitary_to_acoustic_graph,
+    z3_pump_operators, verify_protected_nonabelian_instrument,
+)
 
 __all__ = [name for name in globals() if not name.startswith("_")]

@@ -1,0 +1,135 @@
+name: Ariadne protected non-Abelian instrument
+
+on:
+  push:
+    branches:
+      - agent/ariadne-protected-nonabelian
+  pull_request:
+    paths:
+      - "paper/ariadne-protected-nonabelian/**"
+      - "paper/ariadne-gesture-compiler/reference/ariadne_gesture/protected.py"
+      - "paper/ariadne-gesture-compiler/reference/ariadne_gesture/__init__.py"
+      - "mus-rs/crates/mus-watsn/tests/protected_nonabelian.rs"
+      - "formal/MusFormal/ProtectedNonAbelian.lean"
+      - "formal/MusFormal.lean"
+      - "SPEC-PROTECTION.md"
+      - ".github/workflows/ariadne-protected-nonabelian.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  protected-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install scientific runtime
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "numpy>=2" "scipy>=1.14"
+
+      - name: Compile reference package
+        run: |
+          python -m py_compile \
+            paper/ariadne-gesture-compiler/reference/ariadne_gesture/*.py \
+            paper/ariadne-protected-nonabelian/run_experiments.py
+
+      - name: Generate protected instrument packet
+        run: |
+          python paper/ariadne-protected-nonabelian/run_experiments.py \
+            --quick \
+            --output /tmp/ariadne-protected-nonabelian \
+            >/tmp/ariadne-protected-nonabelian-console.json
+          python -m json.tool \
+            /tmp/ariadne-protected-nonabelian/results.json \
+            >/dev/null
+          python -m json.tool \
+            /tmp/ariadne-protected-nonabelian/fixture.json \
+            >/dev/null
+
+      - name: Cross-check committed full receipt
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(
+              Path("paper/ariadne-protected-nonabelian/results.json").read_text()
+          )
+          certificate = result["certificate"]
+
+          assert certificate["analytic_second_chern"] == 1.0
+          assert certificate["numerical_second_chern"]["nearest_integer"] == 1
+          assert certificate["numerical_second_chern"]["integer_error"] < 0.01
+          assert certificate["trivial_second_chern"]["nearest_integer"] == 0
+          assert certificate["critical_gap_at_origin"] <= 1e-14
+          assert certificate["loop_commutator_norm_fro"] > 1.6
+          assert certificate["perturbations"]["minimum_sampled_homotopy_gap"] > 1.9
+          assert certificate["perturbations"]["minimum_nonabelian_commutator_norm_fro"] > 1.3
+          assert certificate["adiabatic"]["maximum_duration_projective_error_fro"] < 1e-3
+          assert certificate["adiabatic"]["maximum_duration_leakage_fro"] < 0.025
+          assert certificate["lowering_a"]["reconstruction_error_fro"] < 1e-11
+          assert certificate["lowering_b"]["reconstruction_error_fro"] < 1e-11
+          assert certificate["z3_pump"]["path_one_cell_shift"] != certificate["z3_pump"]["path_two_cell_shift"]
+          assert result["audio"]["yang_braid"]["relative_rms_distance"] > 1.0
+          PY
+
+      - name: Upload protected instrument packet
+        uses: actions/upload-artifact@v4
+        with:
+          name: ariadne-protected-nonabelian
+          path: /tmp/ariadne-protected-nonabelian
+          if-no-files-found: error
+
+  rust-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Format
+        working-directory: mus-rs
+        run: cargo fmt --all -- --check
+
+      - name: Replay protected fixtures
+        working-directory: mus-rs
+        run: cargo test -p mus-watsn --test protected_nonabelian -- --nocapture
+
+      - name: Clippy
+        working-directory: mus-rs
+        run: cargo clippy -p mus-watsn --test protected_nonabelian -- -D warnings
+
+  formal-pump-algebra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Build Lean formal core
+        uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: formal
+          build: true
+          test: false
+          lint: false
+          nanoda: false

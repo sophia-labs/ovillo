@@ -4,3 +4,4 @@ import MusFormal.WorkHolonomy
 import MusFormal.Reachability
 import MusFormal.PassivityTypes
 import MusFormal.Braid
+import MusFormal.ProtectedNonAbelian
