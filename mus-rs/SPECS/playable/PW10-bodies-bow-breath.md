@@ -76,3 +76,47 @@ summing excitations (document the interaction; no hidden priority).
 Gates: fmt, workspace clippy -D warnings, full workspace tests, the
 honest exit-code discipline. Round-3 note additions (do not implement):
 nonlinear source-port ledger contract; passive-fit body projection.
+
+---
+
+## Status — landed 2026-08-10
+
+All three lines built in parallel worktrees off `bc7cf2e`, independently
+gated, adversarially reviewed (land-ready ×3), merged A → C → B with the
+synthesist's conflict analysis, and re-gated on the merged head (fmt 0,
+clippy `-D warnings` 0, `test --release --workspace` 0: 38 suites, 263
+passed, `pluck_invariants` 33). Post-merge, three composition laws were
+added that no per-line suite could see: combined explicit-zeros identity,
+bow+breath boundedness, and non-guitar bodies under bow+breath.
+
+**Honest notes for the round record:**
+
+1. **§A compat law satisfied by substitution, declared here.** The spec
+   said "test against a captured render"; no captured-render golden exists
+   anywhere in the repo for the string-network engine (`synth=pluck`/
+   `weave` — checked: `golden_*.rs` covers the subtractive synth only).
+   The landed law is the two-part argument: absent == `guitar` == any
+   unrecognised name (byte-identity), plus the guitar table asserted
+   verbatim against an independently transcribed historical literal.
+   Creating a real captured-render golden for this engine is an open
+   item for a future round.
+2. **Course-set asymmetry (deliberate):** `breath` is bridge-common like
+   `sing` and reaches every course — sympathetic and Weave-virtual
+   included. The bow touches only ACTIVE courses. Documented at the
+   composition site in `next_sample`.
+3. **§C's "render one demo probe in the report"** was scoped out of the
+   worker's delegation; closed at landing instead: `aliento y arco`
+   (8 bars — cello/violin bodies bowed, mandolin-bodied weave halo
+   breathed, all three sources composed in bar 8) rendered clean with
+   the merged engine (`renderDigest sha256:f58a5b66…`, peak −2.9 dBFS,
+   zero bad tokens) → `~/Desktop/mus-listening/pw10_aliento_y_arco.wav`.
+4. **§B landed two declared deviations with measurements:** `BOW_GAIN`
+   0.15 tuned against a sweep table (Schelleng-like minimum bow force
+   emerges); the injected friction force is DC-blocked per course
+   (~5 Hz pole) — without it the v1 relay friction pins the course at
+   loop DC and no tone speaks (tonality 1.16 raw vs 2.0e6 blocked).
+5. **Declared-unusable regions are asserted as refusals:** below minimum
+   bow force (no sustain claimed), and `bow_speed=0` with heavy bow
+   (broadband chatter, not offered as a timbre).
+6. Sing/bow/breath compose by summing at one excitation node; the pluck
+   burst scales by `(1-sing)(1-bow)(1-breath)` — no hidden priority.

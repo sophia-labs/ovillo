@@ -1257,3 +1257,125 @@ fn breath_composes_with_sing_and_pluck_and_stays_bounded() {
         "breath+sing+pluck composition peak {peak} is bounded"
     );
 }
+
+// ------------------------------------------------ PW10 composition laws
+// Each PW10 line proved its own zero limit and boundedness in an isolated
+// worktree that did not contain the other two features. These pin the
+// pairings none of the per-line suites could structurally see.
+
+#[test]
+fn pw10_explicit_zeros_match_the_unspecified_patch() {
+    // bodyp=guitar, bow=0, breath=0 spelled out == none of them present,
+    // byte-for-byte, pluck and weave. Together with each line's own
+    // zero-limit law this closes the combined limit without a captured
+    // pre-PW10 render (none exists for the string-network engine — see
+    // the PW10 spec's landing status).
+    let pluck_plain = isolated(&[("sus", "1.8"), ("body", "0.5"), ("buzz", "0.2")]);
+    let mut pluck_explicit = pluck_plain.clone();
+    pluck_explicit.insert("bodyp".to_string(), "guitar".to_string());
+    pluck_explicit.insert("bow".to_string(), "0".to_string());
+    pluck_explicit.insert("bow_speed".to_string(), "0.5".to_string());
+    pluck_explicit.insert("breath".to_string(), "0".to_string());
+    let a = pluck_note(&pluck_plain, &[110.0, 164.8138], 1.0, 1.0);
+    let b = pluck_note(&pluck_explicit, &[110.0, 164.8138], 1.0, 1.0);
+    assert_eq!(a, b, "explicit PW10 zeros == unspecified (pluck)");
+
+    let weave_plain = params(&[
+        ("synth", "weave"),
+        ("sus", "1.5"),
+        ("courses", "9"),
+        ("couple", "0.16"),
+        ("chirality", "0.6"),
+        ("body", "0.5"),
+    ]);
+    let mut weave_explicit = weave_plain.clone();
+    weave_explicit.insert("bodyp".to_string(), "guitar".to_string());
+    weave_explicit.insert("bow".to_string(), "0".to_string());
+    weave_explicit.insert("bow_speed".to_string(), "0.2".to_string());
+    weave_explicit.insert("breath".to_string(), "0".to_string());
+    let wa = weave_note(&weave_plain, &[110.0, 165.0], 1.0, 1.0);
+    let wb = weave_note(&weave_explicit, &[110.0, 165.0], 1.0, 1.0);
+    assert_eq!(wa, wb, "explicit PW10 zeros == unspecified (weave)");
+}
+
+#[test]
+fn bow_and_breath_together_stay_bounded() {
+    // The two sustained sources sum into one excitation node. B's corner
+    // grid maxed at 2.13 and C's stayed under 8.0, but neither ran the
+    // pair. The house 8.0 bound applies, not widened.
+    let pluck = params(&[
+        ("synth", "pluck"),
+        ("bow", "0.9"),
+        ("bow_speed", "0.5"),
+        ("breath", "0.8"),
+        ("sus", "8"),
+        ("damp", "0.05"),
+        ("body", "1"),
+        ("symp", "0.6"),
+        ("buzz", "0.5"),
+    ]);
+    let audio = pluck_note(&pluck, &[110.0, 164.8138], 1.5, 1.0);
+    assert!(audio.iter().all(|sample| sample.is_finite()));
+    let peak = audio
+        .iter()
+        .fold(0.0_f32, |maximum, sample| maximum.max(sample.abs()));
+    assert!(peak <= 8.0, "bow+breath pluck peak {peak} bounded");
+
+    let weave = params(&[
+        ("synth", "weave"),
+        ("bow", "0.8"),
+        ("bow_speed", "0.5"),
+        ("breath", "0.7"),
+        ("sus", "6"),
+        ("damp", "0.1"),
+        ("courses", "13"),
+        ("couple", "0.25"),
+        ("chirality", "0.8"),
+        ("orbit", "4"),
+        ("orbit_depth", "0.6"),
+        ("curvature", "0.5"),
+        ("body", "1"),
+    ]);
+    let weave_audio = weave_note(&weave, &[110.0, 165.0, 220.0], 1.5, 1.0);
+    assert!(weave_audio.iter().all(|sample| sample.is_finite()));
+    let weave_peak = weave_audio
+        .iter()
+        .fold(0.0_f32, |maximum, sample| maximum.max(sample.abs()));
+    assert!(
+        weave_peak <= 8.0,
+        "bow+breath weave peak {weave_peak} bounded"
+    );
+    println!("bow+breath peaks: pluck {peak:.4}, weave {weave_peak:.4}");
+}
+
+#[test]
+fn nonguitar_bodies_stay_bounded_under_bow_and_breath() {
+    // A's boundedness grid ran every profile un-bowed and un-breathed;
+    // the sustained sources drive a body harder than any single pluck.
+    for profile in ["violin", "cello", "bass", "mandolin"] {
+        let patch = params(&[
+            ("synth", "pluck"),
+            ("bodyp", profile),
+            ("bow", "0.8"),
+            ("bow_speed", "0.5"),
+            ("breath", "0.6"),
+            ("sus", "6"),
+            ("damp", "0.1"),
+            ("body", "1"),
+            ("body_size", "1.2"),
+        ]);
+        let audio = pluck_note(&patch, &[110.0, 164.8138], 1.5, 1.0);
+        assert!(
+            audio.iter().all(|sample| sample.is_finite()),
+            "{profile} stays finite under bow+breath"
+        );
+        let peak = audio
+            .iter()
+            .fold(0.0_f32, |maximum, sample| maximum.max(sample.abs()));
+        assert!(
+            peak <= 8.0,
+            "{profile} under bow+breath peak {peak} bounded"
+        );
+        println!("{profile} under bow+breath: peak {peak:.4}");
+    }
+}

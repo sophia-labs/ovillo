@@ -1,0 +1,22 @@
+# score: aliento y arco
+# summary: PW10 demo probe — five bodies, the bow, and breath in one frame
+# tempo: 60
+# time: 4/4
+# key: Em
+# bars: 8
+# reverb: 1.6
+# master: rms=-16
+
+# instruments:
+#   vc = arco-cello (bass, synth=weave, bodyp=cello, bow=0.6, bow_speed=0.45, sus=5, damp=0.2, body=0.8, body_size=1.15, courses=9, couple=0.10, send=0.2)
+#   vn = arco-violin (treble, synth=weave, bodyp=violin, bow=0.5, bow_speed=0.65, sus=4, damp=0.25, body=0.7, courses=9, couple=0.08, send=0.25)
+#   fl = aliento (treble, synth=weave, bodyp=mandolin, breath=0.75, sus=3, damp=0.3, body=0.6, courses=13, couple=0.18, chirality=0.6, orbit=0.4, orbit_depth=0.4, send=0.35)
+
+bar 1: vc=E2w  fl=<E4 B4>w
+bar 2: vc=E2w  vn=B3h G4h  fl=<E4 B4>w
+bar 3: vc=C2w  vn=A3h E4h  fl=<C4 G4>w
+bar 4: vc=C2w  vn=<C4 E4>w  fl=<C4 G4 E5>w
+bar 5: vc=A1w  vn=E4h F#4h  fl=<A3 E4>w
+bar 6: vc=A1w  vn=<A3 C4 E4>w  fl=<A3 E4 C5>w
+bar 7: vc=B1w  vn=<B3 D#4 F#4>w  fl=<B3 F#4>w
+bar 8: vc=E2w[bow=0.7]  vn=<E4 G4 B4>w[bow=0.6]  fl=<E4 B4 E5>w[breath=0.9]
