@@ -18,3 +18,15 @@ realfft = "3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+
+[dev-dependencies]
+# Ariadne Phase 2 §C only: the same-endpoint experiment
+# (`examples/phase2_same_endpoint.rs`, `tests/phase2_same_endpoint.rs`) is
+# the one place the compiled control word and the production voice meet, so
+# it is the one place that needs both crates. The LIBRARY still depends only
+# on `mus-watsn`: the gesture seam in `pluck.rs` takes a word as data
+# (`GestureFrame`), it does not know what compiled it. `mus-gesture` itself
+# depends on `mus-watsn`, `serde`, `serde_json`, and `sha2` — every one of
+# which is already above — so this adds no third-party crate to the graph,
+# and the dependency is acyclic (`mus-gesture` does not depend on `mus-dsp`).
+mus-gesture = { path = "../mus-gesture" }

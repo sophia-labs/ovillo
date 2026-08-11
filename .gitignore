@@ -36,6 +36,13 @@ aigua/v2/*.json
 aigua/v2/*.npy
 aigua/v2/*.npz
 aigua/render/*.html
+# Ariadne Phase 2 §C stimuli. Regenerated exactly by
+# `cargo run -p mus-dsp --release --example phase2_same_endpoint`; the
+# generator and `.string-research/PHASE2-REPORT.md` are committed, the seven
+# WAVs and the two receipts are not. Same reasoning as the aigua renders
+# above: derived audio, reproducible from committed source.
+.string-research/phase2-stimuli/
+
 *.egg-info/
 formal/.lake/
 paper/ariadne-protected-nonabelian/fantasmas/
