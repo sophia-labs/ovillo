@@ -31,10 +31,65 @@ use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use mus_dsp::backbone::{ProtectedBackbone, BACKBONE_MODES};
 use mus_dsp::pluck::{ControlFrame, ControlTarget, GestureFrame, StringNetworkVoice};
 use mus_engine::{render, sha256_bytes, ENGINE_VERSION};
+use mus_watsn::{
+    state_energy, Complex64, ComplexGate, ComplexOperatorProgram, ComplexPhaseGate,
+    ComplexTwoModeGate,
+};
 use serde::Serialize;
 use serde_json::{json, Value};
+
+/// Parse a compiled complex word from the committed-artifact schedule
+/// format. Validation (finiteness, unitarity, index range) happens in
+/// `ComplexOperatorProgram::new` — the U1 gates, not re-derived here.
+fn parse_complex_word(value: &Value) -> Result<ComplexOperatorProgram, ErrorBody> {
+    let entries = value.as_array().ok_or_else(|| ErrorBody {
+        code: "bad-request",
+        message: "braid word must be an array of schedule gates".into(),
+    })?;
+    let mut gates = Vec::with_capacity(entries.len());
+    for gate in entries {
+        let parsed = match gate["kind"].as_str() {
+            Some("phase_shift") => ComplexGate::Phase(ComplexPhaseGate {
+                mode: gate["i"].as_u64().unwrap_or(u64::MAX) as usize,
+                phase: gate["phase"].as_f64().unwrap_or(f64::NAN),
+            }),
+            Some("two_mode_unitary") => {
+                let block = &gate["block"];
+                let entry = |row: usize, column: usize| {
+                    Complex64::new(
+                        block[row][column][0].as_f64().unwrap_or(f64::NAN),
+                        block[row][column][1].as_f64().unwrap_or(f64::NAN),
+                    )
+                };
+                ComplexGate::TwoMode(ComplexTwoModeGate {
+                    left: gate["i"].as_u64().unwrap_or(u64::MAX) as usize,
+                    right: gate["j"].as_u64().unwrap_or(u64::MAX) as usize,
+                    matrix: [entry(0, 0), entry(0, 1), entry(1, 0), entry(1, 1)],
+                })
+            }
+            other => {
+                return Err(ErrorBody {
+                    code: "bad-request",
+                    message: format!("braid word gate kind {other:?} is not recognised"),
+                })
+            }
+        };
+        gates.push(parsed);
+    }
+    ComplexOperatorProgram::new(
+        BACKBONE_MODES,
+        gates,
+        None,
+        ComplexOperatorProgram::DEFAULT_UNITARITY_TOLERANCE,
+    )
+    .map_err(|error| ErrorBody {
+        code: "bad-request",
+        message: format!("braid word failed U1 validation: {error:?}"),
+    })
+}
 
 pub const SERVICE_VERSION: &str = "mus-service/0.1.0";
 
@@ -114,12 +169,13 @@ impl Service {
             "renderScore" => self.render_score(params),
             "vocab" => Ok(crate::vocab_dump::dump()),
             "renderWeaveProbe" => self.render_weave_probe(params),
+            "renderBraidProbe" => self.render_braid_probe(params),
             "renderScene" => self.render_scene(params),
             other => Err(ErrorBody {
                 code: "unknown-method",
                 message: format!(
                     "no method {other:?} (protocol v0: ping, load, renderScore, vocab, \
-                     renderWeaveProbe, renderScene)"
+                     renderWeaveProbe, renderBraidProbe, renderScene)"
                 ),
             }),
         }
@@ -384,6 +440,227 @@ impl Service {
             self.probes.insert(probe_key.clone(), entry);
         }
         Ok(self.probes[&probe_key].clone())
+    }
+
+    /// `renderBraidProbe {params, events, couple?, eta?, prepare?}` —
+    /// unified U3's audible face: ONE persistent sixteen-mode protected
+    /// backbone across a sequence of weave events. Each event renders
+    /// through the production voice with the backbone bridged at the
+    /// gesture seam; between events the backbone's room port keeps
+    /// radiating into the timeline (the braid rings between notes).
+    ///
+    /// `events: [{midis, atSeconds, slotSeconds, word?, wordSpanSeconds?}]`
+    /// — `word` is a compiled complex gate list in the committed-artifact
+    /// schedule format (`{kind: "phase_shift", i, phase}` /
+    /// `{kind: "two_mode_unitary", i, j, block}`), taken as data exactly
+    /// like the gesture seam takes its frames. Events must be
+    /// non-overlapping and time-ordered; overlap is a refusal, not a mix
+    /// (`UNIFIED-U3-persistent-backbone.md` §3).
+    fn render_braid_probe(&mut self, params: &Value) -> Result<Value, ErrorBody> {
+        let events = params["events"].as_array().ok_or_else(|| ErrorBody {
+            code: "bad-request",
+            message: "renderBraidProbe: params.events (array) is required".into(),
+        })?;
+        if events.is_empty() {
+            return Err(ErrorBody {
+                code: "bad-request",
+                message: "renderBraidProbe: at least one event is required".into(),
+            });
+        }
+        let couple = params["couple"].as_f64().unwrap_or(0.02).clamp(0.0, 0.3);
+        let eta = params["eta"].as_f64().unwrap_or(0.002).clamp(0.0, 0.05);
+        let mut patch: BTreeMap<String, String> = BTreeMap::new();
+        if let Some(map) = params["params"].as_object() {
+            for (key, value) in map {
+                let text = match value {
+                    Value::String(text) => text.clone(),
+                    Value::Number(number) => number.to_string(),
+                    Value::Bool(flag) => (if *flag { "1" } else { "0" }).to_string(),
+                    other => other.to_string(),
+                };
+                patch.insert(key.clone(), text);
+            }
+        }
+        let synth = patch.get("synth").map(String::as_str).unwrap_or("weave");
+        if synth != "weave" {
+            return Err(ErrorBody {
+                code: "unsupported-synth",
+                message: "renderBraidProbe: the backbone bridges the Weave ring only".into(),
+            });
+        }
+
+        let mut backbone =
+            ProtectedBackbone::new(4, couple, eta).map_err(|error| ErrorBody {
+                code: "bad-request",
+                message: format!("renderBraidProbe: {error:?}"),
+            })?;
+        if let Some(prepare) = params["prepare"].as_array() {
+            if prepare.len() != BACKBONE_MODES {
+                return Err(ErrorBody {
+                    code: "bad-request",
+                    message: format!(
+                        "renderBraidProbe: prepare must list {BACKBONE_MODES} [re, im] pairs"
+                    ),
+                });
+            }
+            let mut state = [Complex64::ZERO; BACKBONE_MODES];
+            for (slot, pair) in state.iter_mut().zip(prepare.iter()) {
+                let (Some(re), Some(im)) = (pair[0].as_f64(), pair[1].as_f64()) else {
+                    return Err(ErrorBody {
+                        code: "bad-request",
+                        message: "renderBraidProbe: prepare entries must be [re, im] numbers"
+                            .into(),
+                    });
+                };
+                *slot = Complex64::new(re, im);
+            }
+            backbone.prepare(&state);
+        }
+        backbone.open_frame();
+
+        // Parse and validate every event before rendering anything.
+        struct BraidEvent {
+            start_sample: u64,
+            slot_samples: usize,
+            freqs: Vec<f64>,
+            word: Option<(ComplexOperatorProgram, u64)>,
+        }
+        let mut parsed: Vec<BraidEvent> = Vec::with_capacity(events.len());
+        for event in events {
+            let midis = event["midis"].as_array().ok_or_else(|| ErrorBody {
+                code: "bad-request",
+                message: "renderBraidProbe: event.midis (array of numbers) is required".into(),
+            })?;
+            let freqs: Vec<f64> = midis
+                .iter()
+                .filter_map(Value::as_f64)
+                .map(|midi| 440.0 * 2_f64.powf((midi - 69.0) / 12.0))
+                .collect();
+            if freqs.is_empty() {
+                return Err(ErrorBody {
+                    code: "bad-request",
+                    message: "renderBraidProbe: event.midis must contain a number".into(),
+                });
+            }
+            let at_s = event["atSeconds"].as_f64().unwrap_or(0.0).clamp(0.0, 600.0);
+            let slot_s = event["slotSeconds"].as_f64().unwrap_or(1.5).clamp(0.05, 8.0);
+            let word = if event["word"].is_null() {
+                None
+            } else {
+                let gates = parse_complex_word(&event["word"])?;
+                let span_s = event["wordSpanSeconds"]
+                    .as_f64()
+                    .unwrap_or(slot_s * 0.6)
+                    .clamp(0.01, 8.0);
+                Some((gates, (span_s * 48_000.0).round() as u64))
+            };
+            parsed.push(BraidEvent {
+                start_sample: (at_s * 48_000.0).round() as u64,
+                slot_samples: (slot_s * 48_000.0).round() as usize,
+                freqs,
+                word,
+            });
+        }
+        parsed.sort_by_key(|event| event.start_sample);
+        for window in parsed.windows(2) {
+            let end = window[0].start_sample + window[0].slot_samples as u64;
+            if window[1].start_sample < end {
+                return Err(ErrorBody {
+                    code: "block-schedule-ambiguous",
+                    message: format!(
+                        "renderBraidProbe: events overlap (one ends at sample {end}, the next \
+                         starts at {}); eager rendering cannot interleave two sample loops \
+                         over one backbone",
+                        window[1].start_sample
+                    ),
+                });
+            }
+        }
+
+        let total_samples = parsed
+            .last()
+            .map(|event| event.start_sample as usize + event.slot_samples)
+            .unwrap_or(0)
+            + 96_000; // two seconds of backbone ring-out
+        let mut timeline = vec![0.0_f32; total_samples];
+        let slot_s_key = json!(params).to_string();
+
+        for event in &parsed {
+            // silent gap up to this event: the backbone keeps radiating
+            let gap = event.start_sample.saturating_sub(backbone.absolute_sample());
+            if gap > 0 {
+                let from = backbone.absolute_sample() as usize;
+                let until = (from + gap as usize).min(timeline.len());
+                backbone.advance_gap(gap, &mut timeline[from..until]);
+            }
+            if let Some((word, span)) = &event.word {
+                backbone
+                    .arm_word(word, event.start_sample, *span)
+                    .map_err(|error| ErrorBody {
+                        code: "block-schedule-ambiguous",
+                        message: format!("renderBraidProbe: {error:?}"),
+                    })?;
+            }
+            let slot_s = event.slot_samples as f64 / 48_000.0;
+            let voice = StringNetworkVoice::weave(&patch, &event.freqs, slot_s, 1.0);
+            let audio = voice.render_bridged(&mut backbone);
+            let start = event.start_sample as usize;
+            for (offset, sample) in audio.iter().enumerate() {
+                if let Some(slot) = timeline.get_mut(start + offset) {
+                    *slot += sample;
+                }
+            }
+        }
+        // final ring-out
+        let from = backbone.absolute_sample() as usize;
+        if from < timeline.len() {
+            let remaining = (timeline.len() - from) as u64;
+            backbone.advance_gap(remaining, &mut timeline[from..]);
+        }
+        let frame = backbone.close_frame();
+
+        let probe_key = sha256_bytes(slot_s_key.as_bytes());
+        let pcm_path = self.tmp_dir.join(format!("{probe_key}.braid.f32"));
+        let mut bytes = Vec::with_capacity(timeline.len() * 4);
+        for sample in &timeline {
+            bytes.extend_from_slice(&sample.to_le_bytes());
+        }
+        let render_digest = sha256_bytes(&bytes);
+        std::fs::write(&pcm_path, &bytes).map_err(|e| ErrorBody {
+            code: "render-failed",
+            message: format!("write {}: {e}", pcm_path.display()),
+        })?;
+
+        let final_state: Vec<[f64; 2]> = backbone
+            .state()
+            .iter()
+            .map(|value| [value.re, value.im])
+            .collect();
+        Ok(json!({
+            "probeKey": probe_key,
+            "engine": ENGINE_VERSION,
+            "renderDigest": render_digest,
+            "pcm": {
+                "path": pcm_path.to_string_lossy(),
+                "frames": timeline.len(),
+                "channels": 1,
+                "sampleRate": 48_000,
+                "layout": "mono-f32le",
+            },
+            "backbone": {
+                "finalState": final_state,
+                "finalEnergy": state_energy(backbone.state()),
+                "ledger": {
+                    "energyBefore": frame.energy_before,
+                    "energyAfter": frame.energy_after,
+                    "bridgeInjected": frame.bridge_injected,
+                    "radiated": frame.radiated,
+                    "retired": frame.retired,
+                    "transportWork": frame.transport_work,
+                    "closureError": frame.closure_error(),
+                },
+            },
+        }))
     }
 
     /// `load {source, baseDir}` → parse + adopt once, cache under the

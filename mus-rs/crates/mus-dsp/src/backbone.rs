@@ -228,17 +228,20 @@ impl ProtectedBackbone {
         // 2. bridge
         if self.coupling != 0.0 {
             let (sin, cos) = self.coupling.sin_cos();
-            let count = ring_taps.len().min(self.bridge_imag.len());
-            for index in 0..count {
-                let register = Complex64::new(ring_taps[index], self.bridge_imag[index]);
-                let channel = STRING_CHANNELS.start + index;
-                let mode = self.state[channel];
+            let string_modes = &mut self.state[STRING_CHANNELS];
+            for ((tap, imag), mode_slot) in ring_taps
+                .iter_mut()
+                .zip(self.bridge_imag.iter_mut())
+                .zip(string_modes.iter_mut())
+            {
+                let register = Complex64::new(*tap, *imag);
+                let mode = *mode_slot;
                 let backbone_before = mode.abs_squared() + register.im * register.im;
                 let new_register = register.scale(cos) - mode.scale(sin);
                 let new_mode = register.scale(sin) + mode.scale(cos);
-                self.state[channel] = new_mode;
-                self.bridge_imag[index] = new_register.im;
-                ring_taps[index] = new_register.re;
+                *mode_slot = new_mode;
+                *imag = new_register.im;
+                *tap = new_register.re;
                 self.frame.bridge_injected +=
                     new_mode.abs_squared() + new_register.im * new_register.im - backbone_before;
             }
@@ -289,7 +292,7 @@ impl ProtectedBackbone {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mus_watsn::{ComplexPhaseGate, ComplexTwoModeGate};
+    use mus_watsn::ComplexTwoModeGate;
 
     fn beam_splitter_word(left: usize, right: usize, angle: f64) -> ComplexOperatorProgram {
         let (sin, cos) = angle.sin_cos();

@@ -12,6 +12,9 @@ path = "src/main.rs"
 
 [dependencies]
 mus-dsp = { path = "../mus-dsp" }
+# Unified U3: the braid probe takes compiled complex words as data; the
+# word type lives in the law crate (already in the graph via mus-dsp).
+mus-watsn = { path = "../mus-watsn" }
 mus-engine = { path = "../mus-engine" }
 mus-graph = { path = "../mus-graph" }
 mus-notation = { path = "../mus-notation" }

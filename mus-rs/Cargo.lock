@@ -350,6 +350,7 @@ dependencies = [
  "mus-oplog",
  "mus-text",
  "mus-vocab",
+ "mus-watsn",
  "serde",
  "serde_json",
 ]

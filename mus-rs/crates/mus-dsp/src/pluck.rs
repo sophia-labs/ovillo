@@ -1744,6 +1744,19 @@ impl StringNetworkVoice {
 
     /// Render one mono sample. No allocation occurs on this path.
     pub fn next_sample(&mut self) -> f32 {
+        self.next_sample_bridged(None)
+    }
+
+    /// One sample, optionally bridged to a persistent protected backbone
+    /// (unified U3). `None` is byte-identical to the un-bridged engine:
+    /// the bridge term is exactly `0.0` and no backbone code runs. The
+    /// observer telemetry ledger does not yet own a bridge column, so
+    /// bridged rendering with `observe` on is deferred to the U4/U5
+    /// integration (documented in `UNIFIED-U3-persistent-backbone.md`).
+    pub fn next_sample_bridged(
+        &mut self,
+        backbone: Option<&mut crate::backbone::ProtectedBackbone>,
+    ) -> f32 {
         if self.is_finished() || self.strings.is_empty() {
             return 0.0;
         }
@@ -1773,6 +1786,17 @@ impl StringNetworkVoice {
         if observe {
             self.account.work_scatter += self.wave_energy() - waves_before_scatter;
         }
+        // Unified U3: the persistent backbone bridges here — the same wave
+        // variables the gesture seam owns, after the ring's scattering and
+        // the gesture work booking, before the body sees them. The step
+        // returns the room port's radiated contribution for this sample.
+        let backbone_emitted = match backbone {
+            Some(backbone) => {
+                let take = self.active_count.min(self.waves.len());
+                backbone.step(&mut self.waves[..take])
+            }
+            None => 0.0,
+        };
         // The body rotations move energy between the waves and the modal
         // momenta; `free_tick` decay is booked separately as `loss_body`,
         // so it is added back to isolate the rotation's own work.
@@ -1900,7 +1924,8 @@ impl StringNetworkVoice {
         let raw = 0.18 * string_direct
             + (0.92 + 0.52 * self.patch.body) * body_output
             + 0.18 * bridge_force
-            + 0.20 * contact_output;
+            + 0.20 * contact_output
+            + backbone_emitted;
         // One-pole DC blocker, useful under strongly curved Weave motion.
         let output = raw - self.previous_input + 0.995 * self.previous_output;
         self.previous_input = raw;
@@ -1937,6 +1962,26 @@ impl StringNetworkVoice {
     pub fn render(mut self) -> Vec<f32> {
         let mut output = vec![0.0; self.total_samples];
         self.render_block(&mut output);
+        output
+    }
+
+    /// Render bridged to a persistent backbone that outlives this note.
+    /// The backbone advances one step per rendered sample; its radiated
+    /// port lands in this note's output. Between-note gaps are the
+    /// caller's to advance (`ProtectedBackbone::advance_gap`), so the
+    /// backbone's absolute clock is the caller's responsibility.
+    pub fn render_bridged(
+        mut self,
+        backbone: &mut crate::backbone::ProtectedBackbone,
+    ) -> Vec<f32> {
+        let mut output = vec![0.0; self.total_samples];
+        for sample in output.iter_mut() {
+            if self.is_finished() {
+                *sample = 0.0;
+            } else {
+                *sample = self.next_sample_bridged(Some(backbone));
+            }
+        }
         output
     }
 
