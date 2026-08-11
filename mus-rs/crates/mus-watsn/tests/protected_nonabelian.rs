@@ -5,6 +5,11 @@
 //! C2=1 Wilson--Dirac bundle.  The test does not recompute topology; it checks
 //! that the production-facing sparse executor reproduces the independently
 //! generated orthogonal holonomies and their noncommuting order.
+// The oracle prints its fixtures at full decimal precision; digits beyond
+// f64's representable precision are kept verbatim so the file matches the
+// generator byte-for-byte rather than being hand-rounded, and one gate
+// angle happens to sit near PI (it is data, not a typed-out constant).
+#![allow(clippy::excessive_precision, clippy::approx_constant)]
 
 use mus_watsn::{OperatorProgram, PlaneRotation};
 
