@@ -31,7 +31,7 @@ use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use mus_dsp::pluck::{ControlFrame, ControlTarget, StringNetworkVoice};
+use mus_dsp::pluck::{ControlFrame, ControlTarget, GestureFrame, StringNetworkVoice};
 use mus_engine::{render, sha256_bytes, ENGINE_VERSION};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -125,12 +125,21 @@ impl Service {
         }
     }
 
-    /// `renderWeaveProbe {params, midis, slotSeconds?, glissRatio?, traceStride?}` —
-    /// one string-network event through the voice itself (no score, no
-    /// mix/master), returning mono PCM plus the frame-major telemetry the
-    /// Observatory draws: per-course energy, per-edge applied |angle|,
-    /// orbit phase. Memoized by the canonical request — the engine is
-    /// deterministic, so identical probes return identical entries.
+    /// `renderWeaveProbe {params, midis, slotSeconds?, glissRatio?,
+    /// traceStride?, trajectory?, gesture?}` — one string-network event
+    /// through the voice itself (no score, no mix/master), returning mono
+    /// PCM plus the frame-major telemetry the Observatory draws:
+    /// per-course energy, per-edge applied |angle|, orbit phase. Memoized
+    /// by the canonical request — the engine is deterministic, so
+    /// identical probes return identical entries.
+    ///
+    /// `gesture: [{atSeconds, courses: [a, b], theta}]` (Ariadne Phase 2
+    /// §B) schedules a compiled control word: explicit plane rotations on
+    /// the scattering ring's own wave variables. It is a probe argument
+    /// like `trajectory`, not a score param — no vocab entry — and it
+    /// folds into the memo key for the same reason. Non-weave synths get
+    /// `unsupported-gesture`; a word naming a course the network does not
+    /// have gets the engine's typed refusal verbatim.
     fn render_weave_probe(&mut self, params: &Value) -> Result<Value, ErrorBody> {
         let midis = params["midis"].as_array().ok_or_else(|| ErrorBody {
             code: "bad-request",
@@ -213,6 +222,79 @@ impl Service {
             }
         }
 
+        // Ariadne Phase 2 §B: an optional compiled control word. Same
+        // shape of argument as `trajectory` — content, not a score param
+        // (there is no vocab entry for `gesture`; a word is authored as
+        // frames, exactly as automation is).
+        let mut gestures: Vec<GestureFrame> = Vec::new();
+        // Absent is a word of no gates; anything else that is not a list
+        // of gates is a refusal. A dropped word would render a probe the
+        // caller did not ask for and hand it back as if it had.
+        if !params["gesture"].is_null() && !params["gesture"].is_array() {
+            return Err(ErrorBody {
+                code: "bad-request",
+                message: "renderWeaveProbe: params.gesture must be an array of \
+                          {atSeconds, courses: [a, b], theta} gates"
+                    .into(),
+            });
+        }
+        if let Some(frames) = params["gesture"].as_array() {
+            if !frames.is_empty() && synth != "weave" {
+                return Err(ErrorBody {
+                    code: "unsupported-gesture",
+                    message: format!(
+                        "renderWeaveProbe: gestures are the Weave scattering ring's seam; \
+                         synth {synth:?} has no ring to rotate"
+                    ),
+                });
+            }
+            for frame in frames {
+                let at_s = frame["atSeconds"].as_f64().unwrap_or(0.0).clamp(0.0, 600.0);
+                let courses = frame["courses"].as_array().ok_or_else(|| ErrorBody {
+                    code: "bad-request",
+                    message: "renderWeaveProbe: gesture.courses (array of two course indices) \
+                              is required"
+                        .into(),
+                })?;
+                if courses.len() != 2 {
+                    return Err(ErrorBody {
+                        code: "bad-request",
+                        message: format!(
+                            "renderWeaveProbe: gesture.courses must name exactly two courses, \
+                             got {}",
+                            courses.len()
+                        ),
+                    });
+                }
+                let mut pair = [0_usize; 2];
+                for (slot, value) in pair.iter_mut().zip(courses.iter()) {
+                    // Negative and fractional indices are refused here
+                    // rather than rounded: a course index is an identity,
+                    // not a knob.
+                    *slot = value.as_u64().ok_or_else(|| ErrorBody {
+                        code: "bad-request",
+                        message: format!(
+                            "renderWeaveProbe: gesture course index {value} must be a \
+                             non-negative integer"
+                        ),
+                    })? as usize;
+                }
+                let Some(theta) = frame["theta"].as_f64() else {
+                    return Err(ErrorBody {
+                        code: "bad-request",
+                        message: "renderWeaveProbe: gesture.theta (number, radians) is required"
+                            .into(),
+                    });
+                };
+                gestures.push(GestureFrame {
+                    at_sample: (at_s * 48_000.0).round() as usize,
+                    course_a: pair[0],
+                    course_b: pair[1],
+                    theta,
+                });
+            }
+        }
+
         let canonical = json!({
             "params": patch,
             "midis": midis,
@@ -220,6 +302,10 @@ impl Service {
             "glissRatio": gliss_ratio,
             "traceStride": stride,
             "trajectory": params["trajectory"],
+            // The word is part of the render's identity, exactly like the
+            // trajectory: two probes that differ only by a gate are two
+            // different renders and must not share a memo entry.
+            "gesture": params["gesture"],
         });
         let probe_key = sha256_bytes(canonical.to_string().as_bytes());
         if !self.probes.contains_key(&probe_key) {
@@ -229,7 +315,16 @@ impl Service {
             } else {
                 StringNetworkVoice::weave(&patch, &freqs, slot_s, gliss_ratio)
             };
-            let (audio, trace) = voice.render_traced_with(stride, &trajectory);
+            // One entry point for both cases: an empty word is the
+            // byte-identical zero limit of a word (mus-dsp Phase 2 §B
+            // law 1), so the un-gestured probe is not a different render
+            // path that could drift from this one.
+            let (audio, trace, gesture_trace) = voice
+                .render_traced_gestured(stride, &trajectory, &gestures)
+                .map_err(|error| ErrorBody {
+                    code: error.code(),
+                    message: format!("renderWeaveProbe: {error}"),
+                })?;
             let render_ms = started.elapsed().as_millis();
 
             let pcm_path = self.tmp_dir.join(format!("{probe_key}.probe.f32"));
@@ -274,6 +369,16 @@ impl Service {
                     "courseFreqs": trace.course_freqs,
                     "values": ["energy", "edgeActivity", "orbitPhase"],
                     "layout": "frame-major-f32le",
+                },
+                // The word's receipt: how many gates actually executed
+                // (one scheduled past the end of the note does not), and
+                // the worst relative pair-energy drift over them — the
+                // Phase 2 §B law-3 measurement, reported rather than
+                // asserted away.
+                "gesture": {
+                    "gates": gestures.len(),
+                    "applied": gesture_trace.applied.len(),
+                    "worstPairEnergyDrift": gesture_trace.worst_pair_energy_drift(),
                 },
             });
             self.probes.insert(probe_key.clone(), entry);

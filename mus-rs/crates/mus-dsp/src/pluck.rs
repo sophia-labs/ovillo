@@ -50,6 +50,23 @@
 //! pending the round-3 nonlinear source-port work contract. Where the v1
 //! curve does not produce a tone, the region is declared rather than
 //! hidden: see [`BOW_GAIN`].
+//!
+//! ## Gestures
+//!
+//! The ring above derives its angles from params; a *compiled* control
+//! word needs explicit plane rotations at declared samples. That is the
+//! gesture seam (Ariadne Phase 2 §B): a [`GestureFrame`] names two
+//! courses, an angle and a sample, and the executor applies exactly that
+//! Givens rotation to the same wave variables [`StringNetworkVoice::
+//! scatter_weave`] acts on, immediately after the scattering pass of that
+//! sample. Nothing else about the voice changes, so the seam inherits the
+//! module's orthogonality contract verbatim: every gesture is exactly
+//! norm-preserving on the pair it touches, and a network that was
+//! non-expansive without gestures stays non-expansive with them.
+//!
+//! Like every seam before it, it obeys a hard zero limit: an empty
+//! gesture list is byte-identical to today's render, on pluck and weave
+//! alike. See [`StringNetworkVoice::render_traced_gestured`].
 
 use std::collections::BTreeMap;
 use std::f64::consts::{LN_10, PI};
@@ -1156,6 +1173,14 @@ pub struct StringNetworkVoice {
     observe: bool,
     /// Network-level observer accumulators; inert while `observe` is false.
     account: NetworkEnergyAccount,
+    /// Ariadne Phase 2 §B: the armed gesture word, stably sorted by
+    /// sample and fully validated by [`StringNetworkVoice::arm_gestures`].
+    /// Empty on every ordinary render.
+    gestures: Vec<GestureFrame>,
+    /// Cursor into `gestures`: the next frame not yet executed.
+    next_gesture: usize,
+    /// Observer record of executed gestures; empty while none are armed.
+    gesture_trace: GestureTrace,
 }
 
 /// Network-level observer accumulators (Ariadne Phase 0 §B). Running
@@ -1458,6 +1483,9 @@ impl StringNetworkVoice {
             previous_output: 0.0,
             observe: false,
             account: NetworkEnergyAccount::default(),
+            gestures: Vec::new(),
+            next_gesture: 0,
+            gesture_trace: GestureTrace::default(),
         }
     }
 
@@ -1545,6 +1573,126 @@ impl StringNetworkVoice {
         }
     }
 
+    /// Arm a gesture word on this voice (Ariadne Phase 2 §B).
+    ///
+    /// Validation is total and happens HERE, before a single sample is
+    /// rendered: an index outside the network's course set is a typed
+    /// refusal, never a clamp onto a course the author did not name.
+    /// Frames are sorted by sample with a STABLE sort, so frames sharing
+    /// a sample execute in the order the caller wrote them — the word's
+    /// order is the word's meaning, and a sort must not permute it.
+    ///
+    /// Zero-limit law: arming an empty list allocates nothing and leaves
+    /// the per-sample path with one integer comparison that no float ever
+    /// sees, so the render stays byte-identical to the un-gestured one.
+    ///
+    /// Real-time discipline: every buffer the executor writes is sized
+    /// here, from `gestures.len()`, so [`Self::next_sample`] still
+    /// allocates nothing.
+    pub fn arm_gestures(&mut self, gestures: &[GestureFrame]) -> Result<(), GestureError> {
+        let courses = self.strings.len();
+        for frame in gestures {
+            for course in [frame.course_a, frame.course_b] {
+                if course >= courses {
+                    return Err(GestureError::CourseOutOfRange {
+                        at_sample: frame.at_sample,
+                        course,
+                        courses,
+                    });
+                }
+            }
+            // NOT in the spec's list, and refused for the same reason it
+            // lists out-of-range: `givens(w, w, theta)` is not a plane
+            // rotation, it is a scaling by sqrt(2) — accepting it would
+            // break the energy-neutrality law two lines below by a factor,
+            // not by roundoff. A degenerate pair is an authoring mistake
+            // with no defensible interpretation, so it is a refusal.
+            if frame.course_a == frame.course_b {
+                return Err(GestureError::DegeneratePair {
+                    at_sample: frame.at_sample,
+                    course: frame.course_a,
+                });
+            }
+            // Same discipline: a non-finite angle would poison the whole
+            // network through the ring on the next sample.
+            if !frame.theta.is_finite() {
+                return Err(GestureError::NonFiniteAngle {
+                    at_sample: frame.at_sample,
+                    theta: frame.theta,
+                });
+            }
+        }
+        self.gestures.clear();
+        self.gestures.extend_from_slice(gestures);
+        self.gestures.sort_by_key(|frame| frame.at_sample);
+        self.next_gesture = 0;
+        self.gesture_trace = GestureTrace::with_capacity(courses, gestures.len());
+        Ok(())
+    }
+
+    /// The observer record of the gestures executed so far. `&self` by
+    /// design, exactly like [`EnergyTrace::push_frame`]: a reader that
+    /// cannot reach `&mut` cannot perturb the render.
+    pub fn gesture_trace(&self) -> &GestureTrace {
+        &self.gesture_trace
+    }
+
+    /// Execute every armed gesture whose sample has arrived.
+    ///
+    /// Called once per sample from [`Self::next_sample`], immediately
+    /// after the scattering pass, on the same `waves` the ring's own
+    /// Givens rotations act on. `<=` rather than `==` so a frame armed at
+    /// a sample the voice has already passed still executes (at the first
+    /// sample it can), matching the catch-up semantics
+    /// `render_traced_core` gives [`ControlFrame`]s.
+    fn apply_gestures(&mut self) {
+        while self.next_gesture < self.gestures.len()
+            && self.gestures[self.next_gesture].at_sample <= self.sample_index
+        {
+            let frame = self.gestures[self.next_gesture];
+            self.next_gesture += 1;
+            let (a, b) = (frame.course_a, frame.course_b);
+            self.gesture_trace.waves.extend_from_slice(&self.waves);
+            let before = (self.waves[a], self.waves[b]);
+            // Byte-inert no-op law, the discipline
+            // [`FirstOrderAllpass::retune_coefficient`] applies to an
+            // unchanged coefficient: a zero angle performs NO state
+            // arithmetic at all. `cos 0 = 1` and `sin 0 = 0` are exact,
+            // but `0.0 * a + 1.0 * b` is not sign-of-zero-inert (it maps
+            // `-0.0` to `+0.0`), so the rotation is SKIPPED rather than
+            // trusted to be the identity. `!= 0.0` catches `-0.0` too,
+            // which is also an identity rotation.
+            if frame.theta != 0.0 {
+                let (rotated_a, rotated_b) = givens(before.0, before.1, frame.theta);
+                self.waves[a] = rotated_a;
+                self.waves[b] = rotated_b;
+            }
+            let after = (self.waves[a], self.waves[b]);
+            let pair_energy_before = before.0 * before.0 + before.1 * before.1;
+            let pair_energy_after = after.0 * after.0 + after.1 * after.1;
+            // The localized "factor-stage work is zero" gate (Phase 2 §B
+            // law 3). It is an assertion here and a measurement in the
+            // receipt below: debug builds trip on the spot, release
+            // builds carry the number out to the test and to the report.
+            debug_assert!(
+                (pair_energy_after - pair_energy_before).abs()
+                    <= pair_energy_before.max(1.0) * 1e-12,
+                "gesture at {} on ({a},{b}) moved pair energy {pair_energy_before} -> \
+                 {pair_energy_after}",
+                frame.at_sample
+            );
+            self.gesture_trace.waves.extend_from_slice(&self.waves);
+            self.gesture_trace.applied.push(AppliedGesture {
+                at_sample: self.sample_index,
+                course_a: a,
+                course_b: b,
+                theta: frame.theta,
+                pair_energy_before,
+                pair_energy_after,
+            });
+        }
+    }
+
     fn scatter_body(&mut self) -> f64 {
         let count = self.waves.len();
         let observe = self.observe;
@@ -1612,6 +1760,16 @@ impl StringNetworkVoice {
         if self.mode == StringNetworkMode::Weave {
             self.scatter_weave();
         }
+        // Ariadne Phase 2 §B: compiled gestures execute here — after the
+        // ring's own scattering pass, on the same wave variables, before
+        // the body sees them. Inert unless a word is armed.
+        //
+        // Deliberately INSIDE the `work_scatter` observation window: a
+        // gesture is an exact Givens rotation on the scattering state, so
+        // its work is roundoff by construction (asserted at the site) and
+        // booking it with the ring's keeps the Phase 0 §B ledger closed
+        // under gestures without inventing a column Phase 0 does not own.
+        self.apply_gestures();
         if observe {
             self.account.work_scatter += self.wave_energy() - waves_before_scatter;
         }
@@ -1843,8 +2001,41 @@ impl StringNetworkVoice {
         stride: usize,
         trajectory: &[ControlFrame],
     ) -> (Vec<f32>, WeaveTrace) {
-        let (audio, trace, _) = self.render_traced_core(stride, trajectory, false);
+        let (audio, trace, _, _) = self.render_traced_core(stride, trajectory, false);
         (audio, trace)
+    }
+
+    /// Render under a control trajectory AND a compiled gesture word
+    /// (Ariadne Phase 2 §B), tracing. Gestures execute at their sample,
+    /// after that sample's scattering pass, on the network's own wave
+    /// variables; frames sharing a sample execute in the order given.
+    ///
+    /// **Zero-limit law (hard):** an EMPTY gesture list is byte-identical
+    /// to [`Self::render_traced_with`] for the same inputs, on pluck and
+    /// weave alike. Tested directly.
+    ///
+    /// Refuses, rather than clamps, a word naming a course this network
+    /// does not have — see [`Self::arm_gestures`]. Nothing is rendered
+    /// when it refuses.
+    ///
+    /// Accepts a word on the guitar too: `pluck` has no ring, but it has
+    /// the same wave variables, and the executor is a statement about
+    /// those. Whether a word is *offered* on a given voice is a layer up
+    /// — `renderWeaveProbe` refuses non-weave gestures with
+    /// `unsupported-gesture` (Phase 2 §B), because the ring is what makes
+    /// a word musically meaningful.
+    ///
+    /// Determinism law, unchanged in shape: the output is a pure function
+    /// of (patch, notes, external, trajectory, gestures).
+    pub fn render_traced_gestured(
+        mut self,
+        stride: usize,
+        trajectory: &[ControlFrame],
+        gestures: &[GestureFrame],
+    ) -> Result<(Vec<f32>, WeaveTrace, GestureTrace), GestureError> {
+        self.arm_gestures(gestures)?;
+        let (audio, trace, _, gesture_trace) = self.render_traced_core(stride, trajectory, false);
+        Ok((audio, trace, gesture_trace))
     }
 
     /// The Phase 0 §B observer seam: the same render, with the energy
@@ -1862,7 +2053,8 @@ impl StringNetworkVoice {
         stride: usize,
         trajectory: &[ControlFrame],
     ) -> (Vec<f32>, WeaveTrace, EnergyTrace) {
-        self.render_traced_core(stride, trajectory, true)
+        let (audio, trace, energy, _) = self.render_traced_core(stride, trajectory, true);
+        (audio, trace, energy)
     }
 
     fn render_traced_core(
@@ -1870,7 +2062,7 @@ impl StringNetworkVoice {
         stride: usize,
         trajectory: &[ControlFrame],
         observe: bool,
-    ) -> (Vec<f32>, WeaveTrace, EnergyTrace) {
+    ) -> (Vec<f32>, WeaveTrace, EnergyTrace, GestureTrace) {
         self.set_observer(observe);
         let mut frames: Vec<&ControlFrame> = trajectory.iter().collect();
         frames.sort_by_key(|frame| frame.at_sample);
@@ -1920,6 +2112,7 @@ impl StringNetworkVoice {
                 data,
             },
             energy,
+            std::mem::take(&mut self.gesture_trace),
         )
     }
 
@@ -2185,6 +2378,161 @@ impl ControlTarget {
 pub struct ControlFrame {
     pub at_sample: usize,
     pub sets: Vec<(ControlTarget, f64)>,
+}
+
+/// One executable gate of a compiled control word (Ariadne Phase 2 §B).
+///
+/// At `at_sample`, immediately after that sample's scattering pass, the
+/// network rotates the wave variables of `course_a` and `course_b` by
+/// `theta` — the exact Givens rotation the ring itself uses, on exactly
+/// the state the ring acts on. A word is a list of these; frames sharing
+/// a sample execute in list order, because the order of a word is its
+/// meaning.
+///
+/// Courses are indexed over the WHOLE network — played courses first (in
+/// score order, each optionally followed by its `detune` companion), then
+/// weave's virtual courses — the same indexing [`WeaveTrace::course_freqs`]
+/// reports. An index outside that set is a typed refusal, not a clamp.
+///
+/// A gesture is a probe/word argument, not a score param: there is no
+/// vocab entry and no [`ControlTarget`] for it, exactly as a trajectory
+/// is authored as frames rather than as a knob.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GestureFrame {
+    pub at_sample: usize,
+    pub course_a: usize,
+    pub course_b: usize,
+    pub theta: f64,
+}
+
+/// Why a gesture word was refused. Refusal is a result: the word is
+/// rejected whole, before any audio exists, and nothing is clamped into
+/// range on the author's behalf.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GestureError {
+    /// A gate named a course this network does not have.
+    CourseOutOfRange {
+        at_sample: usize,
+        course: usize,
+        courses: usize,
+    },
+    /// A gate named the same course twice: not a plane rotation.
+    DegeneratePair { at_sample: usize, course: usize },
+    /// A gate carried a non-finite angle.
+    NonFiniteAngle { at_sample: usize, theta: f64 },
+}
+
+impl GestureError {
+    /// Stable machine-readable code, the discipline
+    /// `mus_dsp::scene::SceneError` follows for the service layer.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::CourseOutOfRange { .. } => "gesture-course-out-of-range",
+            Self::DegeneratePair { .. } => "gesture-degenerate-pair",
+            Self::NonFiniteAngle { .. } => "gesture-nonfinite-angle",
+        }
+    }
+}
+
+impl std::fmt::Display for GestureError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CourseOutOfRange {
+                at_sample,
+                course,
+                courses,
+            } => write!(
+                formatter,
+                "gesture at sample {at_sample}: course {course} is outside this network's \
+                 {courses} courses"
+            ),
+            Self::DegeneratePair { at_sample, course } => write!(
+                formatter,
+                "gesture at sample {at_sample}: course {course} rotated against itself is not \
+                 a plane rotation"
+            ),
+            Self::NonFiniteAngle { at_sample, theta } => write!(
+                formatter,
+                "gesture at sample {at_sample}: angle {theta} is not finite"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for GestureError {}
+
+/// Observer record of one executed gate. Written after the audio step
+/// that produced it and read back by nothing on the audio path.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AppliedGesture {
+    /// The sample it actually executed on (equal to the frame's
+    /// `at_sample` unless the word was armed after that sample passed).
+    pub at_sample: usize,
+    pub course_a: usize,
+    pub course_b: usize,
+    pub theta: f64,
+    /// `w_a^2 + w_b^2` before the rotation, and after it. The Phase 2 §B
+    /// law-3 quantity: these differ by roundoff, never by a factor.
+    pub pair_energy_before: f64,
+    pub pair_energy_after: f64,
+}
+
+/// The gesture receipt of one render: every gate that executed, with the
+/// whole wave vector before and after it.
+///
+/// Unconditional (unlike the Phase 0 §B energy observer, which is a
+/// render-entry-point decision) because it is O(gates), not O(samples):
+/// a word of a dozen gates costs a dozen rows, and a render with no word
+/// armed carries an empty trace with no capacity. It is what the
+/// same-endpoint experiment reads to report trace-endpoint state
+/// distances.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct GestureTrace {
+    /// Courses in the network — the stride of [`Self::waves`] snapshots.
+    pub courses: usize,
+    /// One row per executed gate, in execution order.
+    pub applied: Vec<AppliedGesture>,
+    /// Snapshot-major: `2 * courses` values per executed gate, the whole
+    /// wave vector immediately before that gate and immediately after it.
+    pub waves: Vec<f64>,
+}
+
+impl GestureTrace {
+    /// Size every buffer up front so the executor never allocates on the
+    /// audio path. `gestures` is an upper bound: a gate scheduled past
+    /// the end of the note simply never executes.
+    fn with_capacity(courses: usize, gestures: usize) -> Self {
+        Self {
+            courses,
+            applied: Vec::with_capacity(gestures),
+            waves: Vec::with_capacity(gestures * 2 * courses),
+        }
+    }
+
+    /// The whole wave vector immediately before executed gate `index`.
+    pub fn waves_before(&self, index: usize) -> Option<&[f64]> {
+        let start = index * 2 * self.courses;
+        self.waves.get(start..start + self.courses)
+    }
+
+    /// The whole wave vector immediately after executed gate `index`.
+    pub fn waves_after(&self, index: usize) -> Option<&[f64]> {
+        let start = index * 2 * self.courses + self.courses;
+        self.waves.get(start..start + self.courses)
+    }
+
+    /// Worst RELATIVE pair-energy drift over every executed gate — the
+    /// law-3 measurement in one number, ready for a receipt. Zero when no
+    /// gate executed.
+    pub fn worst_pair_energy_drift(&self) -> f64 {
+        self.applied
+            .iter()
+            .map(|gate| {
+                (gate.pair_energy_after - gate.pair_energy_before).abs()
+                    / gate.pair_energy_before.max(f64::MIN_POSITIVE)
+            })
+            .fold(0.0, f64::max)
+    }
 }
 
 /// Render the deepened physical guitar. Existing callers keep the same
