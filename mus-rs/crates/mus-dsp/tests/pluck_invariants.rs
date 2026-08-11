@@ -843,4 +843,120 @@ fn body_profiles_are_pairwise_spectrally_distinct() {
         }
     }
     println!("minimum pairwise relative spectral distance: {minimum:.4}");
+// ---------------------------------------------------------- PW10 §C: breath
+
+#[test]
+fn breath_zero_limit_is_byte_identical() {
+    // A busy patch (body, buzz, sing all engaged) so the zero-limit law is
+    // tested alongside the rest of the excitation stack, not in isolation.
+    let external: Vec<f32> = (0..24_000)
+        .map(|i| (0.3 * (2.0 * std::f64::consts::PI * 220.0 * i as f64 / SR_F64).sin()) as f32)
+        .collect();
+    let patch = isolated(&[
+        ("sus", "1.5"),
+        ("body", "0.4"),
+        ("buzz", "0.3"),
+        ("sing", "0.2"),
+    ]);
+    let baseline = pluck_note_sung(&patch, &[220.0], 0.5, 1.0, &external);
+    let mut with_key = patch.clone();
+    with_key.insert("breath".to_string(), "0".to_string());
+    assert_eq!(
+        baseline,
+        pluck_note_sung(&with_key, &[220.0], 0.5, 1.0, &external),
+        "breath=0 must not touch the render"
+    );
+}
+
+#[test]
+fn breath_is_deterministic_and_content_keyed() {
+    let patch = isolated(&[("breath", "0.8"), ("sus", "1.2")]);
+    let a = pluck_note(&patch, &[220.0], 0.6, 1.0);
+    let b = pluck_note(&patch, &[220.0], 0.6, 1.0);
+    assert_eq!(a, b, "same breathed note renders byte-identically");
+    let c = pluck_note(&patch, &[220.5], 0.6, 1.0);
+    assert_ne!(
+        a, c,
+        "different note content changes the breath noise stream too"
+    );
+}
+
+#[test]
+fn breath_sustains_energy_through_the_slot() {
+    // sus=0.4 makes the unbreathed string nearly silent well before the
+    // 1.0s slot ends; breath keeps injecting fresh noise the whole time.
+    let slot = 1.0;
+    let unbreathed = pluck_note(
+        &isolated(&[("sus", "0.4"), ("damp", "0.3")]),
+        &[220.0],
+        slot,
+        1.0,
+    );
+    let breathed = pluck_note(
+        &isolated(&[("sus", "0.4"), ("damp", "0.3"), ("breath", "0.8")]),
+        &[220.0],
+        slot,
+        1.0,
+    );
+    let late = |audio: &[f32]| rms(&audio[(0.75 * SR_F64) as usize..(0.95 * SR_F64) as usize]);
+    let unbreathed_late = late(&unbreathed);
+    let breathed_late = late(&breathed);
+    assert!(
+        breathed_late > unbreathed_late * 3.0,
+        "late-slot RMS unbreathed={unbreathed_late:.8}, breathed={breathed_late:.8}"
+    );
+}
+
+#[test]
+fn breath_stops_at_the_slot_and_decays_to_silence() {
+    let slot = 0.3;
+    let patch = isolated(&[("sus", "1.5"), ("damp", "0.2"), ("breath", "0.9")]);
+    let audio = pluck_note(&patch, &[220.0], slot, 1.0);
+    let near_slot_end = rms(&audio[(0.20 * SR_F64) as usize..(0.29 * SR_F64) as usize]);
+    let tail_start = audio.len() - (0.08 * SR_F64) as usize;
+    let final_tail = rms(&audio[tail_start..]);
+    let decibels = 20.0 * (final_tail / near_slot_end.max(1e-12)).log10();
+    assert!(
+        decibels < -20.0,
+        "post-slot tail should be well below the sustained in-slot level: {decibels:.1} dB \
+         (near_slot_end={near_slot_end:.6}, final_tail={final_tail:.6})"
+    );
+}
+
+#[test]
+fn breath_stays_bounded_at_extremes() {
+    let patch = isolated(&[
+        ("sus", "0.1"),
+        ("damp", "0"),
+        ("breath", "1"),
+        ("pick", "1"),
+        ("buzz", "1"),
+        ("body", "1"),
+    ]);
+    let audio = pluck_note(&patch, &[82.4069, 110.0, 146.832], 0.5, 1.0);
+    assert!(audio.iter().all(|sample| sample.is_finite()));
+    let peak = audio
+        .iter()
+        .fold(0.0_f32, |maximum, sample| maximum.max(sample.abs()));
+    assert!(peak <= 8.0, "breath extreme peak {peak} is bounded");
+}
+
+#[test]
+fn breath_composes_with_sing_and_pluck_and_stays_bounded() {
+    // No hidden priority: sing's external drive, breath's noise, and the
+    // (scaled-down but nonzero) pluck burst all sum at the same
+    // excitation point.
+    let external: Vec<f32> = (0..48_000)
+        .map(|i| (0.4 * (2.0 * std::f64::consts::PI * 220.0 * i as f64 / SR_F64).sin()) as f32)
+        .collect();
+    let patch = isolated(&[("breath", "0.6"), ("sing", "0.5"), ("sus", "1.0")]);
+    let audio = pluck_note_sung(&patch, &[220.0], 0.6, 1.0, &external);
+    assert!(audio.iter().all(|sample| sample.is_finite()));
+    let peak = audio
+        .iter()
+        .fold(0.0_f32, |maximum, sample| maximum.max(sample.abs()));
+    assert!(
+        peak <= 8.0,
+        "breath+sing+pluck composition peak {peak} is bounded"
+    );
 }
