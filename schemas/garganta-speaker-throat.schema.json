@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia.systems/schemas/garganta-speaker-throat-v1.json",
+  "title": "GARGANTA speaker-conditioned throat posterior",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "claim",
+    "provenance",
+    "config",
+    "reference_analysis",
+    "map_anatomy",
+    "posterior",
+    "state_fits",
+    "evidence"
+  ],
+  "properties": {
+    "$schema": {"const": "https://sophia.systems/schemas/garganta-speaker-throat-v1.json"},
+    "schema_version": {"const": "1.0.0"},
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "medical_anatomy_reconstruction", "speaker_identity_model", "statement"],
+      "properties": {
+        "class": {"const": "acoustically_equivalent_speaker_throat"},
+        "medical_anatomy_reconstruction": {"const": false},
+        "speaker_identity_model": {"const": true},
+        "statement": {"type": "string", "minLength": 1}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference_sha256", "reference_name", "consent_attestation"],
+      "properties": {
+        "reference_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "reference_name": {"type": "string", "minLength": 1},
+        "consent_attestation": {"type": ["string", "null"]}
+      }
+    },
+    "config": {"type": "object"},
+    "reference_analysis": {
+      "type": "object",
+      "required": [
+        "sample_rate",
+        "duration_seconds",
+        "frequency_grid_hz",
+        "states",
+        "training_state_ids",
+        "holdout_state_ids",
+        "voiced_frame_count",
+        "total_frame_count"
+      ],
+      "properties": {
+        "sample_rate": {"type": "integer", "minimum": 8000},
+        "duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "frequency_grid_hz": {
+          "type": "array",
+          "minItems": 64,
+          "items": {"type": "number", "exclusiveMinimum": 0}
+        },
+        "states": {
+          "type": "array",
+          "minItems": 4,
+          "items": {"$ref": "#/$defs/acousticState"}
+        },
+        "training_state_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "holdout_state_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "voiced_frame_count": {"type": "integer", "minimum": 4},
+        "total_frame_count": {"type": "integer", "minimum": 1},
+        "median_f0_hz": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "f0_iqr_hz": {"type": ["number", "null"], "minimum": 0},
+        "jitter_local": {"type": ["number", "null"], "minimum": 0},
+        "median_periodicity": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "median_source_tilt_db_per_octave": {"type": ["number", "null"]}
+      }
+    },
+    "map_anatomy": {"$ref": "#/$defs/anatomy"},
+    "posterior": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/posteriorMember"}
+    },
+    "state_fits": {
+      "type": "array",
+      "minItems": 4,
+      "items": {"$ref": "#/$defs/stateFit"}
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "best_training_loss",
+        "best_holdout_loss",
+        "identifiability_rank",
+        "anatomy_parameter_count",
+        "weak_anatomy_directions",
+        "diagnostics"
+      ],
+      "properties": {
+        "best_training_loss": {"type": "number", "minimum": 0},
+        "best_holdout_loss": {"type": "number", "minimum": 0},
+        "identifiability_rank": {"type": "integer", "minimum": 0},
+        "anatomy_parameter_count": {"const": 10},
+        "weak_anatomy_directions": {"type": "array", "items": {"type": "string"}},
+        "diagnostics": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "$defs": {
+    "anatomy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tract_length_cm",
+        "oral_pharyngeal_warp",
+        "neutral_coefficients",
+        "front_mode_scale",
+        "back_mode_scale",
+        "lip_area_scale",
+        "wall_loss"
+      ],
+      "properties": {
+        "tract_length_cm": {"type": "number", "minimum": 12, "maximum": 23},
+        "oral_pharyngeal_warp": {"type": "number", "minimum": 0.65, "maximum": 1.35},
+        "neutral_coefficients": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
+        "front_mode_scale": {"type": "number", "exclusiveMinimum": 0},
+        "back_mode_scale": {"type": "number", "exclusiveMinimum": 0},
+        "lip_area_scale": {"type": "number", "exclusiveMinimum": 0},
+        "wall_loss": {"type": "number", "minimum": 0}
+      }
+    },
+    "acousticState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_id",
+        "time_seconds",
+        "normalized_envelope",
+        "formants_hz",
+        "f0_hz",
+        "periodicity",
+        "rms_dbfs",
+        "source_tilt_db_per_octave"
+      ],
+      "properties": {
+        "state_id": {"type": "string", "minLength": 1},
+        "time_seconds": {"type": "number", "minimum": 0},
+        "normalized_envelope": {"type": "array", "minItems": 64, "items": {"type": "number"}},
+        "formants_hz": {"type": "array", "minItems": 2, "maxItems": 4, "items": {"type": "number", "exclusiveMinimum": 0}},
+        "f0_hz": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "periodicity": {"type": "number", "minimum": 0, "maximum": 1},
+        "rms_dbfs": {"type": "number"},
+        "source_tilt_db_per_octave": {"type": "number"}
+      }
+    },
+    "posteriorMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "member_id",
+        "weight",
+        "anatomy",
+        "objective_loss",
+        "training_loss",
+        "holdout_loss",
+        "prior_penalty",
+        "smoothness_penalty",
+        "isophonemy_distance_from_map"
+      ],
+      "properties": {
+        "member_id": {"type": "string"},
+        "weight": {"type": "number", "minimum": 0, "maximum": 1},
+        "anatomy": {"$ref": "#/$defs/anatomy"},
+        "objective_loss": {"type": "number", "minimum": 0},
+        "training_loss": {"type": "number", "minimum": 0},
+        "holdout_loss": {"type": "number", "minimum": 0},
+        "prior_penalty": {"type": "number", "minimum": 0},
+        "smoothness_penalty": {"type": "number", "minimum": 0},
+        "isophonemy_distance_from_map": {"type": "number", "minimum": 0}
+      }
+    },
+    "stateFit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_id",
+        "controls",
+        "spectral_loss",
+        "target_formants_hz",
+        "modeled_formants_hz",
+        "area_function_cm2"
+      ],
+      "properties": {
+        "state_id": {"type": "string"},
+        "controls": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["jaw_open", "tongue_front", "tongue_back", "lip_round", "apical_constriction"],
+          "properties": {
+            "jaw_open": {"type": "number", "minimum": -1, "maximum": 1},
+            "tongue_front": {"type": "number", "minimum": -1, "maximum": 1},
+            "tongue_back": {"type": "number", "minimum": -1, "maximum": 1},
+            "lip_round": {"type": "number", "minimum": -1, "maximum": 1},
+            "apical_constriction": {"type": "number", "minimum": -1, "maximum": 1}
+          }
+        },
+        "spectral_loss": {"type": "number", "minimum": 0},
+        "target_formants_hz": {"type": "array", "minItems": 2, "maxItems": 4, "items": {"type": "number", "exclusiveMinimum": 0}},
+        "modeled_formants_hz": {"type": "array", "maxItems": 4, "items": {"type": "number", "exclusiveMinimum": 0}},
+        "area_function_cm2": {"type": "array", "minItems": 12, "items": {"type": "number", "exclusiveMinimum": 0}}
+      }
+    }
+  }
+}
