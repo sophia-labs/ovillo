@@ -1,0 +1,34 @@
+# The gap the Phase 0/1 landing synthesist named: every Ariadne workflow
+# is scoped to mus-watsn or the Python reference, so nothing gated the
+# production engine, mus-gesture, or the parity/byte-law suites. This
+# job is the net: the full workspace battery on every push that touches
+# the Rust tree.
+name: mus-workspace-ci
+on:
+  push:
+    paths:
+      - "mus-rs/**"
+      - ".github/workflows/mus-workspace-ci.yml"
+  pull_request:
+    paths:
+      - "mus-rs/**"
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: mus-rs
+      - name: fmt
+        run: cargo fmt --all -- --check
+        working-directory: mus-rs
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+        working-directory: mus-rs
+      - name: test
+        run: cargo test --release --workspace
+        working-directory: mus-rs

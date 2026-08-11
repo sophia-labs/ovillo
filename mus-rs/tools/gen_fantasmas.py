@@ -220,13 +220,8 @@ def pluck_wave(hz: float, seconds: float = 3.5) -> np.ndarray:
     return sig * attack / sum(PARTIAL_W)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--out", type=Path, default=REPO / "paper" / "ariadne-protected-nonabelian" / "fantasmas")
-    args = parser.parse_args()
-    stems_dir = args.out / "stems"
-    stems_dir.mkdir(parents=True, exist_ok=True)
-
+def build_timeline() -> tuple["Timeline", dict, float]:
+    """The piece itself — shared by the modal and woven renderers."""
     base_params = Dirac4DParameters()
     path_a, path_b = loops_for(base_params)
     path_a_inv = tuple(reversed(path_a))
@@ -382,6 +377,17 @@ def main() -> None:
         if final[v] > 0.05:
             tl.pluck(f"telar_{v}_pluck", t + 1.0, VOICE_HZ[v], float(final[v]))
     total_seconds = t + 8.0
+    return tl, report, total_seconds
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out", type=Path, default=REPO / "paper" / "ariadne-protected-nonabelian" / "fantasmas")
+    args = parser.parse_args()
+    stems_dir = args.out / "stems"
+    stems_dir.mkdir(parents=True, exist_ok=True)
+
+    tl, report, total_seconds = build_timeline()
 
     # ---- render stems ----------------------------------------------------
     n_total = int(total_seconds * SR)
