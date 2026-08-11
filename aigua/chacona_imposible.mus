@@ -1,0 +1,121 @@
+# score: La Chacona Imposible
+# summary: hyper-baroque chaconne on the lamento ground — bowed string bodies, harpsichord continuo, the loom dissolves the ensemble and the ensemble survives it
+# tempo: 76
+# time: 3/4
+# key: Dm
+# bars: 62
+# reverb: 1.7
+# master: rms=-16
+
+# text @b1: the ground: D-C-Bb-A, the lamento tetrachord, bowed on a cello
+# text @b1: body that did not exist this morning. fifteen variations.
+# text @b13: the continuo is a mandolin body pretending to be a harpsichord;
+# text @b13: nobody tells it otherwise.
+# text @b25: el telar breathes in: the impossible voice enters as a halo.
+# text @b37: the loom takes the subject. orbit and curvature climb per event.
+# text @b41: dissolution — clusters, mirrored chirality, a saw wave slides
+# text @b41: its filter like a wall moving. the ground does not stop.
+# text @b45: stretto. every voice at once, thirty-second cascades, the bow
+# text @b45: pressed to 0.8. then the echo: the same music at a whisper.
+# text @b57: coda — the ground alone, the halo breathing, tierce de picardie.
+
+# instruments:
+#   vc = violonchelo (bass, synth=weave, bodyp=cello, bow=0.55, bow_speed=0.45, sus=5, damp=0.22, body=0.85, body_size=1.1, courses=7, dimension=1.5, couple=0.07, chirality=0.4, send=0.16, gain=0)
+#   cb = contrabajo (bass, synth=weave, bodyp=bass, bow=0.6, bow_speed=0.35, sus=6, damp=0.25, body=0.9, body_size=1.25, courses=5, dimension=1.4, couple=0.05, send=0.1, gain=-1)
+#   v1 = violin primo (treble, synth=weave, bodyp=violin, bow=0.5, bow_speed=0.65, sus=4, damp=0.2, body=0.75, body_size=0.95, courses=7, dimension=1.6, couple=0.055, chirality=0.5, send=0.22, gain=0)
+#   v2 = violin secondo (treble, synth=weave, bodyp=violin, bow=0.45, bow_speed=0.6, sus=4, damp=0.22, body=0.75, body_size=0.95, courses=7, dimension=1.6, couple=0.055, chirality=-0.5, send=0.24, gain=-2)
+#   hp = clavecin (treble, synth=pluck, bodyp=mandolin, sus=1.1, damp=0.5, pos=0.07, pick=0.9, body=0.5, body_size=0.85, stiff=0.05, send=0.12, gain=-6)
+#   tl = el telar (treble, synth=weave, courses=15, dimension=2.3, couple=0.22, chirality=0.9, orbit=0.8, orbit_depth=0.5, curvature=0.35, breath=0.55, sus=7, damp=0.15, body=0.6, send=0.4, gain=-3)
+#   sy = la sierra (bass, synth=saw, detune=9, sub=0.4, cutoff=900, send=0.2, gain=-7)
+
+# section: el fundamento [1-4]
+bar 1: vc={p} D3h.  cb=-  v1=-  v2=-  hp=-  tl=-  sy=-
+bar 2: vc=C3h.  cb=-  v1=-  v2=-  hp=-  tl=-  sy=-
+bar 3: vc=Bb2h.  cb=-  v1=-  v2=-  hp=-  tl=-  sy=-
+bar 4: vc=A2h.  cb=-  v1=-  v2=-  hp=-  tl=-  sy=-
+
+# section: las suspensiones [5-8]
+bar 5: vc=D3h.  cb={p} D2h.  v1={p} F5h.  v2=-  hp=-  tl=-  sy=-
+bar 6: vc=C3h.  cb=C2h.  v1=F5q E5h  v2=-  hp=-  tl=-  sy=-
+bar 7: vc=Bb2h.  cb=Bb1h.  v1=E5q D5h  v2=-  hp=-  tl=-  sy=-
+bar 8: vc=A2h.  cb=A1h.  v1=D5q C#5h  v2=-  hp=-  tl=-  sy=-
+
+# section: la imitacion [9-12]
+bar 9: vc=D3h.  cb=D2h.  v1={mp} D5q E5q F5q  v2=-  hp=-  tl=-  sy=-
+bar 10: vc=C3h.  cb=C2h.  v1=E5q D5q C5q  v2={mp} G4q A4q B4q  hp=-  tl=-  sy=-
+bar 11: vc=Bb2h.  cb=Bb1h.  v1=D5q C5q Bb4q  v2=A4q G4q F4q  hp=-  tl=-  sy=-
+bar 12: vc=A2h.  cb=A1h.  v1=C#5q D5q E5q  v2=E4q D4q C#4q  hp=-  tl=-  sy=-
+
+# section: el clavecin [13-16]
+bar 13: vc=D3h.  cb=D2h.  v1={mf} F5e G5e A5q F5q  v2=D5h.  hp={mf} D3e A3e F4e A3e D4e A3e  tl=-  sy=-
+bar 14: vc=C3h.  cb=C2h.  v1=E5e F5e G5q E5q  v2=C5h.  hp=C3e G3e E4e G3e C4e G3e  tl=-  sy=-
+bar 15: vc=Bb2h.  cb=Bb1h.  v1=D5e E5e F5q D5q  v2=Bb4h.  hp=Bb2e F3e D4e F3e Bb3e F3e  tl=-  sy=-
+bar 16: vc=A2h.  cb=A1h.  v1=C#5e D5e E5q C#5q  v2=A4h.  hp=A2e E3e C#4e E3e A3e E3e  tl=-  sy=-
+
+# section: fortspinnung [17-20]
+bar 17: vc=D3h.  cb=D2h.  v1=D5s E5s F5s G5s A5s F5s D5s F5s E5s C5s A4s C5s  v2=<D4 F4>h.  hp=D3e F3e A3e D4e A3e F3e  tl=-  sy=-
+bar 18: vc=C3h.  cb=C2h.  v1=C5s D5s E5s F5s G5s E5s C5s E5s D5s B4s G4s B4s  v2=<C4 E4>h.  hp=C3e E3e G3e C4e G3e E3e  tl=-  sy=-
+bar 19: vc=Bb2h.  cb=Bb1h.  v1=Bb4s C5s D5s E5s F5s D5s Bb4s D5s C5s A4s F4s A4s  v2=<Bb3 D4>h.  hp=Bb2e D3e F3e Bb3e F3e D3e  tl=-  sy=-
+bar 20: vc=A2h.  cb=A1h.  v1=A4s B4s C#5s D5s E5s C#5s A4s C#5s E5s D5s C#5s B4s  v2=<A3 C#4>h.  hp=A2e C#3e E3e A3e E3e C#3e  tl=-  sy=-
+
+# section: los trinos [21-24]
+bar 21: vc=D3h.  cb={mf} D2q[bow=0] F2q[bow=0] A2q[bow=0]  v1=A5t Bb5t A5t Bb5t A5t Bb5t A5t Bb5t A5s G5s F5q G5e  v2=<D5 F5>h.  hp=D3e F3e A3e D4e A3e F3e  tl=-  sy=-
+bar 22: vc=C3h.  cb=C2q[bow=0] E2q[bow=0] G2q[bow=0]  v1=G5t A5t G5t A5t G5t A5t G5t A5t G5s F5s E5q D5e  v2=<C5 E5>h.  hp=C3e E3e G3e C4e G3e E3e  tl=-  sy=-
+bar 23: vc=Bb2h.  cb=Bb1q[bow=0] D2q[bow=0] F2q[bow=0]  v1=F5t G5t F5t G5t F5t G5t F5t G5t F5s E5s D5q C5e  v2=<Bb4 D5>h.  hp=Bb2e D3e F3e Bb3e F3e D3e  tl=-  sy=-
+bar 24: vc=A2h.  cb=A1q[bow=0] C#2q[bow=0] E2q[bow=0]  v1=E5t F5t E5t F5t E5t F5t E5t F5t E5s D5s C#5q D5e  v2=<A4 C#5>h.  hp=A2e C#3e E3e A3e E3e C#3e  tl=-  sy=-
+
+# section: el telar respira [25-28]
+bar 25: vc={mp} D3h.  cb=D2h.  v1=A4e F4e A4e D5e A4e F4e  v2=-  hp=D3q F3q A3q  tl={pp} <D4 F4 A4>h.  sy=-
+bar 26: vc=C3h.  cb=C2h.  v1=G4e E4e G4e C5e G4e E4e  v2=-  hp=C3q E3q G3q  tl=<C4 E4 G4>h.  sy=-
+bar 27: vc=Bb2h.  cb=Bb1h.  v1=F4e D4e F4e Bb4e F4e D4e  v2=-  hp=Bb2q D3q F3q  tl=<Bb3 D4 F4>h.  sy=-
+bar 28: vc=A2h.  cb=A1h.  v1=E4e C#4e E4e A4e E4e C#4e  v2=-  hp=A2q C#3q E3q  tl=<A3 C#4 E4>h.  sy=-
+
+# section: las cascadas [29-32]
+bar 29: vc={f} D3h.  cb=D2h.  v1={f} D5t E5t F5t G5t A5t Bb5t C6t D6t C6t Bb5t A5t G5t F5t E5t D5t C#5t D5t F5t A5t D6t A5t F5t D5t A4t  v2=<D5 F5>h.  hp=D3s F3s A3s D4s A3s F3s D3s F3s A3s D4s A3s F3s  tl=-  sy=-
+bar 30: vc=C3h.  cb=C2h.  v1=<C5 E5>h.  v2={f} C5t D5t E5t F5t G5t A5t B5t C6t B5t A5t G5t F5t E5t D5t C5t B4t C5t E5t G5t C6t G5t E5t C5t G4t  hp=C3s E3s G3s C4s G3s E3s C3s E3s G3s C4s G3s E3s  tl=-  sy=-
+bar 31: vc=Bb2h.  cb=Bb1h.  v1=Bb4t C5t D5t E5t F5t G5t A5t Bb5t A5t G5t F5t E5t D5t C5t Bb4t A4t Bb4t D5t F5t Bb5t F5t D5t Bb4t F4t  v2=<Bb4 D5>h.  hp=Bb2s D3s F3s Bb3s F3s D3s Bb2s D3s F3s Bb3s F3s D3s  tl=-  sy=-
+bar 32: vc=A2h.  cb=A1h.  v1=<A4 E5>h.  v2=A4t B4t C#5t D5t E5t F5t E5t D5t C#5t D5t E5t F5t G5t F5t E5t D5t C#5t E5t A5t E5t C#5t A4t E5t C#5t  hp=A2s C#3s E3s A3s E3s C#3s A2s C#3s E3s A3s E3s C#3s  tl=-  sy=-
+
+# section: la espiral de quintas [33-36]
+bar 33: vc=D3h G2q  cb=D2h G1q  v1=F5e G5e F5e E5e D5e E5e  v2=D5e E5e D5e C5e Bb4e C5e  hp=D3e F3e A3e G2e Bb2e D3e  tl=-  sy=-
+bar 34: vc=C3h F2q  cb=C2h F1q  v1=E5e F5e E5e D5e C5e D5e  v2=C5e D5e C5e Bb4e A4e Bb4e  hp=C3e E3e G3e F2e A2e C3e  tl=-  sy=-
+bar 35: vc=Bb2h E2q  cb=Bb1h E1q  v1=D5e E5e D5e C5e Bb4e C5e  v2=Bb4e C5e Bb4e A4e G4e A4e  hp=Bb2e D3e F3e E2e G2e Bb2e  tl=-  sy=-
+bar 36: vc=A2h.  cb=A1h.  v1=C#5e D5e E5e F5e G5e E5e  v2=A4e Bb4e A4e G4e F4e G4e  hp=A2e C#3e E3e G3e E3e C#3e  tl=-  sy=-
+
+# section: el telar toma el tema [37-40]
+bar 37: vc={mp} D3h.  cb=D2h.  v1=<F4 A4>h.  v2=<D4 F4>h.  hp=-  tl={mf} D5q E5q F5q[orbit=1.5,couple=0.26]  sy=-
+bar 38: vc=C3h.  cb=C2h.  v1=<E4 G4>h.  v2=<C4 E4>h.  hp=-  tl=E5q D5q C5q[orbit=2.5,curvature=0.5]  sy=-
+bar 39: vc=Bb2h.  cb=Bb1h.  v1=<D4 F4>h.  v2=<Bb3 D4>h.  hp=-  tl=D5q C5q Bb4q[couple=0.3,orbit=3.5]  sy=-
+bar 40: vc=A2h.  cb=A1h.  v1=<C#4 E4>h.  v2=<A3 C#4>h.  hp=-  tl=C#5q D5q E5q[couple=0.34,orbit=4.5,orbit_depth=0.7]  sy=-
+
+# section: la disolucion [41-44]
+bar 41: vc={f} D3h.  cb=D2h.  v1=<A4 Bb4>h.[couple=0.2]  v2=<E5 F5>h.[couple=0.2]  hp=-  tl=<D4 F4 A4 C5 E5>h.[couple=0.36,orbit=5,orbit_depth=0.8,curvature=0.7]  sy={mp} <D2 A2>h.[lpf=150->2000]
+bar 42: vc=C3h.  cb=C2h.  v1=<G4 A4>h.[couple=0.2]  v2=<D5 E5>h.[couple=0.2]  hp=-  tl=<C4 E4 G4 Bb4 D5>h.[couple=0.36,orbit=6,chirality=-0.9]  sy=<C2 G2>h.[lpf=2000->300]
+bar 43: vc=Bb2h.  cb=Bb1h.  v1=<F4 G4>h.[couple=0.2]  v2=<C5 D5>h.[couple=0.2]  hp=-  tl=<Bb3 D4 F4 A4 C5>h.[couple=0.38,orbit=7,orbit_depth=0.85]  sy=<Bb1 F2>h.[lpf=300->5000]
+bar 44: vc=A2h.  cb=A1h.  v1=<E4 G4>h.[couple=0.2]  v2=<Bb4 C#5>h.[couple=0.2]  hp=A2s C#3s E3s G3s Bb3s C#4s E4s G4s Bb4s C#5s E5s G5s  tl=<A3 C#4 E4 G4 Bb4>h.[couple=0.38,orbit=8,curvature=0.8,chirality=0.9]  sy=<A1 E2>h.[lpf=5000->150,drive=2.5]
+
+# section: stretto [45-48]
+bar 45: vc={ff} D3h.[bow=0.8]  cb=D2h.[bow=0.8]  v1={ff} D6t C6t Bb5t A5t G5t F5t E5t D5t C#5t D5t E5t F5t G5t A5t Bb5t C6t D6t A5t F5t D5t F5t A5t D6t F6t  v2=<D5 F5 A5>h.  hp=D3s F3s A3s D4s F4s A4s D5s A4s F4s D4s A3s F3s  tl=<D4 F4 A4 D5>h.  sy=<D2 A2>h.[lpf=400->7000]
+bar 46: vc=C3h.[bow=0.8]  cb=C2h.[bow=0.8]  v1=<C5 E5 G5>h.  v2=E6t D6t C6t B5t A5t G5t F5t E5t D5t E5t F5t G5t A5t B5t C6t D6t E6t C6t G5t E5t G5t C6t E6t G6t  hp=C3s E3s G3s C4s E4s G4s C5s G4s E4s C4s G3s E3s  tl=<C4 E4 G4 C5>h.  sy=<C2 G2>h.[lpf=400->7000]
+bar 47: vc=Bb2h.[bow=0.8]  cb=Bb1h.[bow=0.8]  v1=D5s C5s Bb4s A4s Bb4s C5s D5s E5s F5s G5s A5s Bb5s  v2=Bb4s A4s G4s F4s G4s A4s Bb4s C5s D5s E5s F5s G5s  hp=Bb2s D3s F3s Bb3s D4s F4s Bb4s F4s D4s Bb3s F3s D3s  tl=<Bb3 D4 F4 Bb4>h.  sy=<Bb1 F2>h.[lpf=400->7000]
+bar 48: vc=A2h.[bow=0.8]  cb=A1h.[bow=0.8]  v1=D5t E5t D5t E5t D5t E5t D5t E5t C#5s D5s E5q C#5e  v2=A4t B4t A4t B4t A4t B4t A4t B4t G4s F4s E4q A4e  hp=A2s C#3s E3s A3s C#4s E4s A4s E4s C#4s A3s E3s C#3s  tl=<A3 C#4 E4 A4>h.  sy=<A1 E2>h.[lpf=7000->200]
+
+# section: el eco [49-52]
+bar 49: vc={pp} D3h.[bow=0]  cb=-  v1=-  v2=-  hp={pp} D3e F3e A3e F3e D4e F3e  tl=-  sy=-
+bar 50: vc=C3h.[bow=0]  cb=-  v1=-  v2={pp} F5q E5q D5q[gain=-6]  hp=C3e E3e G3e E3e C4e E3e  tl=-  sy=-
+bar 51: vc=Bb2h.[bow=0]  cb=-  v1=-  v2=-  hp=Bb2e D3e F3e D3e Bb3e D3e  tl=-  sy=-
+bar 52: vc=A2h.[bow=0]  cb=-  v1=-  v2=E5q D5q C#5q[gain=-6]  hp=A2e C#3e E3e C#3e A3e C#3e  tl=<A4 E5>h.[breath=0.4,gain=-8]  sy=-
+
+# section: la hemiola [53-56]
+bar 53: vc={mf} D3h.  cb=D2h.  v1={mf} F5h E5q  v2=D5q C5h  hp=D3e F3e A3e D4e A3e F3e  tl=<D4 A4>h.  sy=-
+bar 54: vc=C3h.  cb=C2h.  v1=D5q C5h  v2=A4h G4q  hp=C3e E3e G3e C4e G3e E3e  tl=<C4 G4>h.  sy=-
+bar 55: vc=Bb2h.  cb=Bb1h.  v1=Bb4h A4q  v2=G4q F4h  hp=Bb2e D3e F3e Bb3e F3e D3e  tl=<Bb3 F4>h.  sy=-
+bar 56: vc=A2h.  cb=A1h.  v1=A4q A5h[bow=0.7]  v2=E5h C#5q  hp=A2e E3e A3e C#4e E4e A4e  tl=<A3 E4>h.  sy=-
+
+# section: coda [57-62]
+bar 57: vc={p} D3h.  cb=-  v1=-  v2=-  hp=-  tl={p} <D4 F4 A4>h.[breath=0.7]  sy=-
+bar 58: vc=C3h.  cb=-  v1=-  v2=-  hp=-  tl=<C4 E4 G4>h.[breath=0.75]  sy=-
+bar 59: vc=Bb2h.  cb=-  v1=-  v2=-  hp=-  tl=<Bb3 D4 F4>h.[breath=0.8]  sy=-
+bar 60: vc=A2h.  cb=A1h.  v1=E5t F5t E5t F5t E5t F5t E5t F5t E5s D5s C#5q D5e  v2=-  hp=-  tl=<A3 C#4 E4>h.[breath=0.85]  sy=-
+bar 61: vc={mf} D3h.[bow=0.7]  cb=D2h.[bow=0.7]  v1=<A4 D5 F#5>h.[bow=0.75]  v2=<D4 A4>h.[bow=0.7]  hp=<D3 A3 D4 F#4>h.  tl=<D4 A4 D5 F#5>h.[breath=0.9,couple=0.2]  sy=-
+bar 62: vc=D3h.[bow=0,gain=-10]  cb=-  v1=<A4 D5 F#5>h.[bow=0,gain=-12]  v2=-  hp=<D3 A3 D4 F#4>h.[gain=-12]  tl=<D4 A4 D5 F#5>h.[breath=0.5,gain=-10]  sy=-

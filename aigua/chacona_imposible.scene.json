@@ -1,0 +1,270 @@
+{
+  "sceneId": "chacona-imposible-espacial",
+  "title": "La Chacona Imposible \u2014 version espacial",
+  "sampleRate": 48000,
+  "durationSeconds": 152.0,
+  "coordinateSystem": "+X right, +Y up, -Z front",
+  "listener": {},
+  "room": {
+    "enabled": true,
+    "decaySeconds": 2.4,
+    "wet": 0.32,
+    "damping": 0.4,
+    "seed": 1685
+  },
+  "metadata": {
+    "notes": "Baroque stage seating: violins antiphonal left/right, cello and bass center-right, harpsichord center-rear. El telar is the only moving source: it holds far overhead until bar 25, approaches, circles the listener through the dissolution and stretto (directly behind at the stretto downbeat), retreats for the echo, then WEAVES left-right like a shuttle through the hemiola before settling overhead for the coda. La sierra sits below the floor.",
+    "score": "chacona_imposible.mus",
+    "barSeconds": 2.368421
+  },
+  "objects": [
+    {
+      "objectId": "v1",
+      "label": "violin primo",
+      "audio": "v1.wav",
+      "position": {
+        "x": -1.8,
+        "y": 0.2,
+        "z": -2.6
+      },
+      "gainDb": 5,
+      "reverbSend": 0.25
+    },
+    {
+      "objectId": "v2",
+      "label": "violin secondo",
+      "audio": "v2.wav",
+      "position": {
+        "x": 1.8,
+        "y": 0.2,
+        "z": -2.6
+      },
+      "gainDb": 4,
+      "reverbSend": 0.28
+    },
+    {
+      "objectId": "vc",
+      "label": "violonchelo",
+      "audio": "vc.wav",
+      "position": {
+        "x": 0.7,
+        "y": 0.0,
+        "z": -3.1
+      },
+      "gainDb": 6,
+      "reverbSend": 0.2
+    },
+    {
+      "objectId": "cb",
+      "label": "contrabajo",
+      "audio": "cb.wav",
+      "position": {
+        "x": 1.3,
+        "y": 0.0,
+        "z": -4.2
+      },
+      "gainDb": 6,
+      "reverbSend": 0.18
+    },
+    {
+      "objectId": "hp",
+      "label": "clavecin",
+      "audio": "hp.wav",
+      "position": {
+        "x": 0.0,
+        "y": -0.2,
+        "z": -3.9
+      },
+      "gainDb": 2,
+      "reverbSend": 0.15,
+      "spread": 0.4
+    },
+    {
+      "objectId": "tl",
+      "label": "el telar",
+      "audio": "tl.wav",
+      "gainDb": 4,
+      "reverbSend": 0.5,
+      "spread": 0.3,
+      "trajectory": [
+        {
+          "timeSeconds": 0.0,
+          "position": {
+            "x": 0.0,
+            "y": 2.4,
+            "z": -7.0
+          }
+        },
+        {
+          "timeSeconds": 56.8,
+          "position": {
+            "x": 0.0,
+            "y": 2.4,
+            "z": -7.0
+          }
+        },
+        {
+          "timeSeconds": 66.0,
+          "position": {
+            "x": 0.0,
+            "y": 1.8,
+            "z": -4.5
+          }
+        },
+        {
+          "timeSeconds": 85.3,
+          "position": {
+            "x": -1.5,
+            "y": 1.6,
+            "z": -3.0
+          }
+        },
+        {
+          "timeSeconds": 94.7,
+          "position": {
+            "x": -3.2,
+            "y": 1.4,
+            "z": -0.5
+          }
+        },
+        {
+          "timeSeconds": 99.5,
+          "position": {
+            "x": -2.2,
+            "y": 1.5,
+            "z": 2.8
+          }
+        },
+        {
+          "timeSeconds": 104.2,
+          "position": {
+            "x": 0.0,
+            "y": 1.6,
+            "z": 3.6
+          }
+        },
+        {
+          "timeSeconds": 108.9,
+          "position": {
+            "x": 2.4,
+            "y": 1.5,
+            "z": 2.6
+          }
+        },
+        {
+          "timeSeconds": 113.7,
+          "position": {
+            "x": 3.2,
+            "y": 1.4,
+            "z": -0.5
+          }
+        },
+        {
+          "timeSeconds": 118.0,
+          "position": {
+            "x": 1.5,
+            "y": 2.0,
+            "z": -5.0
+          }
+        },
+        {
+          "timeSeconds": 123.2,
+          "position": {
+            "x": -2.0,
+            "y": 1.8,
+            "z": -3.5
+          }
+        },
+        {
+          "timeSeconds": 125.5,
+          "position": {
+            "x": 2.0,
+            "y": 1.8,
+            "z": -3.5
+          }
+        },
+        {
+          "timeSeconds": 128.0,
+          "position": {
+            "x": -2.0,
+            "y": 1.8,
+            "z": -3.5
+          }
+        },
+        {
+          "timeSeconds": 130.5,
+          "position": {
+            "x": 2.0,
+            "y": 1.8,
+            "z": -3.5
+          }
+        },
+        {
+          "timeSeconds": 132.6,
+          "position": {
+            "x": 0.0,
+            "y": 3.2,
+            "z": -1.2
+          }
+        },
+        {
+          "timeSeconds": 142.1,
+          "position": {
+            "x": 0.0,
+            "y": 2.6,
+            "z": -2.0
+          }
+        },
+        {
+          "timeSeconds": 152.0,
+          "position": {
+            "x": 0.0,
+            "y": 2.6,
+            "z": -2.0
+          }
+        }
+      ]
+    },
+    {
+      "objectId": "sy",
+      "label": "la sierra",
+      "audio": "sy.wav",
+      "gainDb": 3,
+      "reverbSend": 0.3,
+      "trajectory": [
+        {
+          "timeSeconds": 0.0,
+          "position": {
+            "x": 0.0,
+            "y": -2.6,
+            "z": -1.6
+          }
+        },
+        {
+          "timeSeconds": 94.7,
+          "position": {
+            "x": -1.2,
+            "y": -2.6,
+            "z": -1.6
+          }
+        },
+        {
+          "timeSeconds": 104.2,
+          "position": {
+            "x": 1.2,
+            "y": -2.6,
+            "z": -1.6
+          }
+        },
+        {
+          "timeSeconds": 114.0,
+          "position": {
+            "x": 0.0,
+            "y": -2.6,
+            "z": -1.6
+          }
+        }
+      ]
+    }
+  ]
+}

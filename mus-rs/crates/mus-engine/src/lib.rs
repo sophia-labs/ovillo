@@ -256,6 +256,144 @@ pub fn render(source: &str, score_dir: &Path) -> Result<RenderOutcome, RenderErr
     })
 }
 
+/// One voice's dry contribution rendered alone: post-voice, post-event
+/// gain/dynamics (stereo folded to mono), pre-send, no sidechain, no
+/// reverb, no master. The spatial scene renderer is the intended
+/// consumer — it brings its own room, placement, and loudness, so a stem
+/// must not carry the score's.
+#[derive(Debug, Clone)]
+pub struct Stem {
+    pub abbrev: String,
+    /// Mono samples at [`SAMPLE_RATE`].
+    pub samples: Vec<f32>,
+}
+
+/// Render a score as one dry mono stem per instrument, for spatial
+/// placement. Deliberately NOT the parity path: sidechain is ignored
+/// (the pump is a mix-bus phenomenon; stems are sources), the reverb and
+/// master stages never run, and each voice walks into its own buffers.
+/// The setup prelude mirrors [`render`]'s on purpose — the parity-locked
+/// function stays untouched rather than being refactored under it.
+pub fn render_stems(
+    source: &str,
+    score_dir: &Path,
+) -> Result<(Vec<Stem>, RenderStats), RenderError> {
+    let (proposal, _diags) = mus_text::parse_score_lossy(source);
+    let headers = &proposal.headers;
+    let a4 = layout::parse_tuning_a4(headers.get("tuning"))?;
+    let (swing_unit_ql, swing_r) = layout::parse_swing(headers.get("swing"));
+    let pack = match headers.get("pack") {
+        Some(rel) => Some(pack::Pack::load(&score_dir.join(rel))?),
+        None => None,
+    };
+    let gestures = match headers.get("gestures") {
+        Some(rel) => gestures::load_gestures(&score_dir.join(rel))?,
+        None => BTreeMap::new(),
+    };
+    let cache = pack::SampleCache::new();
+    let tape_audio: Option<Vec<f32>> = match headers.get("tape") {
+        Some(rel) => Some((*cache.load(&score_dir.join(rel))?).clone()),
+        None => None,
+    };
+    let (voices, warnings) =
+        pack::build_voices(&proposal.instruments, pack.as_ref(), score_dir, a4)?;
+    let abbrevs: Vec<String> = proposal
+        .instruments
+        .iter()
+        .map(|i| i.abbrev.clone())
+        .collect();
+    let raw = rawbars::scan(source, &abbrevs);
+    let n_bars = headers
+        .get("bars")
+        .and_then(|v| v.trim().parse::<u32>().ok())
+        .filter(|&n| n != 0)
+        .unwrap_or(raw.max_bar);
+    let bar_map = layout::build_bar_map(
+        headers.get("tempo"),
+        headers.get("time"),
+        &raw.inline_tempo,
+        &raw.inline_time,
+        n_bars,
+    )?;
+    let n_total = (bar_map.total_s * mus_dsp::SR_F64) as usize;
+
+    let mut stats = RenderStats {
+        voices: voices.len(),
+        total_seconds: bar_map.total_s,
+        tuning_a: a4,
+        warnings,
+        ..Default::default()
+    };
+    let mut stems = Vec::with_capacity(voices.len());
+    for voice in &voices {
+        let ctx = events::WalkContext {
+            bar_map: &bar_map,
+            bar_content: &raw.bar_content,
+            n_bars,
+            swing_unit_ql,
+            swing_r,
+            a4,
+            gestures: &gestures,
+            tape_audio: tape_audio.as_deref(),
+            cache: &cache,
+            n_total,
+            eager: true,
+            sc_track: None,
+        };
+        let mut buffers = mixbus::MixBuffers::new(n_total);
+        let mut placed = Vec::new();
+        let mut sc_onsets = Vec::new();
+        events::walk_track(
+            &ctx,
+            voice,
+            &mut buffers,
+            &mut placed,
+            &mut sc_onsets,
+            &mut stats,
+        )?;
+        // Equal-power pan folded back to mono: a centered event sums to
+        // sqrt(2)·x, a hard-panned one to 1·x — a ≤1.5 dB seam accepted
+        // so the stem carries the event's full energy either way. The
+        // scene renderer re-places everything; score-side pan is not a
+        // spatial truth worth preserving here.
+        let mono: Vec<f32> = buffers.dry[0]
+            .iter()
+            .zip(buffers.dry[1].iter())
+            .map(|(&left, &right)| left + right)
+            .collect();
+        stems.push(Stem {
+            abbrev: voice.abbrev.clone(),
+            samples: mono,
+        });
+    }
+    Ok((stems, stats))
+}
+
+/// Write one mono stem as 32-bit FLOAT — lossless, and the format the
+/// spatial scene loader (`pitch::decode_mono`, a librosa-parity subset:
+/// Int16 or Float32 only) actually accepts. Stems are intermediates for
+/// re-placement, not deliverables, so they skip [`write_wav`]'s PCM_24
+/// oracle conversion entirely.
+pub fn write_wav_mono(samples: &[f32], path: &Path) -> Result<(), RenderError> {
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: SAMPLE_RATE,
+        bits_per_sample: 32,
+        sample_format: hound::SampleFormat::Float,
+    };
+    let mut writer = hound::WavWriter::create(path, spec)
+        .map_err(|e| RenderError::Wav(format!("{}: {e}", path.display())))?;
+    for &value in samples {
+        writer
+            .write_sample(value)
+            .map_err(|e| RenderError::Wav(e.to_string()))?;
+    }
+    writer
+        .finalize()
+        .map_err(|e| RenderError::Wav(e.to_string()))?;
+    Ok(())
+}
+
 /// `float × 2²³`, floored, clipped to the 24-bit signed range —
 /// `soundfile`'s (`libsndfile`) actual `PCM_24` write conversion.
 ///

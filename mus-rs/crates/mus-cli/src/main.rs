@@ -53,6 +53,10 @@ struct Receipt {
     bad_tokens: Vec<String>,
     #[serde(rename = "warnings")]
     warnings: Vec<String>,
+    /// `--stems DIR` only: abbrev → written mono stem path (dry,
+    /// pre-send, no reverb/master — the spatial scene's raw material).
+    #[serde(rename = "stems", skip_serializing_if = "Option::is_none")]
+    stems: Option<BTreeMap<String, String>>,
 }
 
 impl Receipt {
@@ -84,6 +88,7 @@ impl Receipt {
             per_track_events: stats.per_track_events.clone(),
             bad_tokens: stats.bad.clone(),
             warnings: stats.warnings.clone(),
+            stems: None,
         }
     }
 }
@@ -195,10 +200,12 @@ fn run() -> Result<(), String> {
     let mut output = None;
     let mut base = None;
     let mut compact = false;
+    let mut stems_dir = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-o" => output = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
             "--base" => base = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
+            "--stems" => stems_dir = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
             "--json" => compact = true,
             "--help" | "-h" => {
                 println!("{}", usage());
@@ -208,7 +215,7 @@ fn run() -> Result<(), String> {
         }
     }
     let output = output.unwrap_or_else(|| score.with_extension("wav"));
-    match run_render(&score, &output, base.as_deref()) {
+    match run_render(&score, &output, base.as_deref(), stems_dir.as_deref()) {
         Ok(receipt) => {
             let text = if compact {
                 serde_json::to_string(&receipt)
@@ -239,6 +246,7 @@ fn run_render(
     score: &std::path::Path,
     output: &std::path::Path,
     base: Option<&std::path::Path>,
+    stems_dir: Option<&std::path::Path>,
 ) -> Result<Receipt, String> {
     let started = Instant::now();
     let source = fs::read_to_string(score).map_err(|e| format!("{}: {e}", score.display()))?;
@@ -258,9 +266,25 @@ fn run_render(
     let outcome = render(&source, score_dir).map_err(|e| e.to_string())?;
     write_wav(&outcome.audio, output).map_err(|e| e.to_string())?;
 
+    let stems = match stems_dir {
+        Some(dir) => {
+            fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+            let (stems, _stem_stats) =
+                mus_engine::render_stems(&source, score_dir).map_err(|e| e.to_string())?;
+            let mut written = BTreeMap::new();
+            for stem in &stems {
+                let path = dir.join(format!("{}.wav", stem.abbrev));
+                mus_engine::write_wav_mono(&stem.samples, &path).map_err(|e| e.to_string())?;
+                written.insert(stem.abbrev.clone(), path.display().to_string());
+            }
+            Some(written)
+        }
+        None => None,
+    };
+
     let wav = fs::read(output).map_err(|e| format!("{}: {e}", output.display()))?;
     let source_digest = format!("sha256:{}", sha256_bytes(source.as_bytes()));
-    Ok(Receipt::from_stats(
+    let mut receipt = Receipt::from_stats(
         &outcome.stats,
         format!("sha256:{}", sha256_bytes(&wav)),
         source_digest,
@@ -268,7 +292,9 @@ fn run_render(
         outcome.audio.peak_dbfs(),
         outcome.audio.rms_dbfs(),
         started.elapsed().as_secs_f64(),
-    ))
+    );
+    receipt.stems = stems;
+    Ok(receipt)
 }
 
 /// `mus scene-render <scene.json> --root <dir> [-o out.wav] [--foa]`: the
@@ -316,5 +342,5 @@ fn head_selection_of(graph: &mus_graph::ScoreGraph) -> serde_json::Value {
 }
 
 fn usage() -> String {
-    "usage:\n  mus check <score.mus> [--base DIR] [--json]\n  mus render <score.mus> [--base DIR] [-o <out.wav>] [--json]\n  mus scene-render <scene.json> --root <dir> [-o <out.wav>] [--foa] [--json]\n\nAtril swap:\n  MUS_CHECK_CMD=\"/Users/vera/dev/sophia/mus/mus-rs/target/release/mus check\"".into()
+    "usage:\n  mus check <score.mus> [--base DIR] [--json]\n  mus render <score.mus> [--base DIR] [-o <out.wav>] [--stems DIR] [--json]\n  mus scene-render <scene.json> --root <dir> [-o <out.wav>] [--foa] [--json]\n\nAtril swap:\n  MUS_CHECK_CMD=\"/Users/vera/dev/sophia/mus/mus-rs/target/release/mus check\"".into()
 }
