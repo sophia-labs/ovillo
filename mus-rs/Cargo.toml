@@ -10,6 +10,7 @@ members = [
     "crates/mus-vocab",
     "crates/mus-dsp",
     "crates/mus-watsn",
+    "crates/mus-gesture",
     "crates/np-rand",
     "plugins/ariadne-clap",
 ]
