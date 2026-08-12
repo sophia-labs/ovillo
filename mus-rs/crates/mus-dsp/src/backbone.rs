@@ -47,7 +47,10 @@ pub enum BackboneError {
     /// Two armed words overlap in sample time — eager rendering cannot
     /// interleave concurrent words over shared state, and a wrong answer
     /// must not be representable (contract refusal BlockScheduleAmbiguous).
-    OverlappingWords { previous_end: u64, requested_start: u64 },
+    OverlappingWords {
+        previous_end: u64,
+        requested_start: u64,
+    },
     /// A word's dimension does not match the backbone.
     DimensionMismatch { expected: usize, actual: usize },
     /// More bridge courses requested than string-region channels exist.
@@ -105,7 +108,11 @@ pub struct ProtectedBackbone {
 }
 
 impl ProtectedBackbone {
-    pub fn new(bridge_courses: usize, coupling: f64, radiation_eta: f64) -> Result<Self, BackboneError> {
+    pub fn new(
+        bridge_courses: usize,
+        coupling: f64,
+        radiation_eta: f64,
+    ) -> Result<Self, BackboneError> {
         if bridge_courses > STRING_CHANNELS.len() {
             return Err(BackboneError::TooManyBridges {
                 requested: bridge_courses,
@@ -145,7 +152,8 @@ impl ProtectedBackbone {
 
     /// Explicit state retirement with a receipt — never a side effect.
     pub fn reset(&mut self) -> f64 {
-        let retired = state_energy(&self.state) + self.bridge_imag.iter().map(|v| v * v).sum::<f64>();
+        let retired =
+            state_energy(&self.state) + self.bridge_imag.iter().map(|v| v * v).sum::<f64>();
         self.state = [Complex64::ZERO; BACKBONE_MODES];
         for value in &mut self.bridge_imag {
             *value = 0.0;
@@ -192,7 +200,8 @@ impl ProtectedBackbone {
     }
 
     fn run_due_gates(&mut self) {
-        while self.cursor < self.schedule.len() && self.schedule[self.cursor].0 <= self.absolute_sample
+        while self.cursor < self.schedule.len()
+            && self.schedule[self.cursor].0 <= self.absolute_sample
         {
             let before = state_energy(&self.state);
             let gate = self.schedule[self.cursor].1;

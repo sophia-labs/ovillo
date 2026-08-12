@@ -32,8 +32,7 @@ use sha2::{Digest, Sha256};
 /// Stable format identifier carried inside every program.
 pub const FORMAT_V1: &str = "mus-trajectory/v1";
 /// JSON Schema identifier used by the language-neutral artifact.
-pub const SCHEMA_V1: &str =
-    "https://sophia.systems/schemas/mus-trajectory-program-v1.json";
+pub const SCHEMA_V1: &str = "https://sophia.systems/schemas/mus-trajectory-program-v1.json";
 
 /// Interpolation law between consecutive knots.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -182,9 +181,7 @@ impl Lane {
             return last.value;
         }
 
-        let right = self
-            .knots
-            .partition_point(|knot| knot.at_sample <= sample);
+        let right = self.knots.partition_point(|knot| knot.at_sample <= sample);
         let left = right - 1;
         let start = &self.knots[left];
         let end = &self.knots[right];
@@ -415,11 +412,7 @@ impl TrajectoryProgram {
 
     /// Fill a caller-owned lane buffer for one sample. A sample after the
     /// authored horizon receives the final value of every lane.
-    pub fn write_values(
-        &self,
-        sample: u64,
-        output: &mut [f64],
-    ) -> Result<(), TrajectoryError> {
+    pub fn write_values(&self, sample: u64, output: &mut [f64]) -> Result<(), TrajectoryError> {
         if output.len() != self.lanes.len() {
             return Err(TrajectoryError::OutputLength {
                 expected: self.lanes.len(),
@@ -516,10 +509,7 @@ impl LaneTemplate {
 }
 
 /// Parse an arrow expression. Ordinary scalar values are not trajectories.
-pub fn parse_arrow_values(
-    target: &str,
-    raw: &str,
-) -> Result<Option<Vec<f64>>, TrajectoryError> {
+pub fn parse_arrow_values(target: &str, raw: &str) -> Result<Option<Vec<f64>>, TrajectoryError> {
     if !raw.contains("->") {
         return Ok(None);
     }
@@ -850,7 +840,11 @@ mod tests {
 
     #[test]
     fn linear_endpoints_and_midpoint_are_exact() {
-        let program = program(lane(Curve::Linear, ValueSpace::Linear, &[(0, 2.0), (10, 6.0)]));
+        let program = program(lane(
+            Curve::Linear,
+            ValueSpace::Linear,
+            &[(0, 2.0), (10, 6.0)],
+        ));
         program.validate().unwrap();
         assert_eq!(program.lanes[0].value_at(0), 2.0);
         assert_eq!(program.lanes[0].value_at(5), 4.0);
@@ -860,14 +854,22 @@ mod tests {
 
     #[test]
     fn log2_midpoint_is_the_geometric_mean() {
-        let program = program(lane(Curve::Linear, ValueSpace::Log2, &[(0, 1.0), (10, 4.0)]));
+        let program = program(lane(
+            Curve::Linear,
+            ValueSpace::Log2,
+            &[(0, 1.0), (10, 4.0)],
+        ));
         program.validate().unwrap();
         assert!((program.lanes[0].value_at(5) - 2.0).abs() < 1e-14);
     }
 
     #[test]
     fn smoothness_and_rate_receipts_are_derived() {
-        let mut lane = lane(Curve::Smoothstep, ValueSpace::Linear, &[(0, 0.0), (10, 1.0)]);
+        let mut lane = lane(
+            Curve::Smoothstep,
+            ValueSpace::Linear,
+            &[(0, 0.0), (10, 1.0)],
+        );
         lane.max_rate_per_second = Some(1.51);
         let summary = program(lane).validate().unwrap();
         assert_eq!(summary.lanes[0].continuity, Continuity::C1);
@@ -904,7 +906,11 @@ mod tests {
 
     #[test]
     fn receipt_digest_survives_json_roundtrip() {
-        let program = program(lane(Curve::Smootherstep, ValueSpace::Linear, &[(0, -1.0), (10, 1.0)]));
+        let program = program(lane(
+            Curve::Smootherstep,
+            ValueSpace::Linear,
+            &[(0, -1.0), (10, 1.0)],
+        ));
         let before = program.digest_hex().unwrap();
         let encoded = serde_json::to_vec(&program).unwrap();
         let decoded: TrajectoryProgram = serde_json::from_slice(&encoded).unwrap();

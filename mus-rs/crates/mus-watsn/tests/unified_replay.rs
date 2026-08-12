@@ -166,7 +166,10 @@ fn committed_words_replay_to_npz_dense_matrices() {
         let dense = reconstruct(n, &program);
         let expected = complex_matrix(&record["expected_dense"]);
         let distance = max_entry_distance(&dense, &expected);
-        assert!(distance < DENSE_TOLERANCE, "{word}: dense distance {distance}");
+        assert!(
+            distance < DENSE_TOLERANCE,
+            "{word}: dense distance {distance}"
+        );
 
         for pair in record["state_pairs"].as_array().unwrap() {
             let mut state = complex_row(&pair["input"]);

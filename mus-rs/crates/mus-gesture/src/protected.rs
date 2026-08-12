@@ -169,9 +169,8 @@ pub fn loop_b() -> SmoothTorusLoop {
 
 impl SmoothTorusLoop {
     pub fn validate(&self) -> Result<(), ProtectedRefusalDetail> {
-        let axes_valid = self.first_axis != self.second_axis
-            && self.first_axis < 4
-            && self.second_axis < 4;
+        let axes_valid =
+            self.first_axis != self.second_axis && self.first_axis < 4 && self.second_axis < 4;
         let radii_valid = self.first_radius.is_finite()
             && self.second_radius.is_finite()
             && self.first_radius != 0.0
@@ -218,10 +217,10 @@ impl SmoothTorusLoop {
         let mut second = [0.0; 4];
         first[self.first_axis] = self.first_radius * theta.sin() * velocity;
         first[self.second_axis] = self.second_radius * theta.cos() * velocity;
-        second[self.first_axis] = self.first_radius
-            * (theta.cos() * velocity * velocity + theta.sin() * acceleration);
-        second[self.second_axis] = self.second_radius
-            * (-theta.sin() * velocity * velocity + theta.cos() * acceleration);
+        second[self.first_axis] =
+            self.first_radius * (theta.cos() * velocity * velocity + theta.sin() * acceleration);
+        second[self.second_axis] =
+            self.second_radius * (-theta.sin() * velocity * velocity + theta.cos() * acceleration);
         (first, second)
     }
 
@@ -250,11 +249,11 @@ fn dirac_derivative_norms(spec: &SmoothTorusLoop, s: f64, mass: f64) -> (f64, f6
         second[axis] =
             -k[axis].sin() * k_first[axis] * k_first[axis] + k[axis].cos() * k_second[axis];
     }
-    first[4] = -(0..4).map(|axis| k[axis].sin() * k_first[axis]).sum::<f64>();
+    first[4] = -(0..4)
+        .map(|axis| k[axis].sin() * k_first[axis])
+        .sum::<f64>();
     second[4] = -(0..4)
-        .map(|axis| {
-            k[axis].cos() * k_first[axis] * k_first[axis] + k[axis].sin() * k_second[axis]
-        })
+        .map(|axis| k[axis].cos() * k_first[axis] * k_first[axis] + k[axis].sin() * k_second[axis])
         .sum::<f64>();
     let norm = |values: &[f64]| values.iter().map(|v| v * v).sum::<f64>().sqrt();
     (norm(&d), norm(&first), norm(&second))
@@ -298,8 +297,8 @@ pub fn jrs_adiabatic_bound(
         *second_slot = d_second;
     }
     let gap = |index: usize| 2.0 * radii[index];
-    let endpoint = PROTECTED_RANK
-        * (first[0] / gap(0).powi(2) + first[grid - 1] / gap(grid - 1).powi(2));
+    let endpoint =
+        PROTECTED_RANK * (first[0] / gap(0).powi(2) + first[grid - 1] / gap(grid - 1).powi(2));
     let integrand = |index: usize| {
         PROTECTED_RANK * second[index] / gap(index).powi(2)
             + 7.0 * PROTECTED_RANK * PROTECTED_RANK.sqrt() * first[index] * first[index]
@@ -707,7 +706,10 @@ mod tests {
             .expect_err("one second must refuse");
         assert_eq!(refusal.refusal, ProtectedRefusal::AdiabaticBoundFailed);
         assert!(refusal.observed > 0.05);
-        assert_eq!(refusal.strongest_available_claim, Some(ClaimLevel::Geometric));
+        assert_eq!(
+            refusal.strongest_available_claim,
+            Some(ClaimLevel::Geometric)
+        );
         // and the theorem-sufficient duration passes
         let accepted = admit_physical_adiabatic(&loop_a(), &parameters, &budgets, 23.0).unwrap();
         assert!(accepted.accepted);
@@ -724,8 +726,8 @@ mod tests {
             minimum_gap: 2.0 - 1.0e-9,
             maximum_projector_error: 0.05,
         };
-        let refusal = verify_path(&spec, &parameters, &budgets, 257)
-            .expect_err("open path must refuse");
+        let refusal =
+            verify_path(&spec, &parameters, &budgets, 257).expect_err("open path must refuse");
         assert_eq!(refusal.refusal, ProtectedRefusal::PathNotClosed);
         assert!(refusal.observed > PATH_CLOSURE_TOLERANCE);
         assert_eq!(
@@ -798,13 +800,13 @@ mod tests {
         };
         let decision = evaluate_claims(&compiled);
         assert!(decision.promoted.contains(&ClaimLevel::Geometric));
-        assert!(!decision.promoted.contains(&ClaimLevel::AdiabaticRealization));
+        assert!(!decision
+            .promoted
+            .contains(&ClaimLevel::AdiabaticRealization));
         assert!(!decision.promoted.contains(&ClaimLevel::ProtectedAcoustic));
-        assert!(decision
-            .withheld
-            .iter()
-            .any(|(level, reason)| *level == ClaimLevel::ProtectedAcoustic
-                && reason.contains("U3")));
+        assert!(decision.withheld.iter().any(|(level, reason)| *level
+            == ClaimLevel::ProtectedAcoustic
+            && reason.contains("U3")));
 
         // the evaluator never collapses to one boolean
         assert!(!decision.promoted.is_empty());

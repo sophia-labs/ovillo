@@ -33,9 +33,7 @@ fn empty_program_is_byte_identical_to_the_unwrapped_voice() {
     let expected = weave_note(&patch, &[110.0, 165.0], 0.24, 1.0);
     let voice = StringNetworkVoice::weave(&patch, &[110.0, 165.0], 0.24, 1.0);
     let program = TrajectoryProgram::empty(48_000, 11_520);
-    let actual = StringTrajectoryVoice::new(voice, program)
-        .unwrap()
-        .render();
+    let actual = StringTrajectoryVoice::new(voice, program).unwrap().render();
     assert_eq!(expected, actual);
 }
 
@@ -62,8 +60,7 @@ fn host_block_partition_cannot_change_the_path() {
     let whole = StringTrajectoryVoice::weave(&patch, &[110.0, 165.0], 0.30, 1.0)
         .unwrap()
         .render();
-    let mut chunked = StringTrajectoryVoice::weave(&patch, &[110.0, 165.0], 0.30, 1.0)
-        .unwrap();
+    let mut chunked = StringTrajectoryVoice::weave(&patch, &[110.0, 165.0], 0.30, 1.0).unwrap();
     let block_sizes = [1_usize, 7, 64, 257, 31, 1024, 3];
     let mut cursor = 0;
     let mut actual = Vec::with_capacity(whole.len());

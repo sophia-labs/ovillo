@@ -75,12 +75,8 @@ impl StringTrajectoryVoice {
         gliss_ratio: f64,
     ) -> Result<Self, StringTrajectoryError> {
         let plan = compile_string_trajectory(params, slot_samples(slot_s))?;
-        let voice = StringNetworkVoice::guitar(
-            &plan.static_params,
-            frequencies_hz,
-            slot_s,
-            gliss_ratio,
-        );
+        let voice =
+            StringNetworkVoice::guitar(&plan.static_params, frequencies_hz, slot_s, gliss_ratio);
         Self::new(voice, plan.program)
     }
 
@@ -92,12 +88,8 @@ impl StringTrajectoryVoice {
         gliss_ratio: f64,
     ) -> Result<Self, StringTrajectoryError> {
         let plan = compile_string_trajectory(params, slot_samples(slot_s))?;
-        let voice = StringNetworkVoice::weave(
-            &plan.static_params,
-            frequencies_hz,
-            slot_s,
-            gliss_ratio,
-        );
+        let voice =
+            StringNetworkVoice::weave(&plan.static_params, frequencies_hz, slot_s, gliss_ratio);
         Self::new(voice, plan.program)
     }
 
@@ -349,8 +341,9 @@ fn target_template(name: &str, curve: Curve) -> Option<LaneTemplate> {
         "couple" => ("radian", 0.0, 0.45),
         "chirality" => ("unitless", -1.0, 1.0),
         "orbit" => ("hertz", 0.0, 20.0),
-        "orbit_depth" | "curvature" | "body" | "buzz" | "sing" | "bow"
-        | "bow_speed" | "breath" => ("unitless", 0.0, 1.0),
+        "orbit_depth" | "curvature" | "body" | "buzz" | "sing" | "bow" | "bow_speed" | "breath" => {
+            ("unitless", 0.0, 1.0)
+        }
         "sus" => ("second", 0.05, 20.0),
         "damp" => ("unitless", 0.0, 0.95),
         _ => return None,
@@ -373,8 +366,12 @@ fn target_template(name: &str, curve: Curve) -> Option<LaneTemplate> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum StringTrajectoryError {
     Program(TrajectoryError),
-    UnknownCurve { name: String },
-    UnsupportedTarget { target: String },
+    UnknownCurve {
+        name: String,
+    },
+    UnsupportedTarget {
+        target: String,
+    },
     /// The first unified seam deliberately left open. A physical pitch path
     /// needs state transport for changing delay length, not output resampling.
     PitchTransportPending,
@@ -405,7 +402,10 @@ impl fmt::Display for StringTrajectoryError {
                 write!(formatter, "unknown string trajectory curve {name:?}")
             }
             Self::UnsupportedTarget { target } => {
-                write!(formatter, "string voice does not bind trajectory target {target:?}")
+                write!(
+                    formatter,
+                    "string voice does not bind trajectory target {target:?}"
+                )
             }
             Self::PitchTransportPending => write!(
                 formatter,
