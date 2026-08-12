@@ -1,10 +1,11 @@
-name: Retry and gate MUS-T ordinary renderer integration
+name: Integrate MUS-T into the ordinary renderer
 
 on:
   push:
     branches:
       - agent/trajectory-persistent-bodies
     paths:
+      - .trajectory-engine-patch.py
       - .github/workflows/trajectory-engine-integration-retry.yml
 
 permissions:
@@ -16,8 +17,9 @@ concurrency:
 
 jobs:
   integrate:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Check out the integration branch
         uses: actions/checkout@v5
@@ -26,7 +28,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Install system library
+      - name: Install system audio library
         run: sudo apt-get update && sudo apt-get install -y libsoxr-dev
 
       - name: Install uv
@@ -37,8 +39,12 @@ jobs:
         with:
           components: rustfmt,clippy
 
-      - name: Apply Stage D and run the full Rust gates
-        shell: bash
+      - name: Cache Rust build products
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: mus-rs
+
+      - name: Apply the guarded ordinary-renderer patch
         run: |
           set -euo pipefail
           python .trajectory-engine-patch.py
@@ -47,41 +53,26 @@ jobs:
           rm .github/workflows/trajectory-engine-integration-retry.yml
           rm -f .trajectory-engine-gate.log
 
-          cd mus-rs
+      - name: Format the complete Rust workspace
+        run: |
           cargo fmt --all
+          cargo fmt --all -- --check
+        working-directory: mus-rs
 
-          set +e
-          cargo clippy --workspace --all-targets -- -D warnings > /tmp/trajectory-engine-clippy.log 2>&1
-          clippy_status=$?
-          test_status=0
-          if [[ ${clippy_status} -eq 0 ]]; then
-            cargo test --release --workspace > /tmp/trajectory-engine-test.log 2>&1
-            test_status=$?
-          fi
-          set -e
-          cd ..
+      - name: Compile every target with warnings denied
+        run: cargo clippy --workspace --all-targets -- -D warnings
+        working-directory: mus-rs
 
-          if [[ ${clippy_status} -ne 0 ]]; then
-            {
-              echo 'gate=clippy'
-              echo "exit_status=${clippy_status}"
-              tail -n 3000 /tmp/trajectory-engine-clippy.log
-            } > .trajectory-engine-gate.log
-          elif [[ ${test_status} -ne 0 ]]; then
-            {
-              echo 'gate=test'
-              echo "exit_status=${test_status}"
-              tail -n 3000 /tmp/trajectory-engine-test.log
-            } > .trajectory-engine-gate.log
-          fi
+      - name: Run the complete release workspace
+        run: cargo test --release --workspace
+        working-directory: mus-rs
 
+      - name: Publish only the fully gated integration
+        run: |
+          set -euo pipefail
           git config user.name 'Sophia trajectory integrator'
           git config user.email 'noreply@sophia-labs.invalid'
           git add -A
           git diff --cached --check
-          if [[ ${clippy_status} -eq 0 && ${test_status} -eq 0 ]]; then
-            git commit -m 'Route MUS-T through ordinary render receipts'
-          else
-            git commit -m 'Route MUS-T through ordinary renderer; capture next gate'
-          fi
+          git commit -m 'Route MUS-T through ordinary render receipts'
           git push origin "HEAD:${GITHUB_REF_NAME}"
