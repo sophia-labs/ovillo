@@ -1,0 +1,62 @@
+{
+  "format": "mus-trajectory/v1",
+  "program_sha256": "fb6dea90db1295b65b94e2927c72721a0ed1ecc83b96f359ecb2e4faca9f6894",
+  "sample_rate_hz": 1000,
+  "duration_samples": 6001,
+  "lane_count": 4,
+  "zero_motion": false,
+  "lanes": [
+    {
+      "target": "extension.f0.u0",
+      "unit": "latent_control",
+      "curve": "linear",
+      "continuity": "c0",
+      "value_space": "linear",
+      "knot_count": 7,
+      "zero_motion": false,
+      "minimum": -0.9174334990371441,
+      "maximum": 0.10056228561515626,
+      "observed_max_rate_per_second": 0.6974806547008394,
+      "discontinuous": false
+    },
+    {
+      "target": "extension.f0.u1",
+      "unit": "latent_control",
+      "curve": "linear",
+      "continuity": "c0",
+      "value_space": "linear",
+      "knot_count": 7,
+      "zero_motion": false,
+      "minimum": 0.0,
+      "maximum": 1.1043386095079537,
+      "observed_max_rate_per_second": 0.8624443926368955,
+      "discontinuous": false
+    },
+    {
+      "target": "extension.f0.u2",
+      "unit": "latent_control",
+      "curve": "linear",
+      "continuity": "c0",
+      "value_space": "linear",
+      "knot_count": 7,
+      "zero_motion": false,
+      "minimum": -1.1992372710235815,
+      "maximum": 0.02816636445677798,
+      "observed_max_rate_per_second": 0.6845525180321543,
+      "discontinuous": false
+    },
+    {
+      "target": "extension.f0.u3",
+      "unit": "latent_control",
+      "curve": "linear",
+      "continuity": "c0",
+      "value_space": "linear",
+      "knot_count": 7,
+      "zero_motion": false,
+      "minimum": -0.41144188174421953,
+      "maximum": 0.3160712741063302,
+      "observed_max_rate_per_second": 0.3915884872945978,
+      "discontinuous": false
+    }
+  ]
+}
