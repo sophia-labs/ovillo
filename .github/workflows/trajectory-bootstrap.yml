@@ -5,7 +5,7 @@ on:
     branches:
       - agent/trajectory-persistent-bodies
     paths:
-      - .trajectory-bootstrap/patch.tar.gz
+      - .trajectory-bootstrap/chunk-*.b64
       - .github/workflows/trajectory-bootstrap.yml
 
 permissions:
@@ -26,17 +26,31 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Verify gzip integrity
+      - name: Reconstruct and verify the source archive
         shell: bash
         run: |
           set -euo pipefail
-          gzip -t .trajectory-bootstrap/patch.tar.gz
+          sha256sum -c <<'SUMS'
+          96414741ed76f0daaaca1191695d7511ba00d146a5644b212ae5bfb0cfd3db86  .trajectory-bootstrap/chunk-00.b64
+          2798f19da2e3c560bf029e1bde64628d1c2019003ac628f6c54c7894d19759b4  .trajectory-bootstrap/chunk-01.b64
+          8b2775ccbf6569cbfbc23c41091fbce025bea67a18d8a6476a7d248a286801eb  .trajectory-bootstrap/chunk-02.b64
+          f47a0d718ae12f2478733d1ff4eaffbbb269ee8c86ec7d50470a8612d4642446  .trajectory-bootstrap/chunk-03.b64
+          73d4f25ec6b5f205b7af0a359c41148507ce2d70293b20847f355e167e6617d0  .trajectory-bootstrap/chunk-04.b64
+          fc79a7487b45a831dada58be53c32f842439c567f95f86316a39b705b5e46b5c  .trajectory-bootstrap/chunk-05.b64
+          03717dd8cb2b30e6efaf8b6535de448761280496997493752fe5dfe3a1f2912e  .trajectory-bootstrap/chunk-06.b64
+          cc66c85419351f9af53ef29fae8f2a3c0bbe91b829f9d590bb672842b5228175  .trajectory-bootstrap/chunk-07.b64
+          SUMS
+          cat .trajectory-bootstrap/chunk-*.b64 | tr -d '\r\n' > /tmp/trajectory-patch.b64
+          test "$(wc -c < /tmp/trajectory-patch.b64)" -eq 56168
+          base64 --decode /tmp/trajectory-patch.b64 > /tmp/trajectory-patch.tar.gz
+          echo 'a0a7dfff57d7ed22ff033943ab31042a532323753b40f93949b5b896465d65a0  /tmp/trajectory-patch.tar.gz' | sha256sum -c -
+          gzip -t /tmp/trajectory-patch.tar.gz
 
       - name: Verify archive paths and file count
         shell: bash
         run: |
           set -euo pipefail
-          tar -tzf .trajectory-bootstrap/patch.tar.gz > /tmp/trajectory-patch-files.txt
+          tar -tzf /tmp/trajectory-patch.tar.gz > /tmp/trajectory-patch-files.txt
           if grep -Eq '(^/|(^|/)\.\.(/|$))' /tmp/trajectory-patch-files.txt; then
             echo 'archive contains an unsafe path' >&2
             exit 1
@@ -47,7 +61,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tar -xzf .trajectory-bootstrap/patch.tar.gz -C .
+          tar -xzf /tmp/trajectory-patch.tar.gz -C .
           rm -rf .trajectory-bootstrap
           rm .github/workflows/trajectory-bootstrap.yml
           python -m compileall -q mus_analysis tests
