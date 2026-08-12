@@ -1,0 +1,69 @@
+name: One-shot trajectory source integration
+
+on:
+  push:
+    branches:
+      - agent/gesture-body-unification
+    paths:
+      - ".github/workflows/one-shot-trajectory-source-integration.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Apply the guarded source patch
+        run: python .trajectory-source-integration.py
+
+      - name: Install system audio libraries
+        run: sudo apt-get update && sudo apt-get install -y libsoxr-dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install parity runtime
+        run: python -m pip install --upgrade uv
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Format
+        run: cargo fmt --all
+        working-directory: mus-rs
+
+      - name: Relevant release tests
+        run: cargo test --release -p mus-trajectory -p mus-dsp -p mus-engine -p mus-cli
+        working-directory: mus-rs
+
+      - name: Warnings-denied workspace compile
+        run: cargo clippy --workspace --all-targets -- -D warnings
+        working-directory: mus-rs
+
+      - name: Commit the integrated source path
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            mus-rs/crates/mus-dsp/src/trajectory.rs \
+            mus-rs/crates/mus-dsp/tests/trajectory_program.rs \
+            mus-rs/crates/mus-engine/src/pack.rs \
+            mus-rs/crates/mus-engine/src/source.rs \
+            mus-rs/crates/mus-engine/src/events.rs \
+            mus-rs/crates/mus-engine/src/lib.rs \
+            mus-rs/crates/mus-engine/tests/trajectory_source.rs \
+            mus-rs/crates/mus-cli/src/main.rs
+          git commit -m "Wire guarded trajectories into ordinary MUS rendering"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
