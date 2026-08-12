@@ -6,6 +6,8 @@ on:
       - agent/gesture-body-unification
     paths:
       - ".github/workflows/one-shot-trajectory-source-integration.yml"
+      - ".trajectory-source-integration.py"
+      - ".trajectory-source-integration-fix.py"
 
 permissions:
   contents: write
