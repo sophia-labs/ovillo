@@ -46,8 +46,17 @@ jobs:
         run: cargo fmt --all
         working-directory: mus-rs
 
-      - name: Relevant release tests
-        run: cargo test --release -p mus-trajectory -p mus-dsp -p mus-engine -p mus-cli
+      - name: Trajectory core and adapter tests
+        run: |
+          cargo test --release -p mus-trajectory
+          cargo test --release -p mus-dsp --lib
+          cargo test --release -p mus-dsp --test trajectory_program
+        working-directory: mus-rs
+
+      - name: Score, event, and receipt tests
+        run: |
+          cargo test --release -p mus-engine
+          cargo test --release -p mus-cli
         working-directory: mus-rs
 
       - name: Warnings-denied workspace compile
