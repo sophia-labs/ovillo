@@ -63,9 +63,16 @@ def build_anatomies(fitted, rng):
     neutral = AnatomyGenome.from_unit_cube([0.5] * 10)
     length_matched_unit = np.full(10, 0.5)
     length_matched_unit[0] = unit[0]
+    # the posterior's first member IS the MAP (isophonemy distance 0.0)
+    # — caught live when its paired runs replicated map's bit-for-bit;
+    # take the first member at a real distance instead
+    posterior_member = next(
+        member for member in fitted["posterior"]
+        if member["isophonemy_distance_from_map"] > 0.01
+    )
     return {
         "map": map_anatomy,
-        "posterior_1": AnatomyGenome(**fitted["posterior"][0]["anatomy"]),
+        "posterior_distinct": AnatomyGenome(**posterior_member["anatomy"]),
         "neutral": neutral,
         "length_matched_neutral": AnatomyGenome.from_unit_cube(length_matched_unit),
         "shuffled": AnatomyGenome.from_unit_cube(shuffled_unit),
