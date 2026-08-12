@@ -1,0 +1,126 @@
+name: Fix MUS-T adapter ownership and run Rust gates
+
+on:
+  push:
+    branches:
+      - agent/trajectory-persistent-bodies
+    paths:
+      - .github/workflows/trajectory-fix-ownership.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trajectory-fix-ownership-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  fix-and-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the integration branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Install system library
+        run: sudo apt-get update && sudo apt-get install -y libsoxr-dev
+
+      - name: Install Rust gates
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+
+      - name: Repair ownership ordering
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('mus-rs/crates/mus-dsp/src/trajectory.rs')
+          text = path.read_text(encoding='utf-8')
+          old = '''impl From<TrajectoryError> for StringTrajectoryError {
+    fn from(error: TrajectoryError) -> Self {
+        Self {
+            kind: StringTrajectoryErrorKind::Core,
+            coordinate: error.coordinate,
+            message: error.message,
+            core_code: Some(error.code().to_string()),
+        }
+    }
+}
+'''
+          new = '''impl From<TrajectoryError> for StringTrajectoryError {
+    fn from(error: TrajectoryError) -> Self {
+        let core_code = error.code().to_string();
+        Self {
+            kind: StringTrajectoryErrorKind::Core,
+            coordinate: error.coordinate,
+            message: error.message,
+            core_code: Some(core_code),
+        }
+    }
+}
+'''
+          if text.count(old) != 1:
+              raise SystemExit('expected exactly one TrajectoryError conversion block')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          rm -f .trajectory-clippy.log .trajectory-test.log
+          cd mus-rs
+          cargo fmt --all
+
+      - name: Run warnings-denied workspace clippy
+        id: clippy
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cd mus-rs
+          cargo clippy --workspace --all-targets -- -D warnings 2>&1 | tee /tmp/trajectory-clippy.log
+
+      - name: Run release workspace tests
+        id: tests
+        if: steps.clippy.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cd mus-rs
+          cargo test --workspace --release 2>&1 | tee /tmp/trajectory-test.log
+
+      - name: Preserve any remaining diagnostic
+        if: steps.clippy.outcome != 'success' || steps.tests.outcome == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.clippy.outcome }}" != 'success' ]]; then
+            {
+              echo 'gate=clippy'
+              tail -n 2400 /tmp/trajectory-clippy.log
+            } > .trajectory-clippy.log
+          elif [[ "${{ steps.tests.outcome }}" == 'failure' ]]; then
+            {
+              echo 'gate=test'
+              tail -n 2400 /tmp/trajectory-test.log
+            } > .trajectory-test.log
+          fi
+
+      - name: Commit correction and self-clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/trajectory-fix-ownership.yml
+          git config user.name 'Sophia trajectory integrator'
+          git config user.email 'noreply@sophia-labs.invalid'
+          git add -A
+          git diff --cached --check
+          if [[ "${{ steps.clippy.outcome }}" == 'success' && "${{ steps.tests.outcome }}" != 'failure' ]]; then
+            git commit -m 'Fix MUS-T adapter ownership; pass Rust gates'
+          else
+            git commit -m 'Fix MUS-T adapter ownership; capture next Rust gate'
+          fi
+          git push origin "HEAD:${GITHUB_REF_NAME}"
