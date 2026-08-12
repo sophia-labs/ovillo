@@ -1,0 +1,54 @@
+name: Materialize trajectory integration patch
+
+on:
+  push:
+    branches:
+      - agent/trajectory-persistent-bodies
+    paths:
+      - .trajectory-bootstrap/patch.tar.gz
+      - .github/workflows/trajectory-bootstrap.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trajectory-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify and materialize the patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'a0a7dfff57d7ed22ff033943ab31042a532323753b40f93949b5b896465d65a0  .trajectory-bootstrap/patch.tar.gz' | sha256sum -c -
+          tar -tzf .trajectory-bootstrap/patch.tar.gz > /tmp/trajectory-patch-files.txt
+          if grep -Eq '(^/|(^|/)\.\.(/|$))' /tmp/trajectory-patch-files.txt; then
+            echo 'archive contains an unsafe path' >&2
+            exit 1
+          fi
+          test "$(grep -cve '/$' /tmp/trajectory-patch-files.txt)" -eq 24
+          tar -xzf .trajectory-bootstrap/patch.tar.gz -C .
+          rm -rf .trajectory-bootstrap
+          rm .github/workflows/trajectory-bootstrap.yml
+          python -m compileall -q mus_analysis tests
+
+      - name: Commit the materialized source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Sophia trajectory integrator'
+          git config user.email 'noreply@sophia-labs.invalid'
+          git add -A
+          git diff --cached --check
+          git commit -m 'MUS-T: trajectories through persistent physical bodies'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
