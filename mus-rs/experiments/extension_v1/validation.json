@@ -4,12 +4,16 @@
     "development_smoke": true,
     "editable_install": true,
     "exact_smoke": true,
+    "github_actions_python_reference_passed": true,
+    "github_actions_rust_sparse_lowering_passed": true,
     "github_workflow_added": true,
+    "inherited_workspace_clippy_failure_present_on_base": true,
     "pytest_elapsed_seconds": 5.79,
     "rust_api_matched_to_repository_snapshot": true,
-    "rust_candidate_compiled": false,
+    "rust_candidate_compiled": true,
+    "rust_candidate_tests_passed": true,
     "rust_ci_job_configured": true,
-    "rust_toolchain_available": false,
+    "rust_toolchain_available_in_local_container": false,
     "tests_failed": 0,
     "tests_passed": 12
   },
@@ -21,9 +25,16 @@
     "topological_protection": false
   },
   "environment": {
-    "pytest": "9.0.2",
-    "python": "3.13.5",
-    "pytorch": "2.10.0+cpu"
+    "github_actions_python": "3.11",
+    "local_pytest": "9.0.2",
+    "local_python": "3.13.5",
+    "local_pytorch": "2.10.0+cpu"
+  },
+  "github_actions": {
+    "commit": "0f5629f3e103421de71d11144622f06f4ee65d7c",
+    "extension_workflow_run_id": 31560816000,
+    "extension_workflow_status": "success",
+    "validated_at_utc": "2026-08-12T03:51:03Z"
   },
   "smoke_receipts": {
     "development": "a97d0b153c762e94b91eeca39b9ce3926df0e779d99f6ff0c1702816a8795460",
