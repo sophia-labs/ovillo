@@ -1,0 +1,55 @@
+{
+  "battery": "P0 renderer validity",
+  "date": "2026-08-11",
+  "t1_flat_identity": {
+    "fixed_relative_error": 2.821196751291954e-16,
+    "legacy_relative_error": 0.07157133855742151,
+    "pass": true
+  },
+  "t2_static_vs_convolution": {
+    "best_scalar": 0.9999999999999996,
+    "steady_state_relative_residual": 1.703504979251763e-15,
+    "declared_edge_transient_samples": 3072,
+    "declared_edge_transient_ms": 64.0,
+    "edge_relative_residual": 0.40000435464560247,
+    "pass": true
+  },
+  "t3_ola_weight": {
+    "legacy_ripple_max_over_min": 1.0764972266920887,
+    "cola_ripple_max_over_min": 1.0000000000000007,
+    "pass": true
+  },
+  "t4_absolute_attenuation": {
+    "per_state": {
+      "open_l1": 1.791299396757319,
+      "closed_l1": 2.20345691631127,
+      "closed_over_open": 1.2300885716257455
+    },
+    "neutral_reference": {
+      "open_l1": 0.9516619522402597,
+      "closed_l1": 0.6989230048706483,
+      "closed_over_open": 0.7344236083257807
+    },
+    "physical": {
+      "open_l1": 93.48013345360785,
+      "closed_l1": 68.65401691777419,
+      "closed_over_open": 0.7344236083257806
+    },
+    "confound_confirmed": true
+  },
+  "t5_cache_audit": {
+    "exact_keys_distinguish_4e-4": true,
+    "legacy_rounding": "1e-3 (collided; removed)",
+    "pass": true
+  },
+  "t6_metric_calibration": {
+    "loss_vs_benign_target_perturbations": {
+      "shift_1ms": 0.03217,
+      "shift_5ms": 0.36292,
+      "level_+1dB": 0.00969,
+      "level_+3dB": 0.08719,
+      "lowpass_8k": 5e-05
+    },
+    "note": "the scale against which ~2.0 aggregate losses must be read"
+  }
+}

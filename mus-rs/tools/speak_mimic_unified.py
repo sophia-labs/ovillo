@@ -38,12 +38,7 @@ import soundfile as sf
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from mus_analysis.garganta_anatomy import (  # noqa: E402
-    AnatomyGenome,
-    CONTROL_NAMES,
-    _minimum_phase_response,
-    transfer_response,
-)
+sys.path.insert(0, str(ROOT / "mus-rs" / "tools"))
 
 SR = 48000
 HOP, WIN, NFFT = 480, 1024, 2048
@@ -87,123 +82,16 @@ def logmel(x, n_frames):
     return np.log10(FB @ spec.T + 1e-9)
 
 
-class FittedThroat:
-    """Their MAP anatomy + reference medians, loaded from the receipt."""
+# The renderer lives in garganta_render (P0-certified: exact COLA,
+# linear convolution, gain policies, exact cache keys). This tool keeps
+# only the LOSS featurization (above, its own 480-hop grid, unchanged
+# for floor comparability) and the search.
+from garganta_render import (  # noqa: E402
+    GestureRenderer,
+    load_fitted,
+    warm_anchors,
+)
 
-    def __init__(self, receipt_path: Path):
-        receipt = json.loads(receipt_path.read_text())
-        self.anatomy = AnatomyGenome(**receipt["map_anatomy"])
-        self.section_count = receipt["config"]["section_count"]
-        analysis = receipt["reference_analysis"]
-        self.median_f0 = analysis["median_f0_hz"] or 140.0
-        self.tilt = analysis["median_source_tilt_db_per_octave"] or -8.0
-        states = {state["state_id"]: state for state in analysis["states"]}
-        fits = []
-        for fit in receipt["state_fits"]:
-            state = states[fit["state_id"]]
-            controls = [fit["controls"][name] for name in CONTROL_NAMES]
-            fits.append((state["time_seconds"], controls,
-                         state["periodicity"], state["rms_dbfs"]))
-        fits.sort(key=lambda item: item[0])
-        self.timeline = fits
-        self.freqs = np.fft.rfftfreq(NFFT, 1.0 / SR)
-        self.freqs_positive = self.freqs.copy()
-        self.freqs_positive[0] = max(1.0, self.freqs[1])
-        self._response_cache: dict[bytes, np.ndarray] = {}
-
-    def warm_anchors(self, total_s: float) -> np.ndarray:
-        """Initial genome from the fit's own implied trajectory."""
-        genome = np.zeros((ANCHORS, ANCHOR_DIM))
-        times = [item[0] for item in self.timeline]
-        controls = np.array([item[1] for item in self.timeline])
-        periodicity = np.array([item[2] for item in self.timeline])
-        rms = np.array([item[3] for item in self.timeline])
-        gain = np.clip((rms + 60.0) / 60.0, 0.0, 1.0)
-        anchor_times = np.linspace(0.0, total_s, ANCHORS)
-        for column in range(CONTROL_DIM):
-            genome[:, column] = np.interp(anchor_times, times, controls[:, column])
-        genome[:, CONTROL_DIM] = np.interp(anchor_times, times, gain)
-        genome[:, CONTROL_DIM + 1] = np.clip(
-            1.0 - np.interp(anchor_times, times, periodicity), 0.05, 0.9
-        )
-        genome[:, CONTROL_DIM + 2] = 0.0
-        return genome
-
-    def response_for(self, controls: np.ndarray) -> np.ndarray:
-        key = np.round(controls, 3).tobytes()
-        cached = self._response_cache.get(key)
-        if cached is not None:
-            return cached
-        response = transfer_response(
-            self.anatomy,
-            tuple(float(value) for value in controls),
-            self.freqs_positive,
-            section_count=self.section_count,
-        )
-        magnitude = np.abs(response)
-        magnitude /= max(float(np.max(magnitude)), 1e-12)
-        minimum_phase = _minimum_phase_response(magnitude)
-        self._response_cache[key] = minimum_phase
-        return minimum_phase
-
-    def render(self, genome: np.ndarray, total_s: float, rng: np.random.Generator) -> np.ndarray:
-        genome = genome.reshape(ANCHORS, ANCHOR_DIM)
-        sample_count = int(total_s * SR)
-        t = np.arange(sample_count) / SR
-        anchor_times = np.linspace(0.0, total_s, ANCHORS)
-
-        def track(column, lo, hi):
-            return np.clip(np.interp(t, anchor_times, genome[:, column]), lo, hi)
-
-        gain = track(CONTROL_DIM, 0.0, 1.2)
-        aspiration = track(CONTROL_DIM + 1, 0.0, 1.0)
-        f0 = self.median_f0 * 2.0 ** (track(CONTROL_DIM + 2, -12.0, 12.0) / 12.0)
-
-        # voiced Rosenberg-like pulse train at the commanded f0 track
-        phase = np.cumsum(f0 / SR) % 1.0
-        open_q = 0.62
-        flow = np.zeros(sample_count)
-        opening = phase < open_q * 0.62
-        closing = (phase >= open_q * 0.62) & (phase < open_q)
-        flow[opening] = 0.5 * (1.0 - np.cos(math.pi * phase[opening] / (open_q * 0.62)))
-        closing_phase = (phase[closing] - open_q * 0.62) / (open_q * 0.38)
-        flow[closing] = np.cos(0.5 * math.pi * closing_phase)
-        voiced = np.diff(flow, prepend=flow[0])
-        noise = rng.standard_normal(sample_count)
-        source = gain * ((1.0 - aspiration) * voiced + 0.25 * aspiration * noise)
-
-        # broad source tilt, matched to the reference median
-        spectrum = np.fft.rfft(source)
-        octaves = np.log2(np.maximum(np.fft.rfftfreq(sample_count, 1.0 / SR), 40.0) / 1000.0)
-        spectrum *= 10.0 ** ((self.tilt * octaves) / 20.0)
-        source = np.fft.irfft(spectrum, n=sample_count)
-
-        # frame-wise articulation: interpolate controls, filter, overlap-add
-        window = np.hanning(WIN)
-        out = np.zeros(sample_count + NFFT)
-        for start in range(0, sample_count, HOP):
-            center = (start + WIN / 2) / SR
-            # their area cone: controls live in [-1, 1]; the search may
-            # propose outside, the render clamps at the lawful boundary
-            controls = np.clip(
-                np.array([
-                    np.interp(center, anchor_times, genome[:, column])
-                    for column in range(CONTROL_DIM)
-                ]),
-                -1.0,
-                1.0,
-            )
-            frame = source[start:start + WIN]
-            if len(frame) < WIN:
-                frame = np.pad(frame, (0, WIN - len(frame)))
-            filtered = np.fft.irfft(
-                np.fft.rfft(frame * window, n=NFFT) * self.response_for(controls),
-                n=NFFT,
-            )
-            out[start:start + NFFT] += filtered
-        out = out[:sample_count]
-        peak = np.abs(out).max()
-        return out / peak * 0.8 if peak > 0 else out
 
 
 def main() -> None:
@@ -222,12 +110,17 @@ def main() -> None:
     n_frames = 1 + int((len(target) - WIN) / HOP)
     target_mel = logmel(target, n_frames)
 
-    throat = FittedThroat(args.receipt)
+    fitted = load_fitted(args.receipt)
+    throat = GestureRenderer(
+        fitted["anatomy"], fitted["section_count"],
+        median_f0=fitted["median_f0"], source_tilt=fitted["tilt"],
+        normalize="neutral_reference",
+    )
     rng = np.random.default_rng(0xA9B1E)
     render_rng = np.random.default_rng(0xF00D)  # fixed source noise per render
 
     dim = ANCHORS * ANCHOR_DIM
-    mean = throat.warm_anchors(total_s).reshape(-1)
+    mean = warm_anchors(fitted["timeline"], total_s).reshape(-1)
     sigma = np.full(dim, 0.25)
     elite = max(4, args.pop // 4)
     best = (np.inf, mean.copy())
