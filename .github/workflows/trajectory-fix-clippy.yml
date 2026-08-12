@@ -1,0 +1,76 @@
+name: Fix MUS-T clippy diagnostic
+
+on:
+  push:
+    branches:
+      - agent/trajectory-persistent-bodies
+    paths:
+      - .github/workflows/trajectory-fix-clippy.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trajectory-fix-clippy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the integration branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply the clippy rewrite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('mus-rs/crates/mus-trajectory/src/lib.rs')
+          text = path.read_text(encoding='utf-8')
+          old = '''            match rate_factor {
+              Some(factor) => max_rate = max_rate.max(factor * delta.abs() / seconds),
+              None => {}
+            }
+'''
+          if old not in text:
+              old = '''            match rate_factor {
+                Some(factor) => max_rate = max_rate.max(factor * delta.abs() / seconds),
+                None => {}
+            }
+'''
+          new = '''            if let Some(factor) = rate_factor {
+                max_rate = max_rate.max(factor * delta.abs() / seconds);
+            }
+'''
+          if text.count(old) != 1:
+              raise SystemExit('expected exactly one single_match block')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          rm -f .trajectory-clippy.log
+          rm .github/workflows/trajectory-fix-clippy.yml
+
+      - name: Install Rust formatter
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Format and commit the correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd mus-rs
+          cargo fmt --all
+          cd ..
+          git config user.name 'Sophia trajectory integrator'
+          git config user.email 'noreply@sophia-labs.invalid'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Fix MUS-T clippy single-match'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
