@@ -1,0 +1,134 @@
+exit_status=101
+[1m[92m    Updating[0m crates.io index
+[1m[92m    Updating[0m git repository `https://github.com/robbert-vdh/nih-plug.git`
+[1m[92m    Updating[0m git repository `https://github.com/micahrj/clap-sys.git`
+[1m[92m Downloading[0m crates ...
+[1m[92m  Downloaded[0m atty v0.2.14
+[1m[92m  Downloaded[0m num_threads v0.1.7
+[1m[92m  Downloaded[0m serde_derive v1.0.229
+[1m[92m  Downloaded[0m crypto-common v0.1.7
+[1m[92m  Downloaded[0m scopeguard v1.2.0
+[1m[92m  Downloaded[0m time-core v0.1.9
+[1m[92m  Downloaded[0m crossbeam-deque v0.8.7
+[1m[92m  Downloaded[0m version_check v0.9.5
+[1m[92m  Downloaded[0m smallvec v1.15.2
+[1m[92m  Downloaded[0m bitflags v1.3.2
+[1m[92m  Downloaded[0m quote v1.0.47
+[1m[92m  Downloaded[0m addr2line v0.25.1
+[1m[92m  Downloaded[0m anyhow v1.0.104
+[1m[92m  Downloaded[0m backtrace v0.3.76
+[1m[92m  Downloaded[0m atomic_refcell v0.1.14
+[1m[92m  Downloaded[0m aho-corasick v1.1.5
+[1m[92m  Downloaded[0m log v0.4.33
+[1m[92m  Downloaded[0m miniz_oxide v0.8.9
+[1m[92m  Downloaded[0m bitflags v2.13.1
+[1m[92m  Downloaded[0m digest v0.10.7
+[1m[92m  Downloaded[0m crossbeam v0.8.4
+[1m[92m  Downloaded[0m gimli v0.32.3
+[1m[92m  Downloaded[0m num-complex v0.4.6
+[1m[92m  Downloaded[0m raw-window-handle v0.5.2
+[1m[92m  Downloaded[0m lock_api v0.4.14
+[1m[92m  Downloaded[0m parking_lot_core v0.9.12
+[1m[92m  Downloaded[0m autocfg v1.5.1
+[1m[92m  Downloaded[0m regex-syntax v0.8.11
+[1m[92m  Downloaded[0m block-buffer v0.10.4
+[1m[92m  Downloaded[0m crossbeam-utils v0.8.22
+[1m[92m  Downloaded[0m itoa v1.0.18
+[1m[92m  Downloaded[0m termcolor v1.4.1
+[1m[92m  Downloaded[0m powerfmt v0.2.0
+[1m[92m  Downloaded[0m num-conv v0.2.2
+[1m[92m  Downloaded[0m pkg-config v0.3.33
+[1m[92m  Downloaded[0m rustc-demangle v0.1.28
+[1m[92m  Downloaded[0m midi-consts v0.1.0
+[1m[92m  Downloaded[0m time v0.3.55
+[1m[92m  Downloaded[0m widestring v1.2.1
+[1m[92m  Downloaded[0m crossbeam-epoch v0.9.20
+[1m[92m  Downloaded[0m unicode-ident v1.0.24
+[1m[92m  Downloaded[0m hound v3.5.1
+[1m[92m  Downloaded[0m rustfft v6.4.1
+[1m[92m  Downloaded[0m once_cell v1.21.4
+[1m[92m  Downloaded[0m realfft v3.5.0
+[1m[92m  Downloaded[0m parking_lot v0.12.5
+[1m[92m  Downloaded[0m transpose v0.2.3
+[1m[92m  Downloaded[0m regex v1.13.1
+[1m[92m  Downloaded[0m generic-array v0.14.7
+[1m[92m  Downloaded[0m crossbeam-queue v0.3.13
+[1m[92m  Downloaded[0m num-integer v0.1.46
+[1m[92m  Downloaded[0m sha2 v0.10.9
+[1m[92m  Downloaded[0m libsoxr-sys v0.1.4
+[1m[92m  Downloaded[0m anymap3 v1.1.0
+[1m[92m  Downloaded[0m nih_log v0.3.1
+[1m[92m  Downloaded[0m num-traits v0.2.19
+[1m[92m  Downloaded[0m strength_reduce v0.2.4
+[1m[92m  Downloaded[0m atomic_float v0.1.0
+[1m[92m  Downloaded[0m deranged v0.5.8
+[1m[92m  Downloaded[0m primal-check v0.3.4
+[1m[92m  Downloaded[0m proc-macro2 v1.0.107
+[1m[92m  Downloaded[0m adler2 v2.0.1
+[1m[92m  Downloaded[0m zmij v1.0.23
+[1m[92m  Downloaded[0m cfg-if v1.0.4
+[1m[92m  Downloaded[0m serde v1.0.229
+[1m[92m  Downloaded[0m cpufeatures v0.2.17
+[1m[92m  Downloaded[0m crossbeam-channel v0.5.16
+[1m[92m  Downloaded[0m typenum v1.20.1
+[1m[92m  Downloaded[0m memchr v2.8.3
+[1m[92m  Downloaded[0m serde_core v1.0.229
+[1m[92m  Downloaded[0m time-macros v0.2.32
+[1m[92m  Downloaded[0m libc v0.2.189
+[1m[92m  Downloaded[0m serde_json v1.0.151
+[1m[92m  Downloaded[0m syn v1.0.109
+[1m[92m  Downloaded[0m syn v3.0.3
+[1m[92m  Downloaded[0m object v0.37.3
+[1m[92m  Downloaded[0m regex-automata v0.4.18
+[1m[92m  Downloaded[0m libsoxr v0.2.9
+[1m[92m    Checking[0m memchr v2.8.3
+[1m[92m   Compiling[0m serde_core v1.0.229
+[1m[92m   Compiling[0m proc-macro2 v1.0.107
+[1m[92m   Compiling[0m quote v1.0.47
+[1m[92m   Compiling[0m unicode-ident v1.0.24
+[1m[92m   Compiling[0m zmij v1.0.23
+[1m[92m   Compiling[0m version_check v0.9.5
+[1m[92m   Compiling[0m serde_json v1.0.151
+[1m[92m   Compiling[0m generic-array v0.14.7
+[1m[92m    Checking[0m itoa v1.0.18
+[1m[92m    Checking[0m cfg-if v1.0.4
+[1m[92m    Checking[0m typenum v1.20.1
+[1m[92m   Compiling[0m syn v3.0.3
+[1m[92m   Compiling[0m serde v1.0.229
+[1m[92m    Checking[0m block-buffer v0.10.4
+[1m[92m    Checking[0m crypto-common v0.1.7
+[1m[92m    Checking[0m digest v0.10.7
+[1m[92m    Checking[0m cpufeatures v0.2.17
+[1m[92m    Checking[0m sha2 v0.10.9
+[1m[92m    Checking[0m mus-watsn v0.1.0 (/home/runner/work/instrument/instrument/mus-rs/crates/mus-watsn)
+[1m[92m   Compiling[0m serde_derive v1.0.229
+[1m[92m   Compiling[0m libc v0.2.189
+[1m[92m   Compiling[0m autocfg v1.5.1
+[1m[92m   Compiling[0m num-traits v0.2.19
+[1m[92m    Checking[0m np-rand v0.1.0 (/home/runner/work/instrument/instrument/mus-rs/crates/np-rand)
+[1m[92m   Compiling[0m pkg-config v0.3.33
+[1m[92m    Checking[0m num-integer v0.1.46
+[1m[92m    Checking[0m strength_reduce v0.2.4
+[1m[92m    Checking[0m transpose v0.2.3
+[1m[92m    Checking[0m primal-check v0.3.4
+[1m[92m   Compiling[0m libsoxr-sys v0.1.4
+[1m[92m    Checking[0m num-complex v0.4.6
+[1m[92m    Checking[0m bitflags v2.13.1
+[1m[92m    Checking[0m libsoxr v0.2.9
+[1m[92m    Checking[0m rustfft v6.4.1
+[1m[92m    Checking[0m mus-trajectory v0.1.0 (/home/runner/work/instrument/instrument/mus-rs/crates/mus-trajectory)
+[1m[91merror[0m[1m: you seem to be trying to use `match` for destructuring a single pattern. Consider using `if let`[0m
+   [1m[94m--> [0mcrates/mus-trajectory/src/lib.rs:581:13
+    [1m[94m|[0m
+[1m[94m581[0m [1m[94m|[0m [1m[91m/[0m             match rate_factor {
+[1m[94m582[0m [1m[94m|[0m [1m[91m|[0m                 Some(factor) => max_rate = max_rate.max(factor * delta.abs() / seconds),
+[1m[94m583[0m [1m[94m|[0m [1m[91m|[0m                 None => {}
+[1m[94m584[0m [1m[94m|[0m [1m[91m|[0m             }
+    [1m[94m|[0m [1m[91m|_____________^[0m [1m[91mhelp: try: `if let Some(factor) = rate_factor { max_rate = max_rate.max(factor * delta.abs() / seconds) }`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#single_match
+    [1m[94m= [0m[1mnote[0m: `-D clippy::single-match` implied by `-D warnings`
+    [1m[94m= [0m[1mhelp[0m: to override `-D warnings` add `#[allow(clippy::single_match)]`
+
+[1m[91merror[0m: could not compile `mus-trajectory` (lib) due to 1 previous error
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...
