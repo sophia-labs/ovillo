@@ -4,7 +4,7 @@
 retuning telemetry.
 **Contract:** `SPEC-TRAJECTORY.md`.
 
-## Stage A — runtime-neutral IR
+## Stage A — runtime-neutral IR — landed
 
 Land `mus-trajectory` with JSON transport, fixed-capacity/topology semantics,
 analytic kinematic bounds, deterministic frame lowering, binary canonical
@@ -14,7 +14,10 @@ digests, and the committed Python/Rust fixture.
 digests; invalid domains, discontinuous fixed-capacity paths, and missing
 certificates refuse with stable codes.
 
-## Stage B — string adapter
+**Receipt:** full scientific-audio CI is green; canonical Rust formatting is
+green; warnings-denied workspace clippy reaches the complete adapter stack.
+
+## Stage B — string adapter — landed
 
 Map non-pitch coordinates onto the existing `ControlFrame` executor. Lower the
 narrow two-knot linear pitch subset onto `StringNetworkVoice`'s native `f0 ->
@@ -23,7 +26,7 @@ f1` path. Do not add an oscillator, post-vocoder, or parallel automation loop.
 **Exit:** constant-path byte law; deterministic moving path; native pitch
 receipt; nonlinear pitch refusal; strict open-obligation refusal.
 
-## Stage C — GARGANTA adapter
+## Stage C — GARGANTA adapter — landed
 
 Apply articulation tracks through `area_function_cm2` with anatomy held static.
 Keep source coordinates and direct area-oracle overrides separate. Emit an
@@ -32,6 +35,14 @@ anatomy-static adapter receipt.
 **Exit:** real area map changes under control; direct section override remains
 inside the positive cone; anatomy serialization is unchanged; unsupported
 foreign coordinates refuse.
+
+## Gate baseline before Stage D
+
+The fast corpus receipt contained one stale `smoke.mus` digest. The exact test
+was replayed at both the trajectory base commit and the trajectory head under
+the same toolchain; both produced the same replacement digest. The documented
+expectation was then regenerated with the repository's own parity tool. This is
+a baseline correction, not a trajectory-induced waveform promotion.
 
 ## Stage D — score integration (open)
 
