@@ -22,7 +22,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply the guarded source patch
-        run: python .trajectory-source-integration.py
+        run: |
+          python .trajectory-source-integration.py
+          python .trajectory-source-integration-fix.py
 
       - name: Install system audio libraries
         run: sudo apt-get update && sudo apt-get install -y libsoxr-dev
