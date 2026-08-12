@@ -23,6 +23,8 @@ jobs:
       # was cast and nobody read what it caught).
       - name: system libraries
         run: sudo apt-get update && sudo apt-get install -y libsoxr-dev
+      - name: install uv for parity and oracle-backed tests
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
