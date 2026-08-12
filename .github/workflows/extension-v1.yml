@@ -1,0 +1,48 @@
+name: Extension v1
+
+on:
+  push:
+    paths:
+      - "mus-rs/experiments/extension_v1/**"
+      - ".github/workflows/extension-v1.yml"
+  pull_request:
+    paths:
+      - "mus-rs/experiments/extension_v1/**"
+      - ".github/workflows/extension-v1.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  python-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mus-rs/experiments/extension_v1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: mus-rs/experiments/extension_v1/pyproject.toml
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e '.[test]'
+      - run: python -m compileall -q extension_v1 tests
+      - run: pytest
+      - name: Replay exact Clifford smoke
+        run: extension-v1 exact --trials 64 --seed 19 --output /tmp/extension-exact-smoke.json
+      - name: Replay closed-development smoke
+        run: extension-v1 development --output /tmp/extension-development-smoke.json
+
+  rust-sparse-lowering:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Compile and replay the candidate mus-watsn lowering
+        run: >-
+          cargo test --manifest-path
+          mus-rs/experiments/extension_v1/rust/mus-extension-reference/Cargo.toml

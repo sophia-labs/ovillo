@@ -1,0 +1,165 @@
+{
+  "claim_discipline": {
+    "closed_loop_residue_is_nonzero": true,
+    "one_fixed_quotient_is_signature_universal": false,
+    "piecewise_linear_reparameterization_invariance_tested": true,
+    "state_is_a_finite_clifford_quotient_of_the_tensor_signature": true,
+    "this_is_a_topologically_protected_invariant": false
+  },
+  "closed_rectangle": {
+    "bivector_01": 0.38596464579254924,
+    "control_endpoint_norm": 0.0,
+    "energy": 1.0000000000000004,
+    "operator_distance_from_identity": 2.2416999233059496,
+    "state_distance_from_vacuum": 0.5604249808264874
+  },
+  "config": {
+    "dtype": "float64",
+    "latent_dim": 4,
+    "seed": 73,
+    "small_loop_max": 0.2,
+    "small_loop_min": 0.001,
+    "small_loop_points": 18
+  },
+  "inverse_loop": {
+    "inverse_state_energy": 1.0000000000000004,
+    "operator_inverse_residual": 1.800167310121082e-15,
+    "state_roundtrip_residual": 4.464149250856025e-16
+  },
+  "model": "controlled-clifford-development",
+  "receipt": {
+    "sha256": "a97d0b153c762e94b91eeca39b9ce3926df0e779d99f6ff0c1702816a8795460"
+  },
+  "reparameterization": {
+    "coarse_segments": 4,
+    "operator_residual": 1.2511578073120693e-15,
+    "refined_segments": 26,
+    "state_residual": 4.0125770192081414e-16
+  },
+  "same_endpoint_order_contrast": {
+    "ab_energy": 1.0,
+    "ba_energy": 1.0,
+    "endpoint": [
+      0.7,
+      0.45,
+      0.0,
+      0.0
+    ],
+    "operator_frobenius": 2.2416999233059496,
+    "state_l2": 0.5604249808264874
+  },
+  "small_loop_area_law": {
+    "bivector_abs_vs_area_loglog_exponent": 0.9978499641772987,
+    "fitted_coefficient": 1.9527683499136648,
+    "rows": [
+      {
+        "bivector_01": 1.4599985079779275e-06,
+        "operator_defect_frobenius": 5.839998507977477e-06,
+        "scale": 0.001,
+        "signed_area": 7.3e-07
+      },
+      {
+        "bivector_01": 2.7230865134706673e-06,
+        "operator_defect_frobenius": 1.0892361624832088e-05,
+        "scale": 0.001365698101325642,
+        "signed_area": 1.3615458518940583e-06
+      },
+      {
+        "bivector_01": 5.078905524678718e-06,
+        "operator_defect_frobenius": 2.0315676265563142e-05,
+        "scale": 0.0018651313039644635,
+        "signed_area": 2.539461790150571e-06
+      },
+      {
+        "bivector_01": 9.472796549777608e-06,
+        "operator_defect_frobenius": 3.789137462984312e-05,
+        "scale": 0.0025472062805472866,
+        "signed_area": 4.736429680031466e-06
+      },
+      {
+        "bivector_01": 1.7667908031926656e-05,
+        "operator_defect_frobenius": 7.067228762264517e-05,
+        "scale": 0.00347871478102818,
+        "signed_area": 8.834063265253075e-06
+      },
+      {
+        "bivector_01": 3.295261578338317e-05,
+        "operator_defect_frobenius": 0.00013181274340154917,
+        "scale": 0.004750874171503632,
+        "signed_area": 1.6476687937226034e-05
+      },
+      {
+        "bivector_01": 6.14597287952743e-05,
+        "operator_defect_frobenius": 0.00024584684750584277,
+        "scale": 0.006488259835659542,
+        "signed_area": 3.0731186457373936e-05
+      },
+      {
+        "bivector_01": 0.00011462619773515294,
+        "operator_defect_frobenius": 0.0004585323847343634,
+        "scale": 0.008861004138467658,
+        "signed_area": 5.73176978696169e-05
+      },
+      {
+        "bivector_01": 0.00021377806876845734,
+        "operator_defect_frobenius": 0.0008552082627576548,
+        "scale": 0.012101456527743937,
+        "signed_area": 0.00010690503256779974
+      },
+      {
+        "bivector_01": 0.000398672544967842,
+        "operator_defect_frobenius": 0.0015950240725316471,
+        "scale": 0.01652693620321469,
+        "signed_area": 0.00019939192279354374
+      },
+      {
+        "bivector_01": 0.0007433970872462392,
+        "operator_defect_frobenius": 0.0029747497293338724,
+        "scale": 0.02257080539346032,
+        "signed_area": 0.0003718921169599039
+      },
+      {
+        "bivector_01": 0.001385908721594067,
+        "operator_defect_frobenius": 0.005547674108709959,
+        "scale": 0.030824906071239316,
+        "signed_area": 0.0006936276290395303
+      },
+      {
+        "bivector_01": 0.0025827305252855326,
+        "operator_defect_frobenius": 0.010344967639381598,
+        "scale": 0.04209751569503279,
+        "signed_area": 0.0012937066042162783
+      },
+      {
+        "bivector_01": 0.004809585638005764,
+        "operator_defect_frobenius": 0.019287165594062048,
+        "scale": 0.05749249725523269,
+        "signed_area": 0.002412932685669345
+      },
+      {
+        "bivector_01": 0.008944304682988761,
+        "operator_defect_frobenius": 0.03594681788151174,
+        "scale": 0.07851739434194097,
+        "signed_area": 0.00450043628640094
+      },
+      {
+        "bivector_01": 0.016591444161852913,
+        "operator_defect_frobenius": 0.06695419457103133,
+        "scale": 0.10723105637382549,
+        "signed_area": 0.008393904599263974
+      },
+      {
+        "bivector_01": 0.030631077099185045,
+        "operator_defect_frobenius": 0.1245611003833819,
+        "scale": 0.14644525009287634,
+        "signed_area": 0.015655734230578523
+      },
+      {
+        "bivector_01": 0.05605056687765101,
+        "operator_defect_frobenius": 0.23122227524648084,
+        "scale": 0.20000000000000004,
+        "signed_area": 0.02920000000000001
+      }
+    ]
+  }
+}

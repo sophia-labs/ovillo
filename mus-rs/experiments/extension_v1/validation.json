@@ -1,0 +1,32 @@
+{
+  "checks": {
+    "console_script_help": true,
+    "development_smoke": true,
+    "editable_install": true,
+    "exact_smoke": true,
+    "github_workflow_added": true,
+    "pytest_elapsed_seconds": 5.79,
+    "rust_api_matched_to_repository_snapshot": true,
+    "rust_candidate_compiled": false,
+    "rust_ci_job_configured": true,
+    "rust_toolchain_available": false,
+    "tests_failed": 0,
+    "tests_passed": 12
+  },
+  "claim_discipline": {
+    "active_cable_parity_learned": false,
+    "closed_noncommuting_gesture_parity_learned": true,
+    "four_dimensions_uniquely_optimal": false,
+    "language_model_result": false,
+    "topological_protection": false
+  },
+  "environment": {
+    "pytest": "9.0.2",
+    "python": "3.13.5",
+    "pytorch": "2.10.0+cpu"
+  },
+  "smoke_receipts": {
+    "development": "a97d0b153c762e94b91eeca39b9ce3926df0e779d99f6ff0c1702816a8795460",
+    "exact_64_trials_seed_19": "3e562ab015bf3223d200eec2fa354fbad629ff30cfc00cfef2603ceb656141fb"
+  }
+}

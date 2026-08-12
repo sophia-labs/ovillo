@@ -1,0 +1,149 @@
+{
+  "rows": [
+    {
+      "accuracy": 1.0,
+      "elapsed_seconds": 2.3401302390002456,
+      "fibers": 1,
+      "max_energy_drift": 8.770761894538737e-15,
+      "max_loop_closure": 2.220446049250313e-16,
+      "mean_commutator": 7.968691191543011,
+      "parameter_count": 130,
+      "seed": 7
+    },
+    {
+      "accuracy": 1.0,
+      "elapsed_seconds": 2.4031479400000535,
+      "fibers": 1,
+      "max_energy_drift": 4.218847493575595e-15,
+      "max_loop_closure": 4.996003610813204e-16,
+      "mean_commutator": 7.954959204504468,
+      "parameter_count": 130,
+      "seed": 31
+    },
+    {
+      "accuracy": 1.0,
+      "elapsed_seconds": 2.8647726469998815,
+      "fibers": 1,
+      "max_energy_drift": 6.217248937900877e-15,
+      "max_loop_closure": 2.220446049250313e-16,
+      "mean_commutator": 7.9235048432157065,
+      "parameter_count": 130,
+      "seed": 101
+    },
+    {
+      "accuracy": 1.0,
+      "elapsed_seconds": 2.2682405059999837,
+      "fibers": 1,
+      "max_energy_drift": 3.1086244689504383e-15,
+      "max_loop_closure": 4.440892098500626e-16,
+      "mean_commutator": 7.95149307122317,
+      "parameter_count": 130,
+      "seed": 211
+    },
+    {
+      "accuracy": 1.0,
+      "elapsed_seconds": 2.16987563199973,
+      "fibers": 1,
+      "max_energy_drift": 4.218847493575595e-15,
+      "max_loop_closure": 2.498001805406602e-16,
+      "mean_commutator": 7.980513976056475,
+      "parameter_count": 130,
+      "seed": 307
+    },
+    {
+      "accuracy": 1.0,
+      "elapsed_seconds": 2.882472753000002,
+      "fibers": 2,
+      "max_energy_drift": 5.995204332975845e-15,
+      "max_loop_closure": 2.7755575615628914e-16,
+      "mean_commutator": 7.68016626223487,
+      "parameter_count": 258,
+      "seed": 7
+    },
+    {
+      "accuracy": 1.0,
+      "elapsed_seconds": 3.1649262430000817,
+      "fibers": 2,
+      "max_energy_drift": 7.216449660063518e-15,
+      "max_loop_closure": 4.440892098500626e-16,
+      "mean_commutator": 7.358710354830143,
+      "parameter_count": 258,
+      "seed": 101
+    },
+    {
+      "accuracy": 1.0,
+      "elapsed_seconds": 3.0025397989998055,
+      "fibers": 2,
+      "max_energy_drift": 9.769962616701378e-15,
+      "max_loop_closure": 3.3306690738754696e-16,
+      "mean_commutator": 7.879123346492861,
+      "parameter_count": 258,
+      "seed": 307
+    },
+    {
+      "accuracy": 1.0,
+      "elapsed_seconds": 4.08695913099973,
+      "fibers": 4,
+      "max_energy_drift": 5.773159728050814e-15,
+      "max_loop_closure": 4.458239333260394e-16,
+      "mean_commutator": 7.420009628818441,
+      "parameter_count": 514,
+      "seed": 7
+    },
+    {
+      "accuracy": 1.0,
+      "elapsed_seconds": 4.302210543000001,
+      "fibers": 4,
+      "max_energy_drift": 5.329070518200751e-15,
+      "max_loop_closure": 4.440892098500626e-16,
+      "mean_commutator": 7.449162737792374,
+      "parameter_count": 514,
+      "seed": 101
+    },
+    {
+      "accuracy": 1.0,
+      "elapsed_seconds": 4.1296854810002515,
+      "fibers": 4,
+      "max_energy_drift": 1.4654943925052066e-14,
+      "max_loop_closure": 4.440892098500626e-16,
+      "mean_commutator": 7.372584263948089,
+      "parameter_count": 514,
+      "seed": 307
+    }
+  ],
+  "summary": [
+    {
+      "fibers": 1,
+      "max_energy_drift": 8.770761894538737e-15,
+      "max_loop_closure": 4.996003610813204e-16,
+      "mean_accuracy": 1.0,
+      "mean_commutator": 7.955832457308565,
+      "mean_elapsed_seconds": 2.4092333927999787,
+      "parameter_count": 130,
+      "runs": 5,
+      "successes": 5
+    },
+    {
+      "fibers": 2,
+      "max_energy_drift": 9.769962616701378e-15,
+      "max_loop_closure": 4.440892098500626e-16,
+      "mean_accuracy": 1.0,
+      "mean_commutator": 7.639333321185958,
+      "mean_elapsed_seconds": 3.016646264999963,
+      "parameter_count": 258,
+      "runs": 3,
+      "successes": 3
+    },
+    {
+      "fibers": 4,
+      "max_energy_drift": 1.4654943925052066e-14,
+      "max_loop_closure": 4.458239333260394e-16,
+      "mean_accuracy": 1.0,
+      "mean_commutator": 7.413918876852968,
+      "mean_elapsed_seconds": 4.172951718333327,
+      "parameter_count": 514,
+      "runs": 3,
+      "successes": 3
+    }
+  ]
+}

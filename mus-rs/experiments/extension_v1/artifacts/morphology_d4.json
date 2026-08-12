@@ -1,0 +1,83 @@
+{
+  "best_operator_mse": 0.010035945102572441,
+  "claim_discipline": {
+    "continuous_volume_test_is_out_of_sample_random_vectors": true,
+    "only_morphology_is_optimized": true,
+    "target_clifford_program_is_known": true
+  },
+  "config": {
+    "ambient_dim": 4,
+    "cpu_threads": 1,
+    "curvature_weight": 0.0015,
+    "direction_isotropy_weight": 0.0002,
+    "eval_trials": 2048,
+    "kernel_width": 0.5,
+    "layer_separation": 2.6,
+    "learning_rate": 0.035,
+    "seed": 41,
+    "segment_length": 1.0,
+    "steps": 100
+  },
+  "coordinates_omitted_from_repository_receipt": 16,
+  "elapsed_seconds": 4.296803381000245,
+  "final": {
+    "algebra": {
+      "max_anticommutator_residual": 0.6743610501289368,
+      "max_orthogonality_residual": 4.172325134277344e-07,
+      "max_square_residual": 0.5010826587677002,
+      "maximum_determinant": 1.0000003576278687,
+      "minimum_determinant": 0.9999997019767761
+    },
+    "operator_mse": 0.010035943239927292,
+    "parity": {
+      "exact_amplitude_accuracy": 0.0,
+      "maximum_energy_drift": 5.960464477539062e-07,
+      "minimum_abs_amplitude": 0.47402703762054443,
+      "sign_accuracy": 1.0
+    },
+    "volume": {
+      "global_orientation_convention": 1.0,
+      "maximum_energy_drift": 1.576622486114502,
+      "maximum_volume_residual": 0.6228315234184265,
+      "mean_abs_oriented_volume": 0.23953880369663239,
+      "rms_volume_residual": 0.17121769487857819,
+      "sign_accuracy": 0.80810546875,
+      "trials": 2048
+    }
+  },
+  "full_receipt_available_in_delivery_bundle": true,
+  "initial": {
+    "algebra": {
+      "max_anticommutator_residual": 1.3034489154815674,
+      "max_orthogonality_residual": 3.5762786865234375e-07,
+      "max_square_residual": 1.5379462242126465,
+      "maximum_determinant": 1.0000003576278687,
+      "minimum_determinant": 0.9999990463256836
+    },
+    "operator_mse": 0.04797719046473503,
+    "parity": {
+      "exact_amplitude_accuracy": 0.0,
+      "maximum_energy_drift": 4.172325134277344e-07,
+      "minimum_abs_amplitude": 0.014472685754299164,
+      "sign_accuracy": 0.5
+    },
+    "volume": {
+      "global_orientation_convention": 1.0,
+      "maximum_energy_drift": 4.896456241607666,
+      "maximum_volume_residual": 1.579277753829956,
+      "mean_abs_oriented_volume": 0.23953880369663239,
+      "rms_volume_residual": 0.3822775185108185,
+      "sign_accuracy": 0.51611328125,
+      "trials": 2048
+    }
+  },
+  "model": "inverse-designed-clifford-grade-strings",
+  "trace": [
+    {"anticommutator_residual":1.1287211179733276,"curvature":2.933727264404297,"minimum_parity_amplitude":0.027318205684423447,"operator_mse":0.04797719046473503,"parity_sign_accuracy":0.5833333333333334,"step":1,"volume_rms_residual":0.35937920212745667,"volume_sign_accuracy":0.5546875},
+    {"anticommutator_residual":0.6529580950737,"curvature":1.673729419708252,"minimum_parity_amplitude":0.4909961521625519,"operator_mse":0.010161032900214195,"parity_sign_accuracy":1.0,"step":25,"volume_rms_residual":0.17186994850635529,"volume_sign_accuracy":0.80908203125},
+    {"anticommutator_residual":0.6703940629959106,"curvature":1.3816488981246948,"minimum_parity_amplitude":0.47715598344802856,"operator_mse":0.010054693557322025,"parity_sign_accuracy":1.0,"step":50,"volume_rms_residual":0.1712462306022644,"volume_sign_accuracy":0.80908203125},
+    {"anticommutator_residual":0.6738567352294922,"curvature":1.2831778526306152,"minimum_parity_amplitude":0.47443437576293945,"operator_mse":0.010038376785814762,"parity_sign_accuracy":1.0,"step":75,"volume_rms_residual":0.17122040688991547,"volume_sign_accuracy":0.80810546875},
+    {"anticommutator_residual":0.6743610501289368,"curvature":1.2651492357254028,"minimum_parity_amplitude":0.47402703762054443,"operator_mse":0.010035945102572441,"parity_sign_accuracy":1.0,"step":100,"volume_rms_residual":0.17121769487857819,"volume_sign_accuracy":0.80810546875}
+  ],
+  "trainable_parameters": 44
+}

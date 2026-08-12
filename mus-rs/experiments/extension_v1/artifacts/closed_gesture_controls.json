@@ -1,0 +1,26 @@
+{
+  "all_loop_endpoints_zero": true,
+  "all_sequences_same_token_multiset": true,
+  "bag_of_tokens_accuracy_ceiling": 0.5,
+  "claim_discipline": {
+    "clifford_is_the_only_possible_noncommuting_solution": false,
+    "noncommutation_is_necessary_for_this_closed_loop_realization": true
+  },
+  "clifford_noncommuting": {
+    "centered_feature_rank": 16,
+    "linear_probe_accuracy": 1.0,
+    "maximum_token_operator_identity_distance": 5.64021381079317
+  },
+  "commuting_collapse": {
+    "centered_feature_rank": 1,
+    "linear_probe_accuracy": 0.5,
+    "maximum_pairwise_state_distance": 9.860761315262648e-31,
+    "maximum_token_operator_identity_distance": 4.417342978146878e-15
+  },
+  "endpoint_only_accuracy_ceiling": 0.5,
+  "examples": 24,
+  "model": "closed-gesture-commuting-control",
+  "receipt": {
+    "sha256": "bcefe86ec1da2da7d9561480d38d94927b692a74a85f6fc8c93f4c7667e3477c"
+  }
+}
