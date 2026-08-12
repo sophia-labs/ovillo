@@ -25,6 +25,8 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 
+use mus_dsp::trajectory::StringTrajectoryReceipt;
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 pub const SAMPLE_RATE: u32 = 48_000;
@@ -97,6 +99,21 @@ fn dbfs(value: f32) -> f32 {
     20.0 * value.max(1e-12).log10()
 }
 
+/// One canonical trajectory execution joined to its score placement.
+///
+/// The embedded adapter receipt keeps its body-neutral path digest unchanged.
+/// Bar, track, onset, and slot belong to the score-event envelope rather than
+/// the trajectory's executable identity.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EventTrajectoryReceipt {
+    pub bar: u32,
+    pub track: String,
+    pub onset_seconds: f64,
+    pub slot_seconds: f64,
+    pub receipt: StringTrajectoryReceipt,
+}
+
 /// Everything the render receipt wants beyond peak/RMS: `mus_audio.py`'s
 /// own `stats` dict (notes/skipped/bad, lines 874-1179) extended with the
 /// per-track and sidechain counts the WF8 spec asks for.
@@ -109,6 +126,8 @@ pub struct RenderStats {
     /// separate from `bad`, matching the oracle's own separate stderr
     /// stream for these.
     pub warnings: Vec<String>,
+    /// Structurally empty on the historical scalar path.
+    pub trajectory_receipts: Vec<EventTrajectoryReceipt>,
     pub per_track_events: BTreeMap<String, u32>,
     pub sidechain_hits: usize,
     pub voices: usize,

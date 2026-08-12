@@ -13,6 +13,10 @@ use std::collections::BTreeMap;
 use mus_dsp::pitch::{pitch_polyline, varispeed, vocode};
 use mus_dsp::pluck::{pluck_note, pluck_note_sung, weave_note, weave_note_sung};
 use mus_dsp::synth::{synth_note, Patch};
+use mus_dsp::trajectory::{
+    program_from_inline_string_params, render_guitar_program, render_weave_program,
+    StringTrajectoryReceipt,
+};
 use mus_notation::Note;
 
 use crate::gestures::{lookup_gesture, Gesture};
@@ -23,6 +27,12 @@ use crate::RenderError;
 #[derive(Debug)]
 pub enum SourceStep {
     Rendered(Vec<f32>),
+    /// A registered MUS-T program executed inside one persistent string
+    /// voice. `events` joins the body-neutral receipt to score placement.
+    RenderedTrajectory {
+        samples: Vec<f32>,
+        receipt: StringTrajectoryReceipt,
+    },
     /// A synth-track event with no pitch (line 929): `stats["bad"]` gets
     /// the message but `stats["skipped"]` does not move — Python's
     /// `continue` here skips straight past the `len(x) < 32` check.
@@ -30,6 +40,37 @@ pub enum SourceStep {
     /// The resolved (or off/reverse-trimmed) source came in under 32
     /// samples (line 950): `stats["skipped"] += 1`.
     TooShort,
+}
+
+/// Whether an event parameter belongs to the registered inline string
+/// trajectory surface. Per-coordinate curve selectors are admitted only when
+/// their base coordinate is registered. Unrelated MUS-A arrows such as
+/// `pan=-1->1` and `lpf=800->2400` therefore remain on the historical
+/// transform path.
+fn is_inline_string_trajectory_key(key: &str) -> bool {
+    fn is_coordinate(key: &str) -> bool {
+        matches!(
+            key,
+            "couple"
+                | "chirality"
+                | "orbit"
+                | "orbit_depth"
+                | "curvature"
+                | "body"
+                | "buzz"
+                | "sing"
+                | "bow"
+                | "bow_speed"
+                | "sus"
+                | "damp"
+                | "breath"
+                | "pitch_ratio"
+        )
+    }
+
+    matches!(key, "traj_curve" | "traj_hz" | "traj_strict")
+        || is_coordinate(key)
+        || key.strip_suffix("_curve").is_some_and(is_coordinate)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -51,6 +92,7 @@ pub fn resolve(
 
     // --- source: synth patch or sample (lines 927-944)
     let mut x: Vec<f32>;
+    let mut trajectory_receipt: Option<StringTrajectoryReceipt> = None;
     let mut smp_f0_hz: Option<f64> = None;
     if let Some(synth_defaults) = &voice.synth {
         if ev.midis.is_empty() {
@@ -58,9 +100,9 @@ pub fn resolve(
             return Ok(SourceStep::NeedsPitch);
         }
         let mut patch_map = synth_defaults.clone();
-        for k in SYNTH_KEYS {
-            if let Some(v) = ev.params.get(*k) {
-                patch_map.insert((*k).to_string(), v.clone());
+        for (key, value) in &ev.params {
+            if SYNTH_KEYS.contains(&key.as_str()) || is_inline_string_trajectory_key(key) {
+                patch_map.insert(key.clone(), value.clone());
             }
         }
         let ratio = match ev.gliss_midi {
@@ -68,6 +110,10 @@ pub fn resolve(
             None => 1.0,
         };
         let freqs: Vec<f64> = ev.midis.iter().map(|&m| midi_to_hz(m, a4)).collect();
+        let (patch_map, trajectory_program) =
+            program_from_inline_string_params(&patch_map, slot_s)
+                .map_err(|error| ctx(RenderError::Invalid(format!("trajectory: {error}"))))?;
+
         // The pluck and weave voices are POST-PARITY (mus-x): no oracle
         // line to cite. Everything else about the event pipeline treats
         // them exactly like the subtractive synth output. `sing > 0`
@@ -91,18 +137,51 @@ pub fn resolve(
         } else {
             None
         };
-        match (patch_map.get("synth").map(String::as_str), &sung_audio) {
-            (Some("pluck"), Some(audio)) => {
-                x = pluck_note_sung(&patch_map, &freqs, slot_s, ratio, audio.as_slice())
+
+        if let Some(program) = trajectory_program.as_ref() {
+            let has_sing_lane = program
+                .tracks
+                .iter()
+                .any(|track| track.coordinate == "string.sing");
+            if sung_audio.is_some() || has_sing_lane {
+                return Err(ctx(RenderError::Invalid(
+                    "trajectory execution with an external sing source or string.sing lane is not yet work-accounted"
+                        .to_string(),
+                )));
             }
-            (Some("weave"), Some(audio)) => {
-                x = weave_note_sung(&patch_map, &freqs, slot_s, ratio, audio.as_slice())
+
+            let rendered = match patch_map.get("synth").map(String::as_str) {
+                Some("pluck") => {
+                    render_guitar_program(&patch_map, &freqs, slot_s, ratio, program, 256)
+                }
+                Some("weave") => {
+                    render_weave_program(&patch_map, &freqs, slot_s, ratio, program, 256)
+                }
+                other => {
+                    return Err(ctx(RenderError::Invalid(format!(
+                        "trajectory controls require synth=pluck or synth=weave, got {other:?}"
+                    ))));
+                }
             }
-            (Some("pluck"), None) => x = pluck_note(&patch_map, &freqs, slot_s, ratio),
-            (Some("weave"), None) => x = weave_note(&patch_map, &freqs, slot_s, ratio),
-            _ => {
-                let patch = Patch::from(&patch_map);
-                x = synth_note(&patch, &freqs, slot_s, ratio);
+            .map_err(|error| ctx(RenderError::Invalid(format!("trajectory: {error}"))))?;
+            trajectory_receipt = Some(rendered.receipt);
+            x = rendered.audio;
+        } else {
+            // Structural absence law: no registered trajectory means the exact
+            // historical render entry points and their byte behavior.
+            match (patch_map.get("synth").map(String::as_str), &sung_audio) {
+                (Some("pluck"), Some(audio)) => {
+                    x = pluck_note_sung(&patch_map, &freqs, slot_s, ratio, audio.as_slice())
+                }
+                (Some("weave"), Some(audio)) => {
+                    x = weave_note_sung(&patch_map, &freqs, slot_s, ratio, audio.as_slice())
+                }
+                (Some("pluck"), None) => x = pluck_note(&patch_map, &freqs, slot_s, ratio),
+                (Some("weave"), None) => x = weave_note(&patch_map, &freqs, slot_s, ratio),
+                _ => {
+                    let patch = Patch::from(&patch_map);
+                    x = synth_note(&patch, &freqs, slot_s, ratio);
+                }
             }
         }
     } else {
@@ -304,7 +383,13 @@ pub fn resolve(
         };
     }
 
-    Ok(SourceStep::Rendered(x))
+    Ok(match trajectory_receipt {
+        Some(receipt) => SourceStep::RenderedTrajectory {
+            samples: x,
+            receipt,
+        },
+        None => SourceStep::Rendered(x),
+    })
 }
 
 #[cfg(test)]

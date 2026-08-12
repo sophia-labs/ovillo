@@ -18,7 +18,7 @@ use crate::mixbus::{
 use crate::pack::{SampleCache, Voice};
 use crate::source::{self, SourceStep};
 use crate::util::{param_pair, require_f64, require_f64_opt, with_context};
-use crate::{RenderError, RenderStats};
+use crate::{EventTrajectoryReceipt, RenderError, RenderStats};
 
 /// Everything a track walk needs that doesn't change per track — the
 /// score-level layout, resources, and mix mode.
@@ -152,6 +152,16 @@ pub fn walk_track(
             )?;
             let x = match step {
                 SourceStep::Rendered(x) => x,
+                SourceStep::RenderedTrajectory { samples, receipt } => {
+                    stats.trajectory_receipts.push(EventTrajectoryReceipt {
+                        bar: b,
+                        track: abbr.to_string(),
+                        onset_seconds: onset,
+                        slot_seconds: slot,
+                        receipt,
+                    });
+                    samples
+                }
                 SourceStep::NeedsPitch => continue,
                 SourceStep::TooShort => {
                     stats.skipped += 1;
