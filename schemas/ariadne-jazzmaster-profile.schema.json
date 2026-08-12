@@ -1,0 +1,454 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia-labs.ai/schemas/ariadne-jazzmaster-profile/v0",
+  "title": "Ariadne Jazzmaster physical-profile seed",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "profileId",
+    "status",
+    "claim",
+    "referenceSources",
+    "courseTopology",
+    "bridge",
+    "tremolo",
+    "supportBody",
+    "readouts",
+    "routing",
+    "poweredBody",
+    "radiator",
+    "feedback",
+    "deliveryProfileId",
+    "macroDefaults"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mus.ariadne-jazzmaster-profile.v0"
+    },
+    "profileId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": ["design-seed", "fit-candidate", "measured", "released"]
+    },
+    "claim": {
+      "type": "string",
+      "minLength": 1
+    },
+    "referenceSources": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "courseTopology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["speakingLengthMeters", "polarizations", "courses"],
+      "properties": {
+        "speakingLengthMeters": {"$ref": "#/$defs/estimate"},
+        "polarizations": {"const": 2},
+        "courses": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": {"$ref": "#/$defs/course"}
+        }
+      }
+    },
+    "bridge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "saddleCount",
+        "breakAngleDegrees",
+        "rockFrequencyHz",
+        "rockT60Seconds",
+        "slipModel"
+      ],
+      "properties": {
+        "model": {"const": "rocking-multiport"},
+        "saddleCount": {"const": 6},
+        "breakAngleDegrees": {"$ref": "#/$defs/estimate"},
+        "rockFrequencyHz": {"$ref": "#/$defs/estimate"},
+        "rockT60Seconds": {"$ref": "#/$defs/estimate"},
+        "slipModel": {
+          "enum": ["rock-only", "stick-rock-slip", "measured-contact"]
+        }
+      }
+    },
+    "tremolo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "plateFrequencyHz",
+        "plateT60Seconds",
+        "rangeCents",
+        "armOwnership",
+        "lockDisposition"
+      ],
+      "properties": {
+        "model": {"const": "shared-floating-spring-plate"},
+        "plateFrequencyHz": {"$ref": "#/$defs/estimate"},
+        "plateT60Seconds": {"$ref": "#/$defs/estimate"},
+        "rangeCents": {"$ref": "#/$defs/estimate"},
+        "armOwnership": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {"enum": ["torque", "position-servo"]}
+        },
+        "lockDisposition": {
+          "enum": ["refuse-if-moving", "transfer-to-support", "explicit-dissipation"]
+        }
+      }
+    },
+    "supportBody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "modes", "playerContactDefault"],
+      "properties": {
+        "model": {"const": "passive-multiport-modal-body"},
+        "modes": {
+          "type": "array",
+          "minItems": 4,
+          "items": {"$ref": "#/$defs/supportMode"}
+        },
+        "playerContactDefault": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "readouts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "apertures", "circuits"],
+      "properties": {
+        "model": {"const": "finite-aperture-string-field"},
+        "apertures": {
+          "type": "array",
+          "minItems": 3,
+          "items": {"$ref": "#/$defs/aperture"}
+        },
+        "circuits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lead", "rhythm"],
+          "properties": {
+            "lead": {"$ref": "#/$defs/circuit"},
+            "rhythm": {"$ref": "#/$defs/circuit"}
+          }
+        }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "defaultMerge",
+        "supportedMerges",
+        "interlace",
+        "chirality",
+        "orbitHz",
+        "orbitDepth",
+        "curvature"
+      ],
+      "properties": {
+        "defaultMerge": {
+          "enum": ["mono", "grouped", "hex", "woven"]
+        },
+        "supportedMerges": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["mono", "grouped", "hex", "woven"]}
+        },
+        "interlace": {"$ref": "#/$defs/estimate"},
+        "chirality": {"$ref": "#/$defs/estimate"},
+        "orbitHz": {"$ref": "#/$defs/estimate"},
+        "orbitDepth": {"$ref": "#/$defs/estimate"},
+        "curvature": {"$ref": "#/$defs/estimate"}
+      }
+    },
+    "poweredBody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "reservoir", "modes"],
+      "properties": {
+        "model": {"const": "bounded-nonlinear-powered-mode-graph"},
+        "reservoir": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["capacity", "recoverySeconds", "rechargeEfficiency"],
+          "properties": {
+            "capacity": {"$ref": "#/$defs/estimate"},
+            "recoverySeconds": {"$ref": "#/$defs/estimate"},
+            "rechargeEfficiency": {"$ref": "#/$defs/estimate"}
+          }
+        },
+        "modes": {
+          "type": "array",
+          "minItems": 6,
+          "items": {"$ref": "#/$defs/powerMode"}
+        }
+      }
+    },
+    "radiator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "coordinateSystem",
+        "maximumHoaOrder",
+        "defaultObservation",
+        "modes"
+      ],
+      "properties": {
+        "model": {"const": "extended-modal-radiator"},
+        "coordinateSystem": {"const": "+X right, +Y up, -Z front"},
+        "maximumHoaOrder": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7
+        },
+        "defaultObservation": {
+          "enum": ["stereo", "foa", "hoa3", "hoa5", "binaural"]
+        },
+        "modes": {
+          "type": "array",
+          "minItems": 4,
+          "items": {"$ref": "#/$defs/radiatorMode"}
+        }
+      }
+    },
+    "feedback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "defaultGain",
+        "maximumGain",
+        "minimumDelaySeconds",
+        "maximumDelaySeconds"
+      ],
+      "properties": {
+        "model": {"const": "causal-radiator-room-support-return"},
+        "defaultGain": {"$ref": "#/$defs/estimate"},
+        "maximumGain": {"$ref": "#/$defs/estimate"},
+        "minimumDelaySeconds": {"$ref": "#/$defs/estimate"},
+        "maximumDelaySeconds": {"$ref": "#/$defs/estimate"}
+      }
+    },
+    "deliveryProfileId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "macroDefaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "arm",
+        "chime",
+        "aperture",
+        "interlace",
+        "drive",
+        "headroom",
+        "bloom",
+        "field"
+      ],
+      "properties": {
+        "arm": {"$ref": "#/$defs/unitControl"},
+        "chime": {"$ref": "#/$defs/unitControl"},
+        "aperture": {"$ref": "#/$defs/unitControl"},
+        "interlace": {"$ref": "#/$defs/unitControl"},
+        "drive": {"$ref": "#/$defs/unitControl"},
+        "headroom": {"$ref": "#/$defs/unitControl"},
+        "bloom": {"$ref": "#/$defs/unitControl"},
+        "field": {"$ref": "#/$defs/unitControl"}
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "unitControl": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "evidence": {
+      "enum": [
+        "manufacturer",
+        "patent",
+        "converted",
+        "physics-derived",
+        "fit",
+        "design-hypothesis"
+      ]
+    },
+    "estimate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["initial", "minimum", "maximum", "unit", "evidence"],
+      "properties": {
+        "initial": {"type": "number"},
+        "minimum": {"type": "number"},
+        "maximum": {"type": "number"},
+        "unit": {"type": "string"},
+        "evidence": {"$ref": "#/$defs/evidence"},
+        "note": {"type": "string"}
+      }
+    },
+    "vec3": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"type": "number"}
+    },
+    "course": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "openMidi",
+        "gaugeInches",
+        "construction",
+        "material",
+        "afterlengthRatio"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "openMidi": {"type": "number"},
+        "gaugeInches": {"$ref": "#/$defs/estimate"},
+        "construction": {"enum": ["plain", "wound"]},
+        "material": {"type": "string", "minLength": 1},
+        "afterlengthRatio": {"$ref": "#/$defs/estimate"}
+      }
+    },
+    "supportMode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "frequencyHz",
+        "t60Seconds",
+        "bridgeResidue",
+        "nutResidue",
+        "plateResidue",
+        "weakRadiationResidue"
+      ],
+      "properties": {
+        "id": {"type": "string"},
+        "frequencyHz": {"$ref": "#/$defs/estimate"},
+        "t60Seconds": {"$ref": "#/$defs/estimate"},
+        "bridgeResidue": {"type": "number"},
+        "nutResidue": {"type": "number"},
+        "plateResidue": {"type": "number"},
+        "weakRadiationResidue": {"type": "number"}
+      }
+    },
+    "aperture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "segment",
+        "positionRatio",
+        "widthRatio",
+        "shape",
+        "polarization",
+        "defaultWeight"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "segment": {"enum": ["speaking", "afterlength"]},
+        "positionRatio": {"$ref": "#/$defs/estimate"},
+        "widthRatio": {"$ref": "#/$defs/estimate"},
+        "shape": {"enum": ["rectangular", "hann", "gaussian", "bipolar"]},
+        "polarization": {"$ref": "#/$defs/vec3"},
+        "defaultWeight": {"type": "number"}
+      }
+    },
+    "circuit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowedSelectors", "poweredModeSet", "radiatorModeSet"],
+      "properties": {
+        "allowedSelectors": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["bridge", "both", "neck"]}
+        },
+        "poweredModeSet": {"type": "string"},
+        "radiatorModeSet": {"type": "string"}
+      }
+    },
+    "powerMode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "frequencyHz",
+        "t60Seconds",
+        "cubic",
+        "quartic",
+        "driveCoupling",
+        "radiationCoupling",
+        "center",
+        "maximumDirectivityOrder"
+      ],
+      "properties": {
+        "id": {"type": "string"},
+        "frequencyHz": {"$ref": "#/$defs/estimate"},
+        "t60Seconds": {"$ref": "#/$defs/estimate"},
+        "cubic": {"$ref": "#/$defs/estimate"},
+        "quartic": {"$ref": "#/$defs/estimate"},
+        "driveCoupling": {"type": "number"},
+        "radiationCoupling": {"type": "number"},
+        "center": {"$ref": "#/$defs/vec3"},
+        "maximumDirectivityOrder": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        }
+      }
+    },
+    "radiatorMode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "sourceModeIds",
+        "center",
+        "orientation",
+        "radiationResistance",
+        "maximumDirectivityOrder"
+      ],
+      "properties": {
+        "id": {"type": "string"},
+        "sourceModeIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string"}
+        },
+        "center": {"$ref": "#/$defs/vec3"},
+        "orientation": {"$ref": "#/$defs/vec3"},
+        "radiationResistance": {"$ref": "#/$defs/estimate"},
+        "maximumDirectivityOrder": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        }
+      }
+    }
+  }
+}
