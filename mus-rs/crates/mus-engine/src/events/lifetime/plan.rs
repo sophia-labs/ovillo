@@ -11,6 +11,13 @@ use crate::{RenderError, RenderStats};
 
 use super::WalkContext;
 
+#[derive(Debug, Clone)]
+pub(super) struct PlannedAttack {
+    pub(super) onset_seconds: f64,
+    pub(super) dynamic: String,
+    pub(super) articulation_db: f64,
+}
+
 #[derive(Debug)]
 pub(super) struct TrackBodySession {
     pub(super) first_bar: u32,
@@ -18,8 +25,7 @@ pub(super) struct TrackBodySession {
     pub(super) end_seconds: f64,
     pub(super) duration_seconds: f64,
     pub(super) member_event_count: usize,
-    pub(super) note_onsets: Vec<f64>,
-    pub(super) dynamic: String,
+    pub(super) attacks: Vec<PlannedAttack>,
     pub(super) first_event: Note,
 }
 
@@ -67,6 +73,16 @@ fn is_trajectory_surface_key(key: &str) -> bool {
             .is_some_and(is_trajectory_coordinate)
 }
 
+fn articulation_gain_db(flags: &[String]) -> f64 {
+    let mut db = 0.0;
+    for (name, gain) in ART_GAIN {
+        if flags.iter().any(|flag| flag == name) {
+            db += gain;
+        }
+    }
+    db
+}
+
 fn validate_first_event_surface(event: &Note, bar: u32, abbr: &str) -> Result<(), RenderError> {
     for key in event.params.keys() {
         if !(SYNTH_KEYS.contains(&key.as_str())
@@ -95,7 +111,7 @@ fn validate_first_event_surface(event: &Note, bar: u32, abbr: &str) -> Result<()
                 bar,
                 abbr,
                 format!(
-                    "body_lifetime=track first-event flag {flag:?} is not a post-source session transform; it would otherwise be silently ignored"
+                    "body_lifetime=track first-event flag {flag:?} is neither a physical gain articulation nor a supported post-source session transform"
                 ),
             ));
         }
@@ -103,19 +119,44 @@ fn validate_first_event_surface(event: &Note, bar: u32, abbr: &str) -> Result<()
     Ok(())
 }
 
-fn ensure_continuation_is_plain(
-    event: &Note,
-    bar: u32,
-    abbr: &str,
-) -> Result<(), RenderError> {
+fn ensure_rest_is_plain(event: &Note, bar: u32, abbr: &str) -> Result<(), RenderError> {
     if !event.params.is_empty() || !event.flags.is_empty() || event.gliss_midi.is_some() {
         return Err(ctx_error(
             bar,
             abbr,
-            "body_lifetime=track v2 continuations schedule a fixed-topology unity-gain attack only; per-attack params, flags, and gliss require the next rearticulation payload contract",
+            "body_lifetime=track rests may only carry duration; event-local payloads need an explicit session-control schedule",
         ));
     }
     Ok(())
+}
+
+fn continuation_articulation_db(
+    event: &Note,
+    bar: u32,
+    abbr: &str,
+) -> Result<f64, RenderError> {
+    if !event.params.is_empty() || event.gliss_midi.is_some() {
+        return Err(ctx_error(
+            bar,
+            abbr,
+            "body_lifetime=track continuation attacks may carry only gain articulation flags; params and gliss need the next RearticulationFrame payload contract",
+        ));
+    }
+    for flag in &event.flags {
+        if !ART_GAIN
+            .iter()
+            .any(|(name, _)| flag.as_str() == *name)
+        {
+            return Err(ctx_error(
+                bar,
+                abbr,
+                format!(
+                    "body_lifetime=track continuation flag {flag:?} is not a gain articulation; duration/contact articulation needs the next RearticulationFrame payload contract"
+                ),
+            ));
+        }
+    }
+    Ok(articulation_gain_db(&event.flags))
 }
 
 /// Build one strict session plan while retaining the ordinary lexical timing
@@ -128,10 +169,10 @@ pub(super) fn plan_session(
 ) -> Result<Option<TrackBodySession>, RenderError> {
     let abbr = voice.abbrev.as_str();
     let mut current_dynamic = "mf".to_string();
-    let mut first: Option<(u32, f64, Note, String)> = None;
+    let mut first: Option<(u32, f64, Note)> = None;
     let mut fixed_midis: Option<Vec<f64>> = None;
     let mut member_event_count = 0_usize;
-    let mut note_onsets = Vec::new();
+    let mut attacks = Vec::new();
 
     for bar in 1..=ctx.n_bars {
         let Some(content) = ctx
@@ -170,13 +211,6 @@ pub(super) fn plan_session(
 
             match event.kind.as_str() {
                 "dynamic" => {
-                    if first.is_some() {
-                        return Err(ctx_error(
-                            bar,
-                            abbr,
-                            "body_lifetime=track v2 does not yet map later score dynamics onto AttackFrame gain; author a physical trajectory or split the body lifetime",
-                        ));
-                    }
                     if let Some(value) = &event.dyn_value {
                         current_dynamic = value.clone();
                     }
@@ -186,7 +220,7 @@ pub(super) fn plan_session(
                     return Err(ctx_error(
                         bar,
                         abbr,
-                        "body_lifetime=track v2 does not yet lower a score hairpin into attack gain or a physical control trajectory",
+                        "body_lifetime=track does not yet lower a continuous score hairpin into excitation gain; use discrete dynamics/accents or an authored physical control trajectory",
                     ));
                 }
                 _ => {}
@@ -204,7 +238,7 @@ pub(super) fn plan_session(
             match event.kind.as_str() {
                 "rest" => {
                     if first.is_some() {
-                        ensure_continuation_is_plain(&event, bar, abbr)?;
+                        ensure_rest_is_plain(&event, bar, abbr)?;
                         member_event_count += 1;
                     }
                 }
@@ -226,12 +260,17 @@ pub(super) fn plan_session(
                     match &fixed_midis {
                         None => {
                             fixed_midis = Some(event.midis.clone());
-                            note_onsets.push(onset);
-                            first = Some((bar, onset, event, current_dynamic.clone()));
+                            attacks.push(PlannedAttack {
+                                onset_seconds: onset,
+                                dynamic: current_dynamic.clone(),
+                                articulation_db: articulation_gain_db(&event.flags),
+                            });
+                            first = Some((bar, onset, event));
                             member_event_count += 1;
                         }
                         Some(expected) => {
-                            ensure_continuation_is_plain(&event, bar, abbr)?;
+                            let articulation_db =
+                                continuation_articulation_db(&event, bar, abbr)?;
                             if event.midis.as_slice() != expected.as_slice() {
                                 return Err(ctx_error(
                                     bar,
@@ -242,7 +281,11 @@ pub(super) fn plan_session(
                                     ),
                                 ));
                             }
-                            note_onsets.push(onset);
+                            attacks.push(PlannedAttack {
+                                onset_seconds: onset,
+                                dynamic: current_dynamic.clone(),
+                                articulation_db,
+                            });
                             member_event_count += 1;
                         }
                     }
@@ -252,7 +295,7 @@ pub(super) fn plan_session(
         }
     }
 
-    let Some((first_bar, onset_seconds, mut first_event, dynamic)) = first else {
+    let Some((first_bar, onset_seconds, mut first_event)) = first else {
         return Ok(None);
     };
     let last_bar = ctx
@@ -291,8 +334,7 @@ pub(super) fn plan_session(
         end_seconds,
         duration_seconds,
         member_event_count,
-        note_onsets,
-        dynamic,
+        attacks,
         first_event,
     }))
 }

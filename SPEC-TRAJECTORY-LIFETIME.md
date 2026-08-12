@@ -1,89 +1,84 @@
-# MUS-T lifetime extension — track-owned, rearticulated string bodies
+# MUS-T lifetime extension — work-receipted rearticulation
 
-**Status:** executable strict v2; Rust execution gates pending an available runner  
+**Status:** implemented strict v3; Rust execution gates pending an available runner  
 **Parent contract:** `SPEC-TRAJECTORY.md`  
 **Surface:** instrument parameter `body_lifetime=event|track`
 
 ## 1. Lifetime law
-
-A physical body has an explicit owner and clock.
 
 ```text
 body_lifetime=event (default)
   one score event owns one body and one event-local trajectory clock
 
 body_lifetime=track
-  the track owns one body from its first pitched attack through the end of
-  the final notated bar; one trajectory clock and one attack schedule cross
-  every intervening score event
+  one track owns one fixed-capacity body, one trajectory clock, and one
+  physical attack schedule from its first pitched event through the end of
+  the final notated bar
 ```
 
-Absence is exactly `event`. The parity-locked historical renderer remains a
-separate source-identical module; it is not emulated by constructing an empty
-track session.
+Structural absence is exact: the historical event renderer remains a separate
+source-identical path. Track lifetime is not emulated by placing empty session
+objects around event-local voices.
 
-The score, excitation, and allocation ledgers are distinct:
+The score, source, and allocation ledgers are distinct:
 
 ```text
-notated event       one note/chord token and score onset
-physical attack     one scheduled injection of excitation work
+notated event       a note/chord token and score onset
+physical attack     declared excitation injected into existing state
 body construction  allocation and initialization of physical state
 ```
 
-For three repeated note tokens under `body_lifetime=track`, v2 therefore records
-three score events, schedules three physical attacks, and constructs one body.
+Three repeated notes under track lifetime therefore remain three notated
+events, become three physical attacks, and use one body construction and tail.
 
-## 2. Fixed-topology rearticulation v2
+## 2. Fixed-topology attack contract
 
-The executable lifetime accepts:
+The executable v3 scope is:
 
 ```text
 body       pluck | weave
-attacks    one per pitched score event
 pitch set  fixed for the complete session
-gain       unity for every continuation attack in v2
-members    repeated identical note/chord tokens and rests
-controls   at least one registered MUS-T arrow trajectory
+attacks    one per pitched score event
+members    repeated identical notes/chords and rests
+controls   at least one registered MUS-T trajectory
 clock      first attack -> end of final notated bar
 ```
 
-Each repeated note/chord onset becomes an `AttackFrame`:
+The DSP artifact is:
 
-```text
+```rust
 AttackFrame {
-  at_sample
-  gain
+    at_sample: usize,
+    gain: f64,
 }
 ```
 
-The engine reuses the constructor's content-keyed excitation template on every
-attack. It does **not** clear or reconstruct:
-
-- delay-line samples or write indices;
-- damping and allpass memories;
-- modal-body state;
-- Weave wave variables;
-- orbit phase;
-- contact memory;
-- breath or bow state;
-- trajectory-control state.
-
-V2 does not yet attach a different excitation identity, gain derived from a
-later dynamic, per-attack articulation, or pitch target to a continuation. Those
-belong to the next payload contract.
-
-### 2.1 Attack scheduling law
-
-Before allocating a `StringNetworkVoice`, the engine derives the exact attack
-span of the fixed active course set:
+`gain` is an amplitude multiplier on the constructor's content-keyed physical
+excitation. The engine currently derives it from score dynamics and gain
+articulations:
 
 ```text
-max over active courses (
-  constructor strum offset
-  + constructor excitation-template length
-)
+gain = 10^((dynamic_db + articulation_db) / 20)
 ```
 
+Dynamic values use the existing MUS `DYN_DB` table. Gain articulations use the
+existing `ART_GAIN` table (`acc`, `marc`, `sfz`, `stress`, `unstress`). This is
+a change of physical ownership: dynamics and gain articulations now scale the
+attack that enters the body, rather than scaling the completed session buffer.
+
+Voice trim and explicit first-event `gain=` remain post-body placement controls.
+They do not retrospectively alter the source-work receipt.
+
+### 2.1 Schedule validation
+
+Before allocating a `StringNetworkVoice`, `AttackSchedule::compile` derives the
+exact constructor excitation span over the fixed active course set:
+
+```text
+max(active course strum offset + one-period excitation length)
+```
+
+It includes detuned companion courses and the pitch-scaled initial frequencies.
 The schedule must satisfy:
 
 ```text
@@ -91,224 +86,244 @@ first attack sample = 0
 attack samples strictly increase
 0 < gain <= 4
 attack onset < notated drive duration
-successive constructor excitation windows do not overlap
+constructor excitation windows do not overlap
 ```
 
-Overlapping attacks refuse in v2. This is a narrow execution boundary, not a
-claim that superposed pick contacts are physically invalid. It keeps exactly
-one active template per course in the real-time kernel and gives the first
-implementation a constant-memory, monotone cursor.
+Overlapping attacks refuse in v3. This is a bounded implementation contract,
+not a claim that simultaneous contacts are physically impossible. A later gate
+must define superposition and its source-work law.
 
-The ordinary MUS adapter emits `gain=1`. The public DSP schedule type carries
-gain now so dynamics can later lower into a declared excitation coordinate
-rather than being smuggled into mix gain.
+### 2.2 Persistent state
 
-### 2.2 First-event session envelope
+At construction, each active course's original excitation is moved into a
+fixed template bank. Every later attack reads that template at:
 
-The first pitched event may provide:
+```text
+sample - attack.at_sample - constructor_strum_offset
+```
 
-- construction/static string parameters admitted by `SYNTH_KEYS`;
-- registered MUS-T coordinates and trajectory directives;
-- post-source session transforms such as filters, envelope, distortion,
-  time treatment, pan, Haas delay, level, and reverb send;
-- an optional score gliss, subject to the existing pitch-owner conflict law;
-- articulation flags implemented by the post-source transform/level stages.
+No attack clears or reconstructs:
 
-Those post-source values apply to the complete session render. Later event
-params, flags, glissandi, and dynamic changes refuse: v2 knows that a
-continuation is an attack, but it does not yet have a typed per-attack payload
-for those fields.
+- delay-line cells or write positions;
+- one-zero and allpass memories;
+- integer-delay interpretation;
+- modal-body state;
+- Weave waves;
+- orbit phase;
+- contact memory;
+- breath PRNG/filter state;
+- bow state;
+- continuous trajectory controls.
 
-Controls belonging to ordinary source resolution—sample selection/offset,
-quotation material, `reverse`, and similar—also refuse rather than being
-silently ignored.
+Reattacks also do not restart native pitch transport or the onset-tension
+relaxation clock. Those are explicit v3 semantics.
 
-### 2.3 Constructor-owned subsystems
+## 3. Exact attack-work receipt
 
-A subsystem whose deterministic state exists only at body construction must be
-present at sample zero. A `breath` trajectory may vary only when its first value
-is nonzero, causing the content-keyed noise channels to be allocated once. A
-path rising from zero refuses before construction.
+For course wave value `w` immediately before attack excitation `e`, the declared
+source work is:
 
-External `sing` and `string.sing` remain refused until external-source supply
-and work are part of the session executor.
+```text
+Delta E = w e + e^2 / 2
+```
 
-### 2.4 Refusal boundary
+This is the same identity already used by the Phase-0 burst observer. It is
+measured before external drive, breath, bow, and contact, preserving the
+existing ordered source attribution.
 
-The following authoring cases refuse before physical-body allocation:
+The ordinary rearticulation kernel accumulates, per attack and active course:
+
+```text
+signed work
+positive work
+extracted work
+peak absolute course-sample work
+nonzero source-sample count
+```
+
+The execution receipt is content-addressed by a canonical binary SHA-256 over the schedule and per-attack work fields, and contains:
+
+```text
+RearticulationReceipt {
+  schema_version
+  work_digest
+  schedule
+  work_law
+  work_unit
+  total_signed_work
+  total_positive_work
+  total_extracted_work
+  peak_abs_course_sample_work
+  attacks[]
+}
+```
+
+One-attack work must be bit-identical to the existing Phase-0 observer's final
+`inject_burst` total. The reduction is deliberately course-major to preserve
+that law.
+
+Because attack work is now measured and nested in `StringTrajectoryReceipt`,
+a multi-attack session no longer carries the former
+`rearticulation-excitation-work-ledger` obligation. `traj_strict=1` may pass when
+no independent pitch, bow, breath, or external-source obligation remains.
+
+## 4. Score lowering
+
+The planner tracks the dynamic state at every pitched onset. Standalone and
+attached dynamics use the existing lexical rule, so:
+
+```mus
+{p} A3q Rq {f} A3q[acc] Rq
+{ff} A3h[marc] Rh
+```
+
+lowers to three attacks with gains:
+
+```text
+p                  10^(-20/20)
+f + acc            10^((-7+4)/20)
+ff + marc           10^((-3.5+6)/20)
+```
+
+Continuation notes may carry only gain-articulation flags in v3. Later params,
+glissandi, duration/contact articulations, and arbitrary flags require a typed
+`RearticulationFrame` payload and therefore refuse. Score hairpins also refuse:
+they need either a continuous excitation-gain law or an authored physical
+trajectory, not retrospective interpolation over a rendered buffer.
+
+The semantic trajectory digest commits:
+
+```text
+attack_samples
+attack_dynamics
+attack_articulation_db
+attack_gain_db
+attack_gains
+attack_gain_law
+attack_excitation_identity
+attack_overlap_policy
+physical_attack_count
+body_construction_count
+avoided_body_constructions
+session_tail_count
+execution_strategy
+```
+
+The state-dependent work receipt is not part of the authored program digest; it
+is execution evidence produced by replaying that content-addressed program.
+
+## 5. Refusal boundary
+
+The following refuse before body allocation:
 
 ```text
 pitch-set or active-course-topology change
-later event params, flags, or gliss
-dynamic change after the first attack
-any score hairpin
+later event params or gliss
+a continuation flag outside ART_GAIN
+score hairpin
 unpitched event
 missing physical trajectory
 non-string synth
 unsupported first-event source-stage control or flag
 external sing source or string.sing trajectory
-breath trajectory that rises from zero
-non-increasing, out-of-window, non-finite, or overlapping attack schedule
-traj_strict=1 with more than one attack while attack work is unreceipted
+breath trajectory rising from zero
+nonmonotone, out-of-window, nonfinite, or overlapping attacks
+attack gain outside (0, 4]
+strict transport with any remaining independent adapter obligation
 ```
 
-A post-construction `AttackSpanMismatch` or topology mismatch is an internal
-invariant failure, not an authoring refusal.
+Post-construction schedule/topology mismatches are internal invariant failures,
+not user-authorship refusals.
 
-## 3. Compilation and execution
+## 6. Performance law
 
-The track executor:
+The v3 ordinary kernel is specialized for the observer-off, fixed-topology
+session:
 
-1. walks and validates the complete track without allocating DSP state;
-2. computes every absolute note onset under the existing tempo, meter, and
-   swing laws;
-3. compiles one `TrajectoryProgram` over the full session duration;
-4. lowers note onsets to exact integer-sample `AttackFrame`s;
-5. validates the fixed-topology attack schedule before body construction;
-6. constructs one `StringNetworkVoice`;
-7. moves each active course's constructor excitation into a fixed template bank;
-8. consumes controls and attacks with monotone cursors while advancing that one
-   body;
-9. applies the first event's admitted post-source session envelope once;
-10. records every pitched score onset for event and sidechain accounting;
-11. emits one trajectory receipt joined to the first onset and full session
-    span.
-
-The semantic digest commits:
-
-```text
-lifetime_scope=track
-lifetime_track=<track abbreviation>
-member_event_count=<notes, chords, and rests from first attack onward>
-notated_event_count=<pitched score-event count>
-physical_attack_count=<pitched score-event count>
-attack_samples=<comma-separated exact sample indices>
-attack_gain_policy=unity-v2
-attack_excitation_identity=constructor-content-keyed-template
-attack_overlap_policy=refuse-v1
-body_construction_count=1
-event_local_body_construction_baseline=<pitched score-event count>
-avoided_body_constructions=<baseline - 1>
-session_tail_count=1
-event_local_tail_baseline=<pitched score-event count>
-ordinary_trace_allocation=none
-lifetime_end_seconds=<absolute score time>
-execution_strategy=prevalidated-monotone-attack-cursor+
-                   network-observer-off-v2
-```
-
-The execution receipt promotes only to:
-
-```text
-claim_level    = score-spanning-preallocated-rearticulation
-evidence_class = validated-numerics+engine-execution+
-                 single-construction+preallocated-attacks+
-                 network-observer-off-specialization
-```
-
-Every multi-attack receipt also carries the unresolved obligation:
-
-```text
-rearticulation-excitation-work-ledger
-```
-
-An attack is an energy source. The schedule declares where and how the source is
-applied, but the ordinary observer-off render does not yet integrate its work.
-`traj_strict=1` therefore refuses multi-attack execution.
-
-The existing two-knot linear `pitch_ratio` subset still uses native persistent
-retuning and retains its delay-rank and sideband obligations. Reattacks do not
-reset the onset-tension clock or restart native pitch transport.
-
-## 4. Performance law
-
-The v2 session path is a dedicated ordinary-render specialization:
-
-- N event-local body constructions become one;
-- N event-local tails become one;
-- attack frames and excitation templates allocate once;
-- attack lookup is a monotone cursor, not a per-sample search;
-- no excitation buffer proportional to the score duration is allocated;
-- phase offsets `2πi/N` are precomputed once;
-- active-course and whole-network square-root normalizers are precomputed once;
-- the network-level hot path omits gesture execution, external-drive dispatch,
-  backbone dispatch, edge telemetry, body-energy observation, trace allocation,
-  and observer-ledger writes;
-- canonical control frames remain a monotone cursor;
+- N event-local bodies and tails become one body and one tail;
+- attack and control schedules use monotone cursors;
+- excitation storage is `O(active courses × one period)`, not score length;
+- phase offsets and square-root normalizers are precomputed;
+- no gesture, external-drive, backbone, trace, edge-telemetry, or network
+  observer branch runs;
+- `DelayString::read` and contact have explicit unobserved variants, removing
+  the remaining per-course ledger branches;
 - output capacity is reserved exactly and filled by append;
-- all user-facing schedule refusals occur before body construction.
+- work accumulators are fixed-size, allocated before sample zero.
 
-The per-course `DelayString::read` and contact functions still contain their
-observer conditionals. Full monomorphization of those inner kernels remains a
-separate performance gate.
+Work accounting is not optional in this path: it is a small fixed set of scalar
+accumulators required by the physical claim. It replaces the much larger
+Phase-0 trace/ledger allocation and does not allocate per sample.
 
-### 4.1 Zero-limit law
+### 6.1 Zero-limit and causality laws
 
-For one unity attack at sample zero and identical canonical control frames,
-`RearticulatedStringVoice` must produce byte-identical audio to the historical
-voice. Permanent unit tests compare:
+Permanent tests require:
 
 ```text
-one attack, no controls  <-> StringNetworkVoice::render
-one attack, controls     <-> render_traced_with(...).audio
+one unity attack, no controls
+  byte-identical to StringNetworkVoice::render
+
+one unity attack, canonical controls
+  byte-identical to render_traced_with(...).audio
+
+one unity attack, measured work
+  bit-identical to Phase-0 inject_burst
+
+second attack
+  no change before onset; nontrivial change after onset
 ```
 
-A second attack must leave the entire prefix before its onset byte-identical and
-change the suffix.
+## 7. Receipt claim
 
-### 4.2 Measurement
+The lifetime receipt promotes only to:
 
 ```text
-mus-rs/tools/benchmark_track_lifetime.py --mus <target/release/mus>
+claim_level = score-spanning-work-receipted-rearticulation
+
+evidence_class = validated-numerics+engine-execution+
+                 single-construction+physical-gain-lowering+
+                 exact-attack-work+fully-unobserved-course-kernel
 ```
 
-The v2 harness compares:
+This does not certify overlapping contacts, pitch-set changes, arbitrary pitch
+transport, perceptual equivalence to event-local rendering, or measured speedup.
+
+## 8. Benchmark
+
+```bash
+python mus-rs/tools/benchmark_track_lifetime.py \
+  --mus mus-rs/target/release/mus \
+  --runs 9
+```
+
+The comparison holds notated event and attack counts fixed:
 
 ```text
-event-local    three notated events, three attacks, three bodies, three tails
-track lifetime three notated events, three attacks, one body, one tail
+event-local    3 events, 3 attacks, 3 bodies, 3 tails
+track lifetime 3 events, 3 attacks, 1 body, 1 tail, exact attack receipt
 ```
 
-Both sides now have the same attack count. Audio parity is still not expected:
-the track-owned body retains physical state between attacks while event-local
-bodies begin from zero. No speed, memory, or energy number is promoted until the
-harness runs.
+Audio parity is not expected because persistent state is the intervention. No
+wall-time, memory, or energy result is promoted until the harness executes.
 
-## 5. Acceptance matrix
+## 9. Next gate
 
-| Gate | Permanent evidence | Claim |
-|---|---|---|
-| one attack byte identity | DSP unit test | specialization preserves zero limit |
-| controlled one-attack byte identity | DSP unit test | no-trace controls preserve audio |
-| second attack prefix law | DSP unit test | no effect before authored onset |
-| overlap refusal | DSP unit test | one active template in v2 |
-| three score events / three attacks / one body | engine + CLI tests | score and physics ledgers stay distinct |
-| cross-bar deterministic receipt | CLI test | content-addressed lifetime |
-| fixed topology refusal | engine + CLI tests | no hidden body reconstruction |
-| strict work refusal | engine test | unreceipted source work not promoted |
-| measured speedup | not yet run | withheld |
-
-## 6. Next lifetime gate
-
-The next payload extends `AttackFrame` without changing body capacity:
+The next typed payload is:
 
 ```text
 RearticulationFrame {
   at_sample
   excitation identity
   excitation gain
-  optional articulation/contact controls
+  duration/contact articulation
   optional fixed-capacity native retune target
 }
 ```
 
-Required work:
+Its obligations are:
 
-1. define and receipt per-attack excitation work;
-2. map score dynamics and accents to physical gain rather than post-mix gain;
-3. admit overlapping attacks through a bounded superposition law;
-4. give pitch changes a certified fixed-capacity state connection;
-5. preserve the one-attack byte law and the no-allocation sample kernel.
-
-Changing course capacity remains a topology edit with an explicit state
-disposition.
+1. bounded overlapping-source superposition;
+2. duration/contact articulation without post-render truncation;
+3. a continuous gain law for hairpins;
+4. certified fixed-capacity pitch-change transport;
+5. preservation of the one-attack byte and work laws.

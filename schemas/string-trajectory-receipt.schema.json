@@ -47,6 +47,9 @@
     },
     "strict_transport": {
       "type": "boolean"
+    },
+    "rearticulation": {
+      "$ref": "rearticulation-receipt.schema.json"
     }
   }
 }

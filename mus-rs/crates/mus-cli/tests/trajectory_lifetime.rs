@@ -37,7 +37,7 @@ impl Drop for TempDir {
     }
 }
 
-fn score(events_bar_1: &str, couple: &str) -> String {
+fn score(events_bar_1: &str, events_bar_2: &str, couple: &str) -> String {
     format!(
         "# score: score-spanning trajectory lifetime\n\
 # tempo: 120\n\
@@ -48,7 +48,7 @@ fn score(events_bar_1: &str, couple: &str) -> String {
 #   w = weave (treble, synth=weave, courses=3, strum=0, couple={couple}, body=0.25, sus=0.20, traj_curve=smootherstep, traj_hz=200, body_lifetime=track)\n\
 \n\
 bar 1: w={events_bar_1}\n\
-bar 2: w=A3h Rh\n"
+bar 2: w={events_bar_2}\n"
     )
 }
 
@@ -76,10 +76,11 @@ fn success_json(root: &Path, source: &str, stem: &str) -> serde_json::Value {
 }
 
 #[test]
-fn one_track_body_receives_three_attacks_across_note_and_bar_boundaries() {
+fn one_track_body_receives_dynamic_work_receipted_attacks_across_bars() {
     let root = TempDir::new();
     let source = score(
-        "A3q[pan=-0.25->0.25] Rq A3q Rq",
+        "{p} A3q[pan=-0.25->0.25] Rq {f} A3q[acc] Rq",
+        "{ff} A3h[marc] Rh",
         "0.10@0->0.34@0.52->0.16@1",
     );
     let first = success_json(root.path(), &source, "first");
@@ -104,22 +105,46 @@ fn one_track_body_receives_three_attacks_across_note_and_bar_boundaries() {
     assert_eq!(event["slotSeconds"].as_f64(), Some(4.0));
     assert_eq!(
         event["receipt"]["trajectory"]["claim_level"].as_str(),
-        Some("score-spanning-preallocated-rearticulation")
+        Some("score-spanning-work-receipted-rearticulation")
     );
     assert_eq!(
         event["receipt"]["trajectory"]["evidence_class"].as_str(),
         Some(
-            "validated-numerics+engine-execution+single-construction+preallocated-attacks+network-observer-off-specialization"
+            "validated-numerics+engine-execution+single-construction+physical-gain-lowering+exact-attack-work+fully-unobserved-course-kernel"
         )
     );
-    assert!(
+    assert_eq!(
         event["receipt"]["unresolved_obligations"]
             .as_array()
-            .expect("obligations")
-            .iter()
-            .any(|item| item.as_str() == Some("rearticulation-excitation-work-ledger")),
-        "{event}"
+            .map(Vec::len),
+        Some(0)
     );
+
+    let rearticulation = &event["receipt"]["rearticulation"];
+    assert_eq!(
+        rearticulation["schema_version"].as_str(),
+        Some("string-rearticulation-receipt-v1")
+    );
+    let work_digest = rearticulation["work_digest"]
+        .as_str()
+        .expect("work digest");
+    assert!(work_digest.starts_with("sha256:"));
+    assert_eq!(work_digest.len(), 71);
+    assert_eq!(
+        rearticulation["schedule"]["attack_count"].as_u64(),
+        Some(3)
+    );
+    let attacks = rearticulation["attacks"].as_array().expect("attack receipts");
+    let expected = [
+        10_f64.powf(-20.0 / 20.0),
+        10_f64.powf((-7.0 + 4.0) / 20.0),
+        10_f64.powf((-3.5 + 6.0) / 20.0),
+    ];
+    for (attack, expected_gain) in attacks.iter().zip(expected) {
+        assert!((attack["gain"].as_f64().expect("gain") - expected_gain).abs() < 1e-12);
+        assert!(attack["nonzero_course_samples"].as_u64().unwrap_or(0) > 0);
+    }
+    assert!(rearticulation["total_positive_work"].as_f64().unwrap_or(0.0) > 0.0);
 }
 
 #[test]
@@ -127,7 +152,7 @@ fn track_lifetime_refuses_pitch_topology_changes() {
     let root = TempDir::new();
     let result = run_render(
         root.path(),
-        &score("A3q B3q Rh", "0.10@0->0.30@1"),
+        &score("A3q B3q Rh", "Rh", "0.10@0->0.30@1"),
         "topology-change",
     );
     assert!(!result.status.success());
@@ -145,7 +170,11 @@ fn track_lifetime_refuses_pitch_topology_changes() {
 #[test]
 fn track_lifetime_refuses_a_scalar_only_patch() {
     let root = TempDir::new();
-    let result = run_render(root.path(), &score("A3w", "0.10"), "no-trajectory");
+    let result = run_render(
+        root.path(),
+        &score("A3w", "Rh", "0.10"),
+        "no-trajectory",
+    );
     assert!(!result.status.success());
     let error: serde_json::Value =
         serde_json::from_slice(&result.stdout).expect("structured render error");

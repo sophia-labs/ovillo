@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://sophia.systems/schemas/trajectory-receipt-v1.json",
-  "title": "MUS trajectory compilation receipt v1",
+  "title": "MUS trajectory compilation and execution receipt v1",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -98,10 +98,20 @@
       }
     },
     "claim_level": {
-      "const": "authored-control-path"
+      "enum": [
+        "authored-control-path",
+        "score-spanning-single-body",
+        "score-spanning-preallocated-rearticulation",
+        "score-spanning-work-receipted-rearticulation"
+      ]
     },
     "evidence_class": {
-      "const": "validated-numerics"
+      "enum": [
+        "validated-numerics",
+        "validated-numerics+engine-execution+single-construction+monotone-no-trace",
+        "validated-numerics+engine-execution+single-construction+preallocated-attacks+network-observer-off-specialization",
+        "validated-numerics+engine-execution+single-construction+physical-gain-lowering+exact-attack-work+fully-unobserved-course-kernel"
+      ]
     }
   }
 }

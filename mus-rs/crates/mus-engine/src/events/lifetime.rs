@@ -1,22 +1,20 @@
 //! Score-spanning physical-body execution for `body_lifetime=track`.
 //!
-//! V2 gives one fixed-topology `StringNetworkVoice` to a track and compiles
-//! every repeated note/chord onset into a prevalidated physical
-//! `mus_dsp::pluck::AttackFrame` schedule. The attacks reuse the constructor's
-//! content-keyed excitation template while delay lines, allpass memories,
-//! damping state, modal body, Weave waves, orbit phase, and control state remain
-//! alive across notes, rests, and bar boundaries.
+//! V3 gives one fixed-topology `StringNetworkVoice` to a track, compiles every
+//! pitched onset into a prevalidated physical `AttackFrame`, maps MUS dynamics
+//! and gain articulations into attack amplitude, and receipts exact source work
+//! against the body's live wave state. Delay lines, allpass memories, damping
+//! state, modal body, Weave waves, orbit phase, contact, stochastic source
+//! state, and continuous controls remain alive across notes, rests, and bars.
 //!
-//! Later event-local parameter payloads, pitch-set changes, post-first dynamics,
-//! and score hairpins still refuse: V2 owns attack time and unity gain, not yet
-//! per-attack articulation, retune transport, or dynamic mapping.
+//! Later params, glissandi, duration/contact articulations, pitch-set changes,
+//! and score hairpins still refuse: V3 owns attack time and gain, not yet a full
+//! per-attack articulation or state-transport payload.
 //!
-//! The executor is also a production performance specialization: one body
-//! construction replaces N event constructions and tails; attack lookup is a
-//! monotone cursor over preallocated templates; invariant phase offsets and
-//! normalization divisors are hoisted; and the network-level ordinary kernel
-//! omits trace, gesture, backbone, external-drive, edge-telemetry, and body
-//! observer bookkeeping.
+//! The ordinary executor is performance-specialized: one construction and tail,
+//! monotone attack/control cursors, preallocated excitation/work storage,
+//! hoisted phase/normalization invariants, and explicit observer-free network
+//! and per-course kernels.
 
 mod plan;
 mod render;

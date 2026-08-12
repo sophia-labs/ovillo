@@ -1,5 +1,5 @@
-# score: One Rearticulated Body Across Two Bars
-# summary: one Weave network receives three physical attacks while retaining its delay lines, modal body, orbit phase, breath state, and track-wide control trajectory
+# score: Three Dynamic Attacks, One Persistent Weave Body
+# summary: score dynamics and accents scale three physical attacks whose exact work is measured while one body and one trajectory cross two bars
 # tempo: 120
 # time: 4/4
 # key: C
@@ -9,10 +9,12 @@
 # instruments:
 #   w = weave (treble, synth=weave, body_lifetime=track, courses=5, strum=0, couple=0.08@0->0.34@0.46->0.14@1, chirality=0.75@0->-0.45@0.62->0.25@1, curvature=0.18@0->0.78@0.52->0.24@1, body=0.22@0->0.64@0.58->0.34@1, orbit=0.42, orbit_depth=0.58, sus=2.2, damp=0.31, breath=0.08@0->0.24@0.48->0.10@1, traj_curve=smootherstep, traj_hz=240, pan=0, send=0.18)
 
-# Breath begins above zero so its deterministic noise channels are allocated once.
-# Each A3 is now a physical unity-gain AttackFrame into the same body. The
-# attack reuses the constructor excitation but does not reset the body, delay
-# lines, filter memories, orbit phase, breath stream, or physical trajectories.
-# The first-event pan path runs over the complete four-second session render.
-bar 1: w=A3q[pan=-0.18->0.18] Rq A3q Rq
-bar 2: w=A3h Rh
+# Breath begins above zero so its deterministic channels allocate once.
+# Dynamic and gain-articulation dB now scale the physical constructor template:
+#   p          -> 0.1
+#   f + acc    -> 0.7079457843841379
+#   ff + marc  -> 1.333521432163324
+# The session receipt measures each attack's signed/positive/extracted work.
+# Voice trim, gain=, pan, Haas, and send remain post-body placement controls.
+bar 1: w={p} A3q[pan=-0.18->0.18] Rq {f} A3q[acc] Rq
+bar 2: w={ff} A3h[marc] Rh

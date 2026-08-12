@@ -31,9 +31,9 @@ pub mod glow;
 pub mod kernels;
 pub mod pitch;
 
-/// Physically informed guitar and Weave networks, plus the prevalidated
-/// fixed-topology rearticulation extension. The parity-pinned implementation
-/// remains in `src/pluck.rs`; `build.rs` appends the child extension without
+/// Physically informed guitar and Weave networks, plus the fixed-topology
+/// rearticulation and attack-work extensions. The parity-pinned implementation
+/// remains in `src/pluck.rs`; `build.rs` appends the child extensions without
 /// widening its private state surface.
 pub mod pluck {
     include!(concat!(env!("OUT_DIR"), "/pluck_generated.rs"));
@@ -41,7 +41,13 @@ pub mod pluck {
 
 pub mod scene;
 pub mod synth;
-pub mod trajectory;
+
+/// Direct authored string trajectories. The committed adapter remains in
+/// `src/trajectory.rs`; `build.rs` adds the optional rearticulation receipt at
+/// the body-runtime boundary without creating a dependency cycle.
+pub mod trajectory {
+    include!(concat!(env!("OUT_DIR"), "/trajectory_generated.rs"));
+}
 
 /// Engine sample rate. `mus_audio.py` line 47: `SR = 48_000`.
 pub const SR: usize = 48_000;

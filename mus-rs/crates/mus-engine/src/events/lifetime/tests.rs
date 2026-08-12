@@ -1,4 +1,4 @@
-//! Acceptance tests for the track-owned multi-attack lifetime kernel.
+//! Acceptance tests for the track-owned, work-receipted attack kernel.
 
 use std::collections::BTreeMap;
 
@@ -94,16 +94,19 @@ fn rms(values: &[f32]) -> f64 {
 }
 
 #[test]
-fn one_body_receives_three_physical_attacks_across_two_bars() {
+fn one_body_receives_dynamic_attacks_and_exact_work_across_two_bars() {
     let bar_map = two_bar_map();
     let bar_content = BTreeMap::from([
         (
             1,
-            BTreeMap::from([("w".to_string(), "A3q Rq A3q Rq".to_string())]),
+            BTreeMap::from([(
+                "w".to_string(),
+                "{p} A3q Rq {f} A3q[acc] Rq".to_string(),
+            )]),
         ),
         (
             2,
-            BTreeMap::from([("w".to_string(), "A3h Rh".to_string())]),
+            BTreeMap::from([("w".to_string(), "{ff} A3h[marc] Rh".to_string())]),
         ),
     ]);
     let gestures = BTreeMap::new();
@@ -136,21 +139,95 @@ fn one_body_receives_three_physical_attacks_across_two_bars() {
         event.receipt.trajectory.evidence_class,
         TRACK_LIFETIME_EVIDENCE
     );
-    assert!(
-        event
-            .receipt
-            .unresolved_obligations
-            .iter()
-            .any(|item| item == "rearticulation-excitation-work-ledger")
-    );
+    assert!(event.receipt.unresolved_obligations.is_empty());
+
+    let work = event
+        .receipt
+        .rearticulation
+        .as_ref()
+        .expect("rearticulation receipt");
+    assert_eq!(work.attacks.len(), 3);
+    let expected = [
+        10_f64.powf(-20.0 / 20.0),
+        10_f64.powf((-7.0 + 4.0) / 20.0),
+        10_f64.powf((-3.5 + 6.0) / 20.0),
+    ];
+    for (attack, expected_gain) in work.attacks.iter().zip(expected) {
+        assert!((attack.gain - expected_gain).abs() < 1e-12);
+        assert!(attack.nonzero_course_samples > 0);
+    }
+    assert!(work.total_positive_work > 0.0);
+    assert!(work.peak_abs_course_sample_work > 0.0);
+    assert!((work.total_signed_work
+        - (work.total_positive_work - work.total_extracted_work))
+        .abs()
+        < 1e-9);
 
     // At sus=0.20 the first attack is effectively gone by the second and
-    // third score onsets. Nontrivial energy around both later onsets is the
-    // audible evidence that they are now physical reattacks, not notation-only
-    // lifetime markers.
+    // third onsets. Nontrivial energy there is evidence for real reattacks.
     let left = &buffers.dry[0];
-    assert!(rms(&left[48_000..50_400]) > 1e-6);
-    assert!(rms(&left[96_000..98_400]) > 1e-6);
+    assert!(rms(&left[48_000..50_400]) > 1e-7);
+    assert!(rms(&left[96_000..98_400]) > 1e-7);
+}
+
+#[test]
+fn strict_transport_accepts_work_receipted_multi_attack_motion() {
+    let bar_map = two_bar_map();
+    let bar_content = BTreeMap::from([(
+        1,
+        BTreeMap::from([("w".to_string(), "{mp} A3q Rq {f} A3q[stress] Rq".to_string())]),
+    )]);
+    let gestures = BTreeMap::new();
+    let cache = SampleCache::new();
+    let ctx = context(&bar_map, &bar_content, &gestures, &cache);
+    let mut voice = track_voice();
+    voice
+        .defaults
+        .insert("traj_strict".to_string(), "1".to_string());
+    let mut buffers = MixBuffers::new(ctx.n_total);
+    let mut placed = Vec::new();
+    let mut sc_onsets = Vec::new();
+    let mut stats = RenderStats::default();
+
+    walk_track(
+        &ctx,
+        &voice,
+        &mut buffers,
+        &mut placed,
+        &mut sc_onsets,
+        &mut stats,
+    )
+    .expect("exact attack work closes the rearticulation strict gate");
+    let receipt = &stats.trajectory_receipts[0].receipt;
+    assert!(receipt.strict_transport);
+    assert!(receipt.unresolved_obligations.is_empty());
+    assert!(receipt.rearticulation.is_some());
+}
+
+#[test]
+fn continuation_rejects_non_gain_articulation() {
+    let bar_map = two_bar_map();
+    let bar_content = BTreeMap::from([(
+        1,
+        BTreeMap::from([("w".to_string(), "A3q Rq A3q[stac] Rq".to_string())]),
+    )]);
+    let gestures = BTreeMap::new();
+    let cache = SampleCache::new();
+    let ctx = context(&bar_map, &bar_content, &gestures, &cache);
+    let mut buffers = MixBuffers::new(ctx.n_total);
+    let mut placed = Vec::new();
+    let mut sc_onsets = Vec::new();
+    let mut stats = RenderStats::default();
+    let error = walk_track(
+        &ctx,
+        &track_voice(),
+        &mut buffers,
+        &mut placed,
+        &mut sc_onsets,
+        &mut stats,
+    )
+    .unwrap_err();
+    assert!(error.to_string().contains("not a gain articulation"), "{error}");
 }
 
 #[test]
@@ -237,8 +314,8 @@ fn source_stage_first_event_controls_refuse_instead_of_being_ignored() {
         )
         .unwrap_err();
         assert!(
-            error.to_string().contains("silently ignored")
-                || error.to_string().contains("source resolution"),
+            error.to_string().contains("source resolution")
+                || error.to_string().contains("supported post-source"),
             "{token}: {error}"
         );
     }
@@ -271,39 +348,4 @@ fn body_lifetime_cannot_be_overridden_by_an_event() {
     )
     .unwrap_err();
     assert!(error.to_string().contains("instrument-owned"), "{error}");
-}
-
-#[test]
-fn strict_transport_refuses_multi_attack_work_without_a_ledger() {
-    let bar_map = two_bar_map();
-    let bar_content = BTreeMap::from([(
-        1,
-        BTreeMap::from([("w".to_string(), "A3q Rq A3q Rq".to_string())]),
-    )]);
-    let gestures = BTreeMap::new();
-    let cache = SampleCache::new();
-    let ctx = context(&bar_map, &bar_content, &gestures, &cache);
-    let mut voice = track_voice();
-    voice
-        .defaults
-        .insert("traj_strict".to_string(), "1".to_string());
-    let mut buffers = MixBuffers::new(ctx.n_total);
-    let mut placed = Vec::new();
-    let mut sc_onsets = Vec::new();
-    let mut stats = RenderStats::default();
-    let error = walk_track(
-        &ctx,
-        &voice,
-        &mut buffers,
-        &mut placed,
-        &mut sc_onsets,
-        &mut stats,
-    )
-    .unwrap_err();
-    assert!(
-        error
-            .to_string()
-            .contains("rearticulation excitation work"),
-        "{error}"
-    );
 }

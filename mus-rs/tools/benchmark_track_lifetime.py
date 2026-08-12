@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Benchmark event-local versus rearticulated track-lifetime rendering.
+"""Benchmark event-local versus work-receipted track-lifetime rendering.
 
-This is a measurement harness, not a CI threshold. Both scores contain three
-notated events and three physical attacks. The event-local score constructs
-three bodies and tails; the track-lifetime score injects all three attacks into
-one persistent body and renders one tail.
+Both scores contain three notated events, three physical unity attacks, the same
+constant authored control trajectory, and no postmix dynamic attenuation. The
+intervention is body lifetime:
 
-Audio digests are not expected to match because retained physical state is the
-feature under test. The one-attack byte law is covered by Rust unit tests.
+- event-local: three body constructions and tails;
+- track lifetime: one persistent body and tail, plus exact attack-work receipt.
+
+Audio digests are not expected to match because retained state is the feature
+under test. One-attack byte identity is covered by Rust unit tests.
 """
 
 from __future__ import annotations
@@ -21,28 +23,25 @@ import time
 from pathlib import Path
 from typing import Any
 
-# A constant arrow is intentional. It enters the trajectory executor while
-# leaving coupling physically static, so the benchmark isolates body lifetime
-# and attack scheduling rather than comparing different control walks.
-EVENT_SCORE = """# score: event-local body benchmark
+EVENT_SCORE = """# score: event-local work-gate benchmark
 # tempo: 120
 # time: 4/4
 # bars: 2
 # instruments:
 #   w = weave (treble, synth=weave, courses=11, strum=0, couple=0.10, body=0.36, sus=2.2, damp=0.31, traj_curve=linear, traj_hz=240)
 
-bar 1: w=A3q[couple=0.10@0->0.10@1] Rq A3q[couple=0.10@0->0.10@1] Rq
+bar 1: w={fff} A3q[couple=0.10@0->0.10@1] Rq A3q[couple=0.10@0->0.10@1] Rq
 bar 2: w=A3h[couple=0.10@0->0.10@1] Rh
 """
 
-TRACK_SCORE = """# score: track-owned rearticulated body benchmark
+TRACK_SCORE = """# score: track-owned work-gate benchmark
 # tempo: 120
 # time: 4/4
 # bars: 2
 # instruments:
 #   w = weave (treble, synth=weave, body_lifetime=track, courses=11, strum=0, couple=0.10@0->0.10@1, body=0.36, sus=2.2, damp=0.31, traj_curve=linear, traj_hz=240)
 
-bar 1: w=A3q Rq A3q Rq
+bar 1: w={fff} A3q Rq A3q Rq
 bar 2: w=A3h Rh
 """
 
@@ -79,9 +78,31 @@ def render_once(mus: Path, score: Path, output: Path) -> tuple[float, dict[str, 
     return elapsed, receipt
 
 
+def trajectory_summary(receipt: dict[str, Any]) -> dict[str, Any]:
+    trajectory_receipts = receipt.get("trajectoryReceipts", [])
+    rearticulation = None
+    if trajectory_receipts:
+        rearticulation = trajectory_receipts[0].get("receipt", {}).get("rearticulation")
+    return {
+        "trajectoryReceiptCount": len(trajectory_receipts),
+        "rearticulation": (
+            {
+                "attackCount": rearticulation["schedule"]["attack_count"],
+                "gains": [attack["gain"] for attack in rearticulation["attacks"]],
+                "totalSignedWork": rearticulation["total_signed_work"],
+                "totalPositiveWork": rearticulation["total_positive_work"],
+                "totalExtractedWork": rearticulation["total_extracted_work"],
+                "peakAbsCourseSampleWork": rearticulation[
+                    "peak_abs_course_sample_work"
+                ],
+            }
+            if rearticulation is not None
+            else None
+        ),
+    }
+
+
 def profile(mus: Path, score: Path, root: Path, runs: int) -> dict[str, Any]:
-    # One untimed warm-up pays process/filesystem cold effects without hiding
-    # them inside the measured distribution.
     render_once(mus, score, root / f"{score.stem}-warm.wav")
     elapsed: list[float] = []
     receipt: dict[str, Any] | None = None
@@ -94,10 +115,6 @@ def profile(mus: Path, score: Path, root: Path, runs: int) -> dict[str, Any]:
         elapsed.append(seconds)
     assert receipt is not None
     duration = float(receipt.get("durationSeconds", 0.0))
-    trajectory_receipts = receipt.get("trajectoryReceipts", [])
-    unresolved: list[str] = []
-    for item in trajectory_receipts:
-        unresolved.extend(item.get("receipt", {}).get("unresolved_obligations", []))
     return {
         "runs": runs,
         "wallSeconds": {
@@ -115,8 +132,7 @@ def profile(mus: Path, score: Path, root: Path, runs: int) -> dict[str, Any]:
             "renderDigest": receipt.get("renderDigest"),
             "eventCount": receipt.get("eventCount"),
             "durationSeconds": receipt.get("durationSeconds"),
-            "trajectoryReceiptCount": len(trajectory_receipts),
-            "unresolvedObligations": sorted(set(unresolved)),
+            **trajectory_summary(receipt),
         },
     }
 
@@ -160,18 +176,19 @@ def main() -> int:
     event_median = float(event["wallSeconds"]["median"])
     track_median = float(track["wallSeconds"]["median"])
     report = {
-        "schema": "mus.performance.track-lifetime-benchmark.v2",
+        "schema": "mus.performance.track-lifetime-benchmark.v3",
         "mus": str(mus),
         "semantics": {
             "eventLocal": (
-                "three notated events, three physical attacks, "
+                "three notated events, three unity attacks, "
                 "three body constructions and tails"
             ),
             "trackLifetime": (
-                "three notated events, three physical attacks, "
-                "one persistent body construction and tail"
+                "three notated events, three unity attacks, one persistent "
+                "body and tail, exact per-attack work receipt"
             ),
             "controlLaw": "constant authored coupling trajectory on both paths",
+            "dynamicLaw": "fff = unity on both paths",
             "audioParityExpected": False,
             "reasonParityIsWithheld": (
                 "the track-owned body retains state between attacks; "

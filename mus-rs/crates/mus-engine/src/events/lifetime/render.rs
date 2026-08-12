@@ -4,38 +4,62 @@ use std::collections::BTreeMap;
 
 use mus_dsp::pluck::{
     AttackFrame, AttackSchedule, RearticulatedStringVoice, StringNetworkVoice,
+    WorkReceiptedStringVoice,
 };
 use mus_dsp::trajectory::{lower_string_trajectory, program_from_inline_string_params};
 
 use crate::mixbus::{db_to_gain, pan_and_haas, truncate_to_render, MixBuffers, PlacedNote};
 use crate::pack::Voice;
-use crate::util::{midi_to_hz, param_pair, require_f64, require_f64_opt};
+use crate::util::{dyn_db, midi_to_hz, param_pair, require_f64, require_f64_opt};
 use crate::{EventTrajectoryReceipt, RenderError, RenderStats};
 
-use super::plan::{ctx_error, ctx_existing, plan_session};
+use super::plan::{ctx_error, ctx_existing, plan_session, TrackBodySession};
 use super::WalkContext;
 
 pub(super) const TRACK_LIFETIME_CLAIM: &str =
-    "score-spanning-preallocated-rearticulation";
+    "score-spanning-work-receipted-rearticulation";
 pub(super) const TRACK_LIFETIME_EVIDENCE: &str =
-    "validated-numerics+engine-execution+single-construction+preallocated-attacks+network-observer-off-specialization";
+    "validated-numerics+engine-execution+single-construction+physical-gain-lowering+exact-attack-work+fully-unobserved-course-kernel";
 
-const REARTICULATION_WORK_OBLIGATION: &str = "rearticulation-excitation-work-ledger";
+struct LoweredAttacks {
+    frames: Vec<AttackFrame>,
+    dynamics: Vec<String>,
+    articulation_db: Vec<f64>,
+    gain_db: Vec<f64>,
+}
 
-fn attack_frames(
-    session: &super::plan::TrackBodySession,
+impl LoweredAttacks {
+    fn gains(&self) -> impl Iterator<Item = f64> + '_ {
+        self.frames.iter().map(|frame| frame.gain)
+    }
+}
+
+fn join_values<T: ToString>(values: impl IntoIterator<Item = T>) -> String {
+    values
+        .into_iter()
+        .map(|value| value.to_string())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn lower_attacks(
+    session: &TrackBodySession,
     abbr: &str,
-) -> Result<Vec<AttackFrame>, RenderError> {
-    let mut frames = Vec::with_capacity(session.note_onsets.len());
-    for &onset in &session.note_onsets {
-        let relative_seconds = onset - session.onset_seconds;
+) -> Result<LoweredAttacks, RenderError> {
+    let mut frames = Vec::with_capacity(session.attacks.len());
+    let mut dynamics = Vec::with_capacity(session.attacks.len());
+    let mut articulation_db = Vec::with_capacity(session.attacks.len());
+    let mut gain_db = Vec::with_capacity(session.attacks.len());
+
+    for attack in &session.attacks {
+        let relative_seconds = attack.onset_seconds - session.onset_seconds;
         if !relative_seconds.is_finite() || relative_seconds < 0.0 {
             return Err(ctx_error(
                 session.first_bar,
                 abbr,
                 format!(
-                    "rearticulation onset {onset} is before/non-finite relative to session start {}",
-                    session.onset_seconds
+                    "rearticulation onset {} is before/non-finite relative to session start {}",
+                    attack.onset_seconds, session.onset_seconds
                 ),
             ));
         }
@@ -47,12 +71,34 @@ fn attack_frames(
                 format!("rearticulation onset {relative_seconds}s does not fit a sample index"),
             ));
         }
+
+        let physical_db = dyn_db(&attack.dynamic) + attack.articulation_db;
+        let gain = db_to_gain(physical_db);
+        if !gain.is_finite() || gain <= 0.0 {
+            return Err(ctx_error(
+                session.first_bar,
+                abbr,
+                format!(
+                    "dynamic {:?} plus articulation {} dB produced invalid physical attack gain {gain}",
+                    attack.dynamic, attack.articulation_db
+                ),
+            ));
+        }
         frames.push(AttackFrame {
             at_sample: sample.round() as usize,
-            gain: 1.0,
+            gain,
         });
+        dynamics.push(attack.dynamic.clone());
+        articulation_db.push(attack.articulation_db);
+        gain_db.push(physical_db);
     }
-    Ok(frames)
+
+    Ok(LoweredAttacks {
+        frames,
+        dynamics,
+        articulation_db,
+        gain_db,
+    })
 }
 
 pub(super) fn walk_track(
@@ -93,13 +139,8 @@ pub(super) fn walk_track(
         )
     })?;
 
-    let attacks = attack_frames(&session, abbr)?;
-    let attack_samples = attacks
-        .iter()
-        .map(|attack| attack.at_sample.to_string())
-        .collect::<Vec<_>>()
-        .join(",");
-    let notated_event_count = session.note_onsets.len();
+    let attacks = lower_attacks(&session, abbr)?;
+    let notated_event_count = session.attacks.len();
     program
         .metadata
         .insert("lifetime_scope".to_string(), "track".to_string());
@@ -116,14 +157,32 @@ pub(super) fn walk_track(
     );
     program.metadata.insert(
         "physical_attack_count".to_string(),
-        attacks.len().to_string(),
+        attacks.frames.len().to_string(),
     );
-    program
-        .metadata
-        .insert("attack_samples".to_string(), attack_samples);
-    program
-        .metadata
-        .insert("attack_gain_policy".to_string(), "unity-v2".to_string());
+    program.metadata.insert(
+        "attack_samples".to_string(),
+        join_values(attacks.frames.iter().map(|attack| attack.at_sample)),
+    );
+    program.metadata.insert(
+        "attack_dynamics".to_string(),
+        attacks.dynamics.join(","),
+    );
+    program.metadata.insert(
+        "attack_articulation_db".to_string(),
+        join_values(attacks.articulation_db.iter().copied()),
+    );
+    program.metadata.insert(
+        "attack_gain_db".to_string(),
+        join_values(attacks.gain_db.iter().copied()),
+    );
+    program.metadata.insert(
+        "attack_gains".to_string(),
+        join_values(attacks.gains()),
+    );
+    program.metadata.insert(
+        "attack_gain_law".to_string(),
+        "10^((dynamic_db+gain_articulation_db)/20)".to_string(),
+    );
     program.metadata.insert(
         "attack_excitation_identity".to_string(),
         "constructor-content-keyed-template".to_string(),
@@ -131,10 +190,9 @@ pub(super) fn walk_track(
     program
         .metadata
         .insert("attack_overlap_policy".to_string(), "refuse-v1".to_string());
-    program.metadata.insert(
-        "body_construction_count".to_string(),
-        "1".to_string(),
-    );
+    program
+        .metadata
+        .insert("body_construction_count".to_string(), "1".to_string());
     program.metadata.insert(
         "event_local_body_construction_baseline".to_string(),
         notated_event_count.to_string(),
@@ -160,21 +218,8 @@ pub(super) fn walk_track(
     );
     program.metadata.insert(
         "execution_strategy".to_string(),
-        "prevalidated-monotone-attack-cursor+network-observer-off-v2".to_string(),
+        "prevalidated-monotone-attack-cursor+fully-unobserved-course-kernel-v3".to_string(),
     );
-
-    if attacks.len() > 1
-        && program
-            .metadata
-            .get("strict_transport")
-            .is_some_and(|value| value == "true" || value == "1")
-    {
-        return Err(ctx_error(
-            session.first_bar,
-            abbr,
-            "traj_strict=1 refuses multi-attack track lifetime until rearticulation excitation work is carried by the energy ledger",
-        ));
-    }
 
     let has_sing_lane = program
         .tracks
@@ -209,7 +254,7 @@ pub(super) fn walk_track(
             return Err(ctx_error(
                 session.first_bar,
                 abbr,
-                "string.breath cannot rise from zero in track-lifetime v2 because its content-keyed noise channels must be preallocated at body construction",
+                "string.breath cannot rise from zero in track lifetime because its content-keyed noise channels must be preallocated at body construction",
             ));
         }
     }
@@ -239,10 +284,8 @@ pub(super) fn walk_track(
         )
     })?;
 
-    // This is the final authoring-level refusal gate and still occurs before a
-    // StringNetworkVoice exists. It derives the exact constructor excitation
-    // span, validates monotone non-overlapping attacks, and fixes the attack
-    // topology against the pitch-scaled course set.
+    // This remains the final authoring-level refusal gate and still occurs
+    // before a StringNetworkVoice exists.
     let drive_samples = usize::try_from(program.duration_samples).map_err(|_| {
         ctx_error(
             session.first_bar,
@@ -254,7 +297,7 @@ pub(super) fn walk_track(
         &static_patch,
         &lowered.frequencies_hz,
         drive_samples,
-        &attacks,
+        &attacks.frames,
     )
     .map_err(|error| {
         ctx_error(
@@ -294,9 +337,16 @@ pub(super) fn walk_track(
             format!("track rearticulation invariant: {error}"),
         )
     })?;
-    debug_assert_eq!(scheduled.receipt().attack_count, attacks.len());
-    let audio = scheduled
-        .render_controlled(&lowered.control_frames)
+    debug_assert_eq!(scheduled.receipt().attack_count, attacks.frames.len());
+    let receipted = WorkReceiptedStringVoice::new(scheduled).map_err(|error| {
+        ctx_error(
+            session.first_bar,
+            abbr,
+            format!("track attack-work allocation: {error}"),
+        )
+    })?;
+    let rendered = receipted
+        .render_controlled_with_receipt(&lowered.control_frames)
         .map_err(|error| {
             ctx_error(
                 session.first_bar,
@@ -308,22 +358,20 @@ pub(super) fn walk_track(
     let mut receipt = lowered.receipt;
     receipt.trajectory.claim_level = TRACK_LIFETIME_CLAIM.to_string();
     receipt.trajectory.evidence_class = TRACK_LIFETIME_EVIDENCE.to_string();
-    if attacks.len() > 1 {
-        receipt
-            .unresolved_obligations
-            .push(REARTICULATION_WORK_OBLIGATION.to_string());
-        receipt.unresolved_obligations.sort_unstable();
-        receipt.unresolved_obligations.dedup();
-    }
+    receipt.rearticulation = Some(rendered.receipt);
 
     let audio = crate::transforms::apply_chain(
-        audio,
+        rendered.audio,
         &session.first_event,
         session.duration_seconds,
     )
     .map_err(|error| ctx_existing(session.first_bar, abbr, error))?;
-    let db = crate::transforms::level_db(&session.dynamic, voice, &session.first_event)
-        .map_err(|error| ctx_existing(session.first_bar, abbr, error))?;
+
+    // Dynamics and gain articulations now own physical excitation. Voice trim
+    // and explicit `gain=` remain session-placement controls.
+    let db = voice.gain_db
+        + require_f64(&session.first_event.params, "gain", 0.0)
+            .map_err(|error| ctx_existing(session.first_bar, abbr, error))?;
     let Some((start, audio)) = truncate_to_render(audio, session.onset_seconds, ctx.n_total) else {
         return Ok(());
     };
@@ -337,7 +385,7 @@ pub(super) fn walk_track(
     let gain = db_to_gain(db);
 
     if ctx.sc_track == Some(abbr) {
-        sc_onsets.extend(session.note_onsets.iter().copied());
+        sc_onsets.extend(session.attacks.iter().map(|attack| attack.onset_seconds));
     }
     if ctx.eager {
         buffers.mix_one(start, &left, &right, send, gain, None);
