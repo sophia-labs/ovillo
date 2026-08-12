@@ -1,0 +1,84 @@
+{
+  "format": "mus-trajectory/v1",
+  "sample_rate_hz": 48000,
+  "duration_samples": 14400,
+  "hold_final": true,
+  "lanes": [
+    {
+      "target": "jaw_open",
+      "unit": "normalized",
+      "curve": "smoothstep",
+      "value_space": "linear",
+      "min_value": -1.0,
+      "max_value": 1.0,
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": -0.25
+        },
+        {
+          "at_sample": 14399,
+          "value": 0.65
+        }
+      ]
+    },
+    {
+      "target": "tongue_back",
+      "unit": "normalized",
+      "curve": "smoothstep",
+      "value_space": "linear",
+      "min_value": -1.0,
+      "max_value": 1.0,
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": 0.5
+        },
+        {
+          "at_sample": 14399,
+          "value": -0.4
+        }
+      ]
+    },
+    {
+      "target": "gain",
+      "unit": "normalized",
+      "curve": "smootherstep",
+      "value_space": "linear",
+      "min_value": 0.0,
+      "max_value": 1.2,
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": 0.2
+        },
+        {
+          "at_sample": 7200,
+          "value": 0.9
+        },
+        {
+          "at_sample": 14399,
+          "value": 0.6
+        }
+      ]
+    },
+    {
+      "target": "f0_ratio",
+      "unit": "ratio",
+      "curve": "linear",
+      "value_space": "log2",
+      "min_value": 0.5,
+      "max_value": 2.0,
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": 1.0
+        },
+        {
+          "at_sample": 14399,
+          "value": 1.25
+        }
+      ]
+    }
+  ]
+}

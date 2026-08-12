@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia.systems/schemas/mus-trajectory-program-v1.json",
+  "title": "MUS Trajectory Program v1",
+  "description": "A validated continuous scalar-control program for a persistent physical instrument body.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "sample_rate_hz",
+    "duration_samples",
+    "hold_final",
+    "lanes"
+  ],
+  "properties": {
+    "format": {
+      "const": "mus-trajectory/v1"
+    },
+    "sample_rate_hz": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "duration_samples": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "hold_final": {
+      "const": true,
+      "description": "V1 holds final values. Return-to-baseline needs a future explicit work/disposal law."
+    },
+    "lanes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/lane"
+      }
+    }
+  },
+  "$defs": {
+    "knot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at_sample", "value"],
+      "properties": {
+        "at_sample": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "value": {
+          "type": "number"
+        }
+      }
+    },
+    "lane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "unit",
+        "curve",
+        "value_space",
+        "knots"
+      ],
+      "properties": {
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "curve": {
+          "enum": ["step", "linear", "smoothstep", "smootherstep"]
+        },
+        "value_space": {
+          "enum": ["linear", "log2"]
+        },
+        "min_value": {
+          "type": "number"
+        },
+        "max_value": {
+          "type": "number"
+        },
+        "max_rate_per_second": {
+          "type": "number",
+          "minimum": 0
+        },
+        "knots": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/knot"
+          }
+        }
+      }
+    }
+  }
+}

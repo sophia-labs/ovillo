@@ -1,5 +1,4 @@
 [workspace]
-resolver = "2"
 members = [
     "crates/mus-notation",
     "crates/mus-oplog",
@@ -10,12 +9,14 @@ members = [
     "crates/mus-vocab",
     "crates/mus-dsp",
     "crates/mus-watsn",
+    "crates/mus-trajectory",
     "crates/mus-gesture",
     "crates/np-rand",
     "plugins/ariadne-clap",
 ]
+resolver = "2"
 
 [workspace.package]
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/sophia-labs/mus"
+repository = "https://github.com/sophia-labs/instrument"

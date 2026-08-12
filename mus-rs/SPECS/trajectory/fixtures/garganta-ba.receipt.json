@@ -1,0 +1,62 @@
+{
+  "format": "mus-trajectory/v1",
+  "program_sha256": "fec0cedf95a3c61acb71457755fe330300dd4c24b9757d5d7a67db09f4ba1082",
+  "sample_rate_hz": 48000,
+  "duration_samples": 14400,
+  "lane_count": 4,
+  "zero_motion": false,
+  "lanes": [
+    {
+      "target": "jaw_open",
+      "unit": "normalized",
+      "curve": "smoothstep",
+      "continuity": "c1",
+      "value_space": "linear",
+      "knot_count": 2,
+      "zero_motion": false,
+      "minimum": -0.25,
+      "maximum": 0.65,
+      "discontinuous": false,
+      "observed_max_rate_per_second": 4.500312521702896
+    },
+    {
+      "target": "tongue_back",
+      "unit": "normalized",
+      "curve": "smoothstep",
+      "continuity": "c1",
+      "value_space": "linear",
+      "knot_count": 2,
+      "zero_motion": false,
+      "minimum": -0.4,
+      "maximum": 0.5,
+      "discontinuous": false,
+      "observed_max_rate_per_second": 4.500312521702896
+    },
+    {
+      "target": "gain",
+      "unit": "normalized",
+      "curve": "smootherstep",
+      "continuity": "c2",
+      "value_space": "linear",
+      "knot_count": 3,
+      "zero_motion": false,
+      "minimum": 0.2,
+      "maximum": 0.9,
+      "discontinuous": false,
+      "observed_max_rate_per_second": 8.75
+    },
+    {
+      "target": "f0_ratio",
+      "unit": "ratio",
+      "curve": "linear",
+      "continuity": "c0",
+      "value_space": "log2",
+      "knot_count": 2,
+      "zero_motion": false,
+      "minimum": 1.0,
+      "maximum": 1.25,
+      "discontinuous": false,
+      "observed_max_rate_per_second": 1.0731681751922628
+    }
+  ]
+}
