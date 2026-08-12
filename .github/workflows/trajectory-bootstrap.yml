@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the integration branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
@@ -62,6 +62,21 @@ jobs:
         run: |
           set -euo pipefail
           tar -xzf /tmp/trajectory-patch.tar.gz -C .
+          python - <<'PY'
+          from pathlib import Path
+
+          for relative in (
+              '.string-research/TRAJECTORY-IMPLEMENTATION-REPORT.md',
+              'SPEC-TRAJECTORY.md',
+              'mus-rs/SPECS/playable/PW11-trajectories.md',
+          ):
+              path = Path(relative)
+              lines = path.read_text(encoding='utf-8').splitlines()
+              path.write_text(
+                  '\n'.join(line.rstrip(' \t') for line in lines) + '\n',
+                  encoding='utf-8',
+              )
+          PY
           rm -rf .trajectory-bootstrap
           rm .github/workflows/trajectory-bootstrap.yml
           python -m compileall -q mus_analysis tests
