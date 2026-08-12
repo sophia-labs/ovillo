@@ -29,6 +29,10 @@ jobs:
           uv run --script mus-rs/tools/parity_render.py --build --write-expectations
           grep -q 'sha256:23d228821d40ee008899f27c84b510b9b8127aea91afbeb8ed4385a4812e7fbd' \
             mus-rs/crates/mus-cli/tests/fixtures/parity_expectations.json
+          # The generator always refreshes its larger working report too;
+          # this gate is intentionally scoped to the independently replayed
+          # fast-subset receipt.
+          git restore mus-rs/parity/parity-report.json
       - name: Verify scope, self-clean, and commit
         shell: bash
         run: |
@@ -36,14 +40,13 @@ jobs:
           rm -f .trajectory-baseline-parity.log
           rm .github/workflows/trajectory-refresh-parity.yml
           python - <<'PY'
-          from pathlib import Path
+          import subprocess
 
           allowed = {
               '.trajectory-baseline-parity.log',
               '.github/workflows/trajectory-refresh-parity.yml',
               'mus-rs/crates/mus-cli/tests/fixtures/parity_expectations.json',
           }
-          import subprocess
           changed = set(
               subprocess.check_output(['git', 'status', '--porcelain=v1'], text=True)
               .splitlines()
