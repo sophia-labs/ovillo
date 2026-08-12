@@ -131,14 +131,34 @@ fitted speaker throat    + gesture ES         2.0162   (350 gens, plateaued;
 warm start (fitted states, no gesture)        3.6384
 ```
 
-Two independent architectures — a generic string-network voice and the
-mathematicians' evolved Kelly-Lochbaum speaker throat — converge onto
-the same wall at ~1.9-2.0. The anatomy fit collapses the warm-start gap
-by 1.6 points (the resonator matters enormously) but cannot cross the
-floor, and neither machine can: the shared residual is what neither has
-— fast within-note articulation (G1), energy-honest closures/bursts
-(G2), and a physical fold source (G3; the fitted-throat run carries a
-declared-diagnostic Rosenberg pulse). This is the round-5 priority
-order confirmed empirically from two directions. Tool:
-`mus-rs/tools/speak_mimic_unified.py`; artifacts in the listening
-folder (`garganta-evolved/`).
+Two architectures reach the same **order of aggregate spectral
+residual** at ~1.9-2.0. What the run establishes: the fitted throat is
+usable in a word-level optimization loop; the receipt's static state
+fits are not an utterance trajectory (the dynamic source/articulation
+solve bought 1.62 points, 44.6% of the warm start); and a large
+residual survives thousands of evaluations on both machines.
+
+**Attribution correction (mathematicians' review, 2026-08-11, accepted
+in full):** the 3.64 → 2.02 improvement is a *gesture/source-program*
+effect on a FIXED anatomy — the anatomy never varied, so this
+measurement does not isolate the resonator's contribution, and the
+first recording of this section overclaimed it. Nor is 1.9204 vs
+2.0162 a controlled architecture comparison: the generic run carries a
+hand-authored word scaffold with an exact closure (the fitted run has
+none), budgets differ per dimension (282 vs 131 evals/dim), and the
+unified renderer has two confessed confounds — per-state peak
+normalization (erases the absolute attenuation G2 physics) and
+overlap-add without a weight buffer (1024 Hann at 480 hop is not
+COLA). Evidence class: **exploratory construction-oracle
+convergence**, per `TWO-MACHINE-PLATEAU.md` (binding G7/G8 amendment,
+PR #1), which defines the staged causal program: P0 renderer
+validation gates everything; P1 anatomy counterfactuals (MAP vs
+neutral/shuffled/random/posterior under paired seeds) is the most
+important immediate experiment; P2-P6 bound G1/G2/G3 separately and
+replicate before any wall is called shared.
+
+G1/G2/G3 remain the priority order as *hypotheses with engineering
+value* — supported, not yet individually confirmed. Tool:
+`mus-rs/tools/speak_mimic_unified.py`; run receipts committed beside
+this file's artifacts; audio in the listening folder
+(`garganta-evolved/`).
