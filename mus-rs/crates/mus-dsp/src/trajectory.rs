@@ -106,11 +106,12 @@ impl StringTrajectoryError {
 
 impl From<TrajectoryError> for StringTrajectoryError {
     fn from(error: TrajectoryError) -> Self {
+        let core_code = error.code().to_string();
         Self {
             kind: StringTrajectoryErrorKind::Core,
             coordinate: error.coordinate,
             message: error.message,
-            core_code: Some(error.code().to_string()),
+            core_code: Some(core_code),
         }
     }
 }
