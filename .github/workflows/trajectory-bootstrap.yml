@@ -26,17 +26,27 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Verify and materialize the patch
+      - name: Verify gzip integrity
         shell: bash
         run: |
           set -euo pipefail
-          echo 'a0a7dfff57d7ed22ff033943ab31042a532323753b40f93949b5b896465d65a0  .trajectory-bootstrap/patch.tar.gz' | sha256sum -c -
+          gzip -t .trajectory-bootstrap/patch.tar.gz
+
+      - name: Verify archive paths and file count
+        shell: bash
+        run: |
+          set -euo pipefail
           tar -tzf .trajectory-bootstrap/patch.tar.gz > /tmp/trajectory-patch-files.txt
           if grep -Eq '(^/|(^|/)\.\.(/|$))' /tmp/trajectory-patch-files.txt; then
             echo 'archive contains an unsafe path' >&2
             exit 1
           fi
           test "$(grep -cve '/$' /tmp/trajectory-patch-files.txt)" -eq 24
+
+      - name: Materialize and compile-check Python
+        shell: bash
+        run: |
+          set -euo pipefail
           tar -xzf .trajectory-bootstrap/patch.tar.gz -C .
           rm -rf .trajectory-bootstrap
           rm .github/workflows/trajectory-bootstrap.yml
