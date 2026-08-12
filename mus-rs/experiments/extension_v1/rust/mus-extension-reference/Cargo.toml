@@ -1,0 +1,12 @@
+[package]
+name = "mus-extension-reference"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+mus-watsn = { path = "../../../../crates/mus-watsn" }
+
+# Keep this staged reference crate outside the production mus-rs workspace until
+# its API and benchmarks are accepted.
+[workspace]

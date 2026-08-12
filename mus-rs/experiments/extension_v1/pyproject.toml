@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "instrument-extension-v1"
+version = "0.1.0"
+description = "Gestural sequence computation in work-accounted Clifford string media"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["torch>=2.2"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.scripts]
+extension-v1 = "extension_v1.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["extension_v1*"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]

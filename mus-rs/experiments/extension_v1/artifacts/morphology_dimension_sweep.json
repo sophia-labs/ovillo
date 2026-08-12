@@ -1,0 +1,10 @@
+{
+  "full_rows_available_in_delivery_bundle": true,
+  "rows_omitted_from_repository_receipt": 12,
+  "summary": [
+    {"ambient_dim":2,"mean_final_anticommutator_residual":0.8584502140680949,"mean_final_operator_mse":0.015489017901321253,"mean_final_parity":0.9583333333333334,"mean_final_volume_sign":0.7659505208333334,"mean_initial_operator_mse":0.052746959030628204,"mean_initial_parity":0.6805555555555557,"mean_initial_volume_sign":0.5758463541666666,"runs":3,"worst_final_parity_amplitude":0.013156816363334656},
+    {"ambient_dim":3,"mean_final_anticommutator_residual":0.6917449235916138,"mean_final_operator_mse":0.009979347387949625,"mean_final_parity":1.0,"mean_final_volume_sign":0.8118489583333334,"mean_initial_operator_mse":0.02305389071504275,"mean_initial_parity":0.9583333333333334,"mean_initial_volume_sign":0.6962890625,"runs":3,"worst_final_parity_amplitude":0.4658676087856293},
+    {"ambient_dim":4,"mean_final_anticommutator_residual":0.6838034192721049,"mean_final_operator_mse":0.010000010331471762,"mean_final_parity":1.0,"mean_final_volume_sign":0.8118489583333334,"mean_initial_operator_mse":0.02514684262375037,"mean_initial_parity":0.8333333333333334,"mean_initial_volume_sign":0.685546875,"runs":3,"worst_final_parity_amplitude":0.464992880821228},
+    {"ambient_dim":8,"mean_final_anticommutator_residual":0.6877260009447733,"mean_final_operator_mse":0.00998432623843352,"mean_final_parity":1.0,"mean_final_volume_sign":0.8111979166666666,"mean_initial_operator_mse":0.01432626818617185,"mean_initial_parity":1.0,"mean_initial_volume_sign":0.7718098958333334,"runs":3,"worst_final_parity_amplitude":0.46434158086776733}
+  ]
+}
