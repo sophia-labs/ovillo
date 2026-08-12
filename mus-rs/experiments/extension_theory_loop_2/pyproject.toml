@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "extension-theory-loop2"
+version = "0.1.0"
+description = "Theory-driven predictive transport experiments for EXTENSION"
+requires-python = ">=3.11"
+dependencies = ["numpy>=2", "scipy>=1.14", "torch>=2.2", "scikit-learn>=1.5", "matplotlib>=3.9"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["extension_theory_loop2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = [
+  "ignore:Maximum number of iterations.*:sklearn.exceptions.ConvergenceWarning",
+]

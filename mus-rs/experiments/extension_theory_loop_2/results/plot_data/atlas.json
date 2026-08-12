@@ -1,0 +1,111 @@
+{
+  "correlations": {
+    "balanced_participation_rank": {
+      "pearson_p": 0.0064615241150107585,
+      "pearson_r_with_excess_bps": -0.35976974458750166,
+      "spearman_p": 0.0010785766791242884,
+      "spearman_r_with_excess_bps": -0.4254955570745045,
+      "within_process_pairwise_concordance": 0.7083333333333334
+    },
+    "belief_r2": {
+      "pearson_p": 0.38570849704497406,
+      "pearson_r_with_excess_bps": -0.11817311998449052,
+      "spearman_p": 0.022689847109899946,
+      "spearman_r_with_excess_bps": -0.30410116199589887,
+      "within_process_pairwise_concordance": 0.9345238095238095
+    },
+    "future_modes": {
+      "pearson_p": 0.06611818240307674,
+      "pearson_r_with_excess_bps": -0.2473105764993195,
+      "spearman_p": 9.73347653711368e-05,
+      "spearman_r_with_excess_bps": -0.4970798376575305,
+      "within_process_pairwise_concordance": 0.9532710280373832
+    },
+    "future_r2": {
+      "pearson_p": 0.38209189754721745,
+      "pearson_r_with_excess_bps": -0.11906887005929052,
+      "spearman_p": 0.015396659223536183,
+      "spearman_r_with_excess_bps": -0.32235133287764867,
+      "within_process_pairwise_concordance": 0.9404761904761905
+    },
+    "spectral_overlap": {
+      "pearson_p": 0.022721495353924263,
+      "pearson_r_with_excess_bps": -0.30403360422054065,
+      "spearman_p": 1.1340951516441761e-05,
+      "spearman_r_with_excess_bps": -0.5498974709501026,
+      "within_process_pairwise_concordance": 0.7976190476190477
+    },
+    "state_participation_rank": {
+      "pearson_p": 0.01956906299352995,
+      "pearson_r_with_excess_bps": -0.31119104440960293,
+      "spearman_p": 0.005733923682956605,
+      "spearman_r_with_excess_bps": -0.36459330143540675,
+      "within_process_pairwise_concordance": 0.6428571428571429
+    },
+    "state_size": {
+      "pearson_p": 0.3178539548828456,
+      "pearson_r_with_excess_bps": -0.1359255762172435,
+      "spearman_p": 0.07622152547577991,
+      "spearman_r_with_excess_bps": -0.23887737506716553,
+      "within_process_pairwise_concordance": 0.7083333333333334
+    }
+  },
+  "models": [
+    {"excess_bps": 0.18932068492966694, "future_modes": 2, "model_name": "clifford4", "process_name": "p4_fast_clear"},
+    {"excess_bps": 0.1421758069976155, "future_modes": 3, "model_name": "clifford8", "process_name": "p4_fast_clear"},
+    {"excess_bps": 0.04136329516295573, "future_modes": 3, "model_name": "gru4", "process_name": "p4_fast_clear"},
+    {"excess_bps": 0.025555310527416338, "future_modes": 3, "model_name": "gru8", "process_name": "p4_fast_clear"},
+    {"excess_bps": 0.050166524704653416, "future_modes": 3, "model_name": "linear8", "process_name": "p4_fast_clear"},
+    {"excess_bps": 0.4835581313186411, "future_modes": 2, "model_name": "projective4", "process_name": "p4_fast_clear"},
+    {"excess_bps": 0.48147668262279875, "future_modes": 2, "model_name": "projective8", "process_name": "p4_fast_clear"},
+    {"excess_bps": 0.36759234529674917, "future_modes": 2, "model_name": "clifford4", "process_name": "p4_slow_clear"},
+    {"excess_bps": 0.297113429111368, "future_modes": 3, "model_name": "clifford8", "process_name": "p4_slow_clear"},
+    {"excess_bps": 0.08966958265112306, "future_modes": 2, "model_name": "gru4", "process_name": "p4_slow_clear"},
+    {"excess_bps": 0.04471615133449909, "future_modes": 3, "model_name": "gru8", "process_name": "p4_slow_clear"},
+    {"excess_bps": 0.05486887686973364, "future_modes": 3, "model_name": "linear8", "process_name": "p4_slow_clear"},
+    {"excess_bps": 0.7594965388247346, "future_modes": 2, "model_name": "projective4", "process_name": "p4_slow_clear"},
+    {"excess_bps": 0.7614394077223483, "future_modes": 2, "model_name": "projective8", "process_name": "p4_slow_clear"},
+    {"excess_bps": 0.20555501679548366, "future_modes": 2, "model_name": "clifford4", "process_name": "p6_baseline"},
+    {"excess_bps": 0.15003077284926097, "future_modes": 2, "model_name": "clifford8", "process_name": "p6_baseline"},
+    {"excess_bps": 0.04926768282271582, "future_modes": 2, "model_name": "gru4", "process_name": "p6_baseline"},
+    {"excess_bps": 0.032044608556577155, "future_modes": 3, "model_name": "gru8", "process_name": "p6_baseline"},
+    {"excess_bps": 0.046076989706941976, "future_modes": 5, "model_name": "linear8", "process_name": "p6_baseline"},
+    {"excess_bps": 0.46758644054745213, "future_modes": 2, "model_name": "projective4", "process_name": "p6_baseline"},
+    {"excess_bps": 0.46350001264808455, "future_modes": 2, "model_name": "projective8", "process_name": "p6_baseline"},
+    {"excess_bps": 0.05566275333176792, "future_modes": 2, "model_name": "clifford4", "process_name": "p6_cycle"},
+    {"excess_bps": 0.036352388419424335, "future_modes": 3, "model_name": "clifford8", "process_name": "p6_cycle"},
+    {"excess_bps": 0.022247310475528144, "future_modes": 2, "model_name": "gru4", "process_name": "p6_cycle"},
+    {"excess_bps": 0.009135800874616528, "future_modes": 3, "model_name": "gru8", "process_name": "p6_cycle"},
+    {"excess_bps": 0.013741878448391127, "future_modes": 3, "model_name": "linear8", "process_name": "p6_cycle"},
+    {"excess_bps": 0.17396798093028576, "future_modes": 2, "model_name": "projective4", "process_name": "p6_cycle"},
+    {"excess_bps": 0.16920639828153103, "future_modes": 2, "model_name": "projective8", "process_name": "p6_cycle"},
+    {"excess_bps": 0.015133448480062806, "future_modes": 2, "model_name": "clifford4", "process_name": "p6_noisy"},
+    {"excess_bps": 0.009177159683314418, "future_modes": 3, "model_name": "clifford8", "process_name": "p6_noisy"},
+    {"excess_bps": 0.00936070612003524, "future_modes": 3, "model_name": "gru4", "process_name": "p6_noisy"},
+    {"excess_bps": 0.006017166835661254, "future_modes": 3, "model_name": "gru8", "process_name": "p6_noisy"},
+    {"excess_bps": 0.0032398927137281277, "future_modes": 3, "model_name": "linear8", "process_name": "p6_noisy"},
+    {"excess_bps": 0.036449360411667894, "future_modes": 0, "model_name": "projective4", "process_name": "p6_noisy"},
+    {"excess_bps": 0.0373311782499585, "future_modes": 0, "model_name": "projective8", "process_name": "p6_noisy"},
+    {"excess_bps": 0.10092801129216074, "future_modes": 2, "model_name": "clifford4", "process_name": "p6_reversible"},
+    {"excess_bps": 0.08023105127159418, "future_modes": 3, "model_name": "clifford8", "process_name": "p6_reversible"},
+    {"excess_bps": 0.053824234483782187, "future_modes": 3, "model_name": "gru4", "process_name": "p6_reversible"},
+    {"excess_bps": 0.032820315460142316, "future_modes": 3, "model_name": "gru8", "process_name": "p6_reversible"},
+    {"excess_bps": 0.027848772023400904, "future_modes": 4, "model_name": "linear8", "process_name": "p6_reversible"},
+    {"excess_bps": 0.2471258547475446, "future_modes": 0, "model_name": "projective4", "process_name": "p6_reversible"},
+    {"excess_bps": 0.24207328837306338, "future_modes": 1, "model_name": "projective8", "process_name": "p6_reversible"},
+    {"excess_bps": 0.21432264988332847, "future_modes": 3, "model_name": "clifford4", "process_name": "p8_baseline"},
+    {"excess_bps": 0.14453530050601684, "future_modes": 3, "model_name": "clifford8", "process_name": "p8_baseline"},
+    {"excess_bps": 0.04918184013597756, "future_modes": 2, "model_name": "gru4", "process_name": "p8_baseline"},
+    {"excess_bps": 0.03773979069594135, "future_modes": 3, "model_name": "gru8", "process_name": "p8_baseline"},
+    {"excess_bps": 0.037302463383747354, "future_modes": 3, "model_name": "linear8", "process_name": "p8_baseline"},
+    {"excess_bps": 0.41602249965519006, "future_modes": 2, "model_name": "projective4", "process_name": "p8_baseline"},
+    {"excess_bps": 0.4320936177465496, "future_modes": 2, "model_name": "projective8", "process_name": "p8_baseline"},
+    {"excess_bps": 0.056876370135429934, "future_modes": 2, "model_name": "clifford4", "process_name": "p8_slow_weak"},
+    {"excess_bps": 0.04810637965336567, "future_modes": 2, "model_name": "clifford8", "process_name": "p8_slow_weak"},
+    {"excess_bps": 0.03384493399135168, "future_modes": 2, "model_name": "gru4", "process_name": "p8_slow_weak"},
+    {"excess_bps": 0.023380908938522054, "future_modes": 3, "model_name": "gru8", "process_name": "p8_slow_weak"},
+    {"excess_bps": 0.015103094584860291, "future_modes": 3, "model_name": "linear8", "process_name": "p8_slow_weak"},
+    {"excess_bps": 0.11993722142846251, "future_modes": 0, "model_name": "projective4", "process_name": "p8_slow_weak"},
+    {"excess_bps": 0.12134933548621352, "future_modes": 0, "model_name": "projective8", "process_name": "p8_slow_weak"}
+  ]
+}

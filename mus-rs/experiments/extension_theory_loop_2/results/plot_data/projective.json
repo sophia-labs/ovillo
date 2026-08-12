@@ -1,0 +1,17 @@
+{
+  "conditions": {
+    "exact": {"mean_excess_bps": 5.972332548428771e-09, "mean_future_r2": 0.9999999999999756, "mean_initial_excess_bps": 2.7658934080908407e-08, "n": 1, "sample_sd": 0.0, "values": [5.972332548428771e-09]},
+    "horizon": {"mean_excess_bps": 0.4984661213652108, "mean_future_r2": 0.6854173428463719, "mean_initial_excess_bps": 0.5667802718433216, "n": 3, "sample_sd": 0.00037611894670669935, "values": [0.49877307112040314, 0.49857873265394476, 0.49804656032128447]},
+    "nmf": {"mean_excess_bps": 0.024126169170493057, "mean_future_r2": 0.948705595908149, "mean_initial_excess_bps": 0.027681213214533706, "n": 3, "sample_sd": 0.0006556707359398131, "values": [0.02356269920345723, 0.02484583144381413, 0.02396997686420782]},
+    "nmf_horizon": {"mean_excess_bps": 0.02405798282672181, "mean_future_r2": 0.9489103297184297, "mean_initial_excess_bps": 0.027681213214533706, "n": 3, "sample_sd": 0.000620562887779416, "values": [0.02346793676283182, 0.024705117388661317, 0.024000894328672303]},
+    "random": {"mean_excess_bps": 0.49923104525734613, "mean_future_r2": 0.6867218035942441, "mean_initial_excess_bps": 0.5667802718433216, "n": 3, "sample_sd": 0.0006835841076700384, "values": [0.49992868704504445, 0.4985624444637192, 0.4992020042632749]},
+    "rank_continuation": {"mean_excess_bps": 0.47727947828220846, "mean_future_r2": 0.6865572140770783, "mean_initial_excess_bps": 0.5220965857599843, "n": 3, "sample_sd": 0.01953513375332282, "values": [0.4887244401320159, 0.4547230706926031, 0.4883909240220063]}
+  },
+  "stream_sweep": [
+    {"factorization_error": 0.08731842841747435, "initial_excess_bps": 0.03437117810601849, "mean_shift_residual": 0.016030857205803863, "stream_length": 20000},
+    {"factorization_error": 0.048651218176063764, "initial_excess_bps": 0.024540862713601407, "mean_shift_residual": 0.011815725148910616, "stream_length": 50000},
+    {"factorization_error": 0.03968165781560326, "initial_excess_bps": 0.019896577692501798, "mean_shift_residual": 0.011067326338211872, "stream_length": 100000},
+    {"factorization_error": 0.03484558122628199, "initial_excess_bps": 0.028640175662366988, "mean_shift_residual": 0.010626234276654632, "stream_length": 250000},
+    {"factorization_error": 0.054470215269812064, "initial_excess_bps": 0.02798208814366547, "mean_shift_residual": 0.011263115250353234, "stream_length": 500000}
+  ]
+}

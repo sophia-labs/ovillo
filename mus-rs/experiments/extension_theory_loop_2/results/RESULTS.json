@@ -1,0 +1,47 @@
+{
+  "claim_boundary": {
+    "established": [
+      "predictive-mode decodability ranks models within a process better than raw state size",
+      "observable NMF+NNLS enters a near-oracle positive-projective basin",
+      "generic CCA can raise balanced rank without improving prediction",
+      "functional attention rank follows task routing rank",
+      "typed projective and Clifford branches solve distinct controlled mechanisms",
+      "local positive cube transport converges with exact mass/storage receipts"
+    ],
+    "not_established": [
+      "universal loss law",
+      "statistically consistent positive realization recovery",
+      "untyped transport-category discovery",
+      "head-emergence timing law",
+      "localization of arbitrary positive operators",
+      "natural-language advantage"
+    ]
+  },
+  "headline": {
+    "atlas_future_mode_concordance": 0.9532710280373832,
+    "atlas_state_size_concordance": 0.7083333333333334,
+    "attention_rank_correlation": 0.9991055,
+    "attention_rank_mae": 0.03076,
+    "balanced_baseline_excess_bps": 0.10312967162596114,
+    "balanced_baseline_rank": 2.7086302412373287,
+    "balanced_cca_excess_bps": 0.10557349971041101,
+    "balanced_cca_rank": 2.854329995368339,
+    "compartment_max_mass_residual": 4.440892098500626e-15,
+    "compartment_max_storage_residual": 1.1102230246251565e-16,
+    "compartment_microstep64_excess_bps": 1.1844692975768506e-06,
+    "mixture_area_clifford_weight": 0.9697540799776713,
+    "mixture_filter_projective_weight": 0.9700322349866232,
+    "projective_gap_reduction_fraction": 0.9516733396296371,
+    "projective_nmf_excess_bps": 0.024126169170493057,
+    "projective_random_excess_bps": 0.49923104525734613
+  },
+  "schema_version": "extension-theory-loop-2/v1",
+  "source_files": {
+    "atlas": "results/plot_data/atlas.json",
+    "attention": "results/plot_data/attention.json",
+    "balanced": "results/plot_data/balanced.json",
+    "compartmental": "results/plot_data/compartmental.json",
+    "mixture": "results/plot_data/mixture.json",
+    "projective": "results/plot_data/projective.json"
+  }
+}

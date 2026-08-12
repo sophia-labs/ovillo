@@ -1,0 +1,46 @@
+name: Extension Theory Loop 2
+
+on:
+  push:
+    paths:
+      - "mus-rs/experiments/extension_theory_loop_2/**"
+      - ".github/workflows/extension-theory-loop-2.yml"
+  pull_request:
+    paths:
+      - "mus-rs/experiments/extension_theory_loop_2/**"
+      - ".github/workflows/extension-theory-loop-2.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mus-rs/experiments/extension_theory_loop_2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: mus-rs/experiments/extension_theory_loop_2/pyproject.toml
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e '.[test]'
+      - run: python -m compileall -q src tests
+      - run: pytest
+      - name: Rebuild figure smoke
+        run: python -m extension_theory_loop2.make_plots --root . --output /tmp/extension-loop2-plots
+      - name: Replay local-compartment ledger
+        run: |
+          python -m extension_theory_loop2.compartmental --output /tmp/extension-loop2-compartment.json > /tmp/extension-loop2-compartment.log
+          python - <<'PY'
+          import json
+          data = json.load(open('/tmp/extension-loop2-compartment.json'))
+          row = data['rows'][-1]
+          assert row['excess_bps'] < 1e-4
+          assert row['ledger']['maximum_mass_residual'] < 1e-10
+          assert row['ledger']['maximum_storage_ledger_residual'] < 1e-10
+          PY
