@@ -578,9 +578,8 @@ impl TrajectoryProgram {
             let seconds = (pair[1].at_sample - pair[0].at_sample) as f64 / sample_rate;
             let (rate_factor, acceleration_factor, effort_factor) =
                 interpolation_factors(track.interpolation);
-            match rate_factor {
-                Some(factor) => max_rate = max_rate.max(factor * delta.abs() / seconds),
-                None => {}
+            if let Some(factor) = rate_factor {
+                max_rate = max_rate.max(factor * delta.abs() / seconds);
             }
             match acceleration_factor {
                 Some(factor) => {
