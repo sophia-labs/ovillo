@@ -32,26 +32,26 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          path = Path('mus-rs/crates/mus-trajectory/src/lib.rs')
-          text = path.read_text(encoding='utf-8')
-          old = '''            match rate_factor {
-              Some(factor) => max_rate = max_rate.max(factor * delta.abs() / seconds),
-              None => {}
-            }
-'''
-          if old not in text:
-              old = '''            match rate_factor {
-                Some(factor) => max_rate = max_rate.max(factor * delta.abs() / seconds),
-                None => {}
-            }
-'''
-          new = '''            if let Some(factor) = rate_factor {
-                max_rate = max_rate.max(factor * delta.abs() / seconds);
-            }
-'''
-          if text.count(old) != 1:
-              raise SystemExit('expected exactly one single_match block')
-          path.write_text(text.replace(old, new), encoding='utf-8')
+          path = Path("mus-rs/crates/mus-trajectory/src/lib.rs")
+          lines = path.read_text(encoding="utf-8").splitlines()
+          starts = [i for i, line in enumerate(lines) if line.strip() == "match rate_factor {"]
+          if len(starts) != 1:
+              raise SystemExit(f"expected one rate_factor match, found {len(starts)}")
+          start = starts[0]
+          if lines[start + 1].strip() != "Some(factor) => max_rate = max_rate.max(factor * delta.abs() / seconds),":
+              raise SystemExit("unexpected Some arm")
+          if lines[start + 2].strip() != "None => {}":
+              raise SystemExit("unexpected None arm")
+          if lines[start + 3].strip() != "}":
+              raise SystemExit("unexpected match terminator")
+          indent = lines[start][:-len(lines[start].lstrip())]
+          replacement = [
+              f"{indent}if let Some(factor) = rate_factor {{",
+              f"{indent}    max_rate = max_rate.max(factor * delta.abs() / seconds);",
+              f"{indent}}}",
+          ]
+          lines[start:start + 4] = replacement
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
           rm -f .trajectory-clippy.log
           rm .github/workflows/trajectory-fix-clippy.yml
