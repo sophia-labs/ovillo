@@ -1,6 +1,6 @@
 # MUS-T — trajectories through persistent physical bodies
 
-**Status:** executable v1 contract
+**Status:** executable v1 contract; ordinary MUS event dispatch landed
 **Selected repository theme:** certified continuous gesture over persistent bodies
 **Base:** `agent/weave-string-network@352bb2d25bb093bb84a11a9740051b0fa8e73a1b`
 
@@ -151,10 +151,18 @@ such as `pan=-1->1` and `lpf=70->900` remain untouched. The split function
 returns a static patch containing each physical trajectory's initial value and
 a separate immutable program.
 
-The complete score renderer does not yet call this split automatically. The
-live executable entry point in this slice is `mus_dsp::trajectory`; automatic
-`mus-engine` event dispatch is an explicit next gate rather than a hidden
-claim.
+The ordinary `mus-engine` source resolver now invokes this split automatically
+for `synth=pluck` and `synth=weave` events. A non-empty program executes inside
+one persistent `StringNetworkVoice` for the entire event; it is not rendered as
+a succession of reconstructed endpoint notes. When no registered trajectory is
+present, source resolution calls the historical scalar entry points directly.
+That structural-absence law preserves the old path rather than emulating it
+through an empty automation layer.
+
+A trajectory attached to a non-string synth refuses. An event that combines a
+trajectory with the external `sing` source, or authors a `string.sing` lane,
+also refuses until that source path has an explicit supply/work account. These
+are typed execution boundaries, not silent feature loss.
 
 ## 5. String-network adapter
 
@@ -216,6 +224,30 @@ The acceptance battery asserts:
 - native pitch transport is finite and receipt-qualified;
 - strict mode refuses before audio;
 - unrelated arrows remain in the old MUS-A pipeline.
+
+### 5.3 Ordinary render receipt
+
+`mus-engine::source` returns a distinct `RenderedTrajectory` result containing
+the adapter receipt. The event walker joins that immutable body receipt to:
+
+```text
+bar
+track
+onset_seconds
+slot_seconds
+```
+
+without changing the trajectory program or frame digests. `mus render --json`
+exposes the resulting list as optional `trajectoryReceipts`. The field is
+structurally absent on a scalar-only score. The score event placement uses
+camelCase JSON; the nested adapter and trajectory receipts retain their existing
+snake_case schemas.
+
+`mus check` remains an effect-free structural report and does not mint an
+execution receipt. It preserves the raw event parameters, while executable
+trajectory evidence belongs to render output. The warm `renderScore` service
+currently returns its historical envelope; carrying the same optional receipt
+list through that cache is a separate surface task.
 
 ## 6. GARGANTA adapter
 
@@ -281,19 +313,30 @@ factorization while giving its outputs score, engine, and receipt meaning.
 | two-knot native pitch lowering | oracle | live voice | experimental, qualified |
 | nonlinear pitch refusal | yes | yes | typed refusal |
 | GARGANTA area-map motion | yes | n/a | anatomy-static causal control |
-| whole score-engine dispatch | no | no | next gate |
+| whole score-engine dispatch | n/a | committed; gate not executed | event-local persistent execution |
+| ordinary CLI trajectory receipt | n/a | committed; gate not executed | path identity joined to placement |
 | certified variable-rank pitch | no | no | explicit obligation |
 | G1/G2/G3/G5 vocal laws | no | no | explicit separate programs |
 
+The two committed whole-render rows have permanent end-to-end tests, but the
+normal GitHub Actions workspace job for their landing commit was created with
+zero steps and refused by GitHub before execution because the organization
+account's payment/spending limit currently blocks hosted runners. They remain
+**implemented, not CI-verified** until the ordinary repository gate actually
+runs.
+
 ## 9. Next gates
 
-1. Wire the registered-arrow split into `mus-engine::source` and attach the
-   string adapter receipt to render/check output.
-2. Add score-spanning programs whose timebase crosses note events while one
+1. Execute `cargo fmt`, warnings-denied workspace clippy, and the complete
+   release workspace against the ordinary-renderer landing commit once a Rust
+   execution environment is available; do not promote the two committed rows
+   above before that evidence exists.
+2. Carry `trajectoryReceipts` through the warm `renderScore` service cache.
+3. Add score-spanning programs whose timebase crosses note events while one
    body persists.
-3. Implement and compare an integer-delay state connection against the dense
+4. Implement and compare an integer-delay state connection against the dense
    variable-rank oracle; report state, waveform, sideband, pitch, and work
    errors separately.
-4. Run GARGANTA P2 gesture-bandwidth sweeps in this representation.
-5. Make Threader S1 emit posterior trajectory JSON.
-6. Make `SPEC-GESTURE.md` lower effect-level targets into this IR.
+5. Run GARGANTA P2 gesture-bandwidth sweeps in this representation.
+6. Make Threader S1 emit posterior trajectory JSON.
+7. Make `SPEC-GESTURE.md` lower effect-level targets into this IR.
