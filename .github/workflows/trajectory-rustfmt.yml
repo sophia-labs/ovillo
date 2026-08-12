@@ -1,0 +1,47 @@
+name: Canonical Rust formatting for MUS-T
+
+on:
+  push:
+    branches:
+      - agent/trajectory-persistent-bodies
+    paths:
+      - .github/workflows/trajectory-rustfmt.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trajectory-rustfmt-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the integration branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Install Rust formatter
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Apply canonical formatting
+        working-directory: mus-rs
+        run: cargo fmt --all
+
+      - name: Commit formatting and remove this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/trajectory-rustfmt.yml
+          git config user.name 'Sophia trajectory integrator'
+          git config user.email 'noreply@sophia-labs.invalid'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Format MUS-T Rust sources'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
