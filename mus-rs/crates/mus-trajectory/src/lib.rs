@@ -81,7 +81,9 @@ impl DisposalPolicy {
 pub enum StateSemantics {
     #[default]
     FixedCapacity,
-    TopologyEdit { disposition: DisposalPolicy },
+    TopologyEdit {
+        disposition: DisposalPolicy,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -133,9 +135,7 @@ impl TrajectoryTrack {
             return Err(TrajectoryError::for_coordinate(
                 TrajectoryErrorKind::SampleOutOfRange,
                 &self.coordinate,
-                format!(
-                    "sample {sample} is after the authored duration {duration_samples}"
-                ),
+                format!("sample {sample} is after the authored duration {duration_samples}"),
             ));
         }
         let search = self
@@ -144,9 +144,7 @@ impl TrajectoryTrack {
         match search {
             Ok(index) => Ok(self.knots[index].value),
             Err(0) => Ok(self.knots[0].value),
-            Err(index) if index >= self.knots.len() => {
-                Ok(self.knots[self.knots.len() - 1].value)
-            }
+            Err(index) if index >= self.knots.len() => Ok(self.knots[self.knots.len() - 1].value),
             Err(index) => {
                 let left = self.knots[index - 1];
                 let right = self.knots[index];
@@ -548,9 +546,7 @@ impl TrajectoryProgram {
                     return Err(TrajectoryError::for_coordinate(
                         TrajectoryErrorKind::AccelerationLimitExceeded,
                         &track.coordinate,
-                        format!(
-                            "measured acceleration {value} exceeds declared limit {limit}"
-                        ),
+                        format!("measured acceleration {value} exceeds declared limit {limit}"),
                     ));
                 }
                 None if changed => {
@@ -644,10 +640,7 @@ impl TrajectoryProgram {
             put_f64(&mut bytes, track.contract.minimum);
             put_f64(&mut bytes, track.contract.maximum);
             put_option_f64(&mut bytes, track.contract.max_rate_per_second);
-            put_option_f64(
-                &mut bytes,
-                track.contract.max_acceleration_per_second2,
-            );
+            put_option_f64(&mut bytes, track.contract.max_acceleration_per_second2);
             put_option_f64(&mut bytes, track.contract.metric_weight);
             match &track.contract.state_semantics {
                 StateSemantics::FixedCapacity => {
@@ -713,7 +706,8 @@ impl TrajectoryProgram {
 
         let program_digest = sha256_prefixed(&self.semantic_bytes());
         let frame_digest = sha256_prefixed(&frame_semantic_bytes(&frames));
-        let stride_seconds = f64::from(self.control_stride_samples) / f64::from(self.sample_rate_hz);
+        let stride_seconds =
+            f64::from(self.control_stride_samples) / f64::from(self.sample_rate_hz);
         let track_receipts = tracks
             .iter()
             .map(|track| {
@@ -822,9 +816,7 @@ pub fn equally_spaced_track(
     })
 }
 
-fn interpolation_factors(
-    interpolation: Interpolation,
-) -> (Option<f64>, Option<f64>, Option<f64>) {
+fn interpolation_factors(interpolation: Interpolation) -> (Option<f64>, Option<f64>, Option<f64>) {
     match interpolation {
         Interpolation::Step => (None, None, None),
         Interpolation::Linear => (Some(1.0), None, Some(1.0)),
@@ -893,10 +885,8 @@ mod tests {
     use super::*;
 
     fn fixture() -> TrajectoryProgram {
-        TrajectoryProgram::from_json(include_str!(
-            "../fixtures/trajectory-program-v1.json"
-        ))
-        .expect("fixture validates")
+        TrajectoryProgram::from_json(include_str!("../fixtures/trajectory-program-v1.json"))
+            .expect("fixture validates")
     }
 
     #[test]

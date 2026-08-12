@@ -5,7 +5,9 @@
 //! is not a state reset.
 
 use mus_dsp::backbone::{ProtectedBackbone, BACKBONE_MODES};
-use mus_watsn::{Complex64, ComplexGate, ComplexOperatorProgram, ComplexPhaseGate, ComplexTwoModeGate};
+use mus_watsn::{
+    Complex64, ComplexGate, ComplexOperatorProgram, ComplexPhaseGate, ComplexTwoModeGate,
+};
 use serde_json::Value;
 
 fn vectors() -> Value {

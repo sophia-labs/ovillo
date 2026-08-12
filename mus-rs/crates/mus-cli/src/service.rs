@@ -489,11 +489,10 @@ impl Service {
             });
         }
 
-        let mut backbone =
-            ProtectedBackbone::new(4, couple, eta).map_err(|error| ErrorBody {
-                code: "bad-request",
-                message: format!("renderBraidProbe: {error:?}"),
-            })?;
+        let mut backbone = ProtectedBackbone::new(4, couple, eta).map_err(|error| ErrorBody {
+            code: "bad-request",
+            message: format!("renderBraidProbe: {error:?}"),
+        })?;
         if let Some(prepare) = params["prepare"].as_array() {
             if prepare.len() != BACKBONE_MODES {
                 return Err(ErrorBody {
@@ -543,7 +542,10 @@ impl Service {
                 });
             }
             let at_s = event["atSeconds"].as_f64().unwrap_or(0.0).clamp(0.0, 600.0);
-            let slot_s = event["slotSeconds"].as_f64().unwrap_or(1.5).clamp(0.05, 8.0);
+            let slot_s = event["slotSeconds"]
+                .as_f64()
+                .unwrap_or(1.5)
+                .clamp(0.05, 8.0);
             let word = if event["word"].is_null() {
                 None
             } else {
@@ -587,7 +589,9 @@ impl Service {
 
         for event in &parsed {
             // silent gap up to this event: the backbone keeps radiating
-            let gap = event.start_sample.saturating_sub(backbone.absolute_sample());
+            let gap = event
+                .start_sample
+                .saturating_sub(backbone.absolute_sample());
             if gap > 0 {
                 let from = backbone.absolute_sample() as usize;
                 let until = (from + gap as usize).min(timeline.len());

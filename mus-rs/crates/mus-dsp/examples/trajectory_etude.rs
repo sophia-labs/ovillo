@@ -39,14 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap_or_else(|| PathBuf::from("trajectory-etude.wav"));
     let (static_patch, program) = program_from_inline_string_params(&patch(), 2.0)?;
     let program = program.expect("the example carries registered trajectories");
-    let rendered = render_weave_program(
-        &static_patch,
-        &[110.0, 165.0],
-        2.0,
-        1.0,
-        &program,
-        256,
-    )?;
+    let rendered = render_weave_program(&static_patch, &[110.0, 165.0], 2.0, 1.0, &program, 256)?;
 
     let spec = hound::WavSpec {
         channels: 1,
@@ -64,7 +57,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::fs::write(&receipt, serde_json::to_vec_pretty(&rendered.receipt)?)?;
     println!("audio: {}", output.display());
     println!("trajectory receipt: {}", receipt.display());
-    println!("program digest: {}", rendered.receipt.trajectory.program_digest);
+    println!(
+        "program digest: {}",
+        rendered.receipt.trajectory.program_digest
+    );
     println!(
         "unresolved obligations: {}",
         rendered.receipt.unresolved_obligations.join(", ")

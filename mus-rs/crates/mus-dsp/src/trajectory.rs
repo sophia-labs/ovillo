@@ -24,9 +24,8 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 
 use mus_trajectory::{
-    equally_spaced_track, CoordinateContract, Interpolation,
-    StateSemantics, TrajectoryError, TrajectoryProgram, TrajectoryReceipt, TrajectoryTrack,
-    TRAJECTORY_SCHEMA_VERSION,
+    equally_spaced_track, CoordinateContract, Interpolation, StateSemantics, TrajectoryError,
+    TrajectoryProgram, TrajectoryReceipt, TrajectoryTrack, TRAJECTORY_SCHEMA_VERSION,
 };
 use serde::{Deserialize, Serialize};
 
@@ -241,10 +240,7 @@ pub fn program_from_inline_string_params(
 
     let mut metadata = BTreeMap::new();
     metadata.insert("surface".to_string(), "mus-inline-string-v1".to_string());
-    metadata.insert(
-        "strict_transport".to_string(),
-        strict_transport.to_string(),
-    );
+    metadata.insert("strict_transport".to_string(), strict_transport.to_string());
     let program = TrajectoryProgram {
         schema_version: TRAJECTORY_SCHEMA_VERSION.to_string(),
         sample_rate_hz: SR as u32,
@@ -426,12 +422,8 @@ pub fn render_weave_program(
     program: &TrajectoryProgram,
     trace_stride: usize,
 ) -> Result<StringTrajectoryRender, StringTrajectoryError> {
-    let lowered = lower_string_trajectory(
-        program,
-        frequencies_hz,
-        duration_seconds,
-        score_gliss_ratio,
-    )?;
+    let lowered =
+        lower_string_trajectory(program, frequencies_hz, duration_seconds, score_gliss_ratio)?;
     let voice = StringNetworkVoice::weave(
         params,
         &lowered.frequencies_hz,
@@ -454,12 +446,8 @@ pub fn render_guitar_program(
     program: &TrajectoryProgram,
     trace_stride: usize,
 ) -> Result<StringTrajectoryRender, StringTrajectoryError> {
-    let lowered = lower_string_trajectory(
-        program,
-        frequencies_hz,
-        duration_seconds,
-        score_gliss_ratio,
-    )?;
+    let lowered =
+        lower_string_trajectory(program, frequencies_hz, duration_seconds, score_gliss_ratio)?;
     let voice = StringNetworkVoice::guitar(
         params,
         &lowered.frequencies_hz,
@@ -598,10 +586,7 @@ fn parse_positive_f64(key: &str, source: &str) -> Result<f64, StringTrajectoryEr
     Ok(value)
 }
 
-fn parse_interpolation(
-    key: &str,
-    source: &str,
-) -> Result<Interpolation, StringTrajectoryError> {
+fn parse_interpolation(key: &str, source: &str) -> Result<Interpolation, StringTrajectoryError> {
     Interpolation::from_name(source).ok_or_else(|| {
         StringTrajectoryError::new(
             StringTrajectoryErrorKind::InvalidInlineDirective,
@@ -741,15 +726,10 @@ mod tests {
     #[test]
     fn native_pitch_subset_scales_start_and_uses_existing_gliss_path() {
         let source = params(&[("pitch_ratio", "1->1.0594630943592953")]);
-        let (_, program) =
-            program_from_inline_string_params(&source, 0.5).expect("inline program");
-        let lowered = lower_string_trajectory(
-            &program.expect("program"),
-            &[110.0, 165.0],
-            0.5,
-            1.0,
-        )
-        .expect("native pitch lowering");
+        let (_, program) = program_from_inline_string_params(&source, 0.5).expect("inline program");
+        let lowered =
+            lower_string_trajectory(&program.expect("program"), &[110.0, 165.0], 0.5, 1.0)
+                .expect("native pitch lowering");
         assert_eq!(lowered.frequencies_hz, vec![110.0, 165.0]);
         assert!((lowered.native_gliss_ratio - 1.0594630943592953).abs() < 1e-15);
         assert!(lowered.control_frames.is_empty());
@@ -765,15 +745,9 @@ mod tests {
             ("pitch_ratio", "1->1.05->1.1"),
             ("pitch_ratio_curve", "smoothstep"),
         ]);
-        let (_, program) =
-            program_from_inline_string_params(&source, 0.5).expect("inline program");
-        let error = lower_string_trajectory(
-            &program.expect("program"),
-            &[110.0],
-            0.5,
-            1.0,
-        )
-        .expect_err("unsupported pitch path");
+        let (_, program) = program_from_inline_string_params(&source, 0.5).expect("inline program");
+        let error = lower_string_trajectory(&program.expect("program"), &[110.0], 0.5, 1.0)
+            .expect_err("unsupported pitch path");
         assert_eq!(error.kind, StringTrajectoryErrorKind::PitchPathUnsupported);
     }
 
@@ -784,15 +758,9 @@ mod tests {
             ("bow", "0.1->0.5"),
             ("traj_strict", "1"),
         ]);
-        let (_, program) =
-            program_from_inline_string_params(&source, 0.5).expect("inline program");
-        let error = lower_string_trajectory(
-            &program.expect("program"),
-            &[110.0],
-            0.5,
-            1.0,
-        )
-        .expect_err("strict refusal");
+        let (_, program) = program_from_inline_string_params(&source, 0.5).expect("inline program");
+        let error = lower_string_trajectory(&program.expect("program"), &[110.0], 0.5, 1.0)
+            .expect_err("strict refusal");
         assert_eq!(error.kind, StringTrajectoryErrorKind::TransportUncertified);
     }
 }

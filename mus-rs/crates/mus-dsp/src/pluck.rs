@@ -1970,10 +1970,7 @@ impl StringNetworkVoice {
     /// port lands in this note's output. Between-note gaps are the
     /// caller's to advance (`ProtectedBackbone::advance_gap`), so the
     /// backbone's absolute clock is the caller's responsibility.
-    pub fn render_bridged(
-        mut self,
-        backbone: &mut crate::backbone::ProtectedBackbone,
-    ) -> Vec<f32> {
+    pub fn render_bridged(mut self, backbone: &mut crate::backbone::ProtectedBackbone) -> Vec<f32> {
         let mut output = vec![0.0; self.total_samples];
         for sample in output.iter_mut() {
             if self.is_finished() {

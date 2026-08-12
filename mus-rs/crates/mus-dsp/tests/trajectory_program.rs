@@ -61,10 +61,10 @@ fn moving_body_path_is_deterministic_and_nontrivial() {
     let mut full_patch = patch();
     full_patch.extend(static_params);
     let program = program.expect("program");
-    let first = render_weave_program(&full_patch, &NOTES, 0.5, 1.0, &program, 256)
-        .expect("first render");
-    let second = render_weave_program(&full_patch, &NOTES, 0.5, 1.0, &program, 256)
-        .expect("second render");
+    let first =
+        render_weave_program(&full_patch, &NOTES, 0.5, 1.0, &program, 256).expect("first render");
+    let second =
+        render_weave_program(&full_patch, &NOTES, 0.5, 1.0, &program, 256).expect("second render");
     assert_eq!(first.audio, second.audio);
     assert_ne!(
         first.audio,

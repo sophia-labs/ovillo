@@ -68,12 +68,31 @@ pub enum ComplexGate {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ComplexProgramError {
-    DimensionMismatch { expected: usize, actual: usize },
-    RepeatedCoordinate { gate_index: usize, index: usize },
-    CoordinateOutOfRange { gate_index: usize, index: usize, dimension: usize },
-    NonFiniteCoefficient { gate_index: usize },
-    GateNotUnitary { gate_index: usize, residual: f64 },
-    EdgeNotAuthored { gate_index: usize, left: usize, right: usize },
+    DimensionMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    RepeatedCoordinate {
+        gate_index: usize,
+        index: usize,
+    },
+    CoordinateOutOfRange {
+        gate_index: usize,
+        index: usize,
+        dimension: usize,
+    },
+    NonFiniteCoefficient {
+        gate_index: usize,
+    },
+    GateNotUnitary {
+        gate_index: usize,
+        residual: f64,
+    },
+    EdgeNotAuthored {
+        gate_index: usize,
+        left: usize,
+        right: usize,
+    },
 }
 
 /// Receipt for one execution (RUST-API-CONTRACT.md §5). Digest fields are
@@ -147,14 +166,14 @@ impl ComplexOperatorProgram {
                     }
                     let residual = block.unitarity_residual();
                     if residual > unitarity_tolerance {
-                        return Err(ComplexProgramError::GateNotUnitary { gate_index, residual });
+                        return Err(ComplexProgramError::GateNotUnitary {
+                            gate_index,
+                            residual,
+                        });
                     }
                     worst_unitarity = worst_unitarity.max(residual);
                     if let Some(edges) = authored_edges {
-                        let canonical = (
-                            block.left.min(block.right),
-                            block.left.max(block.right),
-                        );
+                        let canonical = (block.left.min(block.right), block.left.max(block.right));
                         let authored = edges
                             .iter()
                             .any(|&(a, b)| (a.min(b), a.max(b)) == canonical);
@@ -343,7 +362,10 @@ mod tests {
             3,
             vec![
                 beam_splitter(0, 1, 0.37),
-                ComplexGate::Phase(ComplexPhaseGate { mode: 2, phase: 1.1 }),
+                ComplexGate::Phase(ComplexPhaseGate {
+                    mode: 2,
+                    phase: 1.1,
+                }),
                 beam_splitter(1, 2, -0.9),
             ],
             None,
@@ -367,7 +389,10 @@ mod tests {
             2,
             vec![
                 beam_splitter(0, 1, 0.61),
-                ComplexGate::Phase(ComplexPhaseGate { mode: 0, phase: -0.4 }),
+                ComplexGate::Phase(ComplexPhaseGate {
+                    mode: 0,
+                    phase: -0.4,
+                }),
             ],
             None,
             ComplexOperatorProgram::DEFAULT_UNITARITY_TOLERANCE,
