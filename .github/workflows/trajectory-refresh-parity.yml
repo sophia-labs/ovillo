@@ -1,0 +1,61 @@
+name: Regenerate stale smoke parity expectation
+
+on:
+  push:
+    branches:
+      - agent/trajectory-persistent-bodies
+    paths:
+      - .github/workflows/trajectory-refresh-parity.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+      - run: sudo apt-get update && sudo apt-get install -y libsoxr-dev
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Regenerate the documented expectation file
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run --script mus-rs/tools/parity_render.py --build --write-expectations
+          grep -q 'sha256:23d228821d40ee008899f27c84b510b9b8127aea91afbeb8ed4385a4812e7fbd' \
+            mus-rs/crates/mus-cli/tests/fixtures/parity_expectations.json
+      - name: Verify scope, self-clean, and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .trajectory-baseline-parity.log
+          rm .github/workflows/trajectory-refresh-parity.yml
+          python - <<'PY'
+          from pathlib import Path
+
+          allowed = {
+              '.trajectory-baseline-parity.log',
+              '.github/workflows/trajectory-refresh-parity.yml',
+              'mus-rs/crates/mus-cli/tests/fixtures/parity_expectations.json',
+          }
+          import subprocess
+          changed = set(
+              subprocess.check_output(['git', 'status', '--porcelain=v1'], text=True)
+              .splitlines()
+          )
+          paths = {line[3:] for line in changed}
+          unexpected = paths - allowed
+          if unexpected:
+              raise SystemExit(f'unexpected parity regeneration changes: {sorted(unexpected)}')
+          PY
+          git config user.name 'Sophia trajectory integrator'
+          git config user.email 'noreply@sophia-labs.invalid'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Refresh stale smoke parity expectation after base/head replay'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
