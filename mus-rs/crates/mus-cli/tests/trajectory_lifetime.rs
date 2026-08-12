@@ -45,7 +45,7 @@ fn score(events_bar_1: &str, couple: &str) -> String {
 # key: C\n\
 # bars: 2\n\
 # instruments:\n\
-#   w = weave (treble, synth=weave, courses=3, couple={couple}, body=0.25, sus=0.20, traj_curve=smootherstep, traj_hz=200, body_lifetime=track)\n\
+#   w = weave (treble, synth=weave, courses=3, strum=0, couple={couple}, body=0.25, sus=0.20, traj_curve=smootherstep, traj_hz=200, body_lifetime=track)\n\
 \n\
 bar 1: w={events_bar_1}\n\
 bar 2: w=A3h Rh\n"
@@ -76,7 +76,7 @@ fn success_json(root: &Path, source: &str, stem: &str) -> serde_json::Value {
 }
 
 #[test]
-fn one_track_body_crosses_note_and_bar_boundaries_with_one_attack() {
+fn one_track_body_receives_three_attacks_across_note_and_bar_boundaries() {
     let root = TempDir::new();
     let source = score(
         "A3q[pan=-0.25->0.25] Rq A3q Rq",
@@ -104,13 +104,21 @@ fn one_track_body_crosses_note_and_bar_boundaries_with_one_attack() {
     assert_eq!(event["slotSeconds"].as_f64(), Some(4.0));
     assert_eq!(
         event["receipt"]["trajectory"]["claim_level"].as_str(),
-        Some("score-spanning-single-body")
+        Some("score-spanning-preallocated-rearticulation")
     );
     assert_eq!(
         event["receipt"]["trajectory"]["evidence_class"].as_str(),
         Some(
-            "validated-numerics+engine-execution+single-construction+monotone-no-trace"
+            "validated-numerics+engine-execution+single-construction+preallocated-attacks+network-observer-off-specialization"
         )
+    );
+    assert!(
+        event["receipt"]["unresolved_obligations"]
+            .as_array()
+            .expect("obligations")
+            .iter()
+            .any(|item| item.as_str() == Some("rearticulation-excitation-work-ledger")),
+        "{event}"
     );
 }
 

@@ -30,7 +30,15 @@ pub mod fixtures;
 pub mod glow;
 pub mod kernels;
 pub mod pitch;
-pub mod pluck;
+
+/// Physically informed guitar and Weave networks, plus the prevalidated
+/// fixed-topology rearticulation extension. The parity-pinned implementation
+/// remains in `src/pluck.rs`; `build.rs` appends the child extension without
+/// widening its private state surface.
+pub mod pluck {
+    include!(concat!(env!("OUT_DIR"), "/pluck_generated.rs"));
+}
+
 pub mod scene;
 pub mod synth;
 pub mod trajectory;

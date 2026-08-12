@@ -1,8 +1,6 @@
-//! Acceptance tests for the track-owned lifetime kernel.
+//! Acceptance tests for the track-owned multi-attack lifetime kernel.
 
 use std::collections::BTreeMap;
-
-use mus_dsp::pluck::{ControlFrame, ControlTarget, StringNetworkVoice};
 
 use crate::gestures::Gesture;
 use crate::layout::{BarMap, BarTiming};
@@ -10,9 +8,7 @@ use crate::mixbus::MixBuffers;
 use crate::pack::{SampleCache, Voice};
 use crate::RenderStats;
 
-use super::render::{
-    render_controlled_voice, walk_track, TRACK_LIFETIME_CLAIM, TRACK_LIFETIME_EVIDENCE,
-};
+use super::render::{walk_track, TRACK_LIFETIME_CLAIM, TRACK_LIFETIME_EVIDENCE};
 use super::WalkContext;
 
 fn context<'a>(
@@ -77,6 +73,7 @@ fn track_voice() -> Voice {
         synth: Some(BTreeMap::from([
             ("synth".to_string(), "weave".to_string()),
             ("courses".to_string(), "3".to_string()),
+            ("strum".to_string(), "0".to_string()),
             ("sus".to_string(), "0.20".to_string()),
             (
                 "couple".to_string(),
@@ -87,35 +84,17 @@ fn track_voice() -> Voice {
     }
 }
 
-#[test]
-fn monotone_executor_is_audio_identical_to_the_traced_executor() {
-    let params = BTreeMap::from([
-        ("synth".to_string(), "weave".to_string()),
-        ("courses".to_string(), "3".to_string()),
-        ("sus".to_string(), "0.12".to_string()),
-    ]);
-    let frames = vec![
-        ControlFrame {
-            at_sample: 0,
-            sets: vec![(ControlTarget::Couple, 0.1)],
-        },
-        ControlFrame {
-            at_sample: 2400,
-            sets: vec![(ControlTarget::Couple, 0.3)],
-        },
-    ];
-    let expected = StringNetworkVoice::weave(&params, &[220.0], 0.1, 1.0)
-        .render_traced_with(128, &frames)
-        .0;
-    let actual = render_controlled_voice(
-        StringNetworkVoice::weave(&params, &[220.0], 0.1, 1.0),
-        &frames,
-    );
-    assert_eq!(actual, expected);
+fn rms(values: &[f32]) -> f64 {
+    (values
+        .iter()
+        .map(|&value| f64::from(value) * f64::from(value))
+        .sum::<f64>()
+        / values.len().max(1) as f64)
+        .sqrt()
 }
 
 #[test]
-fn one_body_spans_two_bars_and_collapses_three_note_boundaries_to_one_attack() {
+fn one_body_receives_three_physical_attacks_across_two_bars() {
     let bar_map = two_bar_map();
     let bar_content = BTreeMap::from([
         (
@@ -157,6 +136,21 @@ fn one_body_spans_two_bars_and_collapses_three_note_boundaries_to_one_attack() {
         event.receipt.trajectory.evidence_class,
         TRACK_LIFETIME_EVIDENCE
     );
+    assert!(
+        event
+            .receipt
+            .unresolved_obligations
+            .iter()
+            .any(|item| item == "rearticulation-excitation-work-ledger")
+    );
+
+    // At sus=0.20 the first attack is effectively gone by the second and
+    // third score onsets. Nontrivial energy around both later onsets is the
+    // audible evidence that they are now physical reattacks, not notation-only
+    // lifetime markers.
+    let left = &buffers.dry[0];
+    assert!(rms(&left[48_000..50_400]) > 1e-6);
+    assert!(rms(&left[96_000..98_400]) > 1e-6);
 }
 
 #[test]
@@ -277,4 +271,39 @@ fn body_lifetime_cannot_be_overridden_by_an_event() {
     )
     .unwrap_err();
     assert!(error.to_string().contains("instrument-owned"), "{error}");
+}
+
+#[test]
+fn strict_transport_refuses_multi_attack_work_without_a_ledger() {
+    let bar_map = two_bar_map();
+    let bar_content = BTreeMap::from([(
+        1,
+        BTreeMap::from([("w".to_string(), "A3q Rq A3q Rq".to_string())]),
+    )]);
+    let gestures = BTreeMap::new();
+    let cache = SampleCache::new();
+    let ctx = context(&bar_map, &bar_content, &gestures, &cache);
+    let mut voice = track_voice();
+    voice
+        .defaults
+        .insert("traj_strict".to_string(), "1".to_string());
+    let mut buffers = MixBuffers::new(ctx.n_total);
+    let mut placed = Vec::new();
+    let mut sc_onsets = Vec::new();
+    let mut stats = RenderStats::default();
+    let error = walk_track(
+        &ctx,
+        &voice,
+        &mut buffers,
+        &mut placed,
+        &mut sc_onsets,
+        &mut stats,
+    )
+    .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("rearticulation excitation work"),
+        "{error}"
+    );
 }

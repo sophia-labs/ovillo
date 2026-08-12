@@ -1,18 +1,22 @@
 //! Score-spanning physical-body execution for `body_lifetime=track`.
 //!
-//! V1 is intentionally narrower than a general note scheduler. One track owns
-//! one fixed-topology `StringNetworkVoice`, receives one attack at the first
-//! note/chord, and then traverses one trajectory timebase across every later
-//! score event and rest until the end of the notated score. Repeated pitches
-//! are lifetime boundaries, not hidden re-attacks. Pitch-set changes, later
-//! event overrides, dynamic changes after the first attack, and every score
-//! hairpin refuse until the persistent voice exposes an explicit allocation-free
-//! rearticulation schedule.
+//! V2 gives one fixed-topology `StringNetworkVoice` to a track and compiles
+//! every repeated note/chord onset into a prevalidated physical
+//! `mus_dsp::pluck::AttackFrame` schedule. The attacks reuse the constructor's
+//! content-keyed excitation template while delay lines, allpass memories,
+//! damping state, modal body, Weave waves, orbit phase, and control state remain
+//! alive across notes, rests, and bar boundaries.
 //!
-//! The executor is also the first production performance specialization for
-//! MUS-T: one body construction replaces N event constructions and N event
-//! tails, and canonical control frames are consumed by a monotone cursor
-//! without allocating `WeaveTrace` telemetry on the ordinary render path.
+//! Later event-local parameter payloads, pitch-set changes, post-first dynamics,
+//! and score hairpins still refuse: V2 owns attack time and unity gain, not yet
+//! per-attack articulation, retune transport, or dynamic mapping.
+//!
+//! The executor is also a production performance specialization: one body
+//! construction replaces N event constructions and tails; attack lookup is a
+//! monotone cursor over preallocated templates; invariant phase offsets and
+//! normalization divisors are hoisted; and the network-level ordinary kernel
+//! omits trace, gesture, backbone, external-drive, edge-telemetry, and body
+//! observer bookkeeping.
 
 mod plan;
 mod render;

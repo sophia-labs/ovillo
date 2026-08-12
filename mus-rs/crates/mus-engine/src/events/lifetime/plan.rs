@@ -35,9 +35,8 @@ pub(super) fn ctx_existing(bar: u32, abbr: &str, error: RenderError) -> RenderEr
 }
 
 const SESSION_POST_SOURCE_PARAMS: &[&str] = &[
-    "chop", "ring", "rwet", "glow", "ghold", "gwarble", "gharm", "pump", "str",
-    "atk", "rel", "lpf", "hpf", "drive", "dist", "crush", "decim", "stut", "gain",
-    "pan", "haas", "send",
+    "chop", "ring", "rwet", "glow", "ghold", "gwarble", "gharm", "pump", "str", "atk", "rel",
+    "lpf", "hpf", "drive", "dist", "crush", "decim", "stut", "gain", "pan", "haas", "send",
 ];
 
 fn is_trajectory_coordinate(key: &str) -> bool {
@@ -78,7 +77,7 @@ fn validate_first_event_surface(event: &Note, bar: u32, abbr: &str) -> Result<()
                 bar,
                 abbr,
                 format!(
-                    "body_lifetime=track first-event param {key:?} belongs to source resolution or an unsupported event-local stage; move persistent controls to the trajectory/instrument surface or await the rearticulation scheduler"
+                    "body_lifetime=track first-event param {key:?} belongs to source resolution or an unsupported event-local stage; move persistent controls to the trajectory/instrument surface"
                 ),
             ));
         }
@@ -113,7 +112,7 @@ fn ensure_continuation_is_plain(
         return Err(ctx_error(
             bar,
             abbr,
-            "body_lifetime=track continuations may only name duration and the fixed pitch set; event params, flags, and gliss belong to the first attack until a rearticulation scheduler exists",
+            "body_lifetime=track v2 continuations schedule a fixed-topology unity-gain attack only; per-attack params, flags, and gliss require the next rearticulation payload contract",
         ));
     }
     Ok(())
@@ -135,7 +134,11 @@ pub(super) fn plan_session(
     let mut note_onsets = Vec::new();
 
     for bar in 1..=ctx.n_bars {
-        let Some(content) = ctx.bar_content.get(&bar).and_then(|tracks| tracks.get(abbr)) else {
+        let Some(content) = ctx
+            .bar_content
+            .get(&bar)
+            .and_then(|tracks| tracks.get(abbr))
+        else {
             continue;
         };
         if content.trim().is_empty() || content.trim() == "-" {
@@ -171,7 +174,7 @@ pub(super) fn plan_session(
                         return Err(ctx_error(
                             bar,
                             abbr,
-                            "body_lifetime=track v1 cannot apply a dynamic change after the persistent attack; author the level as a physical trajectory or split the body lifetime",
+                            "body_lifetime=track v2 does not yet map later score dynamics onto AttackFrame gain; author a physical trajectory or split the body lifetime",
                         ));
                     }
                     if let Some(value) = &event.dyn_value {
@@ -183,7 +186,7 @@ pub(super) fn plan_session(
                     return Err(ctx_error(
                         bar,
                         abbr,
-                        "body_lifetime=track v1 does not project score hairpins onto one placed session; use an authored physical control trajectory",
+                        "body_lifetime=track v2 does not yet lower a score hairpin into attack gain or a physical control trajectory",
                     ));
                 }
                 _ => {}

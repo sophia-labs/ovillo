@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Benchmark event-local versus track-lifetime string rendering.
+"""Benchmark event-local versus rearticulated track-lifetime rendering.
 
-This is a measurement harness, not a CI threshold. The two scores deliberately
-have different physical semantics (three attacks versus one persistent attack),
-so their audio digests are not expected to match. Byte identity of the
-monotone no-trace executor against the traced executor is covered in Rust tests.
+This is a measurement harness, not a CI threshold. Both scores contain three
+notated events and three physical attacks. The event-local score constructs
+three bodies and tails; the track-lifetime score injects all three attacks into
+one persistent body and renders one tail.
+
+Audio digests are not expected to match because retained physical state is the
+feature under test. The one-attack byte law is covered by Rust unit tests.
 """
 
 from __future__ import annotations
@@ -18,23 +21,26 @@ import time
 from pathlib import Path
 from typing import Any
 
+# A constant arrow is intentional. It enters the trajectory executor while
+# leaving coupling physically static, so the benchmark isolates body lifetime
+# and attack scheduling rather than comparing different control walks.
 EVENT_SCORE = """# score: event-local body benchmark
 # tempo: 120
 # time: 4/4
 # bars: 2
 # instruments:
-#   w = weave (treble, synth=weave, courses=11, couple=0.10, body=0.36, sus=2.2, damp=0.31, traj_curve=smootherstep, traj_hz=240)
+#   w = weave (treble, synth=weave, courses=11, strum=0, couple=0.10, body=0.36, sus=2.2, damp=0.31, traj_curve=linear, traj_hz=240)
 
-bar 1: w=A3q[couple=0.10@0->0.34@0.52->0.16@1] Rq A3q[couple=0.16@0->0.30@0.5->0.12@1] Rq
-bar 2: w=A3h[couple=0.12@0->0.28@0.5->0.14@1] Rh
+bar 1: w=A3q[couple=0.10@0->0.10@1] Rq A3q[couple=0.10@0->0.10@1] Rq
+bar 2: w=A3h[couple=0.10@0->0.10@1] Rh
 """
 
-TRACK_SCORE = """# score: track-owned body benchmark
+TRACK_SCORE = """# score: track-owned rearticulated body benchmark
 # tempo: 120
 # time: 4/4
 # bars: 2
 # instruments:
-#   w = weave (treble, synth=weave, body_lifetime=track, courses=11, couple=0.10@0->0.34@0.52->0.16@1, body=0.36, sus=2.2, damp=0.31, traj_curve=smootherstep, traj_hz=240)
+#   w = weave (treble, synth=weave, body_lifetime=track, courses=11, strum=0, couple=0.10@0->0.10@1, body=0.36, sus=2.2, damp=0.31, traj_curve=linear, traj_hz=240)
 
 bar 1: w=A3q Rq A3q Rq
 bar 2: w=A3h Rh
@@ -60,7 +66,9 @@ def render_once(mus: Path, score: Path, output: Path) -> tuple[float, dict[str, 
     elapsed = time.perf_counter() - started
     if completed.returncode != 0:
         raise RuntimeError(
-            f"render failed for {score.name}\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
+            f"render failed for {score.name}\n"
+            f"stdout:\n{completed.stdout}\n"
+            f"stderr:\n{completed.stderr}"
         )
     try:
         receipt = json.loads(completed.stdout)
@@ -86,6 +94,10 @@ def profile(mus: Path, score: Path, root: Path, runs: int) -> dict[str, Any]:
         elapsed.append(seconds)
     assert receipt is not None
     duration = float(receipt.get("durationSeconds", 0.0))
+    trajectory_receipts = receipt.get("trajectoryReceipts", [])
+    unresolved: list[str] = []
+    for item in trajectory_receipts:
+        unresolved.extend(item.get("receipt", {}).get("unresolved_obligations", []))
     return {
         "runs": runs,
         "wallSeconds": {
@@ -103,7 +115,8 @@ def profile(mus: Path, score: Path, root: Path, runs: int) -> dict[str, Any]:
             "renderDigest": receipt.get("renderDigest"),
             "eventCount": receipt.get("eventCount"),
             "durationSeconds": receipt.get("durationSeconds"),
-            "trajectoryReceiptCount": len(receipt.get("trajectoryReceipts", [])),
+            "trajectoryReceiptCount": len(trajectory_receipts),
+            "unresolvedObligations": sorted(set(unresolved)),
         },
     }
 
@@ -116,7 +129,7 @@ def main() -> int:
         required=True,
         help="path to a built mus CLI, preferably target/release/mus",
     )
-    parser.add_argument("--runs", type=int, default=7)
+    parser.add_argument("--runs", type=int, default=9)
     parser.add_argument(
         "--keep",
         type=Path,
@@ -147,12 +160,23 @@ def main() -> int:
     event_median = float(event["wallSeconds"]["median"])
     track_median = float(track["wallSeconds"]["median"])
     report = {
-        "schema": "mus.performance.track-lifetime-benchmark.v1",
+        "schema": "mus.performance.track-lifetime-benchmark.v2",
         "mus": str(mus),
         "semantics": {
-            "eventLocal": "three notated events, three physical attacks, three body constructions and tails",
-            "trackLifetime": "three notated events, one physical attack, one body construction and tail",
+            "eventLocal": (
+                "three notated events, three physical attacks, "
+                "three body constructions and tails"
+            ),
+            "trackLifetime": (
+                "three notated events, three physical attacks, "
+                "one persistent body construction and tail"
+            ),
+            "controlLaw": "constant authored coupling trajectory on both paths",
             "audioParityExpected": False,
+            "reasonParityIsWithheld": (
+                "the track-owned body retains state between attacks; "
+                "event-local bodies begin from zero"
+            ),
         },
         "eventLocal": event,
         "trackLifetime": track,
