@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia.systems/schemas/trajectory-receipt-v1.json",
+  "title": "MUS trajectory compilation receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "compiler_version",
+    "program_digest",
+    "frame_digest",
+    "sample_rate_hz",
+    "duration_samples",
+    "control_stride_samples",
+    "frame_count",
+    "tracks",
+    "claim_level",
+    "evidence_class"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "trajectory-program-v1"
+    },
+    "compiler_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "program_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "frame_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "sample_rate_hz": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "duration_samples": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "control_stride_samples": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "frame_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tracks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "coordinate",
+          "interpolation",
+          "start_value",
+          "end_value",
+          "max_rate_per_second",
+          "max_acceleration_per_second2",
+          "declared_metric_effort",
+          "zero_order_hold_error_bound"
+        ],
+        "properties": {
+          "coordinate": {
+            "type": "string",
+            "minLength": 1
+          },
+          "interpolation": {
+            "enum": ["step", "linear", "smoothstep", "smootherstep", "cosine"]
+          },
+          "start_value": {
+            "type": "number"
+          },
+          "end_value": {
+            "type": "number"
+          },
+          "max_rate_per_second": {
+            "type": ["number", "null"],
+            "minimum": 0
+          },
+          "max_acceleration_per_second2": {
+            "type": ["number", "null"],
+            "minimum": 0
+          },
+          "declared_metric_effort": {
+            "type": "number",
+            "minimum": 0
+          },
+          "zero_order_hold_error_bound": {
+            "type": ["number", "null"],
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "claim_level": {
+      "const": "authored-control-path"
+    },
+    "evidence_class": {
+      "const": "validated-numerics"
+    }
+  }
+}

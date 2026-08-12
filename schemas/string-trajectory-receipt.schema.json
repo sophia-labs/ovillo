@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia.systems/schemas/string-trajectory-receipt-v1.json",
+  "title": "String-network trajectory adapter receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "adapter_version",
+    "trajectory",
+    "native_pitch_transport",
+    "pitch_start_ratio",
+    "pitch_end_ratio",
+    "control_frame_count",
+    "unresolved_obligations",
+    "strict_transport"
+  ],
+  "properties": {
+    "adapter_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trajectory": {
+      "$ref": "trajectory-receipt.schema.json"
+    },
+    "native_pitch_transport": {
+      "enum": ["persistent-linear-f0-to-f1", "score-gliss-or-static"]
+    },
+    "pitch_start_ratio": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "pitch_end_ratio": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "control_frame_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "unresolved_obligations": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "strict_transport": {
+      "type": "boolean"
+    }
+  }
+}

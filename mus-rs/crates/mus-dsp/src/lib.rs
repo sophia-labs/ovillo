@@ -33,6 +33,7 @@ pub mod pitch;
 pub mod pluck;
 pub mod scene;
 pub mod synth;
+pub mod trajectory;
 
 /// Engine sample rate. `mus_audio.py` line 47: `SR = 48_000`.
 pub const SR: usize = 48_000;

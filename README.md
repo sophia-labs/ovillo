@@ -1,20 +1,89 @@
-# mus
+# instrument
 
-A compact, LLM-readable score notation. Designed to enable musical conversation between humans and LLMs as compositional peers. The asymmetry is the design: the human reads the engraved sheet music in its native form, the LLM reads the MUS, and the two readings are faithful enough to the same source that the human and the LLM can talk about the music as peers. Lossless w.r.t. typical sheet-music content, ~10-20× more compact than MusicXML, and tractable for an LLM to read as a score where engraved notation isn't.
+A system for composing, executing, inferring, and certifying continuous
+gestures over persistent physical bodies.
 
-A Sophia Labs project. Spec: [`SPEC.md`](./SPEC.md).
+The repository began as **MUS**, a compact score language for musical
+conversation between humans and language models. It now contains one larger
+program:
 
-## Why
+```text
+score / observation
+    -> authored or inferred trajectory
+    -> persistent physical body
+    -> sound + state/work/claim receipt
+```
 
-Existing score formats weren't designed for the human-and-LLM-together audience. MusicXML round-trips between notation editors. LilyPond engraves to print. Humdrum analyses statistically. ABC fits folk-tune corpora. NoteSequence and REMI tokenize for ML training. Each does its own job; none enables the conversation.
+The major clients are:
 
-MUS is the first attempt at a format whose first audience is the dialogue itself — a composer looks at the engraved score, the LLM reads the MUS, and both are reading the same music. The LLM responds as something closer to a peer than a search engine returning facts. MUS isn't asking the human to read MUS instead of sheet music — engraved notation is the human-native form and shouldn't be replaced. It's what the LLM reads on its side of the conversation. Human-readable enough to write, edit, and diff by hand when needed, but the primary reader of MUS-as-text is the LLM. They meet in the middle through the conversation.
+- **MUS** — notation, sample-bound scoring, and the human/LLM musical surface;
+- **Weave and Ariadne** — coupled string networks, persistent modal state,
+  lawful control-path execution, work ledgers, and protected/non-Abelian
+  research;
+- **GARGANTA** — speaker-static and evolved pseudobiological throats with
+  articulation and source controls;
+- **Threader** — inverse compilation from sound into anatomy and local control
+  programs.
 
-## Quick example
+`SPEC-TRAJECTORY.md` is the current integration seam. A trajectory is a direct,
+content-addressed path through physical coordinates; a gesture is a higher-level
+target whose compiler may choose such a path. The runtime-neutral Rust crate is
+`mus-rs/crates/mus-trajectory`, the Python oracle is
+`mus_analysis/trajectory.py`, and the first live adapters are
+`mus_dsp::trajectory` and `GargantaTrajectoryAdapter`.
+
+The project maintains an explicit claim boundary. A successful render is not by
+itself a theorem about transport, a biological reconstruction, intelligible
+speech, or listener perception. Open obligations travel in receipts and strict
+modes refuse them.
+
+## Repository map
+
+| Area | Purpose |
+|---|---|
+| `SPEC.md`, `mus.py` | MUS notation and MusicXML/MIDI round trips |
+| `SPEC-AUDIO.md`, `mus_audio.py`, `aigua/` | sample-bound MUS and worked music |
+| `mus-rs/` | Rust notation, engine, DSP, gesture, trajectory, and protected-path runtime |
+| `paper/` | Ariadne mathematical constructions, oracles, and evidence packets |
+| `mus-rs/SPECS/garganta/`, `mus_analysis/garganta_anatomy.py` | throat and anatomy program |
+| `mus-rs/experiments/threader_poc/` | hierarchical inverse-instrument POC |
+| `formal/` | Lean refinement experiments |
+| `.string-research/` | research-team briefs, returns, receipts, and state maps |
+
+## MUS — the score language
+
+MUS is a compact, LLM-readable score notation. It is designed to enable musical
+conversation between humans and LLMs as compositional peers. The asymmetry is
+the design: the human reads engraved sheet music in its native form, the LLM
+reads MUS, and the two readings are faithful enough to the same source that the
+human and the LLM can talk about the music as peers. It is lossless with respect
+to typical sheet-music content, approximately 10–20× more compact than
+MusicXML, and tractable for an LLM to read as a score where engraved notation
+is not.
+
+Spec: [`SPEC.md`](./SPEC.md).
+
+### Why
+
+Existing score formats were not designed for the human-and-LLM-together
+audience. MusicXML round-trips between notation editors. LilyPond engraves to
+print. Humdrum analyses statistically. ABC fits folk-tune corpora. NoteSequence
+and REMI tokenize for ML training. Each does its own job; none enables the
+conversation.
+
+MUS is the first attempt at a format whose first audience is the dialogue
+itself: a composer looks at the engraved score, the LLM reads the MUS, and both
+are reading the same music. The LLM responds as something closer to a peer than
+a search engine returning facts. MUS is not asking the human to read MUS instead
+of sheet music. Engraved notation is the human-native form and should not be
+replaced. MUS is what the LLM reads on its side of the conversation. It remains
+human-readable enough to write, edit, and diff by hand when needed.
+
+### Quick example
 
 A 16-bar fragment of "This Is My Body" (5-instrument metal):
 
-```
+```text
 # score: This Is My Body / sketch-v3
 # summary: 16 bars / 5 voices / ~1 min
 # tempo: 82    time: 4/4    key: Dm    bars: 16
@@ -44,95 +113,82 @@ d  5-12: Kq Sq Kq Sq (8×)
 v  6: D4q "i" D4q "loved" D4q "you" D4q "from"
 v  7: D4q "the" D4q "start" D4h R
 v  9: D4q "traced" D4q "your" D4q "steps" D4q "with"
-v  10: D4q "my" D4q "fin_" D4q "gers" D4h R
+v 10: D4q "my" D4q "fin_" D4q "gers" D4h R
 ```
 
-That's 16 bars in ~30 lines. The same content as MusicXML would be 8-12KB of tag overhead.
+That is 16 bars in roughly 30 lines. The same content in MusicXML would carry
+8–12 KB of tag overhead.
 
-See [`SPEC.md`](./SPEC.md) for the full spec.
+### Usage
 
-## Usage
-
-The converter is a single self-contained script with PEP 723 inline metadata. `uv` handles the `music21` dependency automatically.
+The converter is a single self-contained script with PEP 723 inline metadata.
+`uv` handles the `music21` dependency automatically.
 
 ```bash
 ./mus.py path/to/song.musicxml > song.mus
-# or
 ./mus.py path/to/song.mid > song.mus
-# or
 uv run mus.py path/to/song.mxl
 ```
 
-Auto-detects format from extension (`.mid` / `.midi` / `.musicxml` / `.xml` / `.mxl`). The `.mxl` form (zipped MusicXML, what Musescore exports by default) works directly.
+The direction is auto-detected from the input extension. MUS can also be
+converted back to MusicXML or MIDI.
 
-## Status
+### Status
 
-**v0.4 (current).** Implements: bar-major output; within-bar pattern compression; tacet/identical-bar collapse; multi-tempo/key/time headers with inline change distribution for change-heavy pieces; tuplets via notated form (`q3 e5 s7` + `{n:m}`); lyrics with syllabic continuation; expanded articulation taxonomy (general + string); dynamics; hairpin spanners; rehearsal-mark sections; system text comments; slurs; multi-hand naming for polyphonic instruments (`p1.r/p1.l`); header summary line; dynamics-missing diagnostic; relative-pair key rendering when mode is ambiguous.
+**MUS v0.4.** Implements bar-major output; within-bar pattern compression;
+tacet and identical-bar collapse; multi-tempo/key/time headers; tuplets;
+lyrics; expanded articulation taxonomy; dynamics and hairpins; rehearsal
+sections; system text; slurs; multi-hand naming; diagnostics; and reverse
+conversion.
 
-**Tested on:**
+Tested on:
 
-- *This Is My Body* — 171 bars, multi-tempo metal, distorted-guitar tremolos
-- *Crave* — 131 bars, 4/4 → 3/4, key change, 7-string cluster harmony
-- *Composition 1* — 37 bars, oboe + string trio, dense per-voice articulation
-- *Verklärte Nacht* (Schoenberg) — 421 bars, ~30 min, 4 piano staves, 60 tempo changes, late-Romantic chromatic harmony with quintuplet/sextuplet/septuplet figuration
-
-**v0.5 plans:** GM percussion → K/S/H mapping; voltas / explicit repeats / DC / DS / coda; per-track range collapse for partial-match bar groups; cross-bar phrase detection.
-
-**Fixed while building MUS-A** (all in the reverse direction, all found by
-converting a real score rather than by inspection):
-
-- Multi-key header lines (`# tempo: 82  time: 4/4  key: Dm  bars: 16`) didn't
-  parse, despite being the form `SPEC.md` documents — only the one-key-per-line
-  form `main_forward()` emits did. Both now work.
-- Pitch tokens carrying a cents offset silently became **rests**: the parser
-  matched the pitch head, failed on the remainder as a duration, and emitted
-  nothing. Cents are now parsed and carried as `Pitch.microtone`.
-- `MusInstrument.params` / `ParsedMus.extra` now retain `key=value` items and
-  unrecognised header lines instead of discarding them, so extensions can ride
-  on the same declarations.
+- *This Is My Body* — 171 bars, multi-tempo metal;
+- *Crave* — 131 bars, meter and key changes;
+- *Composition 1* — oboe and string trio with dense articulation;
+- *Verklärte Nacht* — 421 bars, four piano staves, 60 tempo changes, and
+  late-Romantic chromatic figuration.
 
 ## Sample-bound MUS (MUS-A)
 
-MUS's core choice — absolute pitch — turns out to be exactly what a sampler
-needs: `A6` doesn't mean "the sixth degree in context", it means *this
-frequency*, and a frequency is what you compare against a sample's measured f0
-to get a transposition. So a MUS file can score recorded audio with no change to
-the note grammar at all.
+MUS's absolute-pitch choice is exactly what a sampler needs. `A6` means a
+frequency, which can be compared with a sample's measured fundamental to derive
+transposition. MUS-A adds notation for stereo position, filter motion, reverb
+send, time-stretch, and related recorded-audio operations inside the existing
+bracket suffix:
 
-[`SPEC-AUDIO.md`](./SPEC-AUDIO.md) specifies the extension and
-[`mus_audio.py`](./mus_audio.py) renders it. What it adds is notation for the
-things engraved notation never needed symbols for — stereo position, filter
-motion, reverb send, time-stretch — carried inside the existing `[...]` suffix
-and distinguished from articulations by containing `=`:
-
-```
+```text
 sb 5: A1+22w[pan=-1->1, lpf=70->900]{ff}
 ```
 
-That reads "a rumbling bass sweeping from left to right, opening as it goes".
-Also added: a cents offset on pitch tokens (`A6+22`), realising the microtonal
-extension `SPEC.md` raises as an open question, and `# tuning: A=445.6` so a
-score can be tuned to its material rather than to concert pitch.
+It also adds cents offsets and score-local tuning:
+
+```text
+A6+22
+# tuning: A=445.6
+```
+
+Render with:
 
 ```bash
 ./mus_audio.py aigua/aigua.mus -o out.wav
 ```
 
-`aigua/` is a worked example: a 56-second field recording from Aigua, Uruguay,
-analysed into a playable instrument (segmentation → clustering → exemplar
-extraction → pitch measurement), and a 2.5-minute piece scored in MUS-A that
-uses nothing but that recording.
+`aigua/` is a worked example: a 56-second field recording from Aiguá, Uruguay,
+analysed into a playable instrument and used to score a 2.5-minute piece.
 
-## Layout
+## Trajectory example
 
-- `mus.py` — the v0.4 converter (MusicXML/MIDI ↔ MUS)
-- `mus_audio.py` — MUS-A → audio renderer
-- `SPEC.md` — full format specification
-- `SPEC-AUDIO.md` — the sample-bound extension
-- `aigua/` — worked example: analysis, sample instrument, score, renders
-- `README.md` — this file
-- `LICENSE` — MIT
+The new vertical slice can be run directly through the live Rust string body:
+
+```bash
+cd mus-rs
+cargo run --release -p mus-dsp --example trajectory_etude -- trajectory-etude.wav
+```
+
+The example writes audio and a sibling trajectory receipt. Python examples for
+both the string body and GARGANTA are under `examples/trajectory/`.
 
 ## License
 
-MIT, for both the converter (`mus.py`) and the spec (`SPEC.md`). See [`LICENSE`](./LICENSE).
+MIT. See [`LICENSE`](./LICENSE).

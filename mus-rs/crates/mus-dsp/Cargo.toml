@@ -13,6 +13,10 @@ libsoxr = "0.2.9"
 # storage + neutral state transport, one-zero damping dissipation). The
 # engine calls them; it does not re-derive them.
 mus-watsn = { path = "../mus-watsn" }
+# MUS-T direct-authorship layer. It compiles named continuous paths to
+# sample-indexed values; this crate owns the body-specific lowering into the
+# existing StringNetworkVoice rather than defining a second executor.
+mus-trajectory = { path = "../mus-trajectory" }
 np-rand = { path = "../np-rand" }
 realfft = "3"
 serde = { version = "1", features = ["derive"] }

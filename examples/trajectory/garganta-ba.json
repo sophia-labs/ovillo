@@ -1,0 +1,199 @@
+{
+  "control_stride_samples": 80,
+  "duration_samples": 4800,
+  "metadata": {
+    "claim_boundary": "control-execution-not-intelligibility",
+    "purpose": "GARGANTA /ba/ transition oracle",
+    "surface": "example-json"
+  },
+  "sample_rate_hz": 16000,
+  "schema_version": "trajectory-program-v1",
+  "tracks": [
+    {
+      "contract": {
+        "maximum": 1,
+        "minimum": -1,
+        "state_semantics": {
+          "kind": "fixed_capacity"
+        },
+        "unit": "normalized"
+      },
+      "coordinate": "garganta.control.jaw_open",
+      "interpolation": "smoothstep",
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": -0.2
+        },
+        {
+          "at_sample": 1600,
+          "value": 0.1
+        },
+        {
+          "at_sample": 4800,
+          "value": 0.55
+        }
+      ]
+    },
+    {
+      "contract": {
+        "maximum": 1,
+        "minimum": -1,
+        "state_semantics": {
+          "kind": "fixed_capacity"
+        },
+        "unit": "normalized"
+      },
+      "coordinate": "garganta.control.tongue_front",
+      "interpolation": "cosine",
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": -0.25
+        },
+        {
+          "at_sample": 2400,
+          "value": 0.35
+        },
+        {
+          "at_sample": 4800,
+          "value": 0.42
+        }
+      ]
+    },
+    {
+      "contract": {
+        "maximum": 1,
+        "minimum": -1,
+        "state_semantics": {
+          "kind": "fixed_capacity"
+        },
+        "unit": "normalized"
+      },
+      "coordinate": "garganta.control.apical_constriction",
+      "interpolation": "smootherstep",
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": 0.72
+        },
+        {
+          "at_sample": 1200,
+          "value": 0.92
+        },
+        {
+          "at_sample": 2600,
+          "value": 0.05
+        },
+        {
+          "at_sample": 4800,
+          "value": 0.0
+        }
+      ]
+    },
+    {
+      "contract": {
+        "maximum": 18,
+        "minimum": 0.025,
+        "state_semantics": {
+          "kind": "fixed_capacity"
+        },
+        "unit": "cm2"
+      },
+      "coordinate": "garganta.tract_area_cm2.17",
+      "interpolation": "smootherstep",
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": 0.35
+        },
+        {
+          "at_sample": 1200,
+          "value": 0.025
+        },
+        {
+          "at_sample": 2600,
+          "value": 1.35
+        },
+        {
+          "at_sample": 4800,
+          "value": 1.6
+        }
+      ]
+    },
+    {
+      "contract": {
+        "maximum": 2,
+        "minimum": 0.5,
+        "state_semantics": {
+          "kind": "fixed_capacity"
+        },
+        "unit": "ratio"
+      },
+      "coordinate": "garganta.source.pitch_ratio",
+      "interpolation": "linear",
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": 1.0
+        },
+        {
+          "at_sample": 4800,
+          "value": 1.03
+        }
+      ]
+    },
+    {
+      "contract": {
+        "maximum": 1.5,
+        "minimum": 0,
+        "state_semantics": {
+          "kind": "fixed_capacity"
+        },
+        "unit": "normalized"
+      },
+      "coordinate": "garganta.source.lung_pressure",
+      "interpolation": "smoothstep",
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": 0.42
+        },
+        {
+          "at_sample": 2400,
+          "value": 0.82
+        },
+        {
+          "at_sample": 4800,
+          "value": 0.58
+        }
+      ]
+    },
+    {
+      "contract": {
+        "maximum": 1,
+        "minimum": 0,
+        "state_semantics": {
+          "kind": "fixed_capacity"
+        },
+        "unit": "normalized"
+      },
+      "coordinate": "garganta.source.velum_aperture",
+      "interpolation": "cosine",
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": 0.0
+        },
+        {
+          "at_sample": 3200,
+          "value": 0.18
+        },
+        {
+          "at_sample": 4800,
+          "value": 0.04
+        }
+      ]
+    }
+  ]
+}

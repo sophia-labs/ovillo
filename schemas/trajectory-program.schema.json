@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia.systems/schemas/trajectory-program-v1.json",
+  "title": "MUS trajectory program v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sample_rate_hz",
+    "duration_samples",
+    "control_stride_samples",
+    "tracks"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "trajectory-program-v1"
+    },
+    "sample_rate_hz": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "duration_samples": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "control_stride_samples": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "tracks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/track"
+      }
+    }
+  },
+  "$defs": {
+    "track": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coordinate", "interpolation", "contract", "knots"],
+      "properties": {
+        "coordinate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "interpolation": {
+          "enum": ["step", "linear", "smoothstep", "smootherstep", "cosine"]
+        },
+        "contract": {
+          "$ref": "#/$defs/contract"
+        },
+        "knots": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/knot"
+          }
+        }
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit", "minimum", "maximum", "state_semantics"],
+      "properties": {
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        },
+        "max_rate_per_second": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_acceleration_per_second2": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "metric_weight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "state_semantics": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": {
+                "kind": {
+                  "const": "fixed_capacity"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "disposition"],
+              "properties": {
+                "kind": {
+                  "const": "topology_edit"
+                },
+                "disposition": {
+                  "enum": ["radiate", "dissipate", "retire", "reject"]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "knot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at_sample", "value"],
+      "properties": {
+        "at_sample": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "value": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

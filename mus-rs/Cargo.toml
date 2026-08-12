@@ -11,6 +11,7 @@ members = [
     "crates/mus-dsp",
     "crates/mus-watsn",
     "crates/mus-gesture",
+    "crates/mus-trajectory",
     "crates/np-rand",
     "plugins/ariadne-clap",
 ]
