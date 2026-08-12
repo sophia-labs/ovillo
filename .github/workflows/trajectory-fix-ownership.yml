@@ -41,33 +41,23 @@ jobs:
           from pathlib import Path
 
           path = Path('mus-rs/crates/mus-dsp/src/trajectory.rs')
-          text = path.read_text(encoding='utf-8')
-          old = '''impl From<TrajectoryError> for StringTrajectoryError {
-    fn from(error: TrajectoryError) -> Self {
-        Self {
-            kind: StringTrajectoryErrorKind::Core,
-            coordinate: error.coordinate,
-            message: error.message,
-            core_code: Some(error.code().to_string()),
-        }
-    }
-}
-'''
-          new = '''impl From<TrajectoryError> for StringTrajectoryError {
-    fn from(error: TrajectoryError) -> Self {
-        let core_code = error.code().to_string();
-        Self {
-            kind: StringTrajectoryErrorKind::Core,
-            coordinate: error.coordinate,
-            message: error.message,
-            core_code: Some(core_code),
-        }
-    }
-}
-'''
-          if text.count(old) != 1:
-              raise SystemExit('expected exactly one TrajectoryError conversion block')
-          path.write_text(text.replace(old, new), encoding='utf-8')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          signatures = [
+              index
+              for index, line in enumerate(lines)
+              if line.strip() == 'fn from(error: TrajectoryError) -> Self {'
+          ]
+          if len(signatures) != 1:
+              raise SystemExit(f'expected one TrajectoryError conversion, found {len(signatures)}')
+          signature = signatures[0]
+          indent = lines[signature][:-len(lines[signature].lstrip())]
+          lines.insert(signature + 1, f'{indent}    let core_code = error.code().to_string();')
+          old = '            core_code: Some(error.code().to_string()),'
+          matches = [index for index, line in enumerate(lines) if line == old]
+          if len(matches) != 1:
+              raise SystemExit(f'expected one old core_code expression, found {len(matches)}')
+          lines[matches[0]] = '            core_code: Some(core_code),'
+          path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
 
           rm -f .trajectory-clippy.log .trajectory-test.log
