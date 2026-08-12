@@ -1,0 +1,70 @@
+name: One-shot retune byte-pin diagnostic
+
+on:
+  push:
+    branches:
+      - agent/gesture-body-unification
+    paths:
+      - ".github/workflows/one-shot-retune-codegen-diagnostic.yml"
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: System audio libraries
+        run: sudo apt-get update && sudo apt-get install -y libsoxr-dev
+
+      - name: Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Prepare exact comparison worktrees
+        run: |
+          git worktree add /tmp/research-trunk f4648b56dd785139f9c1b99c6d8dd36f5c5da051
+          cp -a . /tmp/no-trajectory-module
+          python - <<'PY'
+          from pathlib import Path
+          root = Path('/tmp/no-trajectory-module/mus-rs')
+          cargo = root / 'crates/mus-dsp/Cargo.toml'
+          text = cargo.read_text()
+          text = text.replace('mus-trajectory = { path = "../mus-trajectory" }\n', '')
+          cargo.write_text(text)
+          lib = root / 'crates/mus-dsp/src/lib.rs'
+          text = lib.read_text().replace('pub mod trajectory;\n', '')
+          lib.write_text(text)
+          PY
+
+      - name: Research trunk byte pin
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo test --release -p mus-dsp --test retune_parity absent_retune_matches_the_pre_change_engine -- --nocapture 2>&1 | tee /tmp/trunk.log
+        working-directory: /tmp/research-trunk/mus-rs
+
+      - name: Unified branch byte pin
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo test --release -p mus-dsp --test retune_parity absent_retune_matches_the_pre_change_engine -- --nocapture 2>&1 | tee /tmp/unified.log
+        working-directory: mus-rs
+
+      - name: Unified branch without trajectory module
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo test --release -p mus-dsp --test retune_parity absent_retune_matches_the_pre_change_engine -- --nocapture 2>&1 | tee /tmp/no-trajectory.log
+        working-directory: /tmp/no-trajectory-module/mus-rs
+
+      - name: Classify the evidence
+        run: |
+          echo '=== research trunk ==='
+          grep -E 'test result|left:|right:|fixture' /tmp/trunk.log || true
+          echo '=== unified branch ==='
+          grep -E 'test result|left:|right:|fixture' /tmp/unified.log || true
+          echo '=== unified without trajectory module ==='
+          grep -E 'test result|left:|right:|fixture' /tmp/no-trajectory.log || true
