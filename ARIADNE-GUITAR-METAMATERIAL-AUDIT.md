@@ -1,289 +1,361 @@
-# Ariadne Guitar Metamaterial Audit
+# Ariadne guitar metamaterial audit — corrected constitution
 
-**Branch audited:** `agent/instrument-convergence-guitar-finish`  
-**Scope:** guitar/string renderer, live guitar VST, pedal/amp trajectory  
-**Decision:** preserve Ariadne; replace the remaining effect-chain islands rather than elaborating them
+**Base audited:** `agent/instrument-convergence-guitar-finish`  
+**Revision branch:** `agent/ariadne-guitar-multidomain-core`  
+**Scope:** guitar/string renderer, live terminal VST, pedal/amp trajectory  
+**Decision:** Ariadne must become more physically accountable without becoming an electrical/circuit model
 
-## 1. Executive judgment
+## 0. Correction to the first audit
 
-The branch contains two different levels of Ariadne fidelity.
+The first version of this document correctly diagnosed the three-stage source cascade and cabinet sections as an effects-chain island. It made the wrong architectural repair. It proposed electrical, magnetic, mechanical, and acoustic domains joined by effort/flow ports, then landed a moving-coil loudspeaker cell.
 
-The **declared Jazzmaster architecture** is strongly Ariadne-faithful. It describes one persistent graph containing strings, bridge, afterlengths, tremolo, supports, finite-aperture readouts, a powered nonlinear body, radiator, room, and feedback, with one work/loss ledger. That is a metamaterial and a space. It is not an oscillator followed by a collection of effects.
+That repair was mathematically respectable and constitutionally wrong for Ariadne.
 
-The **live `PoweredRadiator` implementation** is only partially faithful. Its room and modal-field machinery is recognizably Ariadne: persistent states, lossless rotations, explicit damping, a finite reservoir, feedback, and receipts. Its source and cabinet island is not. Three scalar gain stages, three memoryless contractive transfer curves, one-zero interstage damping, and three one-zero “cabinet” sections are topologically an overdrive/cabinet chain, even when the functions are called contacts and their work is measured. Accounting makes that island bounded and honest; it does not make the island spatial.
+The binding project documents are unusually consistent on this point:
 
-This distinction matters. The right response is not to add more stages, more carefully shaped nonlinearities, or more tone macros. It is to extend Ariadne so that electrical, magnetic, mechanical, and acoustic matter can occupy the same graph.
+- the ordinary guitar is a calibrated, low-coupling limit of one wider string-network ontology;
+- the powered body is a reservoir-limited nonlinear mode graph, not a virtual analog amplifier;
+- the radiator is a finite spatial aperture of the same state, not a simulated commercial loudspeaker;
+- string, body, near field, and room are regions of one persistent metric state;
+- control acts by work-accounted deformation and ordered metric-compatible transport;
+- circuit and amplifier accuracy are explicitly outside the first claim.
 
-### Audit scorecard
+Port-Hamiltonian and bond-graph mathematics remain useful prior art for power accounting. They do not imply that Ariadne should import voltage, current, flux, transistors, transformers, voice coils, or a second circuit ontology into its production core.
 
-| Region | Faithfulness | Judgment |
-|---|---:|---|
-| Ariadne consensus and Jazzmaster specification | High | Keep as constitutional target |
-| Room/Telaraña fields and graph receipts | High | Continue and generalize |
-| Modal body | Medium | Valid reduced matter, but currently an unmeasured design sketch |
-| Plucked-string implementation | Medium | Physically informed extended Karplus–Strong, not yet a comprehensive string body |
-| Powered source cascade | Low | Conventional nonlinear processing in Ariadne vocabulary |
-| Cabinet sections | Low | Conventional filter surrogate; must be replaced, not augmented |
-| Key-tracked sympathetic field | Orthogonal | Artistic controller; exclude from physical-fidelity claims and reference mode |
+The corrected rule is:
 
-## 2. The Ariadne test
+> **Ariadne may borrow laws from any physics, but every borrowed law must be translated into Ariadne’s one persistent acoustic/metamaterial state rather than installing the donor domain as a privileged simulator inside the graph.**
 
-A subsystem is Ariadne-faithful when all of the following are true.
+The electrical files introduced in the first draft are therefore removed. Their useful invariant—no unaccounted energy—survives in a more native form.
 
-1. **It owns persistent physical state.** A sample is an observation of state evolution, not the argument to a transfer function pretending to be matter.
-2. **Its coordinates have a declared energy or power metric.** Stored energy, supplied work, dissipation, and radiation can be reconciled.
-3. **Couplings are spatial and reciprocal where the modeled physics is reciprocal.** The loudspeaker cone drives back electromotive force; the room can drive the guitar; a bridge moves the body and sees the body’s reaction.
-4. **Nonlinearity belongs to constitutive state.** Contact, geometry, magnetic saturation, charge, temperature, compliance, or boundary motion changes the evolution. A memoryless audio waveshaper is not accepted merely because its slope is bounded.
-5. **Reduction preserves structure.** A modal or waveguide reduction is welcome when it preserves passivity, reciprocity, ports, and the relevant state. A fitted response that severs back-action is not.
-6. **Active behavior draws from explicit storage.** Tubes, transistors, powered metamaterial cells, sustainers, and feedback amplifiers may add energy only through declared supply ports or reservoirs.
-7. **The graph remains one world.** “String,” “pickup,” “pedal,” “amp,” “speaker,” and “room” are useful regions and calibration surfaces, not privileged DSP boxes.
+## 1. What Ariadne is
 
-The live source cascade fails tests 1, 3, 4, and 7. Its scalar stage memories are filter history around transfer functions, not a sufficiently expressive local physical state; the stages do not expose reciprocal power ports; the nonlinearity is applied directly to sample amplitude; and the source/cab topology remains serial.
+Ariadne is a family of finite metric state spaces over a control/configuration space. A configuration `lambda` owns state
 
-## 3. The extension: multi-domain Ariadne
+```text
+x in H_lambda
+```
 
-Ariadne should adopt a small port-Hamiltonian/bond-graph vocabulary without becoming a separate circuit simulator.
+and positive energy metric
 
-Every boundary exposes an inward effort/flow pair with instantaneous power
+```text
+E_lambda(x) = 1/2 x^T M_lambda x.
+```
 
-\[
-P = e f.
-\]
+A control step transports live state between configurations. In energy-normalized coordinates, the transport has weighted polar decomposition
 
-The coordinate names and units depend on the region:
+```text
+A = U H.
+```
 
-| Domain | Effort | Flow | Power |
-|---|---|---|---|
-| Electrical | voltage | current | `V · A` |
-| Translational mechanical | force | velocity | `N · m/s` |
-| Acoustic | pressure | volume velocity | `Pa · m³/s` |
-| Magnetic | magnetomotive force | flux rate | `A-turn · Wb/s` |
-| Ariadne-normalized | metric effort | metric flow | declared normalized work rate |
+- `U` is metric-compatible transport. It changes the orientation of state while preserving energy. Ordered products of noncommuting local factors can retain path memory.
+- `H` is positive deformation. It stretches or contracts energy directions and therefore performs measurable state-dependent work.
 
-Five kinds of graph element are sufficient as the constitutional core:
+Propagation, explicit loss, radiation, topology/rank changes, sources, and readouts surround this transport, but they do not replace it. The complete graph emits one receipt:
 
-- **Storage cells** carry a Hamiltonian: charge, flux, momentum, displacement, field modes, string fields, plate fields, thermal state, and supply energy.
-- **Lossless junctions** impose power-conserving interconnections. Transformers, gyrators, orthogonal scatterers, bridge couplings, and coordinate transports belong here.
-- **Dissipative relations** remove measured work: electrical resistance, viscoelastic loss, friction, radiation, leakage, hysteresis loss, and collision loss.
-- **Powered constitutive cells** have supply ports and internal state. Their signal-port gain is an executed energy conversion, never a free coefficient.
-- **Readouts** observe finite spatial apertures and may load the world when the real sensor loads it.
+```text
+Delta E = W_boundary + W_supply + W_control
+          - L_internal - L_radiation - W_output + epsilon_numeric.
+```
 
-This is an extension of existing Ariadne semantics, not a foreign architecture. The current Givens/Householder/Cayley transports are already lossless junctions in normalized coordinates. `power_port.rs` makes the invariant explicit across physical units.
+This is the common ontology for a string, a throat, an amp-like powered body, a radiator, and a room.
 
-## 4. The complete guitar world
+## 2. What the electric guitar and amp become in that ontology
 
-A guitar faithful enough to span a Jazzmaster, archtop, lap steel, baritone, prepared guitar, twelve-string, bass, electric harp, or an instrument not yet built should be assembled from one primitive graph rather than selected from unrelated algorithms.
+“Amp” and “cabinet” are behavioral names for regions of an Ariadne world, not component schematics.
 
-### 4.1 Player and contacts
+A pure Ariadne terminal contains:
 
-The player is a set of moving, compliant boundaries with finite impedance:
+1. **A persistent nonlinear material body.** Its state is not the current audio sample. It continues across samples, blocks, notes, and silences.
+2. **A finite supply reservoir.** Active behavior is energy conversion from stored supply into selected material directions.
+3. **A path-ordered connection.** Sparse lossless factors circulate state. Overlapping closed commutators can leave ordered memory with zero local work.
+4. **A spatial throat.** Finite input and radiation apertures couple to an extended body, not to a scalar transfer curve.
+5. **A reciprocal room halo.** Long-delay courses exchange state bidirectionally with the material before they scatter, damp, and radiate.
+6. **One ledger.** Boundary work, external recharge, control work, internal loss, radiation, room exchange, reservoir transfer, and numerical residual are separately visible.
 
-- fingertip, nail, pick, bow, slide, palm, mute, ebow/sustainer, and mechanical actuator;
-- distributed collision potential rather than an onset envelope;
-- friction and stick/slip where applicable;
-- paid work measured at the contact port;
-- continuous movement after excitation, including pick scraping and fret release.
+The target behaviors associated with electric guitar amplification—touch sensitivity, asymmetric harmonic growth, intermodulation, compression, bloom, sag, sustained instability, speaker-like spatial narrowing, cabinet-like resonant color, and room feedback—must emerge from those mechanisms.
 
-The current one-period triangular displacement plus keyed roughness is a useful initializer, but it is not yet a player model.
+They are fit targets, not implementation vocabulary.
 
-### 4.2 String field
+## 3. The first pure live material
 
-The reference string needs, at minimum:
+The revision introduces `mus_dsp::ariadne_terminal` and makes it the engine behind the Ariadne CLAP/VST3 shell. The earlier `powered_radiator` remains in the repository as a historical and scientific A/B control; it is no longer the product-facing implementation.
 
-- two transverse polarizations;
-- longitudinal motion and tension modulation;
-- optional torsion for bowing, winding, and unusual pickups;
-- stiffness dispersion and frequency-dependent loss;
-- geometric nonlinearity for pitch glide, tension coupling, and phantom partials;
-- distributed collisions against frets, fingerboard, bridge, nut, and neighboring structures;
-- moving endpoints and afterlengths;
-- energy-stable discretization at live rates.
+### 3.1 Material cells
 
-Digital waveguides, modal coordinates, finite differences, and structure-preserving reduced models are all admissible representations. “Karplus–Strong” is not forbidden; treating its delay/filter loop as the complete ontology of a string is.
+The terminal contains twelve canonical cells with normalized displacement and momentum
 
-### 4.3 Bridge, neck, and body
+```text
+(q_i, p_i), i = 0..11.
+```
 
-The body should be a passive multiport mechanical admittance, not a scalar body mix.
+Each cell carries the positive asymmetric potential
 
-- Ports exist at bridge saddles, nut, neck joint, tremolo pivots, tailpiece, body contact points, and optional sensors.
-- A reduced model may be fitted from measured admittance matrices, but the fit must remain positive real/passive.
-- Cross-polarization and cross-string transfer are first-class.
-- Modes are spatial vectors with measured or authored port shapes, not only frequencies and decay times.
-- Solid-body electric guitars still require this region: it controls energy leakage, dead spots, sustain, polarization rotation, and feedback thresholds even when direct acoustic radiation is weak.
+```text
+V_i(q; k_i, s_i)
+  = 1/2 q^2 + k_i/4 [q(q + 2 s_i)]^2.
+```
 
-The existing eight modes are an authored hypothesis. They are valid as a novel Ariadne body, not evidence that a particular electric guitar has been captured.
+Properties:
 
-### 4.4 Magnetic/electromechanical pickup
+- `k_i = 0` is the exact linear limit;
+- `s_i = 0` is the exact symmetric limit;
+- `V_i >= 0` for every real `q_i`;
+- curvature and asymmetry are state law, not a function applied to the audio sample;
+- changing `k_i` or `s_i` while `q_i != 0` changes stored energy and is booked as control work.
 
-A pickup is not an EQ curve and not merely a finite-aperture readout.
+Expanded as
 
-It requires a reciprocal transducer region containing:
+```text
+V(q) = A q^2 + B q^3 + C q^4
+A = 1/2 + k s^2
+B = k s
+C = k/4.
+```
 
-- magnet/string field geometry and finite aperture;
-- displacement- and velocity-dependent flux linkage;
-- coil resistance, inductance, parasitic capacitance, eddy-current loss, and optional nonlinear magnetic state;
-- cable capacitance and the actual pedal/amp input load;
-- multiple coils, pole pieces, humbucking polarity, switching, and continuously variable routing;
-- optional magnetic back-action when the use case needs pickup pull or a sustainer.
+For old displacement `a` and new displacement `b`, the exact divided gradient is
 
-The finite-aperture machinery in the Jazzmaster spec is the correct geometric beginning. It must terminate in a loaded electrical port rather than directly becoming an audio sample.
+```text
+Vbar_q(a,b)
+  = A(a+b)
+  + B(a^2 + ab + b^2)
+  + C(a^3 + a^2b + ab^2 + b^3).
+```
 
-### 4.5 Powered electrical material
+The update solves
 
-The current three-stage source cascade should be deleted after its replacement is proven.
+```text
+(b-a)/h = (p_new+p_old)/2
+(p_new-p_old)/h = -Vbar_q(a,b)
+```
 
-Its successor is a graph of charge/flux/polarization/thermal/supply states. It may be parameterized to reproduce triodes, pentodes, BJTs, JFETs, MOSFETs, diodes, transformers, rectifiers, bias networks, power supplies, and loudspeaker loading, but these are all instances of the same material vocabulary.
+with a bounded Newton solve. In exact arithmetic this preserves
 
-Critical behaviors then emerge from state and coupling:
+```text
+1/2 p^2 + V(q)
+```
 
-- bias shift and blocking;
-- supply sag and recovery;
-- dynamic transconductance;
-- grid/gate conduction;
-- transformer magnetization and hysteresis;
-- power-stage/speaker interaction;
-- frequency-dependent source and load impedance;
-- thermal drift;
-- feedback-loop movement and instability.
+for every fixed law. The nonlinearity cannot be described as `sample = f(sample)` because it is a conservative trajectory through stored state.
 
-No stage may be specified as “gain, waveshape, tone.” Those can remain user-facing gestures compiled into material parameters and couplings.
+### 3.2 Boundary exchange
 
-### 4.6 Electrodynamic radiator, enclosure, and room
+Stereo input is decomposed into common and differential boundary waves. Each wave traverses a finite aperture across the material by a sequence of Givens rotations. Every local exchange preserves the joint norm of boundary and material momentum.
 
-The cabinet filter must be replaced by a reciprocal loudspeaker/enclosure region.
+The boundary work is measured from both sides:
 
-The first landed cell, `electrodynamic_radiator.rs`, contains:
+```text
+W_boundary
+  = 1/2 dt (||u_in||^2 - ||u_return||^2)
+  = Delta E_material_at_boundary.
+```
 
-- coil flux and copper loss;
-- cone momentum and displacement;
-- nonlinear suspension potential;
-- position-dependent force factor;
-- reciprocal back electromotive force;
-- enclosure acoustic compliance and leakage;
-- explicit radiation loss and an outward acoustic port;
-- exact local energy closure under the discrete update.
+The difference between those two evaluations is a permanent metric-residual field. The returned boundary wave is exposed in telemetry even though the wet product is the body’s radiation aperture.
 
-This is deliberately only the first radiator primitive. A comprehensive graph additionally needs frequency-dependent radiation impedance, cone breakup/rocking modes, voice-coil inductance versus position/current, port and open-back fields, cabinet panel modes, multiple drivers, microphone diaphragms, and spatial directivity. These must be added as storage and ports, not as an impulse response after the fact.
+This is reciprocal. A ringing material can return energy to an otherwise zero input boundary.
 
-The existing room fields are a strong foundation. Their source should become the radiator’s acoustic port, and their return should couple to cone, body, strings, and pickup/microphone states according to geometry.
+### 3.3 Powered deformation
 
-## 5. What “every electric guitar” can honestly mean
+Let `v(x)` be a normalized pump aperture and let
 
-No finite model with unknown parameters can identify every physical guitar from an arbitrary mono recording. The universal claim should be about **model class**, not omniscient inference.
+```text
+d = v^T p
+```
 
-Ariadne can plausibly span every conventional electric guitar when:
+be the material momentum projected onto it. The powered step selects a multiplier `alpha >= 1` and proposes
 
-1. its primitives cover the relevant physical mechanisms;
-2. a guitar definition supplies geometry, material, topology, and measured/calibrated parameters;
-3. the solver preserves the power structure of those primitives;
-4. validation is against independent measurements and playing gestures, not only tone matching.
+```text
+d' = alpha d.
+```
 
-Three product boundaries must be named honestly.
+The required work is exact:
 
-### Instrument renderer
+```text
+W_H = 1/2 dt (d'^2 - d^2).
+```
 
-Ariadne owns the string and player state. This can be the full world and can synthesize instruments that do not exist, including an electric harp whose strings, frame, pickups, powered matter, speakers, and room are continuously coupled.
+Only the amount available in the finite reservoir is accepted. The actual update is
 
-### VST or digital insert
+```text
+p' = p + (d'-d) v.
+```
 
-A normal insert receives terminal voltage samples after the real guitar, pickup, cable, and front-end loading have already acted. It can faithfully model the downstream powered material, speaker, enclosure, room, and feedback paths available through the host, but it cannot recover the exact upstream string/body/pickup state. Market this boundary as **Ariadne Terminal**, not as a perfect model of the input guitar.
+This is a rank-one positive polar deformation along `v`. It is the `H` sector of Ariadne’s existing work–holonomy theory. It cannot excite exact zero state, cannot spend more than the reservoir contains, and has an independent metric residual.
 
-### Pedal or amplifier hardware
+“Drive” changes the maximum deformation rate. “Sag” changes external reservoir recovery. “Bloom,” “headroom,” and “sustain” change the state-dependent aperture and conversion law. None chooses a gain stage or a clipping curve.
 
-Hardware can get materially closer to the full world. A high-impedance, calibrated analog front end can expose the actual pickup/cable port; controllable input impedance can make loading part of the model; a power stage and current/voltage sensing can close the loudspeaker loop; accelerometers, magnetic sensors, or a body transducer can expose additional ports. Hardware should be designed as an Ariadne boundary instrument, not merely a box running the VST.
+### 3.4 Closed ordered transport
 
-## 6. Required migration
+For overlapping material planes, define
 
-### Phase G0 — constitutional landing (this change)
+```text
+A = R_ij(a)
+B = R_jk(b).
+```
 
-- Add domain-explicit `PowerPort`/`PowerWave` coordinates.
-- Add power-preserving transformer, gyrator, and orthogonal two-port junctions.
-- Add passive wave termination.
-- Add a reciprocal electrodynamic radiator with local receipts and tests.
-- Document that the existing source/cabinet chain is transitional.
+Each live step can execute the closed word
 
-This phase does **not** change the plug-in sound. It lands the replacement substrate first.
+```text
+C(a,b) = A B A^-1 B^-1.
+```
 
-### Phase G1 — remove the cabinet surrogate
+Every authored angle returns to its endpoint. Every factor is metric-orthogonal. Nevertheless, for overlapping planes,
 
-- Replace `CABINET_SECTIONS` with one or more electrodynamic radiator cells plus an acoustic radiation field.
-- Feed room fields from the acoustic port, not from a post-filter sample.
-- Return room pressure to the cone and any enabled instrument/body ports.
-- Retain a compatibility switch only for A/B validation; remove it from physical-fidelity mode.
+```text
+C(a,b) != I
+```
 
-Acceptance: back-EMF changes the upstream powered material; speaker impedance and enclosure parameters alter distortion before radiation; zero-input energy cannot grow.
+in general. At small angles the leading displacement lies in the remaining `(i,k)` plane and scales with the commutator of the generators.
 
-### Phase G2 — replace the powered source cascade
+The live implementation uses the existing `mus-watsn` Givens law and order-defect observable. It does not create a second factor executor. The factor angles depend on local strain and continuous controls, so curvature changes how the same closed path transports state without adding work.
 
-- Introduce charge, flux, polarization, thermal, and finite-supply storage cells.
-- Compile user gestures into topology and constitutive parameters.
-- Replace all three memoryless contacts and interstage one-zero filters.
-- Add magnetic-core and power-supply regions.
-- Couple the output electrical port directly to the radiator electrical port.
+This is called **closed ordered transport** in product code. A scientific holonomy claim still requires the project’s stronger closed-path, connection, gauge, and evidence conditions.
 
-Acceptance: the source has no call site equivalent to `sample = f(sample)` as its nonlinear mechanism; distortion disappears when supply work and nonlinear constitutive terms are removed; every gain event is paid.
+### 3.5 Dissipation and radiation
 
-### Phase G3 — loaded pickup and measured body
+Material damping acts on momentum and books the exact kinetic-energy deficit. Radiation selects two orthonormal finite-aperture rows, contracts only their projected state by `sqrt(1-eta)`, and emits coordinates scaled by `sqrt(eta)`.
 
-- Add reciprocal pickup field/coil/cable/load ports.
-- Add passive multiport bridge/body admittance import and fitting.
-- Add two-polarization plus longitudinal string solver and distributed collision graph.
-- Retire the scalar “body mix” and direct readout shortcuts in reference mode.
+Therefore
 
-Acceptance: changing input impedance changes the pickup resonance and upstream electromechanical state; changing bridge admittance alters string decay and body response reciprocally.
+```text
+E_removed = 1/2 dt (y_left^2 + y_right^2)
+```
 
-### Phase G4 — calibration and guitar atlas
+up to floating-point residual. There is no cabinet filter and no impulse response.
 
-A capture bundle should include:
+The profile’s `host_observation_scale` is an explicit unit conversion from normalized emitted-wave coordinates to DAW full scale. It does not participate in the material dynamics or its energy claim.
 
-- bridge/nut/body admittance matrices at declared ports;
-- string geometry, mass, stiffness, loss, winding, and tension;
-- fret/neck geometry and contact parameters;
-- pickup magnetic aperture and impedance versus frequency/load;
-- control and switching topology;
-- powered-region voltage/current trajectories under multitone and transient probes;
-- loudspeaker electrical impedance, cone displacement, and acoustic near/far-field measurements;
-- uncertainty bounds and provenance.
+### 3.6 Reciprocal spatial halo
 
-Fits must be constrained to passive or explicitly powered model classes. A lower-error unstable or nonreciprocal fit is a failed fit unless the measured device itself supplies energy or is nonreciprocal.
+The room contains twelve persistent delay courses. At every sample:
 
-## 7. No-cheating battery
+1. course heads exchange energy with selected material momenta through Givens rotations;
+2. the head vector undergoes an orthogonal Householder circulation;
+3. each course loses the amount required for its declared T60;
+4. two orthonormal room apertures radiate;
+5. the new heads return to the delay lines.
 
-The following tests should become release gates.
+The body/room bridge is bidirectional. `space=0` is an exact decoupled limit. A previously excited room remains a persistent body rather than disappearing when the control closes.
 
-1. **Global closure:** old storage + external work − dissipation − radiation − new storage closes within a declared numerical tolerance.
-2. **Zero-input non-growth:** every passive graph loses or preserves energy for adversarial initial states.
-3. **Reciprocity:** bridge/body, pickup, transformer, and speaker ports exhibit the expected reverse coupling.
-4. **Load sensitivity:** pickup, power stage, transformer, and speaker behavior changes under physically changed loads.
-5. **No hidden direct path:** reference mode has no unreceipted dry path, cabinet IR, post-EQ, sample clipper, or output waveshaper.
-6. **No semantic contamination:** key tracker, scale logic, shimmer pitch policy, and other compositional controllers are disabled in physical-reference renders.
-7. **Structure-preserving reduction:** reduced admittances remain passive and preserve port identities.
-8. **Rate consistency:** stored energy, decay, resonances, and bifurcation thresholds agree across supported sample rates.
-9. **Spatial necessity:** moving a pickup, bridge port, microphone, player contact, or boundary changes the result through geometry, not a macro mapping.
-10. **Independent validation:** parameters fitted on one probe family predict held-out probes and playing gestures.
+This is not “reverb after distortion.” It is a long-delay region of the same world.
 
-A static architectural check should also reject new production uses of `tanh`, generic waveshaper helpers, “cabinet sections,” or post-hoc EQ inside physical-reference modules. Such functions are not mathematically immoral; they are simply outside this product’s constitutional promise.
+## 4. Why this is purer than electrical modeling
 
-## 8. Product form
+The discarded electrodynamic branch had several admirable properties: persistent state, reciprocal coupling, nonlinear stored potential, explicit loss, and local closure. Those properties are retained.
 
-The honor-system VST can remain simple while the engine is rigorous.
+What is removed is the privileged explanation:
 
-- **Ariadne Terminal:** live guitar input into the downstream multi-domain world.
-- **Ariadne Instrument:** rendered strings and complete authored instruments.
-- **Ariadne World:** speaker/room/body feedback and physically impossible but lawful spaces.
+```text
+voltage -> coil -> cone -> enclosure -> pressure.
+```
 
-The UI should expose gestures—distance, compliance, supply, aperture, coupling, boundary, weave—not a parade of virtual knobs labeled after legacy equipment. Conventional captured instruments can be offered as named worlds, but the core value is that an artist can continuously move beyond them without crossing an algorithm boundary.
+That explanation would make Ariadne’s success depend on reproducing historical hardware categories. It would also encourage one simulator for pickups, another for amplifiers, another for loudspeakers, and then a glue graph around them—the opposite of the unified instrument.
 
-The `$25` honor price is compatible with this ambition precisely because the code is a gift rather than a scarcity play. The stronger promise is not “we copied every famous amp.” It is: **this is one lawful, inspectable world in which guitars, amplifiers, speakers, rooms, and new instruments can be built from the same matter.**
+The corrected explanation is:
 
-## 9. Primary technical references
+```text
+boundary wave
+  <-> powered nonlinear metric material
+  <-> ordered internal geometry
+  <-> finite radiation aperture
+  <-> persistent spatial halo.
+```
 
-- A. J. van der Schaft and B. M. Maschke, “Port-Hamiltonian Systems on Graphs,” *SIAM Journal on Control and Optimization* 51(2), 2013. DOI: `10.1137/110840091`.
-- B. Bank and M. Karjalainen, “Passive Admittance Matrix Modeling for Guitar Synthesis,” DAFx-10, 2010.
-- G. Evangelista and J. O. Smith III, “Structurally Passive Scattering Element for Modelling Guitar Pluck Action,” DAFx-10, 2010.
-- G. Evangelista, “Physical Model of the String-Fret Interaction,” DAFx-11, 2011.
-- M. Ducceschi and S. Bilbao, “Simulation of the Geometrically Exact Nonlinear String via Energy Quadratisation,” 2021, arXiv:`2112.15008`.
-- S. Bilbao, A. Torin, and V. Chatziioannou, “Numerical Modeling of Collisions in Musical Instruments,” 2014, arXiv:`1405.2589`.
-- R. C. D. Paiva, J. Pakarinen, and V. Välimäki, “Acoustics and Modeling of Pickups,” *Journal of the Audio Engineering Society* 60(10), 2012.
-- J. Pakarinen, M. Tikander, and M. Karjalainen, “Wave Digital Modeling of the Output Chain of a Vacuum-Tube Amplifier,” DAFx-09, 2009.
-- R. Ravaud, G. Lemarquand, V. Lemarquand, and T. Roussel, “Ranking of the Nonlinearities of Electrodynamic Loudspeakers,” *Archives of Acoustics* 35(1), 2010.
+A vintage combo, a transistor wall, a feedback installation, an electric harp, or an impossible resonant organism are calibrated anatomies of this same model class.
+
+## 5. Fidelity without mechanism imitation
+
+The absence of circuit labels does not lower the fidelity ambition. It raises the validation burden.
+
+A profile is allowed to claim behavioral coverage only after fitting and held-out replay across a probe atlas containing:
+
+- low, medium, and high level swept sines;
+- multitone intermodulation probes;
+- isolated notes across register and dynamics;
+- dyads, dense chords, and low-interval grind;
+- palm-muted attacks and long sustains;
+- pickup transients and volume-knob trajectories;
+- feedback onset, hysteresis, and decay;
+- multiple source impedances or DI front ends where relevant;
+- near and far microphone positions for spatial targets;
+- sample rates and host block segmentations.
+
+The fit may move geometry, material law, damping, pump aperture, reservoir law, ordered transport, radiation aperture, and halo delays. It may not add a sidecar EQ, waveshaper, cabinet IR, compressor, neural residual, or target-conditioned runtime correction.
+
+The scientific claim ladder should be:
+
+1. **lawful material** — invariants and ledger gates pass;
+2. **behaviorally resemblant** — selected observables improve on declared controls;
+3. **probe-generalizing** — fitted anatomy predicts untouched probes and playing gestures;
+4. **rig-faithful** — blinded listeners and held-out measurements support one named rig family;
+5. **class-covering** — a fixed primitive vocabulary spans a preregistered guitar/amp/cabinet corpus without sidecars.
+
+“Every electric guitar ever made” belongs only at level 5, and only for the measured model class and uncertainty envelope. It cannot mean inferring an unknown instrument’s complete state from one mono recording.
+
+## 6. Product boundary
+
+### Ariadne Terminal
+
+A VST/CLAP or pedal receives an already-transduced audio boundary. It cannot reconstruct the exact upstream string, body, pickup, cable, and player state. It can instantiate a downstream powered Ariadne world and return its emitted field.
+
+The new plug-in is this product.
+
+### Ariadne Instrument
+
+A rendered or sensor-augmented instrument owns player contacts, multidimensional strings, bridge, body, readout, powered material, halo, and room in one graph. This is the route to Jazzmaster, bass, lap steel, twelve-string, electric harp, and impossible string bodies.
+
+### Ariadne boundary hardware
+
+A pedal or amplifier can expose more state without becoming a circuit simulator:
+
+- calibrated high-impedance audio boundary;
+- multiple physical sensor inputs;
+- body acceleration or bridge force;
+- loudspeaker/microphone or transducer returns;
+- explicit actuator outputs;
+- clock-synchronized work and latency receipts.
+
+These signals become boundary coordinates of the same Ariadne state. The hardware need not dictate the internal ontology.
+
+## 7. No-cheating gates
+
+The product-facing pure engine must satisfy:
+
+1. no call equivalent to `sample = nonlinear(sample)`;
+2. no cabinet filter, cabinet IR, post-EQ, compressor, limiter, or neural residual in the wet reference path;
+3. no electrical component graph in the production ontology;
+4. no gain event without reservoir transfer or boundary/control work;
+5. no parameter change that alters stored energy without a control-work line;
+6. no room send that cannot return energy to the material;
+7. no key tracker, scale logic, pitch shifter, or compositional policy in physical-reference mode;
+8. exact zero limits for supply, curvature, chirality, room bridge, and wet mix;
+9. passive non-growth under adversarial stored states;
+10. one global material/room/reservoir ledger;
+11. host-block invariance;
+12. no sample-path allocation, lock, I/O, FFT, or topology resize;
+13. every fitted profile carries provenance, train/validation/test partitions, and claim ceiling.
+
+A static check may reject new production references to cabinet sections, generic waveshaper helpers, or virtual component names. Mathematical functions remain legal inside state laws; their role must be visible in the energy contract.
+
+## 8. Remaining work
+
+This revision is a foundational live material, not the completed universal guitar.
+
+Highest-value next work:
+
+1. **Independent Rust execution and listening.** Compile, run the law battery, render DI probes, and inspect aliasing, CPU, and audible range. The current branch could not receive a GitHub runner because Actions billing was blocked.
+2. **Material refinement.** Compare the twelve-cell reduction with larger sparse fields and a structure-preserving multirate refinement.
+3. **Behavioral fitting.** Build a differentiable or derivative-free offline profile fitter constrained by the exact live engine and held-out probe atlas.
+4. **Instrument coupling.** Lower the full Jazzmaster string/body graph into the same terminal anatomy rather than feeding it through an insert boundary.
+5. **Contact and player state.** Replace excitation initializers with distributed compliant contacts and paid continuous gestures.
+6. **Measured body geometry.** Fit passive bridge/body multiport operators without making them a separate renderer.
+7. **Hardware boundary study.** Determine which additional sensors and actuators produce the largest identifiable expansion of the Ariadne state.
+
+## 9. Final judgment
+
+The original diagnosis remains: the live source and cabinet cascade was too conventional.
+
+The corrected repair is not a more accurate conventional amplifier. It is a stranger and more coherent object:
+
+> **a powered, nonlinear, path-dependent acoustic metamaterial whose calibrated conservative limits include guitars and whose active spatial limits can cover the behaviors artists associate with pedals, amplifiers, loudspeakers, feedback systems, and instruments that have never existed.**
+
+That is the Ariadne worth making.
