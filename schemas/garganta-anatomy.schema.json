@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia-labs.ai/schemas/garganta/anatomy/1",
+  "title": "GARGANTA persistent throat anatomy",
+  "description": "Persistent geometry and passive couplings only. Articulation, glottal controls, prosody, room state and target-specific schedules are separate objects.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "identifier",
+    "domain",
+    "sectionLengthsM",
+    "neutralAreasM2",
+    "epilarynxAreaM2",
+    "lipAreaM2",
+    "wallLoss",
+    "viscousLoss",
+    "radiationLoss",
+    "bodyCoupling",
+    "roomReturnCoupling",
+    "maxLogAreaVelocityS",
+    "maxLogAreaAccelerationS2",
+    "branches",
+    "provenance"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "garganta.anatomy/1"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "domain": {"enum": ["human-plausible", "pseudobiological", "post-human"]},
+    "sectionLengthsM": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 64,
+      "items": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 0.04}
+    },
+    "neutralAreasM2": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 64,
+      "items": {"type": "number", "minimum": 0.000005, "maximum": 0.003}
+    },
+    "epilarynxAreaM2": {"type": "number", "minimum": 0.000005, "maximum": 0.003},
+    "lipAreaM2": {"type": "number", "minimum": 0.000005, "maximum": 0.003},
+    "wallLoss": {"type": "number", "minimum": 0.0, "maximum": 0.999},
+    "viscousLoss": {"type": "number", "minimum": 0.0, "maximum": 0.999},
+    "radiationLoss": {"type": "number", "minimum": 0.0, "maximum": 0.999},
+    "bodyCoupling": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    "roomReturnCoupling": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    "maxLogAreaVelocityS": {"type": "number", "exclusiveMinimum": 0.0},
+    "maxLogAreaAccelerationS2": {"type": "number", "exclusiveMinimum": 0.0},
+    "branches": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/branch"}
+    },
+    "provenance": {"type": "object", "additionalProperties": true}
+  },
+  "$defs": {
+    "branch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identifier",
+        "enabled",
+        "attachAfterSection",
+        "sectionLengthsM",
+        "neutralAreasM2",
+        "coupling",
+        "wallLoss",
+        "topologyPolicy"
+      ],
+      "properties": {
+        "identifier": {"type": "string", "minLength": 1},
+        "enabled": {"type": "boolean"},
+        "attachAfterSection": {"type": "integer", "minimum": 0},
+        "sectionLengthsM": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 0.04}
+        },
+        "neutralAreasM2": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {"type": "number", "minimum": 0.000005, "maximum": 0.003}
+        },
+        "coupling": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "wallLoss": {"type": "number", "minimum": 0.0, "maximum": 0.999},
+        "topologyPolicy": {"enum": ["radiate", "dissipate", "retire", "reject"]}
+      }
+    }
+  }
+}

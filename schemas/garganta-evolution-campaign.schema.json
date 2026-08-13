@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia-labs.ai/schemas/garganta/anatomy-campaign/1",
+  "title": "GARGANTA anatomy evolution campaign",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "identifier",
+    "mode",
+    "objectiveProfile",
+    "anatomyDomain",
+    "seeds",
+    "populationSize",
+    "generations",
+    "archiveSize",
+    "objectiveWeights",
+    "objectiveNames",
+    "target",
+    "holdoutPolicy",
+    "isophonemyThreshold"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "garganta.anatomy-campaign/1"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "mode": {"enum": ["population-design", "sample-conditioned"]},
+    "objectiveProfile": {
+      "enum": ["general-voice", "speech", "singing", "extended-technique", "water-voice", "target-sample"]
+    },
+    "anatomyDomain": {"enum": ["human-plausible", "pseudobiological", "post-human"]},
+    "seeds": {"type": "array", "minItems": 1, "items": {"type": "integer"}, "uniqueItems": true},
+    "populationSize": {"type": "integer", "minimum": 4},
+    "generations": {"type": "integer", "minimum": 1},
+    "archiveSize": {"type": "integer", "minimum": 1},
+    "objectiveWeights": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"type": "number", "minimum": 0.0}
+    },
+    "objectiveNames": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "target": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/target"}]},
+    "holdoutPolicy": {"type": ["string", "null"]},
+    "isophonemyThreshold": {"type": "number", "exclusiveMinimum": 0.0, "exclusiveMaximum": 1.0}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"mode": {"const": "population-design"}}, "required": ["mode"]},
+      "then": {
+        "properties": {
+          "target": {"type": "null"},
+          "holdoutPolicy": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"mode": {"const": "sample-conditioned"}}, "required": ["mode"]},
+      "then": {
+        "properties": {
+          "target": {"$ref": "#/$defs/target"},
+          "holdoutPolicy": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sampleDigests",
+        "sampleRateHz",
+        "totalDurationS",
+        "voicedDurationS",
+        "estimatedSnrDb",
+        "utteranceCount",
+        "distinctPhoneClasses",
+        "sourceTractMethod",
+        "sourceTractConfidence",
+        "heldOutSampleDigests",
+        "articulatoryEvidenceDigests"
+      ],
+      "properties": {
+        "sampleDigests": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 16}, "uniqueItems": true},
+        "sampleRateHz": {"type": "integer", "minimum": 8000},
+        "totalDurationS": {"type": "number", "exclusiveMinimum": 0.0},
+        "voicedDurationS": {"type": "number", "minimum": 0.0},
+        "estimatedSnrDb": {"type": ["number", "null"]},
+        "utteranceCount": {"type": "integer", "minimum": 1},
+        "distinctPhoneClasses": {"type": ["integer", "null"], "minimum": 0},
+        "sourceTractMethod": {"type": "string", "minLength": 1},
+        "sourceTractConfidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "heldOutSampleDigests": {"type": "array", "items": {"type": "string", "minLength": 16}, "uniqueItems": true},
+        "articulatoryEvidenceDigests": {"type": "array", "items": {"type": "string", "minLength": 16}, "uniqueItems": true}
+      }
+    }
+  }
+}

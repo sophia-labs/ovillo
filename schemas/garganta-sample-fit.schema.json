@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia-labs.ai/schemas/garganta/sample-fit/1",
+  "title": "GARGANTA sample-conditioned anatomy fit receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "campaignDigest",
+    "targetSampleDigests",
+    "candidates",
+    "claim",
+    "withheldClaims",
+    "refusalReasons",
+    "identifiabilityDiameter"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "garganta.sample-fit/1"},
+    "campaignDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "targetSampleDigests": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "anatomyDigest",
+          "trainingLoss",
+          "holdoutLoss",
+          "sourceControlLoss",
+          "articulatoryWork",
+          "posteriorWeight",
+          "isophonemyCluster"
+        ],
+        "properties": {
+          "anatomyDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "trainingLoss": {"type": "number", "minimum": 0.0},
+          "holdoutLoss": {"type": "number", "minimum": 0.0},
+          "sourceControlLoss": {"type": "number", "minimum": 0.0},
+          "articulatoryWork": {"type": "number", "minimum": 0.0},
+          "posteriorWeight": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "isophonemyCluster": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "claim": {
+      "enum": [
+        "valid-pseudobiological",
+        "repertoire-capable",
+        "policy-optimal",
+        "sample-resemblant",
+        "sample-conditioned-plausible",
+        "speaker-cluster-consistent",
+        "biologically-reconstructed"
+      ]
+    },
+    "withheldClaims": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "refusalReasons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "path", "message", "measured", "limit"],
+        "properties": {
+          "code": {"type": "string", "minLength": 1},
+          "path": {"type": "string"},
+          "message": {"type": "string", "minLength": 1},
+          "measured": {},
+          "limit": {}
+        }
+      }
+    },
+    "identifiabilityDiameter": {"type": "number", "minimum": 0.0}
+  }
+}
