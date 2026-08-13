@@ -21,6 +21,11 @@
 //! Where the port cannot meet its tier, the correct move is to say so —
 //! record the measured divergence and surface it, never to widen a
 //! tolerance silently. Refusal is a result.
+//!
+//! The live Ariadne modules (`power_port`, `electrodynamic_radiator`, and
+//! `powered_radiator`) are native physical contracts rather than Python ports.
+//! Their oracles are power preservation, passivity, reciprocity, and receipt
+//! closure.
 
 #[cfg(feature = "full")]
 pub mod backbone;
@@ -28,6 +33,8 @@ pub mod backbone;
 pub mod body_profiles;
 #[cfg(feature = "full")]
 pub mod bus;
+/// Reciprocal electrical/mechanical/acoustic radiator for live physical graphs.
+pub mod electrodynamic_radiator;
 #[cfg(feature = "full")]
 pub mod filters;
 #[cfg(feature = "full")]
@@ -38,6 +45,8 @@ pub mod glow;
 pub mod kernels;
 #[cfg(feature = "full")]
 pub mod pitch;
+/// Domain-explicit effort/flow ports and power-preserving junctions.
+pub mod power_port;
 /// Sample-rate-native, allocation-free powered modal body for live audio input.
 pub mod powered_radiator;
 
