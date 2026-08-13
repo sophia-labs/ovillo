@@ -58,14 +58,11 @@ FORBIDDEN_EXPORTS = (
 
 
 def active_sources() -> list[Path]:
-    sources: list[Path] = []
-    direct = DSP_SRC / "ariadne_terminal.rs"
-    if direct.exists():
-        sources.append(direct)
+    sources = set(DSP_SRC.glob("ariadne_*.rs"))
     directory = DSP_SRC / "ariadne"
     if directory.exists():
-        sources.extend(sorted(directory.rglob("*.rs")))
-    return sources
+        sources.update(directory.rglob("*.rs"))
+    return sorted(sources)
 
 
 def main() -> int:
