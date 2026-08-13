@@ -8,8 +8,8 @@
 //! ```text
 //! WorldSpec + TrajectoryProgram
 //!     -> validate and content-address
-//!     -> World::compile + TrajectoryBinding
-//!     -> persistent material state
+//!     -> World::try_new + TrajectoryBinding::compile
+//!     -> one persistent material-and-space state
 //!     -> one frozen stage order
 //!     -> radiation + WorldReceipt
 //! ```
@@ -30,8 +30,8 @@ pub mod world;
 #[cfg(feature = "compat-terminal")]
 pub mod compat;
 
-// Preserve the current plug-in import while its source names migrate. This is
-// an alias to quarantined compatibility code, not a second canonical runtime.
+/// Temporary import compatibility for the currently shipped plug-in. The code
+/// is quarantined under `compat`; it is not a second canonical architecture.
 #[cfg(feature = "compat-terminal")]
 pub mod ariadne_terminal {
     pub use crate::compat::terminal::*;
@@ -43,12 +43,11 @@ pub use ir::{
     MODE_COUNT, SPACE_COURSES, TRANSPORT_PAIRS,
 };
 pub use performance::{CostEstimate, RuntimeLayout};
+pub use space::{ReciprocalSpace, SpaceControls, SpaceFrame};
 pub use trajectory::{
-    CompiledWorldTrajectory, TrajectoryBinding, TrajectoryBindingError,
-    WorldTrajectoryFrame, WorldTrajectoryPlayer, WorldTrajectoryTick,
+    TrajectoryBindError, TrajectoryBinding, WorldCoordinates,
 };
 pub use world::{
-    BlockError, CompileError, ReconfigurationReceipt, World, WorldControls,
-    WorldFrame, WorldReceipt, WorldStateSnapshot, EXECUTION_STAGE_ORDER,
-    WORLD_RUNTIME_VERSION,
+    FrameOutput, ReconfigurationFrame, World, WorldControls, WorldError,
+    WorldReceipt,
 };
