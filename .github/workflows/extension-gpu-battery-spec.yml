@@ -1,0 +1,59 @@
+name: Extension GPU Battery Spec
+
+on:
+  push:
+    paths:
+      - "mus-rs/experiments/extension_gpu_battery_v1/**"
+      - ".github/workflows/extension-gpu-battery-spec.yml"
+  pull_request:
+    paths:
+      - "mus-rs/experiments/extension_gpu_battery_v1/**"
+      - ".github/workflows/extension-gpu-battery-spec.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-spec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install pyyaml jsonschema
+      - name: Validate JSON schemas and YAML syntax
+        working-directory: mus-rs/experiments/extension_gpu_battery_v1
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import yaml
+          from jsonschema.validators import validator_for
+
+          root = Path('.')
+          for path in sorted((root / 'schemas').glob('*.json')):
+              schema = json.loads(path.read_text())
+              cls = validator_for(schema)
+              cls.check_schema(schema)
+              print('schema ok', path)
+
+          for path in sorted((root / 'configs').glob('*.yaml')):
+              value = yaml.safe_load(path.read_text())
+              assert isinstance(value, dict), path
+              print('yaml ok', path)
+          PY
+      - name: Check required documents
+        working-directory: mus-rs/experiments/extension_gpu_battery_v1
+        run: |
+          test -f MASTER-SPEC.md
+          test -f EXPERIMENT-01-PREDICTIVE-COORDINATES.md
+          test -f EXPERIMENT-02-UNTYPED-TRANSPORT.md
+          test -f EXPERIMENT-03-ATTENTION-EMERGENCE.md
+          test -f EXPERIMENT-04-PROJECTIVE-OPTIMIZATION.md
+          test -f CLOUD-RUNBOOK.md
+          test -f ANALYSIS-AND-DECISION-PLAN.md
+          test -f IMPLEMENTATION-HANDOFF.md
+          test -f RESULT-CONTRACT.md

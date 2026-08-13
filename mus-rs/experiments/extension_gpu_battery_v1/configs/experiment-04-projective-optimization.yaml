@@ -1,0 +1,45 @@
+id: E4-PROJOPT
+design: EXPERIMENT-04-PROJECTIVE-OPTIMIZATION.md
+budget_fraction: 0.15
+processes: [P-EASY4, P-BASE6, P-NOISY6, P-WEAK8]
+stream_lengths: [10000, 20000, 50000, 100000, 250000, 500000, 1000000, 2000000]
+nmf_seeds: [7, 11, 19, 23, 31, 37, 41, 43]
+rank_conditions: [under, matched, over]
+optimizers:
+  - Q0-ADAMW
+  - Q1-BALANCE-RESET
+  - Q2-BALANCE-COVARIANT
+  - Q3-MIRROR
+  - Q4-GAUSS-NEWTON
+  - Q5-HYBRID
+  - Q6-RANK-CONT
+gauge_conditions:
+  - canonical
+  - diagonal_condition_1e2
+  - diagonal_condition_1e4
+  - permuted_diagonal_condition_1e2
+balance:
+  every_steps: 25
+  weights: {initial: 1.0, terminal: 1.0, row: 1.0, column: 1.0, entry: 0.1}
+gauss_newton:
+  damping: [1.0e-4, 1.0e-3, 1.0e-2, 1.0e-1]
+  cg_iterations: 20
+screen:
+  processes: [P-BASE6, P-NOISY6]
+  stream_lengths: [20000, 100000, 500000]
+  nmf_seeds: [7, 11, 19]
+  sequence_length: 128
+  batch: 256
+  steps: 500
+confirm:
+  seeds: core
+  sequence_length: 256
+  batch: 256
+  steps: 1200
+basin_noise: [0.02, 0.05, 0.10, 0.20, 0.50, 1.0, 1.5]
+basin_replicates: 10
+primary:
+  variance_reduction_min: 2.0
+  adjacent_monotonicity_min: 0.80
+  basin_radius_ratio_min: 1.5
+  mean_excess_bps_noninferiority: 0.005

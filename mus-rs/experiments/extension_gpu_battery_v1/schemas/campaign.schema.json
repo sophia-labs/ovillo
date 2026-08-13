@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia-labs.example/schemas/extension/campaign.v1.json",
+  "title": "EXTENSION GPU Campaign",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "name",
+    "spec_revision",
+    "source",
+    "budget",
+    "determinism",
+    "artifact_store",
+    "processes",
+    "seeds",
+    "experiments"
+  ],
+  "properties": {
+    "schema_version": {"const": "extension.campaign.v1"},
+    "name": {"type": "string", "minLength": 1},
+    "spec_revision": {"type": "string", "minLength": 1},
+    "source": {
+      "type": "object",
+      "required": ["repository", "commit", "image_digest", "dependency_lock_sha256"],
+      "properties": {
+        "repository": {"type": "string"},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "image_digest": {"type": "string"},
+        "dependency_lock_sha256": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "budget": {
+      "type": "object",
+      "required": ["gpu_seconds"],
+      "properties": {
+        "gpu_seconds": {"type": "integer", "minimum": 1},
+        "cpu_seconds_soft": {"type": "integer", "minimum": 0},
+        "reserve_fraction": {"type": "number", "minimum": 0, "maximum": 0.5}
+      },
+      "additionalProperties": false
+    },
+    "determinism": {
+      "type": "object",
+      "required": ["level", "train_dtype", "oracle_dtype"],
+      "properties": {
+        "level": {"enum": ["exact", "seeded", "statistical"]},
+        "train_dtype": {"enum": ["float32", "bfloat16", "float64"]},
+        "oracle_dtype": {"const": "float64"},
+        "allow_tf32": {"type": "boolean"},
+        "cudnn_benchmark": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    },
+    "artifact_store": {
+      "type": "object",
+      "required": ["uri", "complete_marker", "checkpoint_seconds"],
+      "properties": {
+        "uri": {"type": "string", "pattern": "^(s3|file)://"},
+        "complete_marker": {"type": "string"},
+        "checkpoint_seconds": {"type": "integer", "minimum": 30}
+      },
+      "additionalProperties": false
+    },
+    "processes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"type": "string"}
+    },
+    "seeds": {
+      "type": "object",
+      "required": ["screening", "core", "replication"],
+      "properties": {
+        "screening": {"$ref": "#/$defs/seeds"},
+        "core": {"$ref": "#/$defs/seeds"},
+        "replication": {"$ref": "#/$defs/seeds"}
+      },
+      "additionalProperties": false
+    },
+    "splits": {"type": "object"},
+    "calibration": {"type": "object"},
+    "experiments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "object"}
+    },
+    "analysis": {"type": "object"},
+    "cloud": {"type": "object"}
+  },
+  "$defs": {
+    "seeds": {
+      "type": "array",
+      "items": {"type": "integer", "minimum": 0},
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false
+}

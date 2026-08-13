@@ -1,0 +1,49 @@
+id: E2-CATEGORY
+design: EXPERIMENT-02-UNTYPED-TRANSPORT.md
+budget_fraction: 0.20
+common_event:
+  control_dim: 4
+  fields: [symbol_one_hot, control_increment, phase_features, task_context, validity_mask]
+branches:
+  - {name: B-PROJ, kind: positive_projective, rank: 6}
+  - {name: B-CLIFF, kind: clifford, latent_dim: 3, fibers: 2}
+  - {name: B-COMM, kind: commuting_orthogonal, latent_dim: 3, fibers: 2}
+  - {name: B-AFFINE, kind: affine_contracting, hidden: 16}
+initialization_regimes: [CALIBRATED, COLD, MISMATCHED]
+tasks: [filtering, loop, mixed, switched, null]
+filter_processes: [P-BASE6, P-NOISY6, P-WEAK8]
+gate:
+  kind: entmax
+  uniform_warmup_fraction: 0.10
+  penalty_ramp_fraction: 0.20
+  mdl_multipliers: [0.5, 1.0, 2.0]
+  null_task_cost_fraction: 0.02
+screen:
+  tasks: [filtering, loop, mixed, null]
+  regimes: [CALIBRATED, COLD]
+  seeds: screening
+  episode_length: 96
+  batch: 256
+  steps: 800
+  eval_every: 50
+confirm:
+  tasks: [filtering, loop, mixed, switched, null]
+  seeds: core
+  episode_length: 192
+  batch: 256
+  steps: 2000
+  eval_every: 100
+controls:
+  - single_branch_ceilings
+  - commuting_control
+  - gate_label_permutation
+  - function_preserving_branch_rescaling
+  - nuisance_swap
+  - equal_cost
+primary:
+  projective_filter_gate_min: 0.70
+  clifford_loop_gate_min: 0.70
+  mixed_each_gate_min: 0.20
+  clifford_loop_ablation_drop_points: 35
+  commuting_loop_change_max_points: 5
+  replicate_seeds_min: 4

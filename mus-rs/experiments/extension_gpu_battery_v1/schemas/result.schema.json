@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia-labs.example/schemas/extension/result.v1.json",
+  "title": "EXTENSION GPU Run Result",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "run_id",
+    "experiment_id",
+    "condition",
+    "status",
+    "primary",
+    "secondary",
+    "invariants",
+    "resources",
+    "artifacts",
+    "manifest_sha256",
+    "result_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "extension.result.v1"},
+    "campaign_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "experiment_id": {"enum": ["E1-PREDCOORD", "E2-CATEGORY", "E3-HEADMECH", "E4-PROJOPT"]},
+    "condition": {"type": "string"},
+    "status": {
+      "enum": [
+        "completed",
+        "censored",
+        "failed_infrastructure",
+        "invalid_numerics",
+        "excluded_manifest_mismatch",
+        "cancelled_budget"
+      ]
+    },
+    "primary": {
+      "type": "object",
+      "required": ["metric", "value"],
+      "properties": {
+        "metric": {"type": "string"},
+        "value": {"type": "number"},
+        "count": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "secondary": {"type": "object"},
+    "invariants": {"type": "object"},
+    "resources": {
+      "type": "object",
+      "properties": {
+        "wall_seconds": {"type": "number", "minimum": 0},
+        "gpu_seconds": {"type": "number", "minimum": 0},
+        "train_tokens": {"type": "integer", "minimum": 0},
+        "peak_gpu_bytes": {"type": "integer", "minimum": 0},
+        "gpu_name": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256", "bytes", "role"],
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "bytes": {"type": "integer", "minimum": 0},
+          "role": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

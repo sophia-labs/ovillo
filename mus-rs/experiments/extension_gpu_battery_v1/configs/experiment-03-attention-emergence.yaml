@@ -1,0 +1,44 @@
+id: E3-HEADMECH
+design: EXPERIMENT-03-ATTENTION-EMERGENCE.md
+budget_fraction: 0.35
+task:
+  keys: 5
+  routes: [1, 2, 3, 4]
+  route_condition_numbers: [1, 2, 4, 8, 16]
+model:
+  core_heads: matched_and_plus_two
+  sanity_heads: [1, 2, 3, 4, 5, 6, 7, 8]
+  query_dim_rule: max_8_2routes
+  value_dim_rule: max_4_routes
+collision_epsilon: [1.0e-6, 3.0e-6, 1.0e-5, 3.0e-5, 1.0e-4, 3.0e-4, 1.0e-3, 3.0e-3, 1.0e-2, 3.0e-2, 1.0e-1]
+output_multiplier: [0.5, 1.0, 2.0]
+optimizers:
+  - {name: O-GD, kind: full_batch_gd}
+  - {name: O-SGD, kind: sgd, batches: [64, 256, 1024]}
+  - {name: O-ADAMW, kind: adamw, batches: [64, 256, 1024], weight_decay: [0, 1.0e-5, 1.0e-3]}
+edge_ratios: [0.05, 0.15, 0.35, 0.65, 0.90]
+design_matrix:
+  anchor_route: 3
+  anchor_heads: 3
+  latin_hypercube_per_optimizer: 96
+  screen_seeds: screening
+  anchor_replication_seeds: [7, 11, 19]
+training:
+  max_steps: 2000
+  post_emergence_min_steps: 200
+  heavy_diagnostic_steps: [0, 20, 50, 100, 200, 400, 800, 1200, 2000]
+emergence:
+  relative_singular_min: 0.50
+  assignment_min: 0.75
+  consecutive_checkpoints: 3
+analysis_split:
+  fit: 0.60
+  selection: 0.20
+  holdout: 0.20
+primary:
+  static_rank_correlation_min: 0.98
+  static_rank_mae_max: 0.10
+  holdout_r2_min: 0.80
+  holdout_mare_max: 0.25
+  concordance_min: 0.85
+  heldout_pair_order_min: 0.80

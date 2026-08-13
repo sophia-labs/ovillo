@@ -1,0 +1,55 @@
+id: E1-PREDCOORD
+design: EXPERIMENT-01-PREDICTIVE-COORDINATES.md
+budget_fraction: 0.25
+processes:
+  screen: [P-BASE6, P-NOISY6]
+  confirm: [P-EASY4, P-NOISY6, P-WEAK8]
+students:
+  core:
+    - {name: clifford16, kind: clifford, latent_dim: 3, fibers: 2}
+    - {name: gru16, kind: gru, hidden: 16}
+    - {name: linear16, kind: affine_linear, hidden: 16}
+  secondary:
+    - {name: clifford8, kind: clifford, latent_dim: 3, fibers: 1}
+    - {name: gru8, kind: gru, hidden: 8}
+treatments:
+  - T0-NEXT
+  - T1-FUTURE
+  - T2-CCA
+  - T3-STATE
+  - T4-FUTURETEST
+  - T5-TRANSITION
+teacher:
+  factor_method: kl_nmf_nnls
+  word_depth: 2
+  future_test_depth: 3
+  explained_variance: 0.999
+  max_components: 32
+  gauges: 8
+  hidden_labels_forbidden: true
+auxiliary_gradient_ratio: 0.30
+auxiliary_weight_bounds: [0.03, 3.0]
+screen:
+  seeds: screening
+  sequence_length: 128
+  batch: 256
+  steps: 600
+  eval_every: 50
+confirm:
+  seeds: core
+  sequence_length: 256
+  batch: 256
+  steps: 1500
+  eval_every: 100
+controls:
+  - shuffled_teacher
+  - rank_matched_random_teacher
+  - oracle_belief_ceiling_analysis_only
+  - nonlinear_probe_capacity_control
+primary:
+  comparison: T4_OR_PROMOTED_T5_minus_T2
+  processes: [P-NOISY6, P-WEAK8]
+  metric: excess_bps
+  minimum_improvement: 0.010
+  weak_mode_r2_improvement: 0.10
+  gauge_effect_change_max_fraction: 0.20

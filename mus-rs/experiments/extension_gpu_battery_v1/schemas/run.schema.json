@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia-labs.example/schemas/extension/run.v1.json",
+  "title": "EXTENSION GPU Run Manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "run_id",
+    "experiment_id",
+    "stage",
+    "condition",
+    "seed",
+    "source",
+    "data",
+    "model",
+    "optimizer",
+    "training",
+    "precision",
+    "diagnostics",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {"const": "extension.run.v1"},
+    "campaign_id": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+    "run_id": {"type": "string", "pattern": "^[0-9a-f]{20}$"},
+    "experiment_id": {"enum": ["E1-PREDCOORD", "E2-CATEGORY", "E3-HEADMECH", "E4-PROJOPT"]},
+    "stage": {"enum": ["smoke", "calibration", "screen", "confirm", "replication", "diagnostic_replay"]},
+    "condition": {"type": "string", "minLength": 1},
+    "seed": {"type": "integer", "minimum": 0},
+    "source": {
+      "type": "object",
+      "required": ["repository", "commit", "image_digest"],
+      "properties": {
+        "repository": {"type": "string"},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "image_digest": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "data": {
+      "type": "object",
+      "required": ["process_or_task", "train_sha256", "validation_sha256"],
+      "properties": {
+        "process_or_task": {"type": "string"},
+        "train_sha256": {"type": "string"},
+        "validation_sha256": {"type": "string"},
+        "test_sha256": {"type": ["string", "null"]},
+        "factor_id": {"type": ["string", "null"]},
+        "teacher_id": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "model": {
+      "type": "object",
+      "required": ["kind", "state_size", "parameters"],
+      "properties": {
+        "kind": {"type": "string"},
+        "state_size": {"type": "integer", "minimum": 1},
+        "parameters": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "initialization": {"type": "object"},
+    "gauge": {"type": "object"},
+    "optimizer": {
+      "type": "object",
+      "required": ["kind", "parameters"],
+      "properties": {
+        "kind": {"type": "string"},
+        "parameters": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "training": {
+      "type": "object",
+      "required": ["steps", "batch", "sequence_length"],
+      "properties": {
+        "steps": {"type": "integer", "minimum": 0},
+        "batch": {"type": "integer", "minimum": 1},
+        "sequence_length": {"type": "integer", "minimum": 1},
+        "eval_every": {"type": "integer", "minimum": 1},
+        "early_stop": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "precision": {
+      "type": "object",
+      "required": ["train_dtype", "oracle_dtype", "determinism"],
+      "properties": {
+        "train_dtype": {"type": "string"},
+        "oracle_dtype": {"const": "float64"},
+        "determinism": {"enum": ["exact", "seeded", "statistical"]},
+        "allow_tf32": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    },
+    "diagnostics": {"type": "object"},
+    "parents": {"type": "array", "items": {"type": "object"}},
+    "artifacts": {
+      "type": "object",
+      "required": ["prefix"],
+      "properties": {"prefix": {"type": "string"}},
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

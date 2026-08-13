@@ -1,0 +1,62 @@
+schema_version: extension.campaign.v1
+name: extension-gpu-battery-v1-smoke
+spec_revision: gpu-battery-v1
+source:
+  repository: sophia-labs/instrument
+  commit: af38cd70247e9a695599269bd0c8fa3b6832f44d
+  image_digest: REPLACE_AFTER_BUILD
+  dependency_lock_sha256: REPLACE_AFTER_BUILD
+budget:
+  gpu_seconds: 1800
+  cpu_seconds_soft: 20000
+  reserve_fraction: 0.10
+determinism:
+  level: seeded
+  train_dtype: float32
+  oracle_dtype: float64
+  allow_tf32: false
+artifact_store:
+  uri: file:///tmp/extension-gpu-battery-v1-smoke
+  complete_marker: COMPLETE
+  checkpoint_seconds: 120
+processes:
+  P-BASE6: p6_baseline
+seeds:
+  screening: [7]
+  core: [7]
+  replication: []
+experiments:
+  - id: E1-PREDCOORD
+    smoke_conditions: [T0-NEXT, T2-CCA, T4-FUTURETEST]
+    steps: 60
+    sequence_length: 32
+    batch: 64
+  - id: E2-CATEGORY
+    smoke_conditions: [CALIBRATED]
+    tasks: [filtering, loop]
+    steps: 80
+    episode_length: 32
+    batch: 64
+  - id: E3-HEADMECH
+    routes: [2]
+    heads: [2]
+    optimizers: [O-GD, O-ADAMW]
+    collision_epsilon: [0.001]
+    steps: 100
+  - id: E4-PROJOPT
+    smoke_conditions: [Q0-ADAMW, Q1-BALANCE-RESET]
+    stream_lengths: [20000]
+    steps: 80
+    sequence_length: 32
+    batch: 64
+analysis:
+  bootstrap_replicates: 100
+  test_access_stage: disabled
+  generate_figures: false
+cloud:
+  job_template: cloud/kubernetes-job-template.yaml
+  gpu_class: auto
+  use_spot_for_training: false
+  active_deadline_seconds: 1800
+  backoff_limit: 1
+  termination_grace_seconds: 120
