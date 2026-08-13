@@ -32,6 +32,11 @@ jobs:
         run: python mus-rs/tools/check_ariadne_pure_physics.py
       - name: Ariadne Terminal independent law oracle
         run: python mus-rs/tools/verify_ariadne_terminal_laws.py --trials 10000 --json
+      - name: Ariadne synchronized-active and resonance law oracle
+        run: >-
+          python
+          mus-rs/experiments/ariadne_fidelity_performance_v1/reference/active_resonant_laws.py
+          --trials 10000 --json
       - name: install uv for parity and oracle-backed tests
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - uses: dtolnay/rust-toolchain@stable
