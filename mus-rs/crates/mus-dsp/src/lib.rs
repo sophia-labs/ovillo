@@ -1,51 +1,18 @@
-//! Sample-faithful DSP for the MUS render face.
+//! Sample-faithful DSP for the historical MUS render face.
 //!
-//! Every historical public function here is a port of the equivalently named
-//! function in `mus_audio.py`, and the oracle is not prose: `mus-rs/tools/
-//! gen_dsp_fixtures.py` dumps golden input/output vectors from the Python
-//! implementation into `mus-rs/fixtures/dsp/`, and every port carries a test
-//! that replays them. A passing suite means "same math", not "similar idea".
-//!
-//! The live Ariadne modules are native contracts rather than Python ports.
-//! Their oracles are stored-state evolution, work/loss/radiation closure,
-//! ordered-transport identities, exact zero limits, and host invariance.
+//! Canonical Ariadne anatomy, laws, persistent bodies, spaces, trajectories,
+//! execution, and receipts now live in `mus-ariadne`. This crate retains the
+//! older renderer kernels and one temporary import shim for saved plug-in and
+//! test code; it must not grow a second Ariadne implementation.
 
-/// Thresholded, reservoir-paid active matter discovered by the first
-/// electric-region fidelity campaign.
+/// Temporary source-compatibility seam for the currently shipped terminal.
+/// The implementation is owned once, under `mus_ariadne::compat`.
 #[cfg(feature = "ariadne-live")]
-pub mod ariadne_active_inclusion;
-/// Persistent compliant source/contact boundary shared by plucked-string and
-/// lip-reed-like playing regimes.
-#[cfg(feature = "ariadne-live")]
-pub mod ariadne_compliant_aperture;
-/// V2 maximal body: one 24-coordinate state organized as six guitar courses
-/// or one brass bore, with the same aperture, active matter, room, and ledger.
-#[cfg(feature = "ariadne-live")]
-pub mod ariadne_metric_body;
-/// Arbitrary positive modal metric whose fixed state can organize as multiple
-/// string courses or one bore harmonic family.
-#[cfg(feature = "ariadne-live")]
-pub mod ariadne_metric_field;
-/// Fixed-rank Hamiltonian wave body whose metric and boundary configuration
-/// span string- and bore-like regions without selecting another renderer.
-#[cfg(feature = "ariadne-live")]
-pub mod ariadne_morphing_field;
-/// State-dependent, metric-compatible exchange between authored
-/// near-internal-resonance material modes.
-#[cfg(feature = "ariadne-live")]
-pub mod ariadne_resonant_transport;
-/// Reciprocal delay-course room coupled directly to live body momentum.
-#[cfg(feature = "ariadne-live")]
-pub mod ariadne_room_halo;
-/// V1 one-ladder maximal body retained as an explicit scientific ablation.
-#[cfg(feature = "ariadne-live")]
-pub mod ariadne_string_brass_body;
-/// Measured construction profiles for the first shared string/brass campaign.
-#[cfg(feature = "ariadne-live")]
-pub mod ariadne_string_brass_profiles;
-/// Pure powered metric material and reciprocal spatial halo for live input.
-#[cfg(feature = "ariadne-live")]
-pub mod ariadne_terminal;
+#[deprecated(note = "import mus_ariadne::compat::terminal directly")]
+pub mod ariadne_terminal {
+    pub use mus_ariadne::compat::terminal::*;
+}
+
 #[cfg(feature = "full")]
 pub mod backbone;
 #[cfg(feature = "full")]
@@ -62,13 +29,12 @@ pub mod glow;
 pub mod kernels;
 #[cfg(feature = "full")]
 pub mod pitch;
-/// Transitional live processor retained as a scientific and listening control.
+/// Transitional noncanonical processor retained as a scientific control.
 pub mod powered_radiator;
 
-/// Physically informed guitar and Weave networks, plus the fixed-topology
-/// rearticulation and attack-work extensions. The parity-pinned implementation
-/// remains in `src/pluck.rs`; `build.rs` appends the child extensions without
-/// widening its private state surface.
+/// Historical physically informed guitar and Weave networks. New Ariadne
+/// bodies are declarations lowered into `mus-ariadne::World`, not additions to
+/// this module.
 #[cfg(feature = "full")]
 pub mod pluck {
     include!(concat!(env!("OUT_DIR"), "/pluck_generated.rs"));
@@ -78,17 +44,11 @@ pub mod pluck {
 pub mod scene;
 #[cfg(feature = "full")]
 pub mod synth;
-/// Direct authored string trajectories. The committed adapter remains in
-/// `src/trajectory.rs`; `build.rs` adds the optional rearticulation receipt at
-/// the body-runtime boundary without creating a dependency cycle.
 #[cfg(feature = "full")]
 pub mod trajectory {
     include!(concat!(env!("OUT_DIR"), "/trajectory_generated.rs"));
 }
 
-/// Engine sample rate. `mus_audio.py` line 47: `SR = 48_000`.
 pub const SR: usize = 48_000;
-/// `SR` as f32, for rate math in kernel code.
 pub const SR_F: f32 = 48_000.0;
-/// `SR` as f64, for phase/frequency math done in double precision.
 pub const SR_F64: f64 = 48_000.0;
