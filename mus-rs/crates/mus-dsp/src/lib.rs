@@ -26,6 +26,9 @@ pub mod ariadne_morphing_field;
 /// near-internal-resonance material modes.
 #[cfg(feature = "ariadne-live")]
 pub mod ariadne_resonant_transport;
+/// Measured construction profiles for the first shared string/brass campaign.
+#[cfg(feature = "ariadne-live")]
+pub mod ariadne_string_brass_profiles;
 /// Pure powered metric material and reciprocal spatial halo for live input.
 #[cfg(feature = "ariadne-live")]
 pub mod ariadne_terminal;
