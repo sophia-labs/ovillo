@@ -1,8 +1,4 @@
-# The gap the Phase 0/1 landing synthesist named: every Ariadne workflow
-# is scoped to mus-watsn or the Python reference, so nothing gated the
-# production engine, mus-gesture, or the parity/byte-law suites. This
-# job is the net: the full workspace battery on every push that touches
-# the Rust tree.
+# Workspace-wide law, architecture, formatting, lint, and test gate.
 name: mus-workspace-ci
 on:
   push:
@@ -17,17 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # mus-dsp links the soxr resampler; without the system library the
-      # whole battery dies at build.
       - name: system libraries
         run: sudo apt-get update && sudo apt-get install -y libsoxr-dev
-      # The mus-cli corpus parity test intentionally invokes the Python
-      # checker through uv. Install that oracle runtime explicitly instead
-      # of assuming it happens to be present on the hosted runner.
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
+      - name: Ariadne single-architecture constitution
+        run: python mus-rs/tools/check_ariadne_architecture.py
       - name: Ariadne pure-physics constitution
         run: python mus-rs/tools/check_ariadne_pure_physics.py
       - name: Ariadne Terminal independent law oracle
@@ -55,6 +48,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: mus-rs
+      - name: canonical Ariadne feature matrix
+        run: cargo test -p mus-ariadne --all-features --release
+        working-directory: mus-rs
       - name: fmt
         run: cargo fmt --all -- --check
         working-directory: mus-rs
