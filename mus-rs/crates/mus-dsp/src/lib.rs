@@ -18,6 +18,10 @@ pub mod ariadne_active_inclusion;
 /// lip-reed-like playing regimes.
 #[cfg(feature = "ariadne-live")]
 pub mod ariadne_compliant_aperture;
+/// Arbitrary positive modal metric whose fixed state can organize as multiple
+/// string courses or one bore harmonic family.
+#[cfg(feature = "ariadne-live")]
+pub mod ariadne_metric_field;
 /// Fixed-rank Hamiltonian wave body whose metric and boundary configuration
 /// span string- and bore-like regions without selecting another renderer.
 #[cfg(feature = "ariadne-live")]
