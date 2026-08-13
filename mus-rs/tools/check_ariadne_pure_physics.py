@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Reject electrical/circuit anatomy in Ariadne's active reference renderer.
+"""Reject circuit anatomy and disguised effects chains in canonical Ariadne.
 
-Historical research notes and external evaluation metadata may discuss legacy
-hardware. This check intentionally targets active Ariadne physical modules and
-the module-export surface, where those concepts would become implementation
-ontology.
+Historical notes and evaluation metadata may discuss conventional hardware.
+Executable physical law is owned by ``mus-ariadne`` and is scanned in full,
+including the temporary product-compatibility implementation.
 """
 
 from __future__ import annotations
@@ -14,9 +13,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+ARIADNE_SRC = ROOT / "mus-rs" / "crates" / "mus-ariadne" / "src"
 DSP_SRC = ROOT / "mus-rs" / "crates" / "mus-dsp" / "src"
 
 FORBIDDEN_FILES = (
+    ARIADNE_SRC / "electrodynamic_radiator.rs",
+    ARIADNE_SRC / "power_port.rs",
     DSP_SRC / "electrodynamic_radiator.rs",
     DSP_SRC / "power_port.rs",
 )
@@ -58,11 +60,9 @@ FORBIDDEN_EXPORTS = (
 
 
 def active_sources() -> list[Path]:
-    sources = set(DSP_SRC.glob("ariadne_*.rs"))
-    directory = DSP_SRC / "ariadne"
-    if directory.exists():
-        sources.update(directory.rglob("*.rs"))
-    return sorted(sources)
+    if not ARIADNE_SRC.exists():
+        return []
+    return sorted(path for path in ARIADNE_SRC.rglob("*.rs") if path.is_file())
 
 
 def main() -> int:
@@ -71,12 +71,12 @@ def main() -> int:
     for path in FORBIDDEN_FILES:
         if path.exists():
             failures.append(
-                f"forbidden Ariadne electrical-domain module exists: "
-                f"{path.relative_to(ROOT)}"
+                f"forbidden circuit-domain module exists: {path.relative_to(ROOT)}"
             )
 
-    lib = DSP_SRC / "lib.rs"
-    if lib.exists():
+    for lib in (ARIADNE_SRC / "lib.rs", DSP_SRC / "lib.rs"):
+        if not lib.exists():
+            continue
         text = lib.read_text(encoding="utf-8")
         for pattern in FORBIDDEN_EXPORTS:
             if re.search(pattern, text):
@@ -86,7 +86,7 @@ def main() -> int:
 
     sources = active_sources()
     if not sources:
-        failures.append("no active Ariadne pure-physics source was found")
+        failures.append("no canonical Ariadne pure-physics source was found")
 
     for path in sources:
         text = path.read_text(encoding="utf-8").lower()
@@ -96,7 +96,7 @@ def main() -> int:
                     f"forbidden implementation term {term!r} in {path.relative_to(ROOT)}"
                 )
 
-        # A serial legacy-effects topology is forbidden even under neutral names.
+        # A serial gain/nonlinearity/tone chain remains forbidden under new nouns.
         serial_markers = (
             "contact_stages",
             "cabinet_sections",
@@ -118,7 +118,7 @@ def main() -> int:
         return 1
 
     print(
-        f"Ariadne pure-physics source check passed ({len(sources)} active source file(s))."
+        f"Ariadne pure-physics source check passed ({len(sources)} canonical source files)."
     )
     return 0
 
