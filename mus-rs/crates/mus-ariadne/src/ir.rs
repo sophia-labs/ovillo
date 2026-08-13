@@ -36,10 +36,7 @@ impl MetricSpec {
         for index in 0..MODE_COUNT {
             let frequency = self.frequency_hz[index];
             let t60 = self.t60_seconds[index];
-            if !frequency.is_finite()
-                || frequency <= 0.0
-                || frequency >= 0.48 * sample_rate_hz
-            {
+            if !frequency.is_finite() || frequency <= 0.0 || frequency >= 0.48 * sample_rate_hz {
                 return Err(SpecError::new(
                     "invalid-mode-frequency",
                     format!(
@@ -223,9 +220,7 @@ impl SpaceSpec {
             if !delay.is_finite() || !(0.000_25..=2.0).contains(&delay) {
                 return Err(SpecError::new(
                     "invalid-space-delay",
-                    format!(
-                        "space course {course} delay {delay} is outside [0.25 ms, 2 s]"
-                    ),
+                    format!("space course {course} delay {delay} is outside [0.25 ms, 2 s]"),
                 ));
             }
             validate_direction("space body direction", &self.body_directions[course])?;
@@ -250,9 +245,7 @@ pub struct RadiationSpec {
 
 impl RadiationSpec {
     fn validate(self) -> Result<(), SpecError> {
-        if !self.observation_scale.is_finite()
-            || !(0.01..=64.0).contains(&self.observation_scale)
-        {
+        if !self.observation_scale.is_finite() || !(0.01..=64.0).contains(&self.observation_scale) {
             return Err(SpecError::new(
                 "invalid-observation-scale",
                 "observation_scale must be finite in [0.01, 64]",
@@ -379,8 +372,7 @@ impl WorldSpec {
                     (11, 23),
                 ],
                 weights: [
-                    1.0, 0.92, 0.84, 0.77, 0.70, 0.64, 0.59, 0.54, 0.49, 0.44,
-                    0.40, 0.36,
+                    1.0, 0.92, 0.84, 0.77, 0.70, 0.64, 0.59, 0.54, 0.49, 0.44, 0.40, 0.36,
                 ],
             },
             space: default_space(),
@@ -430,9 +422,7 @@ pub fn interpolate_configuration(
             }),
             t60_seconds: std::array::from_fn(|index| {
                 left.metric.t60_seconds[index]
-                    + amount
-                        * (right.metric.t60_seconds[index]
-                            - left.metric.t60_seconds[index])
+                    + amount * (right.metric.t60_seconds[index] - left.metric.t60_seconds[index])
             }),
         },
         aperture: interpolate_aperture(left.aperture, right.aperture, amount),
@@ -454,15 +444,14 @@ fn six_course_string_metric() -> MetricSpec {
     ];
     let mut frequency_hz = [0.0; MODE_COUNT];
     let mut t60_seconds = [0.0; MODE_COUNT];
-    for course in 0..6 {
+    for (course, fundamental) in fundamentals.iter().enumerate() {
         for partial in 0..4 {
             let index = 4 * course + partial;
             let harmonic = partial as f64 + 1.0;
-            frequency_hz[index] = fundamentals[course]
-                * harmonic
-                * (1.0 + 1.5e-5 * harmonic * harmonic).sqrt();
-            t60_seconds[index] = (2.8 - 0.30 * course as f64)
-                * (1.0 - 0.18 * partial as f64).max(0.25);
+            frequency_hz[index] =
+                fundamental * harmonic * (1.0 + 1.5e-5 * harmonic * harmonic).sqrt();
+            t60_seconds[index] =
+                (2.8 - 0.30 * course as f64) * (1.0 - 0.18 * partial as f64).max(0.25);
         }
     }
     MetricSpec {
@@ -535,8 +524,7 @@ fn string_source_direction() -> [f64; MODE_COUNT] {
 fn string_radiation_direction() -> [f64; MODE_COUNT] {
     normalized(std::array::from_fn(|index| {
         let mode = index as f64 + 1.0;
-        (std::f64::consts::PI * mode * 0.18).sin()
-            / (1.0 + 0.003 * (index as f64).powi(2))
+        (std::f64::consts::PI * mode * 0.18).sin() / (1.0 + 0.003 * (index as f64).powi(2))
     }))
 }
 
@@ -582,28 +570,17 @@ fn default_space() -> SpaceSpec {
             let mut direction = [0.0; MODE_COUNT];
             let first = (course * 3 + 1) % MODE_COUNT;
             direction[first] = 1.0;
-            direction[(first + 5) % MODE_COUNT] =
-                if course % 2 == 0 { 0.35 } else { -0.35 };
+            direction[(first + 5) % MODE_COUNT] = if course % 2 == 0 { 0.35 } else { -0.35 };
             normalized(direction)
         }),
         coupling_weights: [1.0, 0.91, 0.82, 0.74, 0.67, 0.60, 0.54, 0.48],
-        scattering_direction: normalized([
-            1.0, -0.73, 0.88, -0.61, 0.79, -0.52, 0.69, -0.44,
-        ]),
-        radiation_left: normalized([
-            1.0, 0.62, 0.18, -0.31, -0.70, -0.54, 0.08, 0.48,
-        ]),
-        radiation_right: normalized([
-            0.17, -0.51, -0.72, -0.24, 0.36, 0.61, 0.31, -0.22,
-        ]),
+        scattering_direction: normalized([1.0, -0.73, 0.88, -0.61, 0.79, -0.52, 0.69, -0.44]),
+        radiation_left: normalized([1.0, 0.62, 0.18, -0.31, -0.70, -0.54, 0.08, 0.48]),
+        radiation_right: normalized([0.17, -0.51, -0.72, -0.24, 0.36, 0.61, 0.31, -0.22]),
     }
 }
 
-fn interpolate_aperture(
-    left: ApertureSpec,
-    right: ApertureSpec,
-    amount: f64,
-) -> ApertureSpec {
+fn interpolate_aperture(left: ApertureSpec, right: ApertureSpec, amount: f64) -> ApertureSpec {
     macro_rules! linear {
         ($field:ident) => {
             left.$field + amount * (right.$field - left.$field)
@@ -649,11 +626,7 @@ fn validate_direction<const N: usize>(
 }
 
 fn normalized<const N: usize>(mut values: [f64; N]) -> [f64; N] {
-    let norm = values
-        .iter()
-        .map(|value| value * value)
-        .sum::<f64>()
-        .sqrt();
+    let norm = values.iter().map(|value| value * value).sum::<f64>().sqrt();
     for value in &mut values {
         *value /= norm;
     }

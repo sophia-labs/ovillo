@@ -35,7 +35,7 @@ REQUIRED_CANONICAL_FILES = (
 
 # Patterns are checked inside `World::process_sample`, in execution order.
 REQUIRED_STAGE_PATTERNS = (
-    ("external work", "let work_input"),
+    ("external work", "letwork_input"),
     ("compliant boundary", "self.aperture.process"),
     ("active material", "self.active.process"),
     ("ordered transport", "self.transport.process"),
@@ -118,7 +118,10 @@ def main() -> int:
         if start < 0 or end < 0:
             failures.append("canonical World does not expose process_sample and receipt")
         else:
-            process_text = world_text[start:end]
+            # Rustfmt is free to split chained calls across lines. The
+            # architecture guard cares about stage identity and order, not
+            # presentation whitespace.
+            process_text = re.sub(r"\s+", "", world_text[start:end])
             cursor = -1
             for stage, pattern in REQUIRED_STAGE_PATTERNS:
                 next_cursor = process_text.find(pattern, cursor + 1)
@@ -156,13 +159,26 @@ def main() -> int:
         manifest = plugin_manifest.read_text(encoding="utf-8")
         if "mus-ariadne" not in manifest:
             failures.append("Ariadne plug-in does not depend on mus-ariadne")
+        if "compat-terminal" in manifest:
+            failures.append("Ariadne plug-in still enables the compatibility terminal")
         if re.search(r"^mus-dsp\s*=", manifest, re.MULTILINE):
             failures.append("Ariadne plug-in still depends on mus-dsp")
 
     plugin_src = PLUGIN / "src"
     if plugin_src.exists():
+        plugin_uses_world = False
         for path in rust_sources(plugin_src):
             lowered = path.read_text(encoding="utf-8").lower()
+            if re.search(r"\bworld\s*::\s*try_new\b|\bworld\s*<", lowered):
+                plugin_uses_world = True
+            if (
+                "compat::terminal" in lowered
+                or "mus_ariadne::ariadne_terminal" in lowered
+            ):
+                failures.append(
+                    f"plug-in still instantiates the compatibility terminal: "
+                    f"{path.relative_to(ROOT)}"
+                )
             if "mus_dsp::ariadne_" in lowered:
                 failures.append(
                     f"plug-in imports the retired mus-dsp Ariadne namespace: "
@@ -181,6 +197,8 @@ def main() -> int:
                     f"plug-in owns physical law instead of adapting a world: "
                     f"{path.relative_to(ROOT)} ({', '.join(present)})"
                 )
+        if not plugin_uses_world:
+            failures.append("Ariadne plug-in does not instantiate canonical World")
 
     if failures:
         print("Ariadne architecture check failed:", file=sys.stderr)

@@ -25,7 +25,6 @@ FORBIDDEN_FILES = (
 
 FORBIDDEN_TERMS = {
     "voltage",
-    "current",
     "charge",
     "flux_linkage",
     "resistor",
@@ -51,6 +50,15 @@ FORBIDDEN_TERMS = {
     "soft_clip",
     "hard_clip",
     "waveshaper",
+}
+
+# `current` alone is ordinary runtime vocabulary (for example, the current
+# trajectory sample). Reject only identifiers and phrases that actually encode
+# electrical-current anatomy.
+FORBIDDEN_PATTERNS = {
+    "electrical current": r"\belectrical[_\s-]+current\b",
+    "electric current": r"\belectric[_\s-]+current\b",
+    "current amperes": r"\bcurrent_(?:amperes?|amps?)\b",
 }
 
 FORBIDDEN_EXPORTS = (
@@ -94,6 +102,11 @@ def main() -> int:
             if re.search(rf"\b{re.escape(term)}\b", text):
                 failures.append(
                     f"forbidden implementation term {term!r} in {path.relative_to(ROOT)}"
+                )
+        for label, pattern in sorted(FORBIDDEN_PATTERNS.items()):
+            if re.search(pattern, text):
+                failures.append(
+                    f"forbidden implementation term {label!r} in {path.relative_to(ROOT)}"
                 )
 
         # A serial gain/nonlinearity/tone chain remains forbidden under new nouns.

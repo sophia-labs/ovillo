@@ -81,10 +81,7 @@ impl<const N: usize> ModalMetricWaveField<N> {
         sample_rate: f64,
         configuration: ModalMetricConfiguration<N>,
     ) -> Result<Self, &'static str> {
-        if N == 0
-            || !sample_rate.is_finite()
-            || !(8_000.0..=384_000.0).contains(&sample_rate)
-        {
+        if N == 0 || !sample_rate.is_finite() || !(8_000.0..=384_000.0).contains(&sample_rate) {
             return Err("invalid modal metric dimensions or sample rate");
         }
         validate(configuration, sample_rate)?;
@@ -164,10 +161,10 @@ impl<const N: usize> ModalMetricWaveField<N> {
         for index in 0..N {
             let displacement = self.state.displacement[index];
             let momentum = self.state.momentum[index];
-            self.state.displacement[index] = self.cosine[index] * displacement
-                + self.sine[index] * momentum / self.omega[index];
-            self.state.momentum[index] = self.cosine[index] * momentum
-                - self.sine[index] * self.omega[index] * displacement;
+            self.state.displacement[index] =
+                self.cosine[index] * displacement + self.sine[index] * momentum / self.omega[index];
+            self.state.momentum[index] =
+                self.cosine[index] * momentum - self.sine[index] * self.omega[index] * displacement;
         }
         let energy_after = self.stored_energy();
         MetricPropagationFrame {
@@ -208,8 +205,8 @@ impl<const N: usize> ModalMetricWaveField<N> {
         let projection = dot(&self.state.momentum, &direction);
         let emitted_coordinate = fraction.sqrt() * projection;
         let removal = 1.0 - (1.0 - fraction).sqrt();
-        for index in 0..N {
-            self.state.momentum[index] -= removal * direction[index] * projection;
+        for (momentum, direction) in self.state.momentum.iter_mut().zip(direction) {
+            *momentum -= removal * direction * projection;
         }
         let energy_after = self.stored_energy();
         let radiation = 0.5 * self.dt * emitted_coordinate * emitted_coordinate;
@@ -228,9 +225,7 @@ impl<const N: usize> ModalMetricWaveField<N> {
     pub fn aperture_effort(&self, direction: &[f64; N]) -> Result<f64, &'static str> {
         let direction = normalized_direction(direction)?;
         Ok((0..N)
-            .map(|index| {
-                direction[index] * self.omega[index] * self.state.displacement[index]
-            })
+            .map(|index| direction[index] * self.omega[index] * self.state.displacement[index])
             .sum())
     }
 
@@ -275,15 +270,14 @@ pub fn six_course_guitar_metric() -> ModalMetricConfiguration<COURSE_BORE_MODES>
     ];
     let mut frequency_hz = [0.0; COURSE_BORE_MODES];
     let mut t60_seconds = [0.0; COURSE_BORE_MODES];
-    for course in 0..6 {
+    for (course, fundamental) in fundamentals.iter().enumerate() {
         for partial in 0..4 {
             let index = 4 * course + partial;
             let harmonic = partial as f64 + 1.0;
-            frequency_hz[index] = fundamentals[course]
-                * harmonic
-                * (1.0 + 1.5e-5 * harmonic * harmonic).sqrt();
-            t60_seconds[index] = (2.8 - 0.30 * course as f64)
-                * (1.0 - 0.18 * partial as f64).max(0.25);
+            frequency_hz[index] =
+                fundamental * harmonic * (1.0 + 1.5e-5 * harmonic * harmonic).sqrt();
+            t60_seconds[index] =
+                (2.8 - 0.30 * course as f64) * (1.0 - 0.18 * partial as f64).max(0.25);
         }
     }
     ModalMetricConfiguration {
@@ -330,8 +324,7 @@ pub fn interpolate_metric(
             .exp()
         }),
         t60_seconds: std::array::from_fn(|index| {
-            left.t60_seconds[index]
-                + amount * (right.t60_seconds[index] - left.t60_seconds[index])
+            left.t60_seconds[index] + amount * (right.t60_seconds[index] - left.t60_seconds[index])
         }),
     }
 }
@@ -357,7 +350,11 @@ fn normalized_direction<const N: usize>(direction: &[f64; N]) -> Result<[f64; N]
     if direction.iter().any(|value| !value.is_finite()) {
         return Err("aperture direction must be finite");
     }
-    let norm = direction.iter().map(|value| value * value).sum::<f64>().sqrt();
+    let norm = direction
+        .iter()
+        .map(|value| value * value)
+        .sum::<f64>()
+        .sqrt();
     if !norm.is_finite() || norm <= 1.0e-12 {
         return Err("aperture direction must be nondegenerate");
     }
@@ -396,16 +393,15 @@ mod tests {
             246.941_650_628,
             329.627_556_913,
         ];
-        for course in 0..6 {
+        for (course, fundamental) in fundamentals.iter().enumerate() {
             let measured = metric.frequency_hz[4 * course];
-            assert!((measured / fundamentals[course] - 1.0).abs() < 2.0e-5);
+            assert!((measured / fundamental - 1.0).abs() < 2.0e-5);
         }
     }
 
     #[test]
     fn guitar_and_trombone_are_metrics_on_exactly_the_same_state() {
-        let mut body =
-            ModalMetricWaveField::try_new(96_000.0, six_course_guitar_metric()).unwrap();
+        let mut body = ModalMetricWaveField::try_new(96_000.0, six_course_guitar_metric()).unwrap();
         let mut state = MetricFieldState::default();
         state.displacement[0] = 0.01;
         state.displacement[7] = -0.004;
@@ -432,10 +428,11 @@ mod tests {
 
     #[test]
     fn finite_aperture_radiation_closes() {
-        let mut body =
-            ModalMetricWaveField::try_new(96_000.0, six_course_guitar_metric()).unwrap();
-        let mut state = MetricFieldState::default();
-        state.momentum = std::array::from_fn(|index| 0.1 * (index as f64 * 0.31).cos());
+        let mut body = ModalMetricWaveField::try_new(96_000.0, six_course_guitar_metric()).unwrap();
+        let state = MetricFieldState {
+            momentum: std::array::from_fn(|index| 0.1 * (index as f64 * 0.31).cos()),
+            ..Default::default()
+        };
         body.restore_state(state).unwrap();
         let frame = body.radiate(&[1.0; COURSE_BORE_MODES], 0.2).unwrap();
         assert!(frame.radiation > 0.0);

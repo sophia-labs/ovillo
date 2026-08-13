@@ -65,9 +65,13 @@ pub enum SpaceError {
 impl std::fmt::Display for SpaceError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::EmptyWorld => formatter.write_str("Ariadne space needs body and delay coordinates"),
+            Self::EmptyWorld => {
+                formatter.write_str("Ariadne space needs body and delay coordinates")
+            }
             Self::InvalidSampleRate => formatter.write_str("invalid Ariadne space sample rate"),
-            Self::InvalidDelay { course } => write!(formatter, "invalid delay for space course {course}"),
+            Self::InvalidDelay { course } => {
+                write!(formatter, "invalid delay for space course {course}")
+            }
             Self::InvalidDirection { name, index } => {
                 write!(formatter, "invalid {name} direction at index {index}")
             }
@@ -152,7 +156,8 @@ impl<const N: usize, const C: usize> ReciprocalSpace<N, C> {
         }
 
         let coupling_weights = std::array::from_fn(|index| finite(spec.coupling_weights[index]));
-        let mut scattering_direction = std::array::from_fn(|index| spec.scattering_direction[index]);
+        let mut scattering_direction =
+            std::array::from_fn(|index| spec.scattering_direction[index]);
         normalize(&mut scattering_direction).map_err(|_| SpaceError::InvalidDirection {
             name: "scattering",
             index: 0,
@@ -252,11 +257,11 @@ impl<const N: usize, const C: usize> ReciprocalSpace<N, C> {
 
         let coupling_hz = 2.0 + 118.0 * controls.coupling * controls.coupling;
         let base_angle = TAU * coupling_hz / self.sample_rate_hz;
-        for course in 0..C {
+        for (course, head) in heads.iter_mut().enumerate() {
             let projection = dot(body_momentum, &self.body_directions[course]);
             let (next_projection, next_head) = givens(
                 projection,
-                heads[course],
+                *head,
                 base_angle * self.coupling_weights[course],
             );
             add_projection(
@@ -264,27 +269,24 @@ impl<const N: usize, const C: usize> ReciprocalSpace<N, C> {
                 &self.body_directions[course],
                 next_projection - projection,
             );
-            heads[course] = next_head;
+            *head = next_head;
         }
         let exchange = quadratic_energy(&heads, self.dt) - head_before;
         let coupling_metric_residual =
             quadratic_energy(body_momentum, self.dt) - body_before + exchange;
 
         let scatter_projection = dot(&heads, &self.scattering_direction);
-        for index in 0..C {
-            heads[index] -= 2.0 * self.scattering_direction[index] * scatter_projection;
+        for (head, direction) in heads.iter_mut().zip(self.scattering_direction) {
+            *head -= 2.0 * direction * scatter_projection;
         }
 
         let before_loss = quadratic_energy(&heads, self.dt);
         let decay_seconds = 0.12 + 7.88 * controls.decay * controls.decay;
-        for index in 0..C {
-            let retain = (-3.0 * 10.0_f64.ln() * self.spec.delays_seconds[index]
-                / decay_seconds)
-                .exp();
-            heads[index] *= retain;
+        for (head, delay_seconds) in heads.iter_mut().zip(self.spec.delays_seconds) {
+            let retain = (-3.0 * 10.0_f64.ln() * delay_seconds / decay_seconds).exp();
+            *head *= retain;
         }
-        let internal_loss =
-            (before_loss - quadratic_energy(&heads, self.dt)).max(0.0);
+        let internal_loss = (before_loss - quadratic_energy(&heads, self.dt)).max(0.0);
 
         let fraction = (0.000_5 + 0.024 * controls.radiation * controls.radiation).min(0.08);
         let left_projection = dot(&heads, &self.radiation_left);
@@ -293,22 +295,21 @@ impl<const N: usize, const C: usize> ReciprocalSpace<N, C> {
         let emitted_left = emitted_scale * left_projection;
         let emitted_right = emitted_scale * right_projection;
         let removal = 1.0 - (1.0 - fraction).sqrt();
-        for index in 0..C {
-            heads[index] -= removal
+        for (index, head) in heads.iter_mut().enumerate() {
+            *head -= removal
                 * (self.radiation_left[index] * left_projection
                     + self.radiation_right[index] * right_projection);
         }
-        let radiation = 0.5
-            * self.dt
-            * (emitted_left * emitted_left + emitted_right * emitted_right);
+        let radiation =
+            0.5 * self.dt * (emitted_left * emitted_left + emitted_right * emitted_right);
 
         self.stored_energy +=
             quadratic_energy(&heads, self.dt) - quadratic_energy(&heads_before, self.dt);
         if self.stored_energy.abs() < 1.0e-20 {
             self.stored_energy = 0.0;
         }
-        for index in 0..C {
-            self.lines[index].write_advance(heads[index]);
+        for (line, head) in self.lines.iter_mut().zip(heads) {
+            line.write_advance(head);
         }
         let space_closure_residual =
             self.stored_energy - space_before - exchange + internal_loss + radiation;
@@ -333,7 +334,10 @@ fn quadratic_energy<const N: usize>(state: &[f64; N], dt: f64) -> f64 {
 
 #[inline]
 fn dot<const N: usize>(left: &[f64; N], right: &[f64; N]) -> f64 {
-    left.iter().zip(right).map(|(left, right)| left * right).sum()
+    left.iter()
+        .zip(right)
+        .map(|(left, right)| left * right)
+        .sum()
 }
 
 #[inline]
@@ -356,7 +360,11 @@ fn normalize<const N: usize>(values: &mut [f64; N]) -> Result<(), ()> {
 
 #[inline]
 fn finite(value: f64) -> f64 {
-    if value.is_finite() { value } else { 0.0 }
+    if value.is_finite() {
+        value
+    } else {
+        0.0
+    }
 }
 
 #[cfg(test)]
@@ -367,11 +375,12 @@ mod tests {
     #[test]
     fn reciprocal_exchange_and_space_balance_close() {
         let spec = WorldSpec::string_brass_v1();
-        let mut space = ReciprocalSpace::<{ crate::ir::MODE_COUNT }, { crate::ir::SPACE_COURSES }>::try_new(
-            spec.internal_sample_rate_hz,
-            spec.space,
-        )
-        .unwrap();
+        let mut space =
+            ReciprocalSpace::<{ crate::ir::MODE_COUNT }, { crate::ir::SPACE_COURSES }>::try_new(
+                spec.internal_sample_rate_hz,
+                spec.space,
+            )
+            .unwrap();
         let mut body = [0.0; crate::ir::MODE_COUNT];
         body[0] = 0.8;
         body[3] = -0.3;
@@ -392,11 +401,12 @@ mod tests {
     #[test]
     fn sample_path_keeps_delay_capacity_fixed() {
         let spec = WorldSpec::string_brass_v1();
-        let mut space = ReciprocalSpace::<{ crate::ir::MODE_COUNT }, { crate::ir::SPACE_COURSES }>::try_new(
-            spec.internal_sample_rate_hz,
-            spec.space,
-        )
-        .unwrap();
+        let mut space =
+            ReciprocalSpace::<{ crate::ir::MODE_COUNT }, { crate::ir::SPACE_COURSES }>::try_new(
+                spec.internal_sample_rate_hz,
+                spec.space,
+            )
+            .unwrap();
         let cells = space.delay_cell_count();
         let bytes = space.heap_bytes();
         let mut body = [0.0; crate::ir::MODE_COUNT];

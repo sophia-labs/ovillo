@@ -1,9 +1,9 @@
 //! Reproducible benchmark for the canonical Ariadne sample path.
 //! Run: `cargo run -p mus-ariadne --release --example world_bench`
 
+use mus_ariadne::{World, WorldControls, WorldSpec};
 use std::hint::black_box;
 use std::time::Instant;
-use mus_ariadne::{World, WorldControls, WorldSpec};
 
 fn main() {
     for rate in [48_000.0, 96_000.0, 192_000.0] {
@@ -16,18 +16,27 @@ fn run_case(label: &str, rate: f64, active: bool) {
     let mut spec = WorldSpec::string_brass_v1();
     spec.internal_sample_rate_hz = rate;
     let mut world = World::try_new(spec).expect("valid benchmark world");
-    let mut controls = WorldControls::default();
-    if active {
-        controls.active_coupling = 1.0;
-        controls.active.drive = 1.05;
-        controls.active.headroom = 0.28;
-        controls.active.sustain = 0.78;
-        controls.active.sag = 0.68;
-        controls.active.feedback = 0.10;
-        controls.work_input = 0.010;
-        controls.transport.interlace = 0.58;
-        controls.transport.memory = 0.68;
-    }
+    let mut controls = if active {
+        WorldControls {
+            active_coupling: 1.0,
+            active: mus_ariadne::law::active::ActiveInclusionControls {
+                drive: 1.05,
+                headroom: 0.28,
+                sustain: 0.78,
+                sag: 0.68,
+                feedback: 0.10,
+                ..Default::default()
+            },
+            work_input: 0.010,
+            transport: mus_ariadne::law::transport::ResonantTransportControls {
+                interlace: 0.58,
+                memory: 0.68,
+            },
+            ..Default::default()
+        }
+    } else {
+        WorldControls::default()
+    };
 
     let warmup = rate as usize / 4;
     let frames = rate as usize * 2;

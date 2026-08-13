@@ -207,10 +207,7 @@ impl<const N: usize> SynchronizedActiveInclusion<N> {
         };
         let sensed = finite_or_zero(boundary_activity).abs()
             + 0.08 * controls.sustain * material_rms
-            + 12.0
-                * controls.feedback
-                * controls.space
-                * finite_or_zero(room_activity).abs();
+            + 12.0 * controls.feedback * controls.space * finite_or_zero(room_activity).abs();
         let threshold = 0.025 + 0.25 * controls.headroom;
         let excess = (sensed - threshold).max(0.0);
         let target_activation = excess / (threshold + excess + f64::EPSILON);
@@ -221,8 +218,8 @@ impl<const N: usize> SynchronizedActiveInclusion<N> {
         } else {
             release_seconds
         };
-        self.activation += (target_activation - self.activation)
-            * (1.0 - (-self.dt / time_constant).exp());
+        self.activation +=
+            (target_activation - self.activation) * (1.0 - (-self.dt / time_constant).exp());
         self.activation = self.activation.clamp(0.0, 1.0);
 
         let rank_weights = [1.0, 0.62, 0.38];
@@ -274,10 +271,8 @@ impl<const N: usize> SynchronizedActiveInclusion<N> {
         }
 
         let kinetic_after = kinetic_energy(momenta, self.dt);
-        let closure_residual = kinetic_after
-            - kinetic_before
-            - accepted_positive_work
-            + dissipated_work;
+        let closure_residual =
+            kinetic_after - kinetic_before - accepted_positive_work + dissipated_work;
         ActiveInclusionFrame {
             activation_before,
             activation_after: self.activation,
@@ -323,7 +318,10 @@ fn orthonormalize<const N: usize>(
 
 #[inline]
 fn dot<const N: usize>(left: &[f64; N], right: &[f64; N]) -> f64 {
-    left.iter().zip(right).map(|(left, right)| left * right).sum()
+    left.iter()
+        .zip(right)
+        .map(|(left, right)| left * right)
+        .sum()
 }
 
 #[inline]
@@ -340,7 +338,11 @@ fn kinetic_energy<const N: usize>(momenta: &[f64; N], dt: f64) -> f64 {
 
 #[inline]
 fn finite_or_zero(value: f64) -> f64 {
-    if value.is_finite() { value } else { 0.0 }
+    if value.is_finite() {
+        value
+    } else {
+        0.0
+    }
 }
 
 #[cfg(test)]
@@ -359,9 +361,19 @@ mod tests {
     fn directions_are_orthonormalized() {
         let inclusion = SynchronizedActiveInclusion::try_new(48_000.0, directions()).unwrap();
         for rank in 0..ACTIVE_RANKS {
-            assert!((dot(&inclusion.directions()[rank], &inclusion.directions()[rank]) - 1.0).abs() < 1.0e-14);
+            assert!(
+                (dot(&inclusion.directions()[rank], &inclusion.directions()[rank]) - 1.0).abs()
+                    < 1.0e-14
+            );
             for other in rank + 1..ACTIVE_RANKS {
-                assert!(dot(&inclusion.directions()[rank], &inclusion.directions()[other]).abs() < 1.0e-14);
+                assert!(
+                    dot(
+                        &inclusion.directions()[rank],
+                        &inclusion.directions()[other]
+                    )
+                    .abs()
+                        < 1.0e-14
+                );
             }
         }
     }

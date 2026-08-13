@@ -52,8 +52,7 @@ const DENORMAL_FLOOR: f64 = 1.0e-24;
 const MAX_PHASE_STEP: f64 = 0.48;
 
 const DEFAULT_FREQUENCIES_HZ: [f64; MATERIAL_CELLS] = [
-    52.0, 83.0, 128.0, 191.0, 278.0, 397.0, 557.0, 769.0, 1_049.0, 1_411.0,
-    1_871.0, 2_441.0,
+    52.0, 83.0, 128.0, 191.0, 278.0, 397.0, 557.0, 769.0, 1_049.0, 1_411.0, 1_871.0, 2_441.0,
 ];
 
 const DEFAULT_T60_SECONDS: [f64; MATERIAL_CELLS] = [
@@ -85,8 +84,7 @@ const DEFAULT_RADIATION_WEIGHTS: [f64; MATERIAL_CELLS] = [
 ];
 
 const DEFAULT_ROOM_DELAYS_SECONDS: [f64; ROOM_COURSES] = [
-    0.0073, 0.0111, 0.0137, 0.0179, 0.0233, 0.0297, 0.0371, 0.0437, 0.0521, 0.0613,
-    0.0731, 0.0899,
+    0.0073, 0.0111, 0.0137, 0.0179, 0.0233, 0.0297, 0.0371, 0.0437, 0.0521, 0.0613, 0.0731, 0.0899,
 ];
 
 /// One fixed Ariadne anatomy. Profiles change geometry and material constants,
@@ -132,10 +130,7 @@ impl AriadneTerminalProfile {
         validate_finite_array("bias_weight", &self.bias_weight)?;
         validate_nonnegative_array("input_aperture_weight", &self.input_aperture_weight)?;
         validate_nonnegative_array("pump_aperture_weight", &self.pump_aperture_weight)?;
-        validate_nonnegative_array(
-            "radiation_aperture_weight",
-            &self.radiation_aperture_weight,
-        )?;
+        validate_nonnegative_array("radiation_aperture_weight", &self.radiation_aperture_weight)?;
         validate_positive_array("room_delay_seconds", &self.room_delay_seconds)?;
         if !self.host_observation_scale.is_finite()
             || !(0.01..=64.0).contains(&self.host_observation_scale)
@@ -146,10 +141,7 @@ impl AriadneTerminalProfile {
         }
         validate_nonzero_norm("input_aperture_weight", &self.input_aperture_weight)?;
         validate_nonzero_norm("pump_aperture_weight", &self.pump_aperture_weight)?;
-        validate_nonzero_norm(
-            "radiation_aperture_weight",
-            &self.radiation_aperture_weight,
-        )?;
+        validate_nonzero_norm("radiation_aperture_weight", &self.radiation_aperture_weight)?;
         if self
             .cell_position
             .iter()
@@ -162,9 +154,7 @@ impl AriadneTerminalProfile {
             .iter()
             .any(|delay| *delay < 0.000_25 || *delay > 2.0)
         {
-            return Err(AriadneTerminalError::InvalidProfile(
-                "room_delay_seconds",
-            ));
+            return Err(AriadneTerminalError::InvalidProfile("room_delay_seconds"));
         }
         Ok(self)
     }
@@ -244,12 +234,12 @@ impl AriadneTerminalControls {
             AriadneTerminalCharacter::Edge => {
                 (1.00, 0.00, 0.00, 0.00, 1.00, 1.00, 1.00, 0.00, 0.00, 0.30)
             }
-            AriadneTerminalCharacter::Grind => {
-                (1.55, -0.15, 0.16, -0.12, 1.30, 1.35, 1.30, -0.30, 0.25, 0.62)
-            }
-            AriadneTerminalCharacter::Wall => {
-                (2.15, -0.30, -0.40, -0.25, 1.62, 1.70, 1.58, -0.62, 0.48, 0.92)
-            }
+            AriadneTerminalCharacter::Grind => (
+                1.55, -0.15, 0.16, -0.12, 1.30, 1.35, 1.30, -0.30, 0.25, 0.62,
+            ),
+            AriadneTerminalCharacter::Wall => (
+                2.15, -0.30, -0.40, -0.25, 1.62, 1.70, 1.58, -0.62, 0.48, 0.92,
+            ),
         };
         self.drive = (self.drive * drive_scale).clamp(0.0, 1.5);
         self.headroom = (self.headroom + headroom_offset).clamp(0.02, 1.0);
@@ -260,8 +250,7 @@ impl AriadneTerminalControls {
         self.interlace = (self.interlace * interlace_scale).clamp(0.0, 1.0);
         self.chirality = (self.chirality + chirality_offset).clamp(-1.0, 1.0);
         self.memory = (self.memory + memory_offset).clamp(0.0, 1.0);
-        self.curvature =
-            (0.45 * self.curvature + 0.55 * curvature_target).clamp(0.0, 1.0);
+        self.curvature = (0.45 * self.curvature + 0.55 * curvature_target).clamp(0.0, 1.0);
         self
     }
 
@@ -373,11 +362,7 @@ impl MaterialLaw {
         let quartic = 0.25 * self.curvature;
         quadratic * (old + new)
             + cubic * (old * old + old * new + new * new)
-            + quartic
-                * (old * old * old
-                    + old * old * new
-                    + old * new * new
-                    + new * new * new)
+            + quartic * (old * old * old + old * old * new + old * new * new + new * new * new)
     }
 
     #[inline]
@@ -462,13 +447,7 @@ impl RoomField {
         let mut radiation_right = std::array::from_fn(|index| index as f64 - center);
         remove_projection(&radiation_left, &mut radiation_right);
         normalize(&mut radiation_right);
-        let mut householder = std::array::from_fn(|index| {
-            if index % 2 == 0 {
-                1.0
-            } else {
-                -1.0
-            }
-        });
+        let mut householder = std::array::from_fn(|index| if index % 2 == 0 { 1.0 } else { -1.0 });
         normalize(&mut householder);
         Self {
             lines,
@@ -501,9 +480,7 @@ impl RoomField {
         sample_rate: f64,
         dt: f64,
     ) -> RoomFrame {
-        let mut heads = std::array::from_fn::<_, ROOM_COURSES, _>(|index| {
-            self.lines[index].read()
-        });
+        let mut heads = std::array::from_fn::<_, ROOM_COURSES, _>(|index| self.lines[index].read());
         let head_energy_before = quadratic_energy(&heads, dt);
         let body_energy_before = quadratic_energy(momenta, dt);
 
@@ -513,10 +490,8 @@ impl RoomField {
             0.25 * (2.0 * controls.space - 1.0),
             0.40 + 0.50 * (1.0 - controls.space),
         );
-        let coupling_hz = 280.0
-            * controls.space
-            * controls.space
-            * (0.10 + 0.90 * controls.feedback);
+        let coupling_hz =
+            280.0 * controls.space * controls.space * (0.10 + 0.90 * controls.feedback);
         let base_angle = TAU * coupling_hz / sample_rate;
         let dimension_scale = (MATERIAL_CELLS as f64 / ROOM_COURSES as f64).sqrt();
         for course in 0..ROOM_COURSES {
@@ -537,8 +512,7 @@ impl RoomField {
         }
 
         let decay_seconds = 0.12 + 8.0 * controls.room_decay * controls.room_decay;
-        if self.coefficient_countdown == 0
-            || (decay_seconds - self.last_decay_seconds).abs() > 0.02
+        if self.coefficient_countdown == 0 || (decay_seconds - self.last_decay_seconds).abs() > 0.02
         {
             let log_thousand = 3.0 * 10.0_f64.ln();
             for index in 0..ROOM_COURSES {
@@ -571,9 +545,8 @@ impl RoomField {
         }
         let emitted_left = emitted_scale * left_projection;
         let emitted_right = emitted_scale * right_projection;
-        let radiation = 0.5
-            * emitted_left.mul_add(emitted_left, emitted_right * emitted_right)
-            * dt;
+        let radiation =
+            0.5 * emitted_left.mul_add(emitted_left, emitted_right * emitted_right) * dt;
 
         let head_energy_after = quadratic_energy(&heads, dt);
         self.stored_energy += head_energy_after - head_energy_before;
@@ -642,9 +615,7 @@ impl AriadneTerminal {
         sample_rate: f64,
         profile: AriadneTerminalProfile,
     ) -> Result<Self, AriadneTerminalError> {
-        if !sample_rate.is_finite()
-            || !(MIN_SAMPLE_RATE..=MAX_SAMPLE_RATE).contains(&sample_rate)
-        {
+        if !sample_rate.is_finite() || !(MIN_SAMPLE_RATE..=MAX_SAMPLE_RATE).contains(&sample_rate) {
             return Err(AriadneTerminalError::UnsupportedSampleRate);
         }
         let profile = profile.validate()?;
@@ -739,9 +710,7 @@ impl AriadneTerminal {
             maximum_suspension_equation_residual: self
                 .telemetry
                 .maximum_suspension_equation_residual,
-            maximum_closed_transport_chord: self
-                .telemetry
-                .maximum_closed_transport_chord,
+            maximum_closed_transport_chord: self.telemetry.maximum_closed_transport_chord,
             peak_wet: self.telemetry.peak_wet,
             denormal_retirements: self.telemetry.denormal_retirements,
             non_finite_inputs: self.telemetry.non_finite_inputs,
@@ -752,11 +721,7 @@ impl AriadneTerminal {
     pub fn reset(&mut self) {
         for (index, cell) in self.cells.iter_mut().enumerate() {
             *cell = MaterialCell {
-                law: material_law(
-                    &self.profile,
-                    &AriadneTerminalControls::default(),
-                    index,
-                ),
+                law: material_law(&self.profile, &AriadneTerminalControls::default(), index),
                 ..MaterialCell::default()
             };
         }
@@ -802,10 +767,10 @@ impl AriadneTerminal {
         }
         let material_radiation = self.radiate_material(&controls);
 
-        let wet_left = self.profile.host_observation_scale
-            * (material_radiation.0 + room_frame.emitted_left);
-        let wet_right = self.profile.host_observation_scale
-            * (material_radiation.1 + room_frame.emitted_right);
+        let wet_left =
+            self.profile.host_observation_scale * (material_radiation.0 + room_frame.emitted_left);
+        let wet_right =
+            self.profile.host_observation_scale * (material_radiation.1 + room_frame.emitted_right);
         if !wet_left.is_finite()
             || !wet_right.is_finite()
             || !self.state_is_finite()
@@ -849,10 +814,10 @@ impl AriadneTerminal {
             .peak_wet
             .max(wet_left.abs().max(wet_right.abs()));
 
-        let output_left = left.mul_add(1.0 - controls.mix, wet_left * controls.mix)
-            * controls.output_gain;
-        let output_right = right.mul_add(1.0 - controls.mix, wet_right * controls.mix)
-            * controls.output_gain;
+        let output_left =
+            left.mul_add(1.0 - controls.mix, wet_left * controls.mix) * controls.output_gain;
+        let output_right =
+            right.mul_add(1.0 - controls.mix, wet_right * controls.mix) * controls.output_gain;
         AriadneTerminalFrame {
             left: host_sample(output_left, &mut self.telemetry.denormal_retirements),
             right: host_sample(output_right, &mut self.telemetry.denormal_retirements),
@@ -909,9 +874,8 @@ impl AriadneTerminal {
     ) -> BoundaryFrame {
         let mut common = (left + right) * FRAC_1_SQRT_2;
         let mut difference = (left - right) * FRAC_1_SQRT_2;
-        let momenta_before = std::array::from_fn::<_, MATERIAL_CELLS, _>(|index| {
-            self.cells[index].p
-        });
+        let momenta_before =
+            std::array::from_fn::<_, MATERIAL_CELLS, _>(|index| self.cells[index].p);
         let (common_row, difference_row) = aperture_rows(
             &self.profile.cell_position,
             &self.profile.input_aperture_weight,
@@ -921,11 +885,8 @@ impl AriadneTerminal {
         let base_angle = 0.20 + 0.80 * (0.25 + 0.75 * controls.interlace);
         if controls.chirality >= 0.0 {
             for index in 0..MATERIAL_CELLS {
-                let (next_port, next_momentum) = givens(
-                    common,
-                    self.cells[index].p,
-                    base_angle * common_row[index],
-                );
+                let (next_port, next_momentum) =
+                    givens(common, self.cells[index].p, base_angle * common_row[index]);
                 common = next_port;
                 self.cells[index].p = next_momentum;
             }
@@ -940,11 +901,8 @@ impl AriadneTerminal {
             }
         } else {
             for index in (0..MATERIAL_CELLS).rev() {
-                let (next_port, next_momentum) = givens(
-                    common,
-                    self.cells[index].p,
-                    base_angle * common_row[index],
-                );
+                let (next_port, next_momentum) =
+                    givens(common, self.cells[index].p, base_angle * common_row[index]);
                 common = next_port;
                 self.cells[index].p = next_momentum;
             }
@@ -986,7 +944,7 @@ impl AriadneTerminal {
         if controls.drive == 0.0 || self.reservoir_energy <= 0.0 {
             return PumpFrame::default();
         }
-        let mut direction = std::array::from_fn(|index| {
+        let mut direction: [f64; MATERIAL_CELLS] = std::array::from_fn(|index| {
             let q = self.cells[index].q;
             self.profile.pump_aperture_weight[index]
                 * (1.0 + 0.35 * controls.bloom * q / (1.0 + q * q).sqrt())
@@ -1003,36 +961,32 @@ impl AriadneTerminal {
         }
 
         let acoustic_energy = self.stored_material_energy();
-        let state_activity =
-            (2.0 * acoustic_energy / (self.dt * MATERIAL_CELLS as f64)).max(0.0).sqrt();
-        let raw_activity = input_activity / (0.03 + 0.50 * controls.headroom)
-            + controls.sustain * state_activity;
+        let state_activity = (2.0 * acoustic_energy / (self.dt * MATERIAL_CELLS as f64))
+            .max(0.0)
+            .sqrt();
+        let raw_activity =
+            input_activity / (0.03 + 0.50 * controls.headroom) + controls.sustain * state_activity;
         let activity = raw_activity / (1.0 + raw_activity);
         let deformation_rate = 80.0 + 3_500.0 * controls.drive * controls.drive;
         let target_multiplier = 1.0 + self.dt * deformation_rate * activity;
-        let desired_work = 0.5
-            * projection
-            * projection
-            * self.dt
-            * (target_multiplier * target_multiplier - 1.0);
+        let desired_work =
+            0.5 * projection * projection * self.dt * (target_multiplier * target_multiplier - 1.0);
         let accepted_work = desired_work.max(0.0).min(self.reservoir_energy);
         if accepted_work == 0.0 {
             return PumpFrame::default();
         }
 
-        let kinetic_before = self.dt
-            * 0.5
-            * self.cells.iter().map(|cell| cell.p * cell.p).sum::<f64>();
-        let next_projection = projection.signum()
-            * (projection * projection + 2.0 * accepted_work / self.dt).sqrt();
+        let kinetic_before =
+            self.dt * 0.5 * self.cells.iter().map(|cell| cell.p * cell.p).sum::<f64>();
+        let next_projection =
+            projection.signum() * (projection * projection + 2.0 * accepted_work / self.dt).sqrt();
         let increment = next_projection - projection;
         for (cell, direction) in self.cells.iter_mut().zip(direction) {
             cell.p += increment * direction;
         }
         self.reservoir_energy -= accepted_work;
-        let kinetic_after = self.dt
-            * 0.5
-            * self.cells.iter().map(|cell| cell.p * cell.p).sum::<f64>();
+        let kinetic_after =
+            self.dt * 0.5 * self.cells.iter().map(|cell| cell.p * cell.p).sum::<f64>();
         PumpFrame {
             work: accepted_work,
             metric_residual: kinetic_after - kinetic_before - accepted_work,
@@ -1043,9 +997,8 @@ impl AriadneTerminal {
         if controls.interlace == 0.0 || controls.chirality == 0.0 {
             return 0.0;
         }
-        let kinetic_before = self.dt
-            * 0.5
-            * self.cells.iter().map(|cell| cell.p * cell.p).sum::<f64>();
+        let kinetic_before =
+            self.dt * 0.5 * self.cells.iter().map(|cell| cell.p * cell.p).sum::<f64>();
         let transport_hz = 520.0 * controls.interlace * controls.interlace;
         let base_angle = TAU * transport_hz / self.sample_rate;
         for first in (0..MATERIAL_CELLS - 2).step_by(3) {
@@ -1057,9 +1010,7 @@ impl AriadneTerminal {
             );
             let curvature = 1.0 + controls.curvature * strain / (1.0 + strain);
             let angle_a = base_angle * curvature * (0.65 + 0.35 * controls.memory);
-            let angle_b = base_angle
-                * controls.chirality
-                * (0.20 + 0.80 * controls.memory);
+            let angle_b = base_angle * controls.chirality * (0.20 + 0.80 * controls.memory);
             self.apply_momentum_rotation(first + 1, first + 2, -angle_b);
             self.apply_momentum_rotation(first, first + 1, -angle_a);
             self.apply_momentum_rotation(first + 1, first + 2, angle_b);
@@ -1069,9 +1020,8 @@ impl AriadneTerminal {
                 .maximum_closed_transport_chord
                 .max(order_defect(angle_a, angle_b));
         }
-        let kinetic_after = self.dt
-            * 0.5
-            * self.cells.iter().map(|cell| cell.p * cell.p).sum::<f64>();
+        let kinetic_after =
+            self.dt * 0.5 * self.cells.iter().map(|cell| cell.p * cell.p).sum::<f64>();
         kinetic_after - kinetic_before
     }
 
@@ -1086,15 +1036,11 @@ impl AriadneTerminal {
         let frequency_scale = 0.72 + 0.65 * controls.tone;
         let mut maximum_residual = 0.0_f64;
         for index in 0..MATERIAL_CELLS {
-            let phase_step = (TAU
-                * self.profile.cell_frequency_hz[index]
-                * frequency_scale
+            let phase_step = (TAU * self.profile.cell_frequency_hz[index] * frequency_scale
                 / self.sample_rate)
                 .min(MAX_PHASE_STEP);
-            maximum_residual = maximum_residual.max(advance_material_cell(
-                &mut self.cells[index],
-                phase_step,
-            ));
+            maximum_residual =
+                maximum_residual.max(advance_material_cell(&mut self.cells[index], phase_step));
             retire_denormal(&mut self.cells[index].q);
             retire_denormal(&mut self.cells[index].p);
         }
@@ -1125,15 +1071,13 @@ impl AriadneTerminal {
         } else {
             self.material_coefficient_countdown -= 1;
         }
-        let kinetic_before = self.dt
-            * 0.5
-            * self.cells.iter().map(|cell| cell.p * cell.p).sum::<f64>();
+        let kinetic_before =
+            self.dt * 0.5 * self.cells.iter().map(|cell| cell.p * cell.p).sum::<f64>();
         for (cell, retain) in self.cells.iter_mut().zip(self.material_retains) {
             cell.p *= retain;
         }
-        let kinetic_after = self.dt
-            * 0.5
-            * self.cells.iter().map(|cell| cell.p * cell.p).sum::<f64>();
+        let kinetic_after =
+            self.dt * 0.5 * self.cells.iter().map(|cell| cell.p * cell.p).sum::<f64>();
         (kinetic_before - kinetic_after).max(0.0)
     }
 
@@ -1144,9 +1088,7 @@ impl AriadneTerminal {
             0.70 * (controls.tone - 0.5),
             0.20 + 0.55 * controls.bloom,
         );
-        let momenta = std::array::from_fn::<_, MATERIAL_CELLS, _>(|index| {
-            self.cells[index].p
-        });
+        let momenta = std::array::from_fn::<_, MATERIAL_CELLS, _>(|index| self.cells[index].p);
         let left_projection = dot(&radiation_left, &momenta);
         let right_projection = dot(&radiation_right, &momenta);
         let aperture = 0.15 + 0.85 * controls.bloom;
@@ -1161,9 +1103,8 @@ impl AriadneTerminal {
         }
         let emitted_left = emitted_scale * left_projection;
         let emitted_right = emitted_scale * right_projection;
-        let radiation = 0.5
-            * emitted_left.mul_add(emitted_left, emitted_right * emitted_right)
-            * self.dt;
+        let radiation =
+            0.5 * emitted_left.mul_add(emitted_left, emitted_right * emitted_right) * self.dt;
         (emitted_left, emitted_right, radiation)
     }
 
@@ -1218,10 +1159,9 @@ fn advance_material_cell(cell: &mut MaterialCell, phase_step: f64) -> f64 {
     let mut next_q = old_q + phase_step * old_p;
     for _ in 0..NEWTON_STEPS {
         let gradient = cell.law.divided_gradient(old_q, next_q);
-        let equation = 2.0 * (next_q - old_q) / phase_step - 2.0 * old_p
-            + phase_step * gradient;
-        let derivative = 2.0 / phase_step
-            + phase_step * cell.law.divided_gradient_derivative(old_q, next_q);
+        let equation = 2.0 * (next_q - old_q) / phase_step - 2.0 * old_p + phase_step * gradient;
+        let derivative =
+            2.0 / phase_step + phase_step * cell.law.divided_gradient_derivative(old_q, next_q);
         if !derivative.is_finite() || derivative.abs() < 1.0e-14 {
             break;
         }
@@ -1249,18 +1189,10 @@ fn aperture_rows<const N: usize>(
         base_weights[index] * (-offset * offset).exp() * texture
     });
     normalize(&mut common);
-    let mut difference = std::array::from_fn(|index| {
-        (positions[index] - center) * common[index]
-    });
+    let mut difference = std::array::from_fn(|index| (positions[index] - center) * common[index]);
     remove_projection(&common, &mut difference);
     if squared_norm(&difference) < 1.0e-18 {
-        difference = std::array::from_fn(|index| {
-            if index % 2 == 0 {
-                1.0
-            } else {
-                -1.0
-            }
-        });
+        difference = std::array::from_fn(|index| if index % 2 == 0 { 1.0 } else { -1.0 });
         remove_projection(&common, &mut difference);
     }
     normalize(&mut difference);
@@ -1274,7 +1206,10 @@ fn quadratic_energy<const N: usize>(state: &[f64; N], dt: f64) -> f64 {
 
 #[inline]
 fn dot<const N: usize>(left: &[f64; N], right: &[f64; N]) -> f64 {
-    left.iter().zip(right).map(|(left, right)| left * right).sum()
+    left.iter()
+        .zip(right)
+        .map(|(left, right)| left * right)
+        .sum()
 }
 
 #[inline]
@@ -1477,11 +1412,7 @@ mod tests {
     fn silence_is_an_exact_acoustic_fixed_point() {
         let mut terminal = AriadneTerminal::new(48_000.0).unwrap();
         for _ in 0..16_384 {
-            let frame = terminal.process_sample(
-                0.0,
-                0.0,
-                AriadneTerminalControls::default(),
-            );
+            let frame = terminal.process_sample(0.0, 0.0, AriadneTerminalControls::default());
             assert_eq!(frame, AriadneTerminalFrame::default());
         }
         let receipt = terminal.receipt();
@@ -1511,8 +1442,8 @@ mod tests {
         };
         for frame_index in 0..24_000 {
             let time = frame_index as f64 / 48_000.0;
-            let sample = (0.18 * (TAU * 110.0 * time).sin()
-                + 0.05 * (TAU * 777.0 * time).sin()) as f32;
+            let sample =
+                (0.18 * (TAU * 110.0 * time).sin() + 0.05 * (TAU * 777.0 * time).sin()) as f32;
             let frame = terminal.process_sample(sample, sample, controls);
             assert!(frame.left.is_finite() && frame.right.is_finite());
         }
@@ -1523,8 +1454,14 @@ mod tests {
         assert!(receipt.material_radiation > 0.0);
         assert!(receipt.room_exchange.abs() > 0.0);
         assert!(receipt.maximum_closed_transport_chord > 0.0);
-        assert!(receipt.maximum_abs_closure_residual < TOLERANCE, "{receipt:?}");
-        assert!(receipt.global_closure_residual.abs() < 2.0e-11, "{receipt:?}");
+        assert!(
+            receipt.maximum_abs_closure_residual < TOLERANCE,
+            "{receipt:?}"
+        );
+        assert!(
+            receipt.global_closure_residual.abs() < 2.0e-11,
+            "{receipt:?}"
+        );
         assert_eq!(receipt.non_finite_resets, 0);
     }
 
@@ -1620,11 +1557,8 @@ mod tests {
         let mut expected_left = left;
         let mut expected_right = right;
         for index in 0..expected_left.len() {
-            let frame = sample_engine.process_sample(
-                expected_left[index],
-                expected_right[index],
-                controls,
-            );
+            let frame =
+                sample_engine.process_sample(expected_left[index], expected_right[index], controls);
             expected_left[index] = frame.left;
             expected_right[index] = frame.right;
         }
@@ -1637,11 +1571,8 @@ mod tests {
     #[test]
     fn non_finite_input_is_retired_without_poisoning_state() {
         let mut terminal = AriadneTerminal::new(48_000.0).unwrap();
-        let frame = terminal.process_sample(
-            f32::NAN,
-            f32::INFINITY,
-            AriadneTerminalControls::default(),
-        );
+        let frame =
+            terminal.process_sample(f32::NAN, f32::INFINITY, AriadneTerminalControls::default());
         assert!(frame.left.is_finite() && frame.right.is_finite());
         assert_eq!(terminal.receipt().non_finite_inputs, 2);
         assert_eq!(terminal.receipt().non_finite_resets, 0);

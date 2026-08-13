@@ -42,8 +42,10 @@ checksum = "fb5dfbc6d8d2675589ccbe4d0fd61df2419075625f8c1a62325e718e2b0049f9"
 name = "ariadne-clap"
 version = "0.1.0"
 dependencies = [
- "mus-dsp",
+ "hound",
+ "mus-ariadne",
  "nice-plug",
+ "serde_json",
 ]
 
 [[package]]
@@ -414,6 +416,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mus-ariadne"
+version = "0.1.0"
+dependencies = [
+ "mus-trajectory",
+ "mus-watsn",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "mus-cli"
 version = "0.1.0"
 dependencies = [
@@ -436,6 +449,7 @@ dependencies = [
  "hound",
  "libc",
  "libsoxr",
+ "mus-ariadne",
  "mus-gesture",
  "mus-trajectory",
  "mus-watsn",
@@ -646,9 +660,9 @@ checksum = "521739c6d2bac4aa25192232afe6841231376b2b26d4d9fae5ecf8ca5772e441"
 
 [[package]]
 name = "num-integer"
-version = "0.1.46"
+version = "0.1.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
+checksum = "7ce2d95d4b3734dc35aa2f45e1aa22cd416814592a4f9d9205e11affd5b8e10b"
 dependencies = [
  "num-traits",
 ]

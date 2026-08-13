@@ -25,8 +25,6 @@ pub mod law;
 pub mod performance;
 pub mod space;
 pub mod trajectory;
-// Remove this narrow allowance after the first compiler-backed cleanup pass.
-#[allow(unused_imports)]
 pub mod world;
 
 #[cfg(feature = "compat-terminal")]
@@ -40,14 +38,13 @@ pub mod ariadne_terminal {
 }
 
 pub use ir::{
-    ApertureSpec, ConfigurationPath, MetricSpec, RadiationSpec, ReservoirSpec,
-    SpaceSpec, TransportSpec, WorldConfiguration, WorldSpec, ACTIVE_RANKS,
-    MODE_COUNT, SPACE_COURSES, TRANSPORT_PAIRS,
+    ApertureSpec, ConfigurationPath, MetricSpec, RadiationSpec, ReservoirSpec, SpaceSpec,
+    TransportSpec, WorldConfiguration, WorldSpec, ACTIVE_RANKS, MODE_COUNT, SPACE_COURSES,
+    TRANSPORT_PAIRS,
 };
 pub use performance::{CostEstimate, RuntimeLayout};
 pub use space::{ReciprocalSpace, SpaceControls, SpaceFrame};
 pub use trajectory::{TrajectoryBindError, TrajectoryBinding, WorldCoordinates};
 pub use world::{
-    FrameOutput, ReconfigurationFrame, World, WorldControls, WorldError,
-    WorldReceipt,
+    FrameOutput, ReconfigurationFrame, World, WorldControls, WorldError, WorldReceipt,
 };

@@ -219,11 +219,7 @@ impl AperturePotential {
         let quartic = 0.25 * self.quartic_stiffness;
         quadratic * (old + new)
             + cubic * (old * old + old * new + new * new)
-            + quartic
-                * (old * old * old
-                    + old * old * new
-                    + old * new * new
-                    + new * new * new)
+            + quartic * (old * old * old + old * old * new + old * new * new + new * new * new)
     }
 
     fn divided_gradient_derivative(self, old: f64, new: f64) -> f64 {
@@ -350,8 +346,7 @@ impl<const N: usize> CompliantApertureBoundary<N> {
         field_effort: f64,
         source_wave: f64,
     ) -> CompliantApertureFrame {
-        let energy_before =
-            self.stored_energy() + kinetic_energy(field_momenta, self.dt);
+        let energy_before = self.stored_energy() + kinetic_energy(field_momenta, self.dt);
         if field_momenta.iter().any(|value| !value.is_finite())
             || !field_effort.is_finite()
             || !source_wave.is_finite()
@@ -373,26 +368,17 @@ impl<const N: usize> CompliantApertureBoundary<N> {
                 + field_momenta.iter().map(|value| value * value).sum::<f64>());
 
         let incoming_source_wave = source_wave;
-        let aperture_angle = TAU
-            * self.configuration.source_to_aperture_rate_hz
-            * self.dt
-            * opening_fraction;
+        let aperture_angle =
+            TAU * self.configuration.source_to_aperture_rate_hz * self.dt * opening_fraction;
         let (source_wave, aperture_momentum) =
             givens(source_wave, self.state.momentum, aperture_angle);
         self.state.momentum = aperture_momentum;
 
         let mut field_flow = dot(field_momenta, &self.direction);
-        let field_angle = TAU
-            * self.configuration.source_to_field_rate_hz
-            * self.dt
-            * opening_fraction;
-        let (returned_source_wave, next_field_flow) =
-            givens(source_wave, field_flow, field_angle);
-        add_projection(
-            field_momenta,
-            &self.direction,
-            next_field_flow - field_flow,
-        );
+        let field_angle =
+            TAU * self.configuration.source_to_field_rate_hz * self.dt * opening_fraction;
+        let (returned_source_wave, next_field_flow) = givens(source_wave, field_flow, field_angle);
+        add_projection(field_momenta, &self.direction, next_field_flow - field_flow);
         field_flow = next_field_flow;
 
         let boundary_kinetic_after = self.dt
@@ -419,11 +405,7 @@ impl<const N: usize> CompliantApertureBoundary<N> {
         let (next_aperture_momentum, next_field_flow) =
             givens(self.state.momentum, field_flow, sweep_angle);
         self.state.momentum = next_aperture_momentum;
-        add_projection(
-            field_momenta,
-            &self.direction,
-            next_field_flow - field_flow,
-        );
+        add_projection(field_momenta, &self.direction, next_field_flow - field_flow);
         field_flow = next_field_flow;
         let sweep_energy_after = self.dt
             * 0.5
@@ -440,8 +422,7 @@ impl<const N: usize> CompliantApertureBoundary<N> {
             let target = self.configuration.active_target_momentum;
             let synchronization = 1.0
                 + 0.4
-                    * (-field_flow * self.state.momentum
-                        / (0.01 + self.state.momentum.abs()))
+                    * (-field_flow * self.state.momentum / (0.01 + self.state.momentum.abs()))
                         .tanh();
             let signed_work = self.dt
                 * self.configuration.active_rate_per_second
@@ -453,16 +434,14 @@ impl<const N: usize> CompliantApertureBoundary<N> {
                 * (1.0 - self.state.momentum * self.state.momentum / (target * target));
             if signed_work > 0.0 {
                 self.state.momentum = self.state.momentum.signum()
-                    * (self.state.momentum * self.state.momentum
-                        + 2.0 * signed_work / self.dt)
+                    * (self.state.momentum * self.state.momentum + 2.0 * signed_work / self.dt)
                         .sqrt();
                 active_source_work = signed_work;
             } else if signed_work < 0.0 {
                 let available = 0.5 * self.dt * self.state.momentum * self.state.momentum;
                 let dissipated = (-signed_work).min(available);
                 self.state.momentum = self.state.momentum.signum()
-                    * (self.state.momentum * self.state.momentum
-                        - 2.0 * dissipated / self.dt)
+                    * (self.state.momentum * self.state.momentum - 2.0 * dissipated / self.dt)
                         .max(0.0)
                         .sqrt();
                 internal_loss += dissipated;
@@ -471,15 +450,13 @@ impl<const N: usize> CompliantApertureBoundary<N> {
 
         let aperture_equation_residual = self.propagate_aperture();
         let kinetic_before_damping = 0.5 * self.dt * self.state.momentum * self.state.momentum;
-        self.state.momentum *=
-            (-self.configuration.damping_per_second * self.dt).exp();
+        self.state.momentum *= (-self.configuration.damping_per_second * self.dt).exp();
         let kinetic_after_damping = 0.5 * self.dt * self.state.momentum * self.state.momentum;
         internal_loss += (kinetic_before_damping - kinetic_after_damping).max(0.0);
         retire_denormal(&mut self.state.displacement);
         retire_denormal(&mut self.state.momentum);
 
-        let energy_after =
-            self.stored_energy() + kinetic_energy(field_momenta, self.dt);
+        let energy_after = self.stored_energy() + kinetic_energy(field_momenta, self.dt);
         CompliantApertureFrame {
             incoming_source_wave,
             returned_source_wave,
@@ -495,7 +472,9 @@ impl<const N: usize> CompliantApertureBoundary<N> {
             aperture_equation_residual,
             energy_before,
             energy_after,
-            closure_residual: energy_after - energy_before - source_boundary_work
+            closure_residual: energy_after
+                - energy_before
+                - source_boundary_work
                 - active_source_work
                 + internal_loss,
             non_finite_input: false,
@@ -523,10 +502,8 @@ impl<const N: usize> CompliantApertureBoundary<N> {
             }
             next_displacement -= (equation / derivative).clamp(-4.0, 4.0);
         }
-        let next_momentum =
-            2.0 * (next_displacement - old_displacement) / self.dt - old_momentum;
-        let residual = 2.0 * (next_displacement - old_displacement) / self.dt
-            - 2.0 * old_momentum
+        let next_momentum = 2.0 * (next_displacement - old_displacement) / self.dt - old_momentum;
+        let residual = 2.0 * (next_displacement - old_displacement) / self.dt - 2.0 * old_momentum
             + self.dt
                 * self
                     .potential
@@ -543,7 +520,11 @@ fn normalized_direction<const N: usize>(
     if direction.iter().any(|value| !value.is_finite()) {
         return Err(CompliantApertureError::InvalidDirection);
     }
-    let norm = direction.iter().map(|value| value * value).sum::<f64>().sqrt();
+    let norm = direction
+        .iter()
+        .map(|value| value * value)
+        .sum::<f64>()
+        .sqrt();
     if !norm.is_finite() || norm <= 1.0e-15 {
         return Err(CompliantApertureError::InvalidDirection);
     }
@@ -552,7 +533,10 @@ fn normalized_direction<const N: usize>(
 
 #[inline]
 fn dot<const N: usize>(left: &[f64; N], right: &[f64; N]) -> f64 {
-    left.iter().zip(right).map(|(left, right)| left * right).sum()
+    left.iter()
+        .zip(right)
+        .map(|(left, right)| left * right)
+        .sum()
 }
 
 #[inline]

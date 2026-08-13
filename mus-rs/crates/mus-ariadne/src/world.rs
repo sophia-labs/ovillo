@@ -8,16 +8,11 @@
 use mus_watsn::{WorkFrame, WorkLedger};
 
 use crate::field::{MetricFieldState, ModalMetricWaveField};
-use crate::ir::{
-    SpecError, WorldConfiguration, WorldSpec, ACTIVE_RANKS, MODE_COUNT, SPACE_COURSES,
-    TRANSPORT_PAIRS,
-};
+use crate::ir::{SpecError, WorldSpec, MODE_COUNT, SPACE_COURSES, TRANSPORT_PAIRS};
 use crate::law::active::{
     ActiveInclusionControls, ActiveInclusionFrame, SynchronizedActiveInclusion,
 };
-use crate::law::aperture::{
-    ApertureConfigurationWorkFrame, CompliantApertureBoundary, CompliantApertureFrame,
-};
+use crate::law::aperture::{CompliantApertureBoundary, CompliantApertureFrame};
 use crate::law::transport::{
     InternalResonanceTransport, ResonantTransportControls, ResonantTransportFrame,
 };
@@ -42,8 +37,10 @@ pub struct WorldControls {
 
 impl Default for WorldControls {
     fn default() -> Self {
-        let mut active = ActiveInclusionControls::default();
-        active.drive = 0.0;
+        let active = ActiveInclusionControls {
+            drive: 0.0,
+            ..Default::default()
+        };
         Self {
             source_wave: 0.0,
             work_input: 0.0,
@@ -371,28 +368,25 @@ impl World {
         }
 
         let displacement = *self.field.displacement();
-        let transport = self.transport.process(
-            &displacement,
-            self.field.momentum_mut(),
-            controls.transport,
-        );
+        let transport =
+            self.transport
+                .process(&displacement, self.field.momentum_mut(), controls.transport);
         if transport.non_finite_state {
             return Err(WorldError::NonFiniteState);
         }
         let propagation = self.field.propagate();
         let field_loss = self.field.damp();
-        let space = self.space.process(self.field.momentum_mut(), controls.space);
+        let space = self
+            .space
+            .process(self.field.momentum_mut(), controls.space);
         let material_radiation = self
             .field
             .radiate(&self.radiation_direction, controls.radiation_fraction)
             .map_err(|message| WorldError::Radiation(message.to_owned()))?;
 
-        let source_work =
-            work_input + aperture.source_boundary_work + aperture.active_source_work;
-        let internal_loss = aperture.internal_loss
-            + active.dissipated_work
-            + field_loss.loss
-            + space.internal_loss;
+        let source_work = work_input + aperture.source_boundary_work + aperture.active_source_work;
+        let internal_loss =
+            aperture.internal_loss + active.dissipated_work + field_loss.loss + space.internal_loss;
         let radiation = material_radiation.radiation + space.radiation;
         let energy_end = self.total_stored_energy();
         if !energy_end.is_finite()
@@ -494,7 +488,11 @@ impl World {
 
 #[inline]
 fn finite(value: f64) -> f64 {
-    if value.is_finite() { value } else { 0.0 }
+    if value.is_finite() {
+        value
+    } else {
+        0.0
+    }
 }
 
 fn normalize<const N: usize>(mut direction: [f64; N]) -> Result<[f64; N], &'static str> {
@@ -531,8 +529,10 @@ mod tests {
     #[test]
     fn configuration_changes_metric_without_resetting_state() {
         let mut world = World::try_new(WorldSpec::string_brass_v1()).unwrap();
-        let mut controls = WorldControls::default();
-        controls.source_wave = 0.8;
+        let mut controls = WorldControls {
+            source_wave: 0.8,
+            ..Default::default()
+        };
         for _ in 0..128 {
             world.process_sample(controls).unwrap();
             controls.source_wave = 0.0;
@@ -549,12 +549,17 @@ mod tests {
     #[test]
     fn driven_material_can_only_spend_declared_reservoir_work() {
         let mut world = World::try_new(WorldSpec::string_brass_v1()).unwrap();
-        let mut controls = WorldControls::default();
-        controls.source_wave = 0.8;
-        controls.active_coupling = 1.0;
-        controls.active.drive = 1.1;
-        controls.active.headroom = 0.2;
-        controls.work_input = 0.0;
+        let mut controls = WorldControls {
+            source_wave: 0.8,
+            active_coupling: 1.0,
+            active: ActiveInclusionControls {
+                drive: 1.1,
+                headroom: 0.2,
+                ..Default::default()
+            },
+            work_input: 0.0,
+            ..Default::default()
+        };
         for sample in 0..8_192 {
             if sample > 64 {
                 controls.source_wave = 0.0;

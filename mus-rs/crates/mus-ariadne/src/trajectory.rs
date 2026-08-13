@@ -74,40 +74,24 @@ impl CoordinateId {
     fn apply(self, coordinates: &mut WorldCoordinates, value: f64) {
         let value = finite(value);
         match self {
-            Self::MaterialOrganization => {
-                coordinates.material_organization = value.clamp(0.0, 1.0)
-            }
+            Self::MaterialOrganization => coordinates.material_organization = value.clamp(0.0, 1.0),
             Self::SourceWave => coordinates.controls.source_wave = value,
             Self::WorkInput => coordinates.controls.work_input = value.clamp(0.0, 1.0),
-            Self::ActiveCoupling => {
-                coordinates.controls.active_coupling = value.clamp(0.0, 1.0)
-            }
+            Self::ActiveCoupling => coordinates.controls.active_coupling = value.clamp(0.0, 1.0),
             Self::ActiveDrive => coordinates.controls.active.drive = value.clamp(0.0, 1.5),
-            Self::ActiveHeadroom => {
-                coordinates.controls.active.headroom = value.clamp(0.02, 1.0)
-            }
-            Self::ActiveSustain => {
-                coordinates.controls.active.sustain = value.clamp(0.0, 1.0)
-            }
+            Self::ActiveHeadroom => coordinates.controls.active.headroom = value.clamp(0.02, 1.0),
+            Self::ActiveSustain => coordinates.controls.active.sustain = value.clamp(0.0, 1.0),
             Self::ActiveSag => coordinates.controls.active.sag = value.clamp(0.0, 1.0),
             Self::ActiveBloom => coordinates.controls.active.bloom = value.clamp(0.0, 1.0),
-            Self::ActiveFeedback => {
-                coordinates.controls.active.feedback = value.clamp(0.0, 1.0)
-            }
+            Self::ActiveFeedback => coordinates.controls.active.feedback = value.clamp(0.0, 1.0),
             Self::ActiveSpace => coordinates.controls.active.space = value.clamp(0.0, 1.0),
             Self::TransportInterlace => {
                 coordinates.controls.transport.interlace = value.clamp(0.0, 1.0)
             }
-            Self::TransportMemory => {
-                coordinates.controls.transport.memory = value.clamp(0.0, 1.0)
-            }
-            Self::SpaceCoupling => {
-                coordinates.controls.space.coupling = value.clamp(0.0, 1.0)
-            }
+            Self::TransportMemory => coordinates.controls.transport.memory = value.clamp(0.0, 1.0),
+            Self::SpaceCoupling => coordinates.controls.space.coupling = value.clamp(0.0, 1.0),
             Self::SpaceDecay => coordinates.controls.space.decay = value.clamp(0.0, 1.0),
-            Self::SpaceRadiation => {
-                coordinates.controls.space.radiation = value.clamp(0.0, 1.0)
-            }
+            Self::SpaceRadiation => coordinates.controls.space.radiation = value.clamp(0.0, 1.0),
             Self::RadiationFraction => {
                 coordinates.controls.radiation_fraction = value.clamp(0.0, 1.0)
             }
@@ -141,7 +125,9 @@ impl std::fmt::Display for TrajectoryBindError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Compile(message) => write!(formatter, "trajectory compile failed: {message}"),
-            Self::UnknownCoordinate(name) => write!(formatter, "unknown Ariadne coordinate: {name}"),
+            Self::UnknownCoordinate(name) => {
+                write!(formatter, "unknown Ariadne coordinate: {name}")
+            }
             Self::SampleMovedBackward { current, requested } => write!(
                 formatter,
                 "trajectory cursor cannot move backward from {current} to {requested}"
@@ -173,8 +159,9 @@ impl TrajectoryBinding {
         for frame in compiled.frames {
             let mut updates = Vec::with_capacity(frame.sets.len());
             for set in frame.sets {
-                let coordinate = CoordinateId::parse(&set.coordinate)
-                    .ok_or_else(|| TrajectoryBindError::UnknownCoordinate(set.coordinate.clone()))?;
+                let coordinate = CoordinateId::parse(&set.coordinate).ok_or_else(|| {
+                    TrajectoryBindError::UnknownCoordinate(set.coordinate.clone())
+                })?;
                 updates.push(BoundUpdate {
                     coordinate,
                     value: set.value,
@@ -238,7 +225,11 @@ impl TrajectoryBinding {
 
 #[inline]
 fn finite(value: f64) -> f64 {
-    if value.is_finite() { value } else { 0.0 }
+    if value.is_finite() {
+        value
+    } else {
+        0.0
+    }
 }
 
 #[cfg(test)]

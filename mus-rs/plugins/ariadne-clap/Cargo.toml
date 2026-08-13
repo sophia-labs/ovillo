@@ -10,8 +10,12 @@ repository.workspace = true
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-mus-ariadne = { path = "../../crates/mus-ariadne", features = ["compat-terminal"] }
+mus-ariadne = { path = "../../crates/mus-ariadne" }
 # nice-plug 0.2.3 uses the permissive `vst3` 0.3 bindings. The allocation
 # assertion aborts debug processing if this wrapper or the core allocates on the
 # audio thread; it is compiled out of release artifacts.
 nice-plug = { package = "nice-plug", version = "=0.2.3", default-features = false, features = ["vst3", "assert_process_allocs"] }
+
+[dev-dependencies]
+hound = "3.5"
+serde_json = "1"

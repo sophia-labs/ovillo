@@ -54,8 +54,15 @@ pub struct ResonantTransportFrame {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResonantTransportError {
     InvalidSampleRate,
-    RepeatedCoordinate { pair: usize, index: usize },
-    CoordinateOutOfRange { pair: usize, index: usize, dimension: usize },
+    RepeatedCoordinate {
+        pair: usize,
+        index: usize,
+    },
+    CoordinateOutOfRange {
+        pair: usize,
+        index: usize,
+        dimension: usize,
+    },
 }
 
 impl std::fmt::Display for ResonantTransportError {
@@ -65,7 +72,10 @@ impl std::fmt::Display for ResonantTransportError {
                 formatter.write_str("invalid internal-resonance transport sample rate")
             }
             Self::RepeatedCoordinate { pair, index } => {
-                write!(formatter, "resonance pair {pair} repeats coordinate {index}")
+                write!(
+                    formatter,
+                    "resonance pair {pair} repeats coordinate {index}"
+                )
             }
             Self::CoordinateOutOfRange {
                 pair,
@@ -182,9 +192,8 @@ impl<const N: usize, const PAIRS: usize> InternalResonanceTransport<N, PAIRS> {
             let (left, right) = self.pairs[pair_index];
             let left_q = displacements[left];
             let right_q = displacements[right];
-            let geometry = (1.6 * left_q * right_q
-                + 0.25 * (left_q * left_q - right_q * right_q))
-                .tanh();
+            let geometry =
+                (1.6 * left_q * right_q + 0.25 * (left_q * left_q - right_q * right_q)).tanh();
             let angle = base_angle * memory_scale * self.weights[pair_index] * geometry;
             maximum_abs_geometry = maximum_abs_geometry.max(geometry.abs());
             maximum_abs_angle = maximum_abs_angle.max(angle.abs());
@@ -216,7 +225,11 @@ fn kinetic_energy<const N: usize>(momenta: &[f64; N], dt: f64) -> f64 {
 
 #[inline]
 fn finite_or_zero(value: f64) -> f64 {
-    if value.is_finite() { value } else { 0.0 }
+    if value.is_finite() {
+        value
+    } else {
+        0.0
+    }
 }
 
 #[cfg(test)]
@@ -228,18 +241,8 @@ mod tests {
 
     #[test]
     fn invalid_pairs_are_rejected() {
-        assert!(InternalResonanceTransport::<4, 1>::try_new(
-            48_000.0,
-            [(0, 0)],
-            [1.0]
-        )
-        .is_err());
-        assert!(InternalResonanceTransport::<4, 1>::try_new(
-            48_000.0,
-            [(0, 4)],
-            [1.0]
-        )
-        .is_err());
+        assert!(InternalResonanceTransport::<4, 1>::try_new(48_000.0, [(0, 0)], [1.0]).is_err());
+        assert!(InternalResonanceTransport::<4, 1>::try_new(48_000.0, [(0, 4)], [1.0]).is_err());
     }
 
     #[test]
@@ -302,18 +305,8 @@ mod tests {
 
     #[test]
     fn frozen_geometry_accumulates_consistently_across_sample_rates() {
-        let low = InternalResonanceTransport::<5, 1>::try_new(
-            48_000.0,
-            [(0, 2)],
-            [1.0],
-        )
-        .unwrap();
-        let high = InternalResonanceTransport::<5, 1>::try_new(
-            96_000.0,
-            [(0, 2)],
-            [1.0],
-        )
-        .unwrap();
+        let low = InternalResonanceTransport::<5, 1>::try_new(48_000.0, [(0, 2)], [1.0]).unwrap();
+        let high = InternalResonanceTransport::<5, 1>::try_new(96_000.0, [(0, 2)], [1.0]).unwrap();
         let q = [0.7, 0.0, 0.9, 0.0, 0.0];
         let controls = ResonantTransportControls {
             interlace: 0.6,
