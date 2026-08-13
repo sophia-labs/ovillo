@@ -45,6 +45,7 @@ dependencies = [
  "hound",
  "mus-ariadne",
  "nice-plug",
+ "serde",
  "serde_json",
 ]
 

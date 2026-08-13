@@ -390,6 +390,14 @@ impl AriadneEngine {
     pub fn new(sample_rate_hz: f64) -> Result<Self, String> {
         let mut spec = WorldSpec::string_brass_v1();
         spec.internal_sample_rate_hz = sample_rate_hz;
+        Self::with_spec(spec)
+    }
+
+    /// Construct the host-independent engine around an explicitly declared
+    /// canonical World anatomy. This is primarily useful to offline renderers
+    /// that need several independently tuned Worlds; it does not couple those
+    /// Worlds or pretend that their ledgers form one physical system.
+    pub fn with_spec(spec: WorldSpec) -> Result<Self, String> {
         let world = World::try_new(spec).map_err(|error| error.to_string())?;
         Ok(Self {
             world,
@@ -739,6 +747,20 @@ mod tests {
         assert_eq!(receipt.world.world_digest, digest);
         assert_eq!(receipt.world.sample_frames, 4);
         assert!((receipt.world.configuration_amount - 0.27).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn an_explicit_world_spec_remains_an_independent_engine_identity() {
+        let mut spec = WorldSpec::string_brass_v1();
+        spec.internal_sample_rate_hz = 48_000.0;
+        spec.anatomy_name = "independent-offline-return-test".to_owned();
+        let expected_digest = spec.digest().unwrap();
+        let mut engine = AriadneEngine::with_spec(spec).unwrap();
+        engine.process_sample(0.1, 0.1, AriadneControls::default());
+        let receipt = engine.receipt();
+        assert_eq!(receipt.world.world_digest, expected_digest);
+        assert_eq!(receipt.world.sample_frames, 1);
+        assert_eq!(receipt.world.ledger_frames, 1);
     }
 
     #[test]
