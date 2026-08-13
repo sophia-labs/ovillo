@@ -14,6 +14,14 @@
 /// electric-region fidelity campaign.
 #[cfg(feature = "ariadne-live")]
 pub mod ariadne_active_inclusion;
+/// Persistent compliant source/contact boundary shared by plucked-string and
+/// lip-reed-like playing regimes.
+#[cfg(feature = "ariadne-live")]
+pub mod ariadne_compliant_aperture;
+/// Fixed-rank Hamiltonian wave body whose metric and boundary configuration
+/// span string- and bore-like regions without selecting another renderer.
+#[cfg(feature = "ariadne-live")]
+pub mod ariadne_morphing_field;
 /// State-dependent, metric-compatible exchange between authored
 /// near-internal-resonance material modes.
 #[cfg(feature = "ariadne-live")]
