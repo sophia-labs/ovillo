@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia.systems/schemas/string-rearticulation-receipt-v1.json",
+  "title": "String-network fixed-topology rearticulation receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "work_digest",
+    "schedule",
+    "work_law",
+    "work_unit",
+    "total_signed_work",
+    "total_positive_work",
+    "total_extracted_work",
+    "peak_abs_course_sample_work",
+    "attacks"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "string-rearticulation-receipt-v1"
+    },
+    "work_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attack_count",
+        "active_courses",
+        "attack_span_samples",
+        "drive_samples",
+        "first_attack_sample",
+        "last_attack_sample",
+        "maximum_gain",
+        "overlap_policy",
+        "excitation_identity",
+        "execution_strategy"
+      ],
+      "properties": {
+        "attack_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "active_courses": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "attack_span_samples": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "drive_samples": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "first_attack_sample": {
+          "const": 0
+        },
+        "last_attack_sample": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maximum_gain": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 4
+        },
+        "overlap_policy": {
+          "const": "refuse-v1"
+        },
+        "excitation_identity": {
+          "const": "constructor-content-keyed-template"
+        },
+        "execution_strategy": {
+          "const": "prevalidated-monotone-attack-cursor+fully-unobserved-course-kernel-v3"
+        }
+      }
+    },
+    "work_law": {
+      "const": "delta_E = wave_before * excitation + 0.5 * excitation^2; ordered before drive, breath, bow, and contact"
+    },
+    "work_unit": {
+      "const": "declared-string-wave-energy"
+    },
+    "total_signed_work": {
+      "type": "number"
+    },
+    "total_positive_work": {
+      "type": "number",
+      "minimum": 0
+    },
+    "total_extracted_work": {
+      "type": "number",
+      "minimum": 0
+    },
+    "peak_abs_course_sample_work": {
+      "type": "number",
+      "minimum": 0
+    },
+    "attacks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "index",
+          "at_sample",
+          "gain",
+          "active_courses",
+          "nonzero_course_samples",
+          "signed_work",
+          "positive_work",
+          "extracted_work",
+          "peak_abs_course_sample_work"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "at_sample": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "gain": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 4
+          },
+          "active_courses": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "nonzero_course_samples": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "signed_work": {
+            "type": "number"
+          },
+          "positive_work": {
+            "type": "number",
+            "minimum": 0
+          },
+          "extracted_work": {
+            "type": "number",
+            "minimum": 0
+          },
+          "peak_abs_course_sample_work": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

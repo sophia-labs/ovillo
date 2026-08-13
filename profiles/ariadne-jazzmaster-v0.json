@@ -1,0 +1,218 @@
+{
+  "schema": "mus.ariadne-jazzmaster-profile.v0",
+  "profileId": "ariadne-jazzmaster-v0",
+  "status": "design-seed",
+  "claim": "Uncalibrated Ariadne-native offset electric-string anatomy; values labelled fit or design-hypothesis are starting points, not measurements of a real Jazzmaster.",
+  "referenceSources": [
+    "US2972923A floating tremolo and bridge construction",
+    "Fender History of the Jazzmaster",
+    "Fender Vintera III Mid '60s Jazzmaster specifications",
+    "Fender Pure Vintage '65 Jazzmaster pickup-set specifications"
+  ],
+  "courseTopology": {
+    "speakingLengthMeters": {
+      "initial": 0.648,
+      "minimum": 0.648,
+      "maximum": 0.648,
+      "unit": "m",
+      "evidence": "manufacturer",
+      "note": "25.5-inch nominal scale"
+    },
+    "polarizations": 2,
+    "courses": [
+      {
+        "id": "E2",
+        "openMidi": 40,
+        "gaugeInches": {"initial": 0.046, "minimum": 0.046, "maximum": 0.046, "unit": "in", "evidence": "manufacturer"},
+        "construction": "wound",
+        "material": "nickel-plated-steel",
+        "afterlengthRatio": {"initial": 0.25, "minimum": 0.18, "maximum": 0.32, "unit": "1", "evidence": "fit"}
+      },
+      {
+        "id": "A2",
+        "openMidi": 45,
+        "gaugeInches": {"initial": 0.036, "minimum": 0.036, "maximum": 0.036, "unit": "in", "evidence": "manufacturer"},
+        "construction": "wound",
+        "material": "nickel-plated-steel",
+        "afterlengthRatio": {"initial": 0.25, "minimum": 0.18, "maximum": 0.32, "unit": "1", "evidence": "fit"}
+      },
+      {
+        "id": "D3",
+        "openMidi": 50,
+        "gaugeInches": {"initial": 0.026, "minimum": 0.026, "maximum": 0.026, "unit": "in", "evidence": "manufacturer"},
+        "construction": "wound",
+        "material": "nickel-plated-steel",
+        "afterlengthRatio": {"initial": 0.25, "minimum": 0.18, "maximum": 0.32, "unit": "1", "evidence": "fit"}
+      },
+      {
+        "id": "G3",
+        "openMidi": 55,
+        "gaugeInches": {"initial": 0.017, "minimum": 0.017, "maximum": 0.017, "unit": "in", "evidence": "manufacturer"},
+        "construction": "plain",
+        "material": "steel",
+        "afterlengthRatio": {"initial": 0.25, "minimum": 0.18, "maximum": 0.32, "unit": "1", "evidence": "fit"}
+      },
+      {
+        "id": "B3",
+        "openMidi": 59,
+        "gaugeInches": {"initial": 0.013, "minimum": 0.013, "maximum": 0.013, "unit": "in", "evidence": "manufacturer"},
+        "construction": "plain",
+        "material": "steel",
+        "afterlengthRatio": {"initial": 0.25, "minimum": 0.18, "maximum": 0.32, "unit": "1", "evidence": "fit"}
+      },
+      {
+        "id": "E4",
+        "openMidi": 64,
+        "gaugeInches": {"initial": 0.010, "minimum": 0.010, "maximum": 0.010, "unit": "in", "evidence": "manufacturer"},
+        "construction": "plain",
+        "material": "steel",
+        "afterlengthRatio": {"initial": 0.25, "minimum": 0.18, "maximum": 0.32, "unit": "1", "evidence": "fit"}
+      }
+    ]
+  },
+  "bridge": {
+    "model": "rocking-multiport",
+    "saddleCount": 6,
+    "breakAngleDegrees": {
+      "initial": 7.0,
+      "minimum": 2.0,
+      "maximum": 14.0,
+      "unit": "deg",
+      "evidence": "fit",
+      "note": "Setup-dependent; measure the reference instrument rather than canonizing this seed."
+    },
+    "rockFrequencyHz": {"initial": 14.0, "minimum": 2.0, "maximum": 80.0, "unit": "Hz", "evidence": "fit"},
+    "rockT60Seconds": {"initial": 0.45, "minimum": 0.05, "maximum": 2.0, "unit": "s", "evidence": "fit"},
+    "slipModel": "stick-rock-slip"
+  },
+  "tremolo": {
+    "model": "shared-floating-spring-plate",
+    "plateFrequencyHz": {"initial": 3.2, "minimum": 0.5, "maximum": 20.0, "unit": "Hz", "evidence": "fit"},
+    "plateT60Seconds": {"initial": 0.8, "minimum": 0.1, "maximum": 4.0, "unit": "s", "evidence": "fit"},
+    "rangeCents": {"initial": 180.0, "minimum": 40.0, "maximum": 400.0, "unit": "cent", "evidence": "design-hypothesis"},
+    "armOwnership": ["torque", "position-servo"],
+    "lockDisposition": "refuse-if-moving"
+  },
+  "supportBody": {
+    "model": "passive-multiport-modal-body",
+    "playerContactDefault": 0.35,
+    "modes": [
+      {"id": "support-0", "frequencyHz": {"initial": 72.0, "minimum": 45.0, "maximum": 110.0, "unit": "Hz", "evidence": "fit"}, "t60Seconds": {"initial": 0.95, "minimum": 0.15, "maximum": 3.0, "unit": "s", "evidence": "fit"}, "bridgeResidue": 0.55, "nutResidue": 0.25, "plateResidue": 0.20, "weakRadiationResidue": 0.04},
+      {"id": "support-1", "frequencyHz": {"initial": 108.0, "minimum": 75.0, "maximum": 160.0, "unit": "Hz", "evidence": "fit"}, "t60Seconds": {"initial": 0.72, "minimum": 0.12, "maximum": 2.5, "unit": "s", "evidence": "fit"}, "bridgeResidue": 0.62, "nutResidue": 0.18, "plateResidue": 0.18, "weakRadiationResidue": 0.04},
+      {"id": "support-2", "frequencyHz": {"initial": 165.0, "minimum": 110.0, "maximum": 240.0, "unit": "Hz", "evidence": "fit"}, "t60Seconds": {"initial": 0.58, "minimum": 0.10, "maximum": 2.0, "unit": "s", "evidence": "fit"}, "bridgeResidue": 0.70, "nutResidue": 0.16, "plateResidue": 0.10, "weakRadiationResidue": 0.05},
+      {"id": "support-3", "frequencyHz": {"initial": 245.0, "minimum": 170.0, "maximum": 340.0, "unit": "Hz", "evidence": "fit"}, "t60Seconds": {"initial": 0.44, "minimum": 0.08, "maximum": 1.6, "unit": "s", "evidence": "fit"}, "bridgeResidue": 0.66, "nutResidue": 0.20, "plateResidue": 0.08, "weakRadiationResidue": 0.06},
+      {"id": "support-4", "frequencyHz": {"initial": 360.0, "minimum": 250.0, "maximum": 500.0, "unit": "Hz", "evidence": "fit"}, "t60Seconds": {"initial": 0.34, "minimum": 0.06, "maximum": 1.2, "unit": "s", "evidence": "fit"}, "bridgeResidue": 0.52, "nutResidue": 0.24, "plateResidue": 0.06, "weakRadiationResidue": 0.07},
+      {"id": "support-5", "frequencyHz": {"initial": 540.0, "minimum": 360.0, "maximum": 760.0, "unit": "Hz", "evidence": "fit"}, "t60Seconds": {"initial": 0.26, "minimum": 0.05, "maximum": 0.9, "unit": "s", "evidence": "fit"}, "bridgeResidue": 0.40, "nutResidue": 0.28, "plateResidue": 0.04, "weakRadiationResidue": 0.08},
+      {"id": "support-6", "frequencyHz": {"initial": 820.0, "minimum": 550.0, "maximum": 1150.0, "unit": "Hz", "evidence": "fit"}, "t60Seconds": {"initial": 0.19, "minimum": 0.04, "maximum": 0.7, "unit": "s", "evidence": "fit"}, "bridgeResidue": 0.30, "nutResidue": 0.30, "plateResidue": 0.03, "weakRadiationResidue": 0.09},
+      {"id": "support-7", "frequencyHz": {"initial": 1260.0, "minimum": 850.0, "maximum": 1800.0, "unit": "Hz", "evidence": "fit"}, "t60Seconds": {"initial": 0.13, "minimum": 0.03, "maximum": 0.5, "unit": "s", "evidence": "fit"}, "bridgeResidue": 0.20, "nutResidue": 0.26, "plateResidue": 0.02, "weakRadiationResidue": 0.08}
+    ]
+  },
+  "readouts": {
+    "model": "finite-aperture-string-field",
+    "apertures": [
+      {
+        "id": "bridge",
+        "segment": "speaking",
+        "positionRatio": {"initial": 0.10, "minimum": 0.04, "maximum": 0.22, "unit": "1 from bridge", "evidence": "fit"},
+        "widthRatio": {"initial": 0.060, "minimum": 0.015, "maximum": 0.16, "unit": "1 of speaking length", "evidence": "design-hypothesis"},
+        "shape": "hann",
+        "polarization": [1.0, 0.22, 0.0],
+        "defaultWeight": 0.72
+      },
+      {
+        "id": "neck",
+        "segment": "speaking",
+        "positionRatio": {"initial": 0.72, "minimum": 0.55, "maximum": 0.84, "unit": "1 from bridge", "evidence": "fit"},
+        "widthRatio": {"initial": 0.085, "minimum": 0.020, "maximum": 0.20, "unit": "1 of speaking length", "evidence": "design-hypothesis"},
+        "shape": "hann",
+        "polarization": [1.0, 0.30, 0.0],
+        "defaultWeight": 0.78
+      },
+      {
+        "id": "chime",
+        "segment": "afterlength",
+        "positionRatio": {"initial": 0.55, "minimum": 0.20, "maximum": 0.85, "unit": "1 of afterlength", "evidence": "design-hypothesis"},
+        "widthRatio": {"initial": 0.12, "minimum": 0.02, "maximum": 0.30, "unit": "1 of afterlength", "evidence": "design-hypothesis"},
+        "shape": "gaussian",
+        "polarization": [1.0, 0.40, 0.0],
+        "defaultWeight": 0.10
+      }
+    ],
+    "circuits": {
+      "lead": {
+        "allowedSelectors": ["bridge", "both", "neck"],
+        "poweredModeSet": "broad-eight",
+        "radiatorModeSet": "full-four"
+      },
+      "rhythm": {
+        "allowedSelectors": ["neck"],
+        "poweredModeSet": "slow-four",
+        "radiatorModeSet": "front-two"
+      }
+    }
+  },
+  "routing": {
+    "defaultMerge": "woven",
+    "supportedMerges": ["mono", "grouped", "hex", "woven"],
+    "interlace": {"initial": 0.42, "minimum": 0.0, "maximum": 1.0, "unit": "1", "evidence": "design-hypothesis"},
+    "chirality": {"initial": 0.36, "minimum": -1.0, "maximum": 1.0, "unit": "1", "evidence": "design-hypothesis"},
+    "orbitHz": {"initial": 0.28, "minimum": 0.0, "maximum": 8.0, "unit": "Hz", "evidence": "design-hypothesis"},
+    "orbitDepth": {"initial": 0.34, "minimum": 0.0, "maximum": 1.0, "unit": "1", "evidence": "design-hypothesis"},
+    "curvature": {"initial": 0.30, "minimum": 0.0, "maximum": 1.0, "unit": "1", "evidence": "design-hypothesis"}
+  },
+  "poweredBody": {
+    "model": "bounded-nonlinear-powered-mode-graph",
+    "reservoir": {
+      "capacity": {"initial": 1.0, "minimum": 0.05, "maximum": 8.0, "unit": "normalized energy", "evidence": "design-hypothesis"},
+      "recoverySeconds": {"initial": 0.18, "minimum": 0.015, "maximum": 3.0, "unit": "s", "evidence": "design-hypothesis"},
+      "rechargeEfficiency": {"initial": 0.10, "minimum": 0.0, "maximum": 0.80, "unit": "1", "evidence": "design-hypothesis"}
+    },
+    "modes": [
+      {"id": "power-0", "frequencyHz": {"initial": 88.0, "minimum": 55.0, "maximum": 130.0, "unit": "Hz", "evidence": "design-hypothesis"}, "t60Seconds": {"initial": 1.20, "minimum": 0.15, "maximum": 4.0, "unit": "s", "evidence": "design-hypothesis"}, "cubic": {"initial": 0.010, "minimum": -0.20, "maximum": 0.20, "unit": "normalized", "evidence": "design-hypothesis"}, "quartic": {"initial": 0.020, "minimum": 0.0, "maximum": 0.50, "unit": "normalized", "evidence": "design-hypothesis"}, "driveCoupling": 0.34, "radiationCoupling": 0.58, "center": [-0.20, -0.12, -0.05], "maximumDirectivityOrder": 0},
+      {"id": "power-1", "frequencyHz": {"initial": 176.0, "minimum": 110.0, "maximum": 260.0, "unit": "Hz", "evidence": "design-hypothesis"}, "t60Seconds": {"initial": 0.95, "minimum": 0.12, "maximum": 3.0, "unit": "s", "evidence": "design-hypothesis"}, "cubic": {"initial": -0.014, "minimum": -0.25, "maximum": 0.25, "unit": "normalized", "evidence": "design-hypothesis"}, "quartic": {"initial": 0.028, "minimum": 0.0, "maximum": 0.60, "unit": "normalized", "evidence": "design-hypothesis"}, "driveCoupling": 0.40, "radiationCoupling": 0.66, "center": [0.18, -0.08, -0.02], "maximumDirectivityOrder": 1},
+      {"id": "power-2", "frequencyHz": {"initial": 330.0, "minimum": 210.0, "maximum": 480.0, "unit": "Hz", "evidence": "design-hypothesis"}, "t60Seconds": {"initial": 0.70, "minimum": 0.10, "maximum": 2.2, "unit": "s", "evidence": "design-hypothesis"}, "cubic": {"initial": 0.020, "minimum": -0.30, "maximum": 0.30, "unit": "normalized", "evidence": "design-hypothesis"}, "quartic": {"initial": 0.040, "minimum": 0.0, "maximum": 0.80, "unit": "normalized", "evidence": "design-hypothesis"}, "driveCoupling": 0.48, "radiationCoupling": 0.72, "center": [-0.28, 0.06, 0.02], "maximumDirectivityOrder": 1},
+      {"id": "power-3", "frequencyHz": {"initial": 580.0, "minimum": 360.0, "maximum": 850.0, "unit": "Hz", "evidence": "design-hypothesis"}, "t60Seconds": {"initial": 0.50, "minimum": 0.08, "maximum": 1.6, "unit": "s", "evidence": "design-hypothesis"}, "cubic": {"initial": -0.026, "minimum": -0.35, "maximum": 0.35, "unit": "normalized", "evidence": "design-hypothesis"}, "quartic": {"initial": 0.055, "minimum": 0.0, "maximum": 1.00, "unit": "normalized", "evidence": "design-hypothesis"}, "driveCoupling": 0.54, "radiationCoupling": 0.78, "center": [0.30, 0.12, 0.04], "maximumDirectivityOrder": 2},
+      {"id": "power-4", "frequencyHz": {"initial": 950.0, "minimum": 620.0, "maximum": 1400.0, "unit": "Hz", "evidence": "design-hypothesis"}, "t60Seconds": {"initial": 0.35, "minimum": 0.06, "maximum": 1.1, "unit": "s", "evidence": "design-hypothesis"}, "cubic": {"initial": 0.032, "minimum": -0.40, "maximum": 0.40, "unit": "normalized", "evidence": "design-hypothesis"}, "quartic": {"initial": 0.075, "minimum": 0.0, "maximum": 1.20, "unit": "normalized", "evidence": "design-hypothesis"}, "driveCoupling": 0.58, "radiationCoupling": 0.82, "center": [-0.15, 0.22, 0.08], "maximumDirectivityOrder": 2},
+      {"id": "power-5", "frequencyHz": {"initial": 1500.0, "minimum": 950.0, "maximum": 2300.0, "unit": "Hz", "evidence": "design-hypothesis"}, "t60Seconds": {"initial": 0.24, "minimum": 0.04, "maximum": 0.8, "unit": "s", "evidence": "design-hypothesis"}, "cubic": {"initial": -0.040, "minimum": -0.50, "maximum": 0.50, "unit": "normalized", "evidence": "design-hypothesis"}, "quartic": {"initial": 0.100, "minimum": 0.0, "maximum": 1.50, "unit": "normalized", "evidence": "design-hypothesis"}, "driveCoupling": 0.62, "radiationCoupling": 0.78, "center": [0.16, 0.30, 0.12], "maximumDirectivityOrder": 3},
+      {"id": "power-6", "frequencyHz": {"initial": 2400.0, "minimum": 1500.0, "maximum": 3600.0, "unit": "Hz", "evidence": "design-hypothesis"}, "t60Seconds": {"initial": 0.15, "minimum": 0.03, "maximum": 0.55, "unit": "s", "evidence": "design-hypothesis"}, "cubic": {"initial": 0.050, "minimum": -0.60, "maximum": 0.60, "unit": "normalized", "evidence": "design-hypothesis"}, "quartic": {"initial": 0.140, "minimum": 0.0, "maximum": 2.00, "unit": "normalized", "evidence": "design-hypothesis"}, "driveCoupling": 0.58, "radiationCoupling": 0.66, "center": [-0.10, 0.38, 0.15], "maximumDirectivityOrder": 3},
+      {"id": "power-7", "frequencyHz": {"initial": 3900.0, "minimum": 2400.0, "maximum": 6200.0, "unit": "Hz", "evidence": "design-hypothesis"}, "t60Seconds": {"initial": 0.09, "minimum": 0.02, "maximum": 0.35, "unit": "s", "evidence": "design-hypothesis"}, "cubic": {"initial": -0.060, "minimum": -0.70, "maximum": 0.70, "unit": "normalized", "evidence": "design-hypothesis"}, "quartic": {"initial": 0.180, "minimum": 0.0, "maximum": 2.50, "unit": "normalized", "evidence": "design-hypothesis"}, "driveCoupling": 0.48, "radiationCoupling": 0.50, "center": [0.08, 0.44, 0.18], "maximumDirectivityOrder": 3}
+    ]
+  },
+  "radiator": {
+    "model": "extended-modal-radiator",
+    "coordinateSystem": "+X right, +Y up, -Z front",
+    "maximumHoaOrder": 3,
+    "defaultObservation": "hoa3",
+    "modes": [
+      {"id": "radiator-low", "sourceModeIds": ["power-0", "power-1"], "center": [0.0, -0.10, 0.0], "orientation": [0.0, 0.0, -1.0], "radiationResistance": {"initial": 0.18, "minimum": 0.01, "maximum": 0.80, "unit": "normalized", "evidence": "design-hypothesis"}, "maximumDirectivityOrder": 0},
+      {"id": "radiator-lowmid", "sourceModeIds": ["power-2", "power-3"], "center": [-0.22, 0.04, 0.05], "orientation": [-0.25, 0.05, -0.97], "radiationResistance": {"initial": 0.26, "minimum": 0.01, "maximum": 1.00, "unit": "normalized", "evidence": "design-hypothesis"}, "maximumDirectivityOrder": 1},
+      {"id": "radiator-highmid", "sourceModeIds": ["power-4", "power-5"], "center": [0.24, 0.16, 0.08], "orientation": [0.30, 0.12, -0.95], "radiationResistance": {"initial": 0.34, "minimum": 0.01, "maximum": 1.20, "unit": "normalized", "evidence": "design-hypothesis"}, "maximumDirectivityOrder": 2},
+      {"id": "radiator-edge", "sourceModeIds": ["power-6", "power-7"], "center": [0.02, 0.34, 0.12], "orientation": [0.0, 0.25, -0.97], "radiationResistance": {"initial": 0.30, "minimum": 0.01, "maximum": 1.40, "unit": "normalized", "evidence": "design-hypothesis"}, "maximumDirectivityOrder": 3}
+    ]
+  },
+  "feedback": {
+    "model": "causal-radiator-room-support-return",
+    "defaultGain": {"initial": 0.06, "minimum": 0.0, "maximum": 0.28, "unit": "1", "evidence": "design-hypothesis"},
+    "maximumGain": {"initial": 0.28, "minimum": 0.05, "maximum": 0.60, "unit": "1", "evidence": "fit"},
+    "minimumDelaySeconds": {"initial": 0.0015, "minimum": 0.0005, "maximum": 0.010, "unit": "s", "evidence": "physics-derived"},
+    "maximumDelaySeconds": {"initial": 0.25, "minimum": 0.02, "maximum": 2.0, "unit": "s", "evidence": "design-hypothesis"}
+  },
+  "deliveryProfileId": "mus-delivery-ariadne-jazzmaster-v1",
+  "macroDefaults": {
+    "arm": 0.50,
+    "chime": 0.42,
+    "aperture": 0.55,
+    "interlace": 0.42,
+    "drive": 0.34,
+    "headroom": 0.72,
+    "bloom": 0.36,
+    "field": 0.62
+  },
+  "metadata": {
+    "publicName": "Ariadne Jazzmaster",
+    "productNeutralName": "Ariadne Offset 648",
+    "implementationSpec": "SPEC-ARIADNE-JAZZMASTER.md",
+    "calibrationRequired": true,
+    "forPlaybackOnlyWithDeliveryReceipt": true
+  }
+}

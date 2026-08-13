@@ -1,0 +1,90 @@
+{
+  "schema_version": "trajectory-program-v1",
+  "sample_rate_hz": 48000,
+  "duration_samples": 4800,
+  "control_stride_samples": 240,
+  "metadata": {
+    "purpose": "cross-runtime persistent-body trajectory fixture",
+    "surface": "direct-authored"
+  },
+  "tracks": [
+    {
+      "coordinate": "string.pitch_ratio",
+      "interpolation": "linear",
+      "contract": {
+        "unit": "ratio",
+        "minimum": 0.25,
+        "maximum": 4.0,
+        "max_rate_per_second": 1.0,
+        "metric_weight": 0.25,
+        "state_semantics": {
+          "kind": "fixed_capacity"
+        }
+      },
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": 1.0
+        },
+        {
+          "at_sample": 4800,
+          "value": 1.0594630943592953
+        }
+      ]
+    },
+    {
+      "coordinate": "string.couple",
+      "interpolation": "smoothstep",
+      "contract": {
+        "unit": "radian",
+        "minimum": 0.0,
+        "maximum": 0.45,
+        "max_rate_per_second": 8.0,
+        "max_acceleration_per_second2": 600.0,
+        "metric_weight": 1.0,
+        "state_semantics": {
+          "kind": "fixed_capacity"
+        }
+      },
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": 0.18
+        },
+        {
+          "at_sample": 2400,
+          "value": 0.42
+        },
+        {
+          "at_sample": 4800,
+          "value": 0.18
+        }
+      ]
+    },
+    {
+      "coordinate": "garganta.control.jaw_open",
+      "interpolation": "smootherstep",
+      "contract": {
+        "unit": "normalized",
+        "minimum": -1.0,
+        "maximum": 1.0,
+        "max_rate_per_second": 14.0,
+        "max_acceleration_per_second2": 450.0,
+        "metric_weight": 0.5,
+        "state_semantics": {
+          "kind": "fixed_capacity"
+        }
+      },
+      "knots": [
+        {
+          "at_sample": 0,
+          "value": -0.1
+        },
+        {
+          "at_sample": 4800,
+          "value": 0.6
+        }
+      ]
+    }
+  ]
+}

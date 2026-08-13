@@ -1,0 +1,55 @@
+# DESIGN TARGET ONLY — not executable until SPEC-ARIADNE-JAZZMASTER JM1-JM6 land.
+# score: Ariadne Jazzmaster v0 constitutional etude
+# summary: one persistent offset body crosses clean, tremolo, afterlength, rhythm, breakup, woven wall, and feedback regions without a post-effect identity
+# tempo: 84
+# time: 4/4
+# key: Em
+# bars: 8
+# master: rms=-18
+# delivery: mus-delivery-ariadne-jazzmaster-v1
+# instruments:
+#   jm = Ariadne Jazzmaster (
+#     treble,
+#     synth=weave,
+#     anatomy=ariadne-jazzmaster-v0,
+#     body_lifetime=track,
+#     circuit=lead,
+#     readout=both,
+#     merge=woven,
+#     drive=0.22,
+#     headroom=0.82,
+#     sag=0.18,
+#     bloom=0.24,
+#     chime=0.34,
+#     feedback=0.00,
+#     field=hoa3
+#   )
+
+# 1. Conservative clean limit. Dynamics own attack work; no post-drive or EQ.
+bar 1: jm={mp} [E2,B2,E3]h Rq B3q
+
+# 2. The arm moves one common spring plate. Pitch, afterlength tension, bridge
+#    rocking, and coupling motion all emerge from geometry and are work-receipted.
+bar 2: jm={mf} [E2,B2,E3]w[jm_arm_position=0@0->-0.045@0.34->0.018@0.68->0@1]
+
+# 3. Rhythm is a routed dynamical subspace: neck field -> slow powered modes ->
+#    front radiator set. It is not a low-pass on a completed signal.
+bar 3: jm={p} A2h[jm_circuit=rhythm] E3h
+
+# 4. A speaking-string attack excites afterlengths only through the bridge;
+#    the second event directly attacks the six behind-bridge segments.
+bar 4: jm={mf} E3h[jm_chime=0.62] Xh[attack_port=afterlength,course_group=all]
+
+# 5. Edge of breakup from stored nonlinear modes and reservoir depletion.
+bar 5: jm={f} [E2,B2,E3]q[jm_drive=0.38,jm_headroom=0.62] Rq [G2,D3,G3]h
+
+# 6. Woven wall: course readouts interlace before and between nonlinear mode
+#    groups; no chorus, distortion, compressor, cabinet IR, or stereo widener.
+bar 6: jm={ff} [E2,B2,E3,G3]w[jm_interlace=0.72,jm_chirality=0.68,jm_orbit=0.44,jm_curvature=0.58,jm_bloom=0.66]
+
+# 7. Feedback is a delayed directional radiator -> room -> support/string loop.
+bar 7: jm={mf} B3w[jm_feedback=0@0->0.16@0.35->0.21@0.72->0.08@1]
+
+# 8. Tremolo lock is a typed state transition. Engage only near neutral;
+#    release into a final afterlength-rich chord. No state may be silently reset.
+bar 8: jm={p} Rq[jm_trem_lock=engage] [E2,B2,E3]h.[jm_trem_lock=release,jm_chime=0.72]

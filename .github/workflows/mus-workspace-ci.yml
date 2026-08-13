@@ -28,8 +28,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Python parity runtime
-        run: python -m pip install --upgrade uv
+      - name: install uv for parity and oracle-backed tests
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy

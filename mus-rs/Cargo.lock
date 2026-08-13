@@ -362,6 +362,7 @@ dependencies = [
  "hound",
  "libsoxr",
  "mus-gesture",
+ "mus-trajectory",
  "mus-watsn",
  "np-rand",
  "realfft",
@@ -429,6 +430,15 @@ dependencies = [
  "mus-oplog",
  "regex",
  "serde",
+]
+
+[[package]]
+name = "mus-trajectory"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]

@@ -2,7 +2,9 @@ mod check;
 mod service;
 mod vocab_dump;
 
-use mus_engine::{render, sha256_bytes, write_wav, RenderStats, ENGINE_VERSION};
+use mus_engine::{
+    render, sha256_bytes, write_wav, EventTrajectoryReceipt, RenderStats, ENGINE_VERSION,
+};
 use mus_text::{adopt, parse_score};
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -53,6 +55,8 @@ struct Receipt {
     bad_tokens: Vec<String>,
     #[serde(rename = "warnings")]
     warnings: Vec<String>,
+    #[serde(rename = "trajectoryReceipts", skip_serializing_if = "Vec::is_empty")]
+    trajectory_receipts: Vec<EventTrajectoryReceipt>,
     /// `--stems DIR` only: abbrev → written mono stem path (dry,
     /// pre-send, no reverb/master — the spatial scene's raw material).
     #[serde(rename = "stems", skip_serializing_if = "Option::is_none")]
@@ -88,6 +92,7 @@ impl Receipt {
             per_track_events: stats.per_track_events.clone(),
             bad_tokens: stats.bad.clone(),
             warnings: stats.warnings.clone(),
+            trajectory_receipts: stats.trajectory_receipts.clone(),
             stems: None,
         }
     }

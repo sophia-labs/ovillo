@@ -1,118 +1,132 @@
 use std::collections::BTreeMap;
 
-use mus_dsp::pluck::{weave_note, StringNetworkVoice};
+use mus_dsp::pluck::StringNetworkVoice;
 use mus_dsp::trajectory::{
-    compile_string_trajectory, StringTrajectoryError, StringTrajectoryVoice,
+    program_from_inline_string_params, render_weave_program, StringTrajectoryErrorKind,
 };
-use mus_trajectory::TrajectoryProgram;
 
-fn patch(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
-    pairs
-        .iter()
-        .map(|(key, value)| (key.to_string(), value.to_string()))
-        .collect()
-}
+const NOTES: [f64; 2] = [110.0, 165.0];
 
-fn working_patch() -> BTreeMap<String, String> {
-    patch(&[
+fn patch() -> BTreeMap<String, String> {
+    [
         ("synth", "weave"),
-        ("sus", "0.8"),
-        ("courses", "7"),
-        ("couple", "0.12"),
-        ("chirality", "0.3"),
-        ("curvature", "0.4"),
-        ("body", "0.35"),
-        ("orbit", "0.7"),
-        ("orbit_depth", "0.5"),
-    ])
+        ("sus", "1.2"),
+        ("courses", "9"),
+        ("couple", "0.17"),
+        ("chirality", "0.4"),
+        ("curvature", "0.5"),
+        ("body", "0.4"),
+        ("orbit", "0.5"),
+        ("orbit_depth", "0.7"),
+        ("retune", "neutral_filters"),
+    ]
+    .into_iter()
+    .map(|(key, value)| (key.to_string(), value.to_string()))
+    .collect()
 }
 
 #[test]
-fn empty_program_is_byte_identical_to_the_unwrapped_voice() {
-    let patch = working_patch();
-    let expected = weave_note(&patch, &[110.0, 165.0], 0.24, 1.0);
-    let voice = StringNetworkVoice::weave(&patch, &[110.0, 165.0], 0.24, 1.0);
-    let program = TrajectoryProgram::empty(48_000, 11_520);
-    let actual = StringTrajectoryVoice::new(voice, program).unwrap().render();
-    assert_eq!(expected, actual);
+fn constant_direct_path_is_the_historical_render() {
+    let source = BTreeMap::from([
+        ("couple".to_string(), "0.17->0.17".to_string()),
+        ("body".to_string(), "0.4->0.4".to_string()),
+    ]);
+    let (static_params, program) =
+        program_from_inline_string_params(&source, 0.5).expect("inline program");
+    let mut full_patch = patch();
+    full_patch.extend(static_params);
+    let direct = StringNetworkVoice::weave(&full_patch, &NOTES, 0.5, 1.0).render();
+    let rendered = render_weave_program(
+        &full_patch,
+        &NOTES,
+        0.5,
+        1.0,
+        &program.expect("program"),
+        256,
+    )
+    .expect("trajectory render");
+    assert_eq!(direct, rendered.audio);
 }
 
 #[test]
-fn zero_motion_arrow_is_byte_identical_to_a_scalar_patch() {
-    let scalar = working_patch();
-    let mut moving = scalar.clone();
-    moving.insert("couple".into(), "0.12->0.12".into());
-    moving.insert("trajectory_curve".into(), "smootherstep".into());
-    let expected = weave_note(&scalar, &[110.0, 165.0], 0.24, 1.0);
-    let actual = StringTrajectoryVoice::weave(&moving, &[110.0, 165.0], 0.24, 1.0)
-        .unwrap()
-        .render();
-    assert_eq!(expected, actual);
-}
-
-#[test]
-fn host_block_partition_cannot_change_the_path() {
-    let mut patch = working_patch();
-    patch.insert("couple".into(), "0.03->0.38->0.11".into());
-    patch.insert("body".into(), "0.2->0.75->0.3".into());
-    patch.insert("trajectory_curve".into(), "smoothstep".into());
-
-    let whole = StringTrajectoryVoice::weave(&patch, &[110.0, 165.0], 0.30, 1.0)
-        .unwrap()
-        .render();
-    let mut chunked = StringTrajectoryVoice::weave(&patch, &[110.0, 165.0], 0.30, 1.0).unwrap();
-    let block_sizes = [1_usize, 7, 64, 257, 31, 1024, 3];
-    let mut cursor = 0;
-    let mut actual = Vec::with_capacity(whole.len());
-    while !chunked.is_finished() {
-        let size = block_sizes[cursor % block_sizes.len()].min(chunked.remaining_samples());
-        let mut block = vec![0.0; size];
-        let written = chunked.render_block(&mut block);
-        assert_eq!(written, size);
-        actual.extend(block);
-        cursor += 1;
-    }
-    assert_eq!(whole, actual);
-}
-
-#[test]
-fn a_real_trajectory_is_not_a_static_endpoint_counterfeit() {
-    let mut moving = working_patch();
-    moving.insert("couple".into(), "0.02->0.42->0.08".into());
-    moving.insert("curvature".into(), "0.1->0.9".into());
-    moving.insert("trajectory_curve".into(), "smootherstep".into());
-
-    let mut start = working_patch();
-    start.insert("couple".into(), "0.02".into());
-    start.insert("curvature".into(), "0.1".into());
-    let mut end = working_patch();
-    end.insert("couple".into(), "0.08".into());
-    end.insert("curvature".into(), "0.9".into());
-
-    let moving_audio = StringTrajectoryVoice::weave(&moving, &[110.0, 165.0], 0.30, 1.0)
-        .unwrap()
-        .render();
-    assert_ne!(moving_audio, weave_note(&start, &[110.0, 165.0], 0.30, 1.0));
-    assert_ne!(moving_audio, weave_note(&end, &[110.0, 165.0], 0.30, 1.0));
-}
-
-#[test]
-fn pitch_ratio_is_refused_instead_of_resampled() {
-    let mut patch = working_patch();
-    patch.insert("pitch_ratio".into(), "1.0->1.5".into());
-    let error = compile_string_trajectory(&patch, 4_800).unwrap_err();
-    assert_eq!(
-        error,
-        StringTrajectoryError::PitchTransportPending,
-        "the open mathematical seam has a typed boundary"
+fn moving_body_path_is_deterministic_and_nontrivial() {
+    let source = BTreeMap::from([
+        ("couple".to_string(), "0.17->0.42->0.17".to_string()),
+        ("body".to_string(), "0.4->0.8->0.4".to_string()),
+        ("traj_curve".to_string(), "cosine".to_string()),
+        ("traj_hz".to_string(), "200".to_string()),
+    ]);
+    let (static_params, program) =
+        program_from_inline_string_params(&source, 0.5).expect("inline program");
+    let mut full_patch = patch();
+    full_patch.extend(static_params);
+    let program = program.expect("program");
+    let first =
+        render_weave_program(&full_patch, &NOTES, 0.5, 1.0, &program, 256).expect("first render");
+    let second =
+        render_weave_program(&full_patch, &NOTES, 0.5, 1.0, &program, 256).expect("second render");
+    assert_eq!(first.audio, second.audio);
+    assert_ne!(
+        first.audio,
+        StringNetworkVoice::weave(&patch(), &NOTES, 0.5, 1.0).render()
     );
-    assert_eq!(error.code(), "string-trajectory-pitch-transport-pending");
+    assert!(first.audio.iter().all(|sample| sample.is_finite()));
+    assert_eq!(
+        first.receipt.trajectory.program_digest,
+        second.receipt.trajectory.program_digest
+    );
+    assert!(first.receipt.control_frame_count > 20);
 }
 
 #[test]
-fn out_of_domain_authorship_refuses_before_rendering() {
-    let mut patch = working_patch();
-    patch.insert("couple".into(), "0.1->0.8".into());
-    let error = compile_string_trajectory(&patch, 4_800).unwrap_err();
-    assert_eq!(error.code(), "trajectory-above-maximum");
+fn pitch_path_uses_native_persistent_retune_and_keeps_its_debt_visible() {
+    let source = BTreeMap::from([(
+        "pitch_ratio".to_string(),
+        "1->1.0594630943592953".to_string(),
+    )]);
+    let (static_params, program) =
+        program_from_inline_string_params(&source, 0.5).expect("inline program");
+    let mut full_patch = patch();
+    full_patch.extend(static_params);
+    let rendered = render_weave_program(
+        &full_patch,
+        &NOTES,
+        0.5,
+        1.0,
+        &program.expect("program"),
+        256,
+    )
+    .expect("pitch render");
+    assert_eq!(
+        rendered.receipt.native_pitch_transport,
+        "persistent-linear-f0-to-f1"
+    );
+    assert!(rendered
+        .receipt
+        .unresolved_obligations
+        .contains(&"integer-delay-state-transport".to_string()));
+    assert!(rendered.audio.iter().all(|sample| sample.is_finite()));
+}
+
+#[test]
+fn strict_mode_refuses_before_audio() {
+    let source = BTreeMap::from([
+        ("pitch_ratio".to_string(), "1->1.02".to_string()),
+        ("traj_strict".to_string(), "1".to_string()),
+    ]);
+    let (static_params, program) =
+        program_from_inline_string_params(&source, 0.5).expect("inline program");
+    let mut full_patch = patch();
+    full_patch.extend(static_params);
+    let error = render_weave_program(
+        &full_patch,
+        &NOTES,
+        0.5,
+        1.0,
+        &program.expect("program"),
+        256,
+    )
+    .err()
+    .expect("strict refusal");
+    assert_eq!(error.kind, StringTrajectoryErrorKind::TransportUncertified);
 }

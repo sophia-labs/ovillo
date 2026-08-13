@@ -1,930 +1,963 @@
-//! Validated continuous control paths for persistent instrument bodies.
+//! Authored continuous control paths for persistent physical instrument bodies.
 //!
-//! A [`TrajectoryProgram`] is deliberately lower-level than an inverse
-//! gesture request. It says *which physical coordinate moves, through which
-//! values, on which sample clock*. An inverse compiler may produce one, but a
-//! composer can author the same value directly. The program is independent of
-//! any particular body: Weave, GARGANTA, Ariadne, and learned Extension
-//! gestures bind target names at their own adapter boundary.
+//! `mus-trajectory` owns the direct path layer:
 //!
-//! The v1 contract is intentionally small:
+//! ```text
+//! authored knots + coordinate contracts
+//!     -> validated continuous paths
+//!     -> deterministic sample-indexed control frames
+//!     -> receipt with bounds, declared metric effort, and content digests
+//! ```
 //!
-//! - fixed-capacity scalar control lanes only;
-//! - explicit sample rate and duration;
-//! - piecewise step, linear, C1 smoothstep, or C2 smootherstep interpolation;
-//! - linear or logarithmic (`log2`) value space;
-//! - typed refusal for malformed paths, range violations, and rate violations;
-//! - deterministic JSON and SHA-256 receipts;
-//! - no allocation while sampling a validated program.
-//!
-//! Topology edits, stochastic lanes, and automatic return-to-baseline are not
-//! smuggled into v1. They need their own state-disposal and supply-law
-//! contracts.
+//! It deliberately does **not** choose a path from an acoustic target. That is
+//! `mus-gesture`'s inverse-compilation job. Keeping the two layers separate lets
+//! a musician author a path now, while an agent may later synthesize an
+//! equivalent [`TrajectoryProgram`] from a higher-level request.
 
-#![forbid(unsafe_code)]
-
-use std::collections::BTreeSet;
-use std::fmt;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// Stable format identifier carried inside every program.
-pub const FORMAT_V1: &str = "mus-trajectory/v1";
-/// JSON Schema identifier used by the language-neutral artifact.
-pub const SCHEMA_V1: &str = "https://sophia.systems/schemas/mus-trajectory-program-v1.json";
+pub const TRAJECTORY_SCHEMA_VERSION: &str = "trajectory-program-v1";
+pub const TRAJECTORY_COMPILER_VERSION: &str = "mus-trajectory/0.1.0";
 
-/// Interpolation law between consecutive knots.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Curve {
-    /// Hold the left knot until the next knot's exact sample.
+pub enum Interpolation {
     Step,
-    /// Affine interpolation. Continuous, with velocity jumps at knots.
-    #[default]
     Linear,
-    /// `3t^2 - 2t^3`; zero velocity at both ends of every segment.
     Smoothstep,
-    /// `6t^5 - 15t^4 + 10t^3`; zero velocity and acceleration at ends.
     Smootherstep,
+    Cosine,
 }
 
-impl Curve {
-    /// Parse the score/API spelling of a curve.
+impl Interpolation {
     pub fn from_name(name: &str) -> Option<Self> {
         Some(match name {
             "step" => Self::Step,
             "linear" | "lin" => Self::Linear,
-            "smoothstep" | "ease" | "ease_in_out" => Self::Smoothstep,
-            "smootherstep" | "c2" => Self::Smootherstep,
+            "smoothstep" | "smooth" => Self::Smoothstep,
+            "smootherstep" | "smoother" => Self::Smootherstep,
+            "cosine" | "cos" => Self::Cosine,
             _ => return None,
         })
     }
 
-    /// Stable spelling emitted into receipts and diagnostics.
     pub fn name(self) -> &'static str {
         match self {
             Self::Step => "step",
             Self::Linear => "linear",
             Self::Smoothstep => "smoothstep",
             Self::Smootherstep => "smootherstep",
-        }
-    }
-
-    fn weight(self, t: f64) -> f64 {
-        let t = t.clamp(0.0, 1.0);
-        match self {
-            Self::Step => 0.0,
-            Self::Linear => t,
-            Self::Smoothstep => t * t * (3.0 - 2.0 * t),
-            Self::Smootherstep => t * t * t * (t * (6.0 * t - 15.0) + 10.0),
-        }
-    }
-
-    fn peak_slope_multiplier(self) -> Option<f64> {
-        match self {
-            Self::Step => None,
-            Self::Linear => Some(1.0),
-            Self::Smoothstep => Some(1.5),
-            Self::Smootherstep => Some(1.875),
-        }
-    }
-
-    /// Continuity class guaranteed at interior knots.
-    pub fn continuity(self) -> Continuity {
-        match self {
-            Self::Step => Continuity::Discontinuous,
-            Self::Linear => Continuity::C0,
-            Self::Smoothstep => Continuity::C1,
-            Self::Smootherstep => Continuity::C2,
+            Self::Cosine => "cosine",
         }
     }
 }
 
-/// Coordinate in which interpolation and rate limits are evaluated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum ValueSpace {
-    /// Interpolate the authored values directly.
-    #[default]
-    Linear,
-    /// Interpolate `log2(value)` and exponentiate. Useful for ratios.
-    Log2,
-}
-
-impl ValueSpace {
-    fn encode(self, target: &str, value: f64) -> Result<f64, TrajectoryError> {
-        match self {
-            Self::Linear => Ok(value),
-            Self::Log2 if value > 0.0 => Ok(value.log2()),
-            Self::Log2 => Err(TrajectoryError::NonPositiveLogValue {
-                target: target.to_string(),
-                value,
-            }),
-        }
-    }
-
-    fn decode(self, value: f64) -> f64 {
-        match self {
-            Self::Linear => value,
-            Self::Log2 => value.exp2(),
-        }
-    }
-}
-
-/// Declared smoothness of a lane.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Continuity {
-    Discontinuous,
-    C0,
-    C1,
-    C2,
+pub enum DisposalPolicy {
+    Radiate,
+    Dissipate,
+    Retire,
+    Reject,
 }
 
-/// One authored value at one sample of the program clock.
+impl DisposalPolicy {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Radiate => "radiate",
+            Self::Dissipate => "dissipate",
+            Self::Retire => "retire",
+            Self::Reject => "reject",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum StateSemantics {
+    #[default]
+    FixedCapacity,
+    TopologyEdit {
+        disposition: DisposalPolicy,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Knot {
+pub struct CoordinateContract {
+    pub unit: String,
+    pub minimum: f64,
+    pub maximum: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_rate_per_second: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_acceleration_per_second2: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metric_weight: Option<f64>,
+    #[serde(default)]
+    pub state_semantics: StateSemantics,
+}
+
+impl CoordinateContract {
+    pub fn fixed(unit: impl Into<String>, minimum: f64, maximum: f64) -> Self {
+        Self {
+            unit: unit.into(),
+            minimum,
+            maximum,
+            max_rate_per_second: None,
+            max_acceleration_per_second2: None,
+            metric_weight: None,
+            state_semantics: StateSemantics::FixedCapacity,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct TrajectoryKnot {
     pub at_sample: u64,
     pub value: f64,
 }
 
-/// One scalar path through one named body coordinate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Lane {
-    pub target: String,
-    pub unit: String,
-    #[serde(default)]
-    pub curve: Curve,
-    #[serde(default)]
-    pub value_space: ValueSpace,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub min_value: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_value: Option<f64>,
-    /// Bound in the lane's declared `value_space` units per second.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_rate_per_second: Option<f64>,
-    pub knots: Vec<Knot>,
+pub struct TrajectoryTrack {
+    pub coordinate: String,
+    pub interpolation: Interpolation,
+    pub contract: CoordinateContract,
+    pub knots: Vec<TrajectoryKnot>,
 }
 
-impl Lane {
-    /// Evaluate this lane at one sample. The program validator guarantees
-    /// that knots are non-empty, ordered, finite, and begin at sample zero.
-    pub fn value_at(&self, sample: u64) -> f64 {
-        let first = &self.knots[0];
-        if sample <= first.at_sample {
-            return first.value;
+impl TrajectoryTrack {
+    pub fn value_at(&self, sample: u64, duration_samples: u64) -> Result<f64, TrajectoryError> {
+        if sample > duration_samples {
+            return Err(TrajectoryError::for_coordinate(
+                TrajectoryErrorKind::SampleOutOfRange,
+                &self.coordinate,
+                format!("sample {sample} is after the authored duration {duration_samples}"),
+            ));
         }
-        let last = self.knots.last().expect("validated non-empty lane");
-        if sample >= last.at_sample {
-            return last.value;
+        let search = self
+            .knots
+            .binary_search_by_key(&sample, |knot| knot.at_sample);
+        match search {
+            Ok(index) => Ok(self.knots[index].value),
+            Err(0) => Ok(self.knots[0].value),
+            Err(index) if index >= self.knots.len() => Ok(self.knots[self.knots.len() - 1].value),
+            Err(index) => {
+                let left = self.knots[index - 1];
+                let right = self.knots[index];
+                let width = right.at_sample - left.at_sample;
+                let position = sample - left.at_sample;
+                let phase = position as f64 / width as f64;
+                let shaped = match self.interpolation {
+                    Interpolation::Step => 0.0,
+                    Interpolation::Linear => phase,
+                    Interpolation::Smoothstep => phase * phase * (3.0 - 2.0 * phase),
+                    Interpolation::Smootherstep => {
+                        phase * phase * phase * (phase * (phase * 6.0 - 15.0) + 10.0)
+                    }
+                    Interpolation::Cosine => 0.5 - 0.5 * (std::f64::consts::PI * phase).cos(),
+                };
+                Ok(left.value + (right.value - left.value) * shaped)
+            }
         }
-
-        let right = self.knots.partition_point(|knot| knot.at_sample <= sample);
-        let left = right - 1;
-        let start = &self.knots[left];
-        let end = &self.knots[right];
-        let span = end.at_sample - start.at_sample;
-        let t = (sample - start.at_sample) as f64 / span as f64;
-        let weight = self.curve.weight(t);
-        let a = match self.value_space {
-            ValueSpace::Linear => start.value,
-            ValueSpace::Log2 => start.value.log2(),
-        };
-        let b = match self.value_space {
-            ValueSpace::Linear => end.value,
-            ValueSpace::Log2 => end.value.log2(),
-        };
-        self.value_space.decode(a + (b - a) * weight)
     }
 
-    fn rate_observation(&self, sample_rate_hz: u32) -> Result<RateObservation, TrajectoryError> {
-        let mut maximum = 0.0_f64;
-        let mut discontinuous = false;
-        for pair in self.knots.windows(2) {
-            let left = &pair[0];
-            let right = &pair[1];
-            let a = self.value_space.encode(&self.target, left.value)?;
-            let b = self.value_space.encode(&self.target, right.value)?;
-            if a.to_bits() == b.to_bits() {
-                continue;
-            }
-            let delta_samples = right.at_sample - left.at_sample;
-            let seconds = delta_samples as f64 / sample_rate_hz as f64;
-            match self.curve.peak_slope_multiplier() {
-                Some(multiplier) => {
-                    maximum = maximum.max(multiplier * (b - a).abs() / seconds);
-                }
-                None => discontinuous = true,
-            }
-        }
-        Ok(RateObservation {
-            finite_maximum: (!discontinuous).then_some(maximum),
-            discontinuous,
-        })
+    fn changed(&self) -> bool {
+        self.knots
+            .windows(2)
+            .any(|pair| pair[0].value.to_bits() != pair[1].value.to_bits())
     }
 }
 
-/// Complete direct-control artifact. Lanes are applied in authored order.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrajectoryProgram {
-    pub format: String,
+    pub schema_version: String,
     pub sample_rate_hz: u32,
-    /// Number of samples in the authored path horizon. Valid knot indices are
-    /// `0..duration_samples`; after the horizon the final values are held.
     pub duration_samples: u64,
-    /// V1 requires true. Returning to a baseline needs an explicit baseline
-    /// and work/disposal semantics, so it is not inferred here.
-    pub hold_final: bool,
+    pub control_stride_samples: u32,
     #[serde(default)]
-    pub lanes: Vec<Lane>,
+    pub metadata: BTreeMap<String, String>,
+    pub tracks: Vec<TrajectoryTrack>,
 }
 
-impl TrajectoryProgram {
-    /// Construct an empty, byte-inert program with a valid clock.
-    pub fn empty(sample_rate_hz: u32, duration_samples: u64) -> Self {
-        Self {
-            format: FORMAT_V1.to_string(),
-            sample_rate_hz,
-            duration_samples,
-            hold_final: true,
-            lanes: Vec::new(),
-        }
-    }
-
-    /// Validate every structural, range, and declared rate obligation.
-    pub fn validate(&self) -> Result<TrajectorySummary, TrajectoryError> {
-        if self.format != FORMAT_V1 {
-            return Err(TrajectoryError::InvalidFormat {
-                found: self.format.clone(),
-            });
-        }
-        if self.sample_rate_hz == 0 {
-            return Err(TrajectoryError::InvalidSampleRate);
-        }
-        if self.duration_samples == 0 {
-            return Err(TrajectoryError::InvalidDuration);
-        }
-        if !self.hold_final {
-            return Err(TrajectoryError::ReleasePolicyUnsupported);
-        }
-
-        let mut targets = BTreeSet::new();
-        let mut lanes = Vec::with_capacity(self.lanes.len());
-        let mut program_zero_motion = true;
-        for (lane_index, lane) in self.lanes.iter().enumerate() {
-            if lane.target.trim().is_empty() {
-                return Err(TrajectoryError::EmptyTarget { lane_index });
-            }
-            if !targets.insert(lane.target.clone()) {
-                return Err(TrajectoryError::DuplicateTarget {
-                    target: lane.target.clone(),
-                });
-            }
-            if lane.knots.is_empty() {
-                return Err(TrajectoryError::EmptyLane {
-                    target: lane.target.clone(),
-                });
-            }
-            if lane.knots[0].at_sample != 0 {
-                return Err(TrajectoryError::FirstKnotNotZero {
-                    target: lane.target.clone(),
-                    at_sample: lane.knots[0].at_sample,
-                });
-            }
-            if let (Some(minimum), Some(maximum)) = (lane.min_value, lane.max_value) {
-                if !minimum.is_finite() || !maximum.is_finite() || minimum > maximum {
-                    return Err(TrajectoryError::InvalidBounds {
-                        target: lane.target.clone(),
-                    });
-                }
-            }
-            if lane.min_value.is_some_and(|value| !value.is_finite())
-                || lane.max_value.is_some_and(|value| !value.is_finite())
-            {
-                return Err(TrajectoryError::InvalidBounds {
-                    target: lane.target.clone(),
-                });
-            }
-            if let Some(limit) = lane.max_rate_per_second {
-                if !limit.is_finite() || limit < 0.0 {
-                    return Err(TrajectoryError::InvalidRateBound {
-                        target: lane.target.clone(),
-                        limit,
-                    });
-                }
-            }
-
-            let mut previous = None;
-            let first_bits = lane.knots[0].value.to_bits();
-            let mut zero_motion = true;
-            let mut minimum_seen = f64::INFINITY;
-            let mut maximum_seen = f64::NEG_INFINITY;
-            for knot in &lane.knots {
-                if let Some(previous) = previous {
-                    if knot.at_sample <= previous {
-                        return Err(TrajectoryError::KnotOrder {
-                            target: lane.target.clone(),
-                            previous,
-                            current: knot.at_sample,
-                        });
-                    }
-                }
-                previous = Some(knot.at_sample);
-                if knot.at_sample >= self.duration_samples {
-                    return Err(TrajectoryError::KnotOutsideDuration {
-                        target: lane.target.clone(),
-                        at_sample: knot.at_sample,
-                        duration_samples: self.duration_samples,
-                    });
-                }
-                if !knot.value.is_finite() {
-                    return Err(TrajectoryError::NonFiniteValue {
-                        target: lane.target.clone(),
-                        at_sample: knot.at_sample,
-                    });
-                }
-                lane.value_space.encode(&lane.target, knot.value)?;
-                if lane.min_value.is_some_and(|minimum| knot.value < minimum) {
-                    return Err(TrajectoryError::BelowMinimum {
-                        target: lane.target.clone(),
-                        value: knot.value,
-                        minimum: lane.min_value.expect("checked Some"),
-                    });
-                }
-                if lane.max_value.is_some_and(|maximum| knot.value > maximum) {
-                    return Err(TrajectoryError::AboveMaximum {
-                        target: lane.target.clone(),
-                        value: knot.value,
-                        maximum: lane.max_value.expect("checked Some"),
-                    });
-                }
-                minimum_seen = minimum_seen.min(knot.value);
-                maximum_seen = maximum_seen.max(knot.value);
-                zero_motion &= knot.value.to_bits() == first_bits;
-            }
-
-            let observed = lane.rate_observation(self.sample_rate_hz)?;
-            if let Some(limit) = lane.max_rate_per_second {
-                match observed.finite_maximum {
-                    Some(rate) if rate <= limit => {}
-                    Some(rate) => {
-                        return Err(TrajectoryError::RateExceeded {
-                            target: lane.target.clone(),
-                            observed: Some(rate),
-                            limit,
-                        });
-                    }
-                    None => {
-                        return Err(TrajectoryError::RateExceeded {
-                            target: lane.target.clone(),
-                            observed: None,
-                            limit,
-                        });
-                    }
-                }
-            }
-            program_zero_motion &= zero_motion;
-            lanes.push(LaneSummary {
-                target: lane.target.clone(),
-                unit: lane.unit.clone(),
-                curve: lane.curve,
-                continuity: lane.curve.continuity(),
-                value_space: lane.value_space,
-                knot_count: lane.knots.len(),
-                zero_motion,
-                minimum: minimum_seen,
-                maximum: maximum_seen,
-                observed_max_rate_per_second: observed.finite_maximum,
-                discontinuous: observed.discontinuous,
-            });
-        }
-
-        Ok(TrajectorySummary {
-            sample_rate_hz: self.sample_rate_hz,
-            duration_samples: self.duration_samples,
-            lane_count: self.lanes.len(),
-            zero_motion: program_zero_motion,
-            lanes,
-        })
-    }
-
-    /// Fill a caller-owned lane buffer for one sample. A sample after the
-    /// authored horizon receives the final value of every lane.
-    pub fn write_values(&self, sample: u64, output: &mut [f64]) -> Result<(), TrajectoryError> {
-        if output.len() != self.lanes.len() {
-            return Err(TrajectoryError::OutputLength {
-                expected: self.lanes.len(),
-                actual: output.len(),
-            });
-        }
-        let sample = sample.min(self.duration_samples - 1);
-        for (slot, lane) in output.iter_mut().zip(&self.lanes) {
-            *slot = lane.value_at(sample);
-        }
-        Ok(())
-    }
-
-    /// Deterministic JSON bytes after validation.
-    pub fn canonical_json(&self) -> Result<Vec<u8>, TrajectoryError> {
-        self.validate()?;
-        serde_json::to_vec(self).map_err(|error| TrajectoryError::Serialization {
-            message: error.to_string(),
-        })
-    }
-
-    /// SHA-256 of [`Self::canonical_json`].
-    pub fn digest_hex(&self) -> Result<String, TrajectoryError> {
-        let digest = Sha256::digest(self.canonical_json()?);
-        Ok(format!("{digest:x}"))
-    }
-
-    /// Content-addressed validation receipt.
-    pub fn receipt(&self) -> Result<TrajectoryReceipt, TrajectoryError> {
-        let summary = self.validate()?;
-        Ok(TrajectoryReceipt {
-            format: FORMAT_V1.to_string(),
-            program_sha256: self.digest_hex()?,
-            sample_rate_hz: summary.sample_rate_hz,
-            duration_samples: summary.duration_samples,
-            lane_count: summary.lane_count,
-            zero_motion: summary.zero_motion,
-            lanes: summary.lanes,
-        })
-    }
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CoordinateValue {
+    pub coordinate: String,
+    pub value: f64,
 }
 
-/// Reusable lane policy supplied by a body adapter.
-#[derive(Debug, Clone, PartialEq)]
-pub struct LaneTemplate {
-    pub target: String,
-    pub unit: String,
-    pub curve: Curve,
-    pub value_space: ValueSpace,
-    pub min_value: Option<f64>,
-    pub max_value: Option<f64>,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TrajectoryFrame {
+    pub at_sample: u64,
+    pub sets: Vec<CoordinateValue>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TrackReceipt {
+    pub coordinate: String,
+    pub interpolation: Interpolation,
+    pub start_value: f64,
+    pub end_value: f64,
     pub max_rate_per_second: Option<f64>,
+    pub max_acceleration_per_second2: Option<f64>,
+    pub declared_metric_effort: f64,
+    pub zero_order_hold_error_bound: Option<f64>,
 }
 
-impl LaneTemplate {
-    /// Compile an arrow expression (`a->b->c`) into equally spaced knots.
-    /// Returns `Ok(None)` when the value contains no arrow.
-    pub fn compile_arrow(
-        &self,
-        raw: &str,
-        duration_samples: u64,
-    ) -> Result<Option<Lane>, TrajectoryError> {
-        let Some(values) = parse_arrow_values(&self.target, raw)? else {
-            return Ok(None);
-        };
-        if duration_samples < values.len() as u64 {
-            return Err(TrajectoryError::TooManyKnots {
-                target: self.target.clone(),
-                knot_count: values.len(),
-                duration_samples,
-            });
-        }
-        let denominator = values.len() as u64 - 1;
-        let horizon = duration_samples - 1;
-        let knots = values
-            .into_iter()
-            .enumerate()
-            .map(|(index, value)| Knot {
-                at_sample: (index as u64 * horizon + denominator / 2) / denominator,
-                value,
-            })
-            .collect();
-        Ok(Some(Lane {
-            target: self.target.clone(),
-            unit: self.unit.clone(),
-            curve: self.curve,
-            value_space: self.value_space,
-            min_value: self.min_value,
-            max_value: self.max_value,
-            max_rate_per_second: self.max_rate_per_second,
-            knots,
-        }))
-    }
-}
-
-/// Parse an arrow expression. Ordinary scalar values are not trajectories.
-pub fn parse_arrow_values(target: &str, raw: &str) -> Result<Option<Vec<f64>>, TrajectoryError> {
-    if !raw.contains("->") {
-        return Ok(None);
-    }
-    let tokens: Vec<&str> = raw.split("->").map(str::trim).collect();
-    if tokens.len() < 2 || tokens.iter().any(|token| token.is_empty()) {
-        return Err(TrajectoryError::InvalidArrow {
-            target: target.to_string(),
-            raw: raw.to_string(),
-        });
-    }
-    let values = tokens
-        .into_iter()
-        .map(|token| {
-            token
-                .parse::<f64>()
-                .map_err(|_| TrajectoryError::InvalidArrowNumber {
-                    target: target.to_string(),
-                    token: token.to_string(),
-                })
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(Some(values))
-}
-
-#[derive(Debug, Clone, Copy)]
-struct RateObservation {
-    finite_maximum: Option<f64>,
-    discontinuous: bool,
-}
-
-/// Receipt-ready summary of one lane.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct LaneSummary {
-    pub target: String,
-    pub unit: String,
-    pub curve: Curve,
-    pub continuity: Continuity,
-    pub value_space: ValueSpace,
-    pub knot_count: usize,
-    pub zero_motion: bool,
-    pub minimum: f64,
-    pub maximum: f64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub observed_max_rate_per_second: Option<f64>,
-    pub discontinuous: bool,
-}
-
-/// Validation result without a digest.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TrajectorySummary {
-    pub sample_rate_hz: u32,
-    pub duration_samples: u64,
-    pub lane_count: usize,
-    pub zero_motion: bool,
-    pub lanes: Vec<LaneSummary>,
-}
-
-/// Immutable content-addressed program receipt.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrajectoryReceipt {
-    pub format: String,
-    pub program_sha256: String,
+    pub schema_version: String,
+    pub compiler_version: String,
+    pub program_digest: String,
+    pub frame_digest: String,
     pub sample_rate_hz: u32,
     pub duration_samples: u64,
-    pub lane_count: usize,
-    pub zero_motion: bool,
-    pub lanes: Vec<LaneSummary>,
+    pub control_stride_samples: u32,
+    pub frame_count: usize,
+    pub tracks: Vec<TrackReceipt>,
+    pub claim_level: String,
+    pub evidence_class: String,
 }
 
-/// Typed trajectory refusal. The stable [`Self::code`] is suitable for a
-/// service or score-compiler receipt.
-#[derive(Debug, Clone, PartialEq)]
-pub enum TrajectoryError {
-    InvalidFormat {
-        found: String,
-    },
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CompiledTrajectory {
+    pub frames: Vec<TrajectoryFrame>,
+    pub receipt: TrajectoryReceipt,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrajectoryErrorKind {
+    UnsupportedSchema,
     InvalidSampleRate,
     InvalidDuration,
-    ReleasePolicyUnsupported,
-    EmptyTarget {
-        lane_index: usize,
-    },
-    DuplicateTarget {
-        target: String,
-    },
-    EmptyLane {
-        target: String,
-    },
-    FirstKnotNotZero {
-        target: String,
-        at_sample: u64,
-    },
-    KnotOrder {
-        target: String,
-        previous: u64,
-        current: u64,
-    },
-    KnotOutsideDuration {
-        target: String,
-        at_sample: u64,
-        duration_samples: u64,
-    },
-    NonFiniteValue {
-        target: String,
-        at_sample: u64,
-    },
-    InvalidBounds {
-        target: String,
-    },
-    BelowMinimum {
-        target: String,
-        value: f64,
-        minimum: f64,
-    },
-    AboveMaximum {
-        target: String,
-        value: f64,
-        maximum: f64,
-    },
-    NonPositiveLogValue {
-        target: String,
-        value: f64,
-    },
-    InvalidRateBound {
-        target: String,
-        limit: f64,
-    },
-    RateExceeded {
-        target: String,
-        observed: Option<f64>,
-        limit: f64,
-    },
-    InvalidArrow {
-        target: String,
-        raw: String,
-    },
-    InvalidArrowNumber {
-        target: String,
-        token: String,
-    },
-    TooManyKnots {
-        target: String,
-        knot_count: usize,
-        duration_samples: u64,
-    },
-    OutputLength {
-        expected: usize,
-        actual: usize,
-    },
-    Serialization {
-        message: String,
-    },
+    InvalidControlStride,
+    EmptyCoordinate,
+    DuplicateCoordinate,
+    InvalidContract,
+    TooFewKnots,
+    EndpointMismatch,
+    NonIncreasingKnots,
+    NonFiniteValue,
+    ValueOutOfRange,
+    StepRequiresTopology,
+    TopologyRequiresStep,
+    CertificateUnavailable,
+    RateLimitExceeded,
+    AccelerationLimitExceeded,
+    SampleOutOfRange,
+    InvalidArrowSyntax,
+    DurationTooShort,
+    Serialization,
+}
+
+impl TrajectoryErrorKind {
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::UnsupportedSchema => "trajectory-unsupported-schema",
+            Self::InvalidSampleRate => "trajectory-invalid-sample-rate",
+            Self::InvalidDuration => "trajectory-invalid-duration",
+            Self::InvalidControlStride => "trajectory-invalid-control-stride",
+            Self::EmptyCoordinate => "trajectory-empty-coordinate",
+            Self::DuplicateCoordinate => "trajectory-duplicate-coordinate",
+            Self::InvalidContract => "trajectory-invalid-contract",
+            Self::TooFewKnots => "trajectory-too-few-knots",
+            Self::EndpointMismatch => "trajectory-endpoint-mismatch",
+            Self::NonIncreasingKnots => "trajectory-nonincreasing-knots",
+            Self::NonFiniteValue => "trajectory-nonfinite-value",
+            Self::ValueOutOfRange => "trajectory-value-out-of-range",
+            Self::StepRequiresTopology => "trajectory-step-requires-topology",
+            Self::TopologyRequiresStep => "trajectory-topology-requires-step",
+            Self::CertificateUnavailable => "trajectory-certificate-unavailable",
+            Self::RateLimitExceeded => "trajectory-rate-limit-exceeded",
+            Self::AccelerationLimitExceeded => "trajectory-acceleration-limit-exceeded",
+            Self::SampleOutOfRange => "trajectory-sample-out-of-range",
+            Self::InvalidArrowSyntax => "trajectory-invalid-arrow-syntax",
+            Self::DurationTooShort => "trajectory-duration-too-short",
+            Self::Serialization => "trajectory-serialization",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrajectoryError {
+    pub kind: TrajectoryErrorKind,
+    pub coordinate: Option<String>,
+    pub message: String,
 }
 
 impl TrajectoryError {
-    pub fn code(&self) -> &'static str {
-        match self {
-            Self::InvalidFormat { .. } => "trajectory-invalid-format",
-            Self::InvalidSampleRate => "trajectory-invalid-sample-rate",
-            Self::InvalidDuration => "trajectory-invalid-duration",
-            Self::ReleasePolicyUnsupported => "trajectory-release-policy-unsupported",
-            Self::EmptyTarget { .. } => "trajectory-empty-target",
-            Self::DuplicateTarget { .. } => "trajectory-duplicate-target",
-            Self::EmptyLane { .. } => "trajectory-empty-lane",
-            Self::FirstKnotNotZero { .. } => "trajectory-first-knot-not-zero",
-            Self::KnotOrder { .. } => "trajectory-knot-order",
-            Self::KnotOutsideDuration { .. } => "trajectory-knot-outside-duration",
-            Self::NonFiniteValue { .. } => "trajectory-nonfinite-value",
-            Self::InvalidBounds { .. } => "trajectory-invalid-bounds",
-            Self::BelowMinimum { .. } => "trajectory-below-minimum",
-            Self::AboveMaximum { .. } => "trajectory-above-maximum",
-            Self::NonPositiveLogValue { .. } => "trajectory-log-value-nonpositive",
-            Self::InvalidRateBound { .. } => "trajectory-invalid-rate-bound",
-            Self::RateExceeded { .. } => "trajectory-rate-exceeded",
-            Self::InvalidArrow { .. } => "trajectory-invalid-arrow",
-            Self::InvalidArrowNumber { .. } => "trajectory-invalid-arrow-number",
-            Self::TooManyKnots { .. } => "trajectory-too-many-knots",
-            Self::OutputLength { .. } => "trajectory-output-length",
-            Self::Serialization { .. } => "trajectory-serialization",
+    fn new(kind: TrajectoryErrorKind, message: impl Into<String>) -> Self {
+        Self {
+            kind,
+            coordinate: None,
+            message: message.into(),
         }
+    }
+
+    fn for_coordinate(
+        kind: TrajectoryErrorKind,
+        coordinate: &str,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            kind,
+            coordinate: Some(coordinate.to_string()),
+            message: message.into(),
+        }
+    }
+
+    pub fn code(&self) -> &'static str {
+        self.kind.code()
     }
 }
 
-impl fmt::Display for TrajectoryError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InvalidFormat { found } => {
-                write!(formatter, "trajectory format {found:?} is not {FORMAT_V1:?}")
-            }
-            Self::InvalidSampleRate => write!(formatter, "trajectory sample rate must be positive"),
-            Self::InvalidDuration => write!(formatter, "trajectory duration must be positive"),
-            Self::ReleasePolicyUnsupported => write!(
+impl Display for TrajectoryError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        match &self.coordinate {
+            Some(coordinate) => write!(
                 formatter,
-                "trajectory v1 only supports hold_final=true; baseline return needs an explicit law"
+                "{} ({coordinate}): {}",
+                self.kind.code(),
+                self.message
             ),
-            Self::EmptyTarget { lane_index } => {
-                write!(formatter, "trajectory lane {lane_index} has an empty target")
-            }
-            Self::DuplicateTarget { target } => {
-                write!(formatter, "trajectory target {target:?} appears more than once")
-            }
-            Self::EmptyLane { target } => {
-                write!(formatter, "trajectory target {target:?} has no knots")
-            }
-            Self::FirstKnotNotZero { target, at_sample } => write!(
-                formatter,
-                "trajectory target {target:?} begins at sample {at_sample}, not sample 0"
-            ),
-            Self::KnotOrder {
-                target,
-                previous,
-                current,
-            } => write!(
-                formatter,
-                "trajectory target {target:?} has non-increasing knots {previous} then {current}"
-            ),
-            Self::KnotOutsideDuration {
-                target,
-                at_sample,
-                duration_samples,
-            } => write!(
-                formatter,
-                "trajectory target {target:?} knot {at_sample} is outside duration {duration_samples}"
-            ),
-            Self::NonFiniteValue { target, at_sample } => write!(
-                formatter,
-                "trajectory target {target:?} has a non-finite value at sample {at_sample}"
-            ),
-            Self::InvalidBounds { target } => {
-                write!(formatter, "trajectory target {target:?} has invalid bounds")
-            }
-            Self::BelowMinimum {
-                target,
-                value,
-                minimum,
-            } => write!(
-                formatter,
-                "trajectory target {target:?} value {value} is below minimum {minimum}"
-            ),
-            Self::AboveMaximum {
-                target,
-                value,
-                maximum,
-            } => write!(
-                formatter,
-                "trajectory target {target:?} value {value} is above maximum {maximum}"
-            ),
-            Self::NonPositiveLogValue { target, value } => write!(
-                formatter,
-                "trajectory target {target:?} uses log2 space but value {value} is not positive"
-            ),
-            Self::InvalidRateBound { target, limit } => write!(
-                formatter,
-                "trajectory target {target:?} has invalid rate bound {limit}"
-            ),
-            Self::RateExceeded {
-                target,
-                observed,
-                limit,
-            } => match observed {
-                Some(observed) => write!(
-                    formatter,
-                    "trajectory target {target:?} rate {observed} exceeds {limit} per second"
-                ),
-                None => write!(
-                    formatter,
-                    "trajectory target {target:?} is discontinuous and cannot satisfy finite rate {limit}"
-                ),
-            },
-            Self::InvalidArrow { target, raw } => write!(
-                formatter,
-                "trajectory target {target:?} has malformed arrow expression {raw:?}"
-            ),
-            Self::InvalidArrowNumber { target, token } => write!(
-                formatter,
-                "trajectory target {target:?} arrow token {token:?} is not a number"
-            ),
-            Self::TooManyKnots {
-                target,
-                knot_count,
-                duration_samples,
-            } => write!(
-                formatter,
-                "trajectory target {target:?} has {knot_count} knots but only {duration_samples} samples"
-            ),
-            Self::OutputLength { expected, actual } => write!(
-                formatter,
-                "trajectory output buffer has length {actual}; expected {expected}"
-            ),
-            Self::Serialization { message } => {
-                write!(formatter, "trajectory serialization failed: {message}")
-            }
+            None => write!(formatter, "{}: {}", self.kind.code(), self.message),
         }
     }
 }
 
 impl std::error::Error for TrajectoryError {}
 
+#[derive(Debug, Clone, Copy)]
+struct TrackKinematics {
+    max_rate: Option<f64>,
+    max_acceleration: Option<f64>,
+    metric_effort: f64,
+}
+
+impl TrajectoryProgram {
+    pub fn from_json(source: &str) -> Result<Self, TrajectoryError> {
+        let program: Self = serde_json::from_str(source).map_err(|error| {
+            TrajectoryError::new(
+                TrajectoryErrorKind::Serialization,
+                format!("could not decode trajectory JSON: {error}"),
+            )
+        })?;
+        program.validate()?;
+        Ok(program)
+    }
+
+    pub fn to_pretty_json(&self) -> Result<String, TrajectoryError> {
+        serde_json::to_string_pretty(self).map_err(|error| {
+            TrajectoryError::new(
+                TrajectoryErrorKind::Serialization,
+                format!("could not encode trajectory JSON: {error}"),
+            )
+        })
+    }
+
+    pub fn validate(&self) -> Result<(), TrajectoryError> {
+        if self.schema_version != TRAJECTORY_SCHEMA_VERSION {
+            return Err(TrajectoryError::new(
+                TrajectoryErrorKind::UnsupportedSchema,
+                format!(
+                    "expected {TRAJECTORY_SCHEMA_VERSION}, found {}",
+                    self.schema_version
+                ),
+            ));
+        }
+        if self.sample_rate_hz == 0 {
+            return Err(TrajectoryError::new(
+                TrajectoryErrorKind::InvalidSampleRate,
+                "sample_rate_hz must be positive",
+            ));
+        }
+        if self.duration_samples == 0 {
+            return Err(TrajectoryError::new(
+                TrajectoryErrorKind::InvalidDuration,
+                "duration_samples must be positive",
+            ));
+        }
+        if self.control_stride_samples == 0 {
+            return Err(TrajectoryError::new(
+                TrajectoryErrorKind::InvalidControlStride,
+                "control_stride_samples must be positive",
+            ));
+        }
+
+        let mut coordinates = BTreeSet::new();
+        for track in &self.tracks {
+            self.validate_track(track)?;
+            if !coordinates.insert(track.coordinate.as_str()) {
+                return Err(TrajectoryError::for_coordinate(
+                    TrajectoryErrorKind::DuplicateCoordinate,
+                    &track.coordinate,
+                    "each coordinate may appear only once",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_track(&self, track: &TrajectoryTrack) -> Result<(), TrajectoryError> {
+        if track.coordinate.trim().is_empty() || track.coordinate.trim() != track.coordinate {
+            return Err(TrajectoryError::for_coordinate(
+                TrajectoryErrorKind::EmptyCoordinate,
+                &track.coordinate,
+                "coordinate names must be non-empty and have no surrounding whitespace",
+            ));
+        }
+        let contract = &track.contract;
+        if contract.unit.trim().is_empty()
+            || !contract.minimum.is_finite()
+            || !contract.maximum.is_finite()
+            || contract.minimum > contract.maximum
+        {
+            return Err(TrajectoryError::for_coordinate(
+                TrajectoryErrorKind::InvalidContract,
+                &track.coordinate,
+                "unit must be non-empty and finite minimum must not exceed maximum",
+            ));
+        }
+        for (name, value, positive) in [
+            ("max_rate_per_second", contract.max_rate_per_second, true),
+            (
+                "max_acceleration_per_second2",
+                contract.max_acceleration_per_second2,
+                true,
+            ),
+            ("metric_weight", contract.metric_weight, false),
+        ] {
+            if let Some(value) = value {
+                let invalid_sign = if positive { value <= 0.0 } else { value < 0.0 };
+                if !value.is_finite() || invalid_sign {
+                    return Err(TrajectoryError::for_coordinate(
+                        TrajectoryErrorKind::InvalidContract,
+                        &track.coordinate,
+                        format!("{name} is outside its finite admissible range"),
+                    ));
+                }
+            }
+        }
+        if track.knots.len() < 2 {
+            return Err(TrajectoryError::for_coordinate(
+                TrajectoryErrorKind::TooFewKnots,
+                &track.coordinate,
+                "a track needs at least two knots",
+            ));
+        }
+        if track.knots.first().map(|knot| knot.at_sample) != Some(0)
+            || track.knots.last().map(|knot| knot.at_sample) != Some(self.duration_samples)
+        {
+            return Err(TrajectoryError::for_coordinate(
+                TrajectoryErrorKind::EndpointMismatch,
+                &track.coordinate,
+                format!(
+                    "first knot must be at 0 and last knot at {}",
+                    self.duration_samples
+                ),
+            ));
+        }
+        for pair in track.knots.windows(2) {
+            if pair[0].at_sample >= pair[1].at_sample {
+                return Err(TrajectoryError::for_coordinate(
+                    TrajectoryErrorKind::NonIncreasingKnots,
+                    &track.coordinate,
+                    "knot samples must be strictly increasing",
+                ));
+            }
+        }
+        for knot in &track.knots {
+            if !knot.value.is_finite() {
+                return Err(TrajectoryError::for_coordinate(
+                    TrajectoryErrorKind::NonFiniteValue,
+                    &track.coordinate,
+                    format!("knot at sample {} is not finite", knot.at_sample),
+                ));
+            }
+            if !(contract.minimum..=contract.maximum).contains(&knot.value) {
+                return Err(TrajectoryError::for_coordinate(
+                    TrajectoryErrorKind::ValueOutOfRange,
+                    &track.coordinate,
+                    format!(
+                        "{} is outside [{}, {}] at sample {}",
+                        knot.value, contract.minimum, contract.maximum, knot.at_sample
+                    ),
+                ));
+            }
+        }
+
+        let changed = track.changed();
+        match &contract.state_semantics {
+            StateSemantics::FixedCapacity => {
+                if changed && track.interpolation == Interpolation::Step {
+                    return Err(TrajectoryError::for_coordinate(
+                        TrajectoryErrorKind::StepRequiresTopology,
+                        &track.coordinate,
+                        "a discontinuous authored change needs explicit topology-edit semantics",
+                    ));
+                }
+            }
+            StateSemantics::TopologyEdit { .. } => {
+                if track.interpolation != Interpolation::Step {
+                    return Err(TrajectoryError::for_coordinate(
+                        TrajectoryErrorKind::TopologyRequiresStep,
+                        &track.coordinate,
+                        "topology edits must occur at declared knot boundaries",
+                    ));
+                }
+                if contract.metric_weight.unwrap_or(0.0) > 0.0 {
+                    return Err(TrajectoryError::for_coordinate(
+                        TrajectoryErrorKind::CertificateUnavailable,
+                        &track.coordinate,
+                        "quadratic path effort is not defined across a topology edit",
+                    ));
+                }
+            }
+        }
+
+        let measured = self.track_kinematics(track);
+        if let Some(limit) = contract.max_rate_per_second {
+            match measured.max_rate {
+                Some(value) if value <= limit * (1.0 + 1e-12) => {}
+                Some(value) => {
+                    return Err(TrajectoryError::for_coordinate(
+                        TrajectoryErrorKind::RateLimitExceeded,
+                        &track.coordinate,
+                        format!("measured rate {value} exceeds declared limit {limit}"),
+                    ));
+                }
+                None if changed => {
+                    return Err(TrajectoryError::for_coordinate(
+                        TrajectoryErrorKind::CertificateUnavailable,
+                        &track.coordinate,
+                        "a finite rate certificate is unavailable for this path",
+                    ));
+                }
+                None => {}
+            }
+        }
+        if let Some(limit) = contract.max_acceleration_per_second2 {
+            match measured.max_acceleration {
+                Some(value) if value <= limit * (1.0 + 1e-12) => {}
+                Some(value) => {
+                    return Err(TrajectoryError::for_coordinate(
+                        TrajectoryErrorKind::AccelerationLimitExceeded,
+                        &track.coordinate,
+                        format!("measured acceleration {value} exceeds declared limit {limit}"),
+                    ));
+                }
+                None if changed => {
+                    return Err(TrajectoryError::for_coordinate(
+                        TrajectoryErrorKind::CertificateUnavailable,
+                        &track.coordinate,
+                        "piecewise-linear or discontinuous corners have no finite acceleration certificate",
+                    ));
+                }
+                None => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn track_kinematics(&self, track: &TrajectoryTrack) -> TrackKinematics {
+        let sample_rate = f64::from(self.sample_rate_hz);
+        let mut max_rate = 0.0_f64;
+        let mut max_acceleration = 0.0_f64;
+        let mut acceleration_available = true;
+        let mut metric_effort = 0.0_f64;
+        let metric_weight = track.contract.metric_weight.unwrap_or(0.0);
+
+        for pair in track.knots.windows(2) {
+            let delta = pair[1].value - pair[0].value;
+            if delta == 0.0 {
+                continue;
+            }
+            let seconds = (pair[1].at_sample - pair[0].at_sample) as f64 / sample_rate;
+            let (rate_factor, acceleration_factor, effort_factor) =
+                interpolation_factors(track.interpolation);
+            if let Some(factor) = rate_factor {
+                max_rate = max_rate.max(factor * delta.abs() / seconds);
+            }
+            match acceleration_factor {
+                Some(factor) => {
+                    max_acceleration =
+                        max_acceleration.max(factor * delta.abs() / (seconds * seconds));
+                }
+                None => acceleration_available = false,
+            }
+            if metric_weight > 0.0 {
+                if let Some(factor) = effort_factor {
+                    metric_effort += metric_weight * factor * delta * delta / seconds;
+                }
+            }
+        }
+
+        TrackKinematics {
+            max_rate: if track.changed() && track.interpolation == Interpolation::Step {
+                None
+            } else {
+                Some(max_rate)
+            },
+            max_acceleration: if acceleration_available {
+                Some(max_acceleration)
+            } else {
+                None
+            },
+            metric_effort,
+        }
+    }
+
+    pub fn semantic_digest(&self) -> Result<String, TrajectoryError> {
+        self.validate()?;
+        Ok(sha256_prefixed(&self.semantic_bytes()))
+    }
+
+    fn semantic_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        put_string(&mut bytes, "mus-trajectory-semantic-v1");
+        put_string(&mut bytes, &self.schema_version);
+        bytes.extend_from_slice(&self.sample_rate_hz.to_be_bytes());
+        bytes.extend_from_slice(&self.duration_samples.to_be_bytes());
+        bytes.extend_from_slice(&self.control_stride_samples.to_be_bytes());
+
+        put_len(&mut bytes, self.metadata.len());
+        for (key, value) in &self.metadata {
+            put_string(&mut bytes, key);
+            put_string(&mut bytes, value);
+        }
+
+        let mut tracks: Vec<&TrajectoryTrack> = self.tracks.iter().collect();
+        tracks.sort_by(|left, right| left.coordinate.cmp(&right.coordinate));
+        put_len(&mut bytes, tracks.len());
+        for track in tracks {
+            put_string(&mut bytes, &track.coordinate);
+            put_string(&mut bytes, track.interpolation.name());
+            put_string(&mut bytes, &track.contract.unit);
+            put_f64(&mut bytes, track.contract.minimum);
+            put_f64(&mut bytes, track.contract.maximum);
+            put_option_f64(&mut bytes, track.contract.max_rate_per_second);
+            put_option_f64(&mut bytes, track.contract.max_acceleration_per_second2);
+            put_option_f64(&mut bytes, track.contract.metric_weight);
+            match &track.contract.state_semantics {
+                StateSemantics::FixedCapacity => {
+                    put_string(&mut bytes, "fixed_capacity");
+                }
+                StateSemantics::TopologyEdit { disposition } => {
+                    put_string(&mut bytes, "topology_edit");
+                    put_string(&mut bytes, disposition.name());
+                }
+            }
+            put_len(&mut bytes, track.knots.len());
+            for knot in &track.knots {
+                bytes.extend_from_slice(&knot.at_sample.to_be_bytes());
+                put_f64(&mut bytes, knot.value);
+            }
+        }
+        bytes
+    }
+
+    pub fn compile(&self) -> Result<CompiledTrajectory, TrajectoryError> {
+        self.validate()?;
+
+        let mut sample_points = BTreeSet::new();
+        sample_points.insert(0_u64);
+        sample_points.insert(self.duration_samples);
+        for track in &self.tracks {
+            sample_points.extend(track.knots.iter().map(|knot| knot.at_sample));
+        }
+        let stride = u64::from(self.control_stride_samples);
+        let mut sample = stride;
+        while sample < self.duration_samples {
+            sample_points.insert(sample);
+            sample = match sample.checked_add(stride) {
+                Some(next) => next,
+                None => break,
+            };
+        }
+
+        let mut tracks: Vec<&TrajectoryTrack> = self.tracks.iter().collect();
+        tracks.sort_by(|left, right| left.coordinate.cmp(&right.coordinate));
+        let mut last_bits: BTreeMap<&str, u64> = BTreeMap::new();
+        let mut frames = Vec::with_capacity(sample_points.len());
+        for at_sample in sample_points {
+            let mut sets = Vec::new();
+            for track in &tracks {
+                let value = track.value_at(at_sample, self.duration_samples)?;
+                let bits = value.to_bits();
+                let changed = last_bits
+                    .get(track.coordinate.as_str())
+                    .is_none_or(|previous| *previous != bits);
+                if changed {
+                    sets.push(CoordinateValue {
+                        coordinate: track.coordinate.clone(),
+                        value,
+                    });
+                    last_bits.insert(track.coordinate.as_str(), bits);
+                }
+            }
+            if !sets.is_empty() {
+                frames.push(TrajectoryFrame { at_sample, sets });
+            }
+        }
+
+        let program_digest = sha256_prefixed(&self.semantic_bytes());
+        let frame_digest = sha256_prefixed(&frame_semantic_bytes(&frames));
+        let stride_seconds =
+            f64::from(self.control_stride_samples) / f64::from(self.sample_rate_hz);
+        let track_receipts = tracks
+            .iter()
+            .map(|track| {
+                let measured = self.track_kinematics(track);
+                let hold_error = if track.interpolation == Interpolation::Step {
+                    Some(0.0)
+                } else {
+                    measured.max_rate.map(|rate| rate * stride_seconds)
+                };
+                TrackReceipt {
+                    coordinate: track.coordinate.clone(),
+                    interpolation: track.interpolation,
+                    start_value: track.knots[0].value,
+                    end_value: track.knots[track.knots.len() - 1].value,
+                    max_rate_per_second: measured.max_rate,
+                    max_acceleration_per_second2: measured.max_acceleration,
+                    declared_metric_effort: measured.metric_effort,
+                    zero_order_hold_error_bound: hold_error,
+                }
+            })
+            .collect();
+
+        Ok(CompiledTrajectory {
+            receipt: TrajectoryReceipt {
+                schema_version: TRAJECTORY_SCHEMA_VERSION.to_string(),
+                compiler_version: TRAJECTORY_COMPILER_VERSION.to_string(),
+                program_digest,
+                frame_digest,
+                sample_rate_hz: self.sample_rate_hz,
+                duration_samples: self.duration_samples,
+                control_stride_samples: self.control_stride_samples,
+                frame_count: frames.len(),
+                tracks: track_receipts,
+                claim_level: "authored-control-path".to_string(),
+                evidence_class: "validated-numerics".to_string(),
+            },
+            frames,
+        })
+    }
+}
+
+pub fn parse_arrow_values(source: &str) -> Result<Vec<f64>, TrajectoryError> {
+    let parts: Vec<&str> = source.split("->").map(str::trim).collect();
+    if parts.len() < 2 || parts.iter().any(|part| part.is_empty()) {
+        return Err(TrajectoryError::new(
+            TrajectoryErrorKind::InvalidArrowSyntax,
+            format!("expected at least two finite values separated by '->': {source}"),
+        ));
+    }
+    parts
+        .into_iter()
+        .map(|part| {
+            let value = part.parse::<f64>().map_err(|_| {
+                TrajectoryError::new(
+                    TrajectoryErrorKind::InvalidArrowSyntax,
+                    format!("'{part}' is not a floating-point value"),
+                )
+            })?;
+            if !value.is_finite() {
+                return Err(TrajectoryError::new(
+                    TrajectoryErrorKind::NonFiniteValue,
+                    format!("'{part}' is not finite"),
+                ));
+            }
+            Ok(value)
+        })
+        .collect()
+}
+
+pub fn equally_spaced_track(
+    coordinate: impl Into<String>,
+    values: &[f64],
+    duration_samples: u64,
+    interpolation: Interpolation,
+    contract: CoordinateContract,
+) -> Result<TrajectoryTrack, TrajectoryError> {
+    let coordinate = coordinate.into();
+    if values.len() < 2 {
+        return Err(TrajectoryError::for_coordinate(
+            TrajectoryErrorKind::TooFewKnots,
+            &coordinate,
+            "an arrow trajectory needs at least two values",
+        ));
+    }
+    if duration_samples < (values.len() - 1) as u64 {
+        return Err(TrajectoryError::for_coordinate(
+            TrajectoryErrorKind::DurationTooShort,
+            &coordinate,
+            "duration is too short to place strictly increasing knots",
+        ));
+    }
+    let denominator = (values.len() - 1) as u128;
+    let knots = values
+        .iter()
+        .enumerate()
+        .map(|(index, value)| TrajectoryKnot {
+            at_sample: ((u128::from(duration_samples) * index as u128) / denominator) as u64,
+            value: *value,
+        })
+        .collect();
+    Ok(TrajectoryTrack {
+        coordinate,
+        interpolation,
+        contract,
+        knots,
+    })
+}
+
+fn interpolation_factors(interpolation: Interpolation) -> (Option<f64>, Option<f64>, Option<f64>) {
+    match interpolation {
+        Interpolation::Step => (None, None, None),
+        Interpolation::Linear => (Some(1.0), None, Some(1.0)),
+        Interpolation::Smoothstep => (Some(1.5), Some(6.0), Some(6.0 / 5.0)),
+        Interpolation::Smootherstep => (
+            Some(15.0 / 8.0),
+            Some(10.0 * 3.0_f64.sqrt() / 3.0),
+            Some(10.0 / 7.0),
+        ),
+        Interpolation::Cosine => (
+            Some(std::f64::consts::PI / 2.0),
+            Some(std::f64::consts::PI.powi(2) / 2.0),
+            Some(std::f64::consts::PI.powi(2) / 8.0),
+        ),
+    }
+}
+
+fn frame_semantic_bytes(frames: &[TrajectoryFrame]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    put_string(&mut bytes, "mus-trajectory-frames-v1");
+    put_len(&mut bytes, frames.len());
+    for frame in frames {
+        bytes.extend_from_slice(&frame.at_sample.to_be_bytes());
+        let mut sets: Vec<&CoordinateValue> = frame.sets.iter().collect();
+        sets.sort_by(|left, right| left.coordinate.cmp(&right.coordinate));
+        put_len(&mut bytes, sets.len());
+        for set in sets {
+            put_string(&mut bytes, &set.coordinate);
+            put_f64(&mut bytes, set.value);
+        }
+    }
+    bytes
+}
+
+fn sha256_prefixed(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("sha256:{:x}", hasher.finalize())
+}
+
+fn put_len(bytes: &mut Vec<u8>, length: usize) {
+    bytes.extend_from_slice(&(length as u64).to_be_bytes());
+}
+
+fn put_string(bytes: &mut Vec<u8>, value: &str) {
+    put_len(bytes, value.len());
+    bytes.extend_from_slice(value.as_bytes());
+}
+
+fn put_f64(bytes: &mut Vec<u8>, value: f64) {
+    bytes.extend_from_slice(&value.to_bits().to_be_bytes());
+}
+
+fn put_option_f64(bytes: &mut Vec<u8>, value: Option<f64>) {
+    match value {
+        Some(value) => {
+            bytes.push(1);
+            put_f64(bytes, value);
+        }
+        None => bytes.push(0),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn lane(curve: Curve, value_space: ValueSpace, values: &[(u64, f64)]) -> Lane {
-        Lane {
-            target: "x".to_string(),
-            unit: "unitless".to_string(),
-            curve,
-            value_space,
-            min_value: None,
-            max_value: None,
-            max_rate_per_second: None,
-            knots: values
-                .iter()
-                .map(|&(at_sample, value)| Knot { at_sample, value })
-                .collect(),
-        }
-    }
-
-    fn program(lane: Lane) -> TrajectoryProgram {
-        TrajectoryProgram {
-            format: FORMAT_V1.to_string(),
-            sample_rate_hz: 10,
-            duration_samples: 11,
-            hold_final: true,
-            lanes: vec![lane],
-        }
+    fn fixture() -> TrajectoryProgram {
+        TrajectoryProgram::from_json(include_str!("../fixtures/trajectory-program-v1.json"))
+            .expect("fixture validates")
     }
 
     #[test]
-    fn linear_endpoints_and_midpoint_are_exact() {
-        let program = program(lane(
-            Curve::Linear,
-            ValueSpace::Linear,
-            &[(0, 2.0), (10, 6.0)],
-        ));
-        program.validate().unwrap();
-        assert_eq!(program.lanes[0].value_at(0), 2.0);
-        assert_eq!(program.lanes[0].value_at(5), 4.0);
-        assert_eq!(program.lanes[0].value_at(10), 6.0);
-        assert_eq!(program.lanes[0].value_at(1_000), 6.0);
-    }
-
-    #[test]
-    fn log2_midpoint_is_the_geometric_mean() {
-        let program = program(lane(
-            Curve::Linear,
-            ValueSpace::Log2,
-            &[(0, 1.0), (10, 4.0)],
-        ));
-        program.validate().unwrap();
-        assert!((program.lanes[0].value_at(5) - 2.0).abs() < 1e-14);
-    }
-
-    #[test]
-    fn smoothness_and_rate_receipts_are_derived() {
-        let mut lane = lane(
-            Curve::Smoothstep,
-            ValueSpace::Linear,
-            &[(0, 0.0), (10, 1.0)],
+    fn fixture_compiles_deterministically() {
+        let program = fixture();
+        let left = program.compile().expect("compile");
+        let right = program.compile().expect("compile again");
+        assert_eq!(left, right);
+        assert!(left.frames.len() > 10);
+        assert_eq!(left.frames[0].at_sample, 0);
+        assert_eq!(
+            left.receipt.program_digest,
+            "sha256:f863212b5f40a0158719a4298d766bd4da41ccfdfb8430cbfd7654d03a7efc6d"
         );
-        lane.max_rate_per_second = Some(1.51);
-        let summary = program(lane).validate().unwrap();
-        assert_eq!(summary.lanes[0].continuity, Continuity::C1);
-        assert!((summary.lanes[0].observed_max_rate_per_second.unwrap() - 1.5).abs() < 1e-14);
+        assert_eq!(
+            left.receipt.frame_digest,
+            "sha256:9604d346ac8ad35e338a3bffef75cd45ee887f57a774536bdc333207b0e23a0e"
+        );
+        assert_eq!(left.receipt.frame_count, 21);
     }
 
     #[test]
-    fn discontinuous_lane_refuses_a_finite_rate_claim() {
-        let mut lane = lane(Curve::Step, ValueSpace::Linear, &[(0, 0.0), (10, 1.0)]);
-        lane.max_rate_per_second = Some(10_000.0);
-        let error = program(lane).validate().unwrap_err();
-        assert_eq!(error.code(), "trajectory-rate-exceeded");
+    fn semantic_digest_ignores_track_order_but_not_values() {
+        let program = fixture();
+        let digest = program.semantic_digest().expect("digest");
+        let mut reordered = program.clone();
+        reordered.tracks.reverse();
+        assert_eq!(digest, reordered.semantic_digest().expect("digest"));
+        reordered.tracks[0].knots[1].value += 0.001;
+        assert_ne!(digest, reordered.semantic_digest().expect("digest"));
     }
 
     #[test]
-    fn arrow_compilation_places_knots_on_the_full_horizon() {
-        let template = LaneTemplate {
-            target: "body".to_string(),
-            unit: "unitless".to_string(),
-            curve: Curve::Smootherstep,
-            value_space: ValueSpace::Linear,
-            min_value: Some(0.0),
-            max_value: Some(1.0),
-            max_rate_per_second: None,
-        };
-        let lane = template
-            .compile_arrow("0.2 -> 0.8 -> 0.3", 101)
-            .unwrap()
-            .unwrap();
-        assert_eq!(lane.knots[0].at_sample, 0);
-        assert_eq!(lane.knots[1].at_sample, 50);
-        assert_eq!(lane.knots[2].at_sample, 100);
+    fn smooth_paths_report_finite_kinematics_and_effort() {
+        let compiled = fixture().compile().expect("compile");
+        let couple = compiled
+            .receipt
+            .tracks
+            .iter()
+            .find(|track| track.coordinate == "string.couple")
+            .expect("couple receipt");
+        assert!(couple.max_rate_per_second.is_some_and(|value| value > 0.0));
+        assert!(couple
+            .max_acceleration_per_second2
+            .is_some_and(|value| value > 0.0));
+        assert!(couple.declared_metric_effort > 0.0);
+        assert!(couple
+            .zero_order_hold_error_bound
+            .is_some_and(|value| value > 0.0));
     }
 
     #[test]
-    fn receipt_digest_survives_json_roundtrip() {
-        let program = program(lane(
-            Curve::Smootherstep,
-            ValueSpace::Linear,
-            &[(0, -1.0), (10, 1.0)],
-        ));
-        let before = program.digest_hex().unwrap();
-        let encoded = serde_json::to_vec(&program).unwrap();
-        let decoded: TrajectoryProgram = serde_json::from_slice(&encoded).unwrap();
-        assert_eq!(decoded.digest_hex().unwrap(), before);
-        assert_eq!(decoded.receipt().unwrap().program_sha256, before);
+    fn fixed_capacity_step_change_is_refused() {
+        let mut program = fixture();
+        program.tracks[0].interpolation = Interpolation::Step;
+        let error = program.validate().expect_err("discontinuous fixed path");
+        assert_eq!(error.kind, TrajectoryErrorKind::StepRequiresTopology);
     }
 
     #[test]
-    fn empty_program_is_a_valid_zero_motion_program() {
-        let program = TrajectoryProgram::empty(48_000, 64);
-        let summary = program.validate().unwrap();
-        assert_eq!(summary.lane_count, 0);
-        assert!(summary.zero_motion);
-        let mut output = [];
-        program.write_values(19, &mut output).unwrap();
+    fn arrow_values_build_exact_endpoints() {
+        let values = parse_arrow_values("0.1 -> 0.5 -> -0.2").expect("arrow values");
+        let track = equally_spaced_track(
+            "string.chirality",
+            &values,
+            4_800,
+            Interpolation::Smoothstep,
+            CoordinateContract::fixed("ratio", -1.0, 1.0),
+        )
+        .expect("track");
+        assert_eq!(track.knots[0].at_sample, 0);
+        assert_eq!(track.knots[1].at_sample, 2_400);
+        assert_eq!(track.knots[2].at_sample, 4_800);
     }
 }
