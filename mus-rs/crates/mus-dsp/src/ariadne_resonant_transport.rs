@@ -7,6 +7,8 @@
 //! work; subsequent unequal modal propagation turns the transferred momentum
 //! into saturation, beating, harmonic exchange, and intermodulation.
 
+#![allow(clippy::needless_range_loop)]
+
 use mus_watsn::givens;
 use std::f64::consts::TAU;
 
@@ -120,7 +122,7 @@ impl<const N: usize, const PAIRS: usize> InternalResonanceTransport<N, PAIRS> {
             sample_rate_hz,
             dt: sample_rate_hz.recip(),
             pairs,
-            weights: weights.map(|weight| finite_or_zero(weight)),
+            weights: weights.map(finite_or_zero),
         })
     }
 
@@ -152,17 +154,15 @@ impl<const N: usize, const PAIRS: usize> InternalResonanceTransport<N, PAIRS> {
         controls: ResonantTransportControls,
     ) -> ResonantTransportFrame {
         let controls = controls.sanitized();
-        let kinetic_before = kinetic_energy(momenta, self.dt);
         if displacements.iter().any(|value| !value.is_finite())
             || momenta.iter().any(|value| !value.is_finite())
         {
             return ResonantTransportFrame {
-                kinetic_before,
-                kinetic_after: kinetic_before,
                 non_finite_state: true,
                 ..ResonantTransportFrame::default()
             };
         }
+        let kinetic_before = kinetic_energy(momenta, self.dt);
         if controls.interlace == 0.0 || controls.memory == 0.0 {
             return ResonantTransportFrame {
                 kinetic_before,
