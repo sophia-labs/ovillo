@@ -26,6 +26,13 @@ pub mod ariadne_morphing_field;
 /// near-internal-resonance material modes.
 #[cfg(feature = "ariadne-live")]
 pub mod ariadne_resonant_transport;
+/// Reciprocal delay-course room coupled directly to live body momentum.
+#[cfg(feature = "ariadne-live")]
+pub mod ariadne_room_halo;
+/// Maximal persistent body composing field, aperture, active matter, ordered
+/// transport, room exchange, and finite-aperture radiation.
+#[cfg(feature = "ariadne-live")]
+pub mod ariadne_string_brass_body;
 /// Measured construction profiles for the first shared string/brass campaign.
 #[cfg(feature = "ariadne-live")]
 pub mod ariadne_string_brass_profiles;
