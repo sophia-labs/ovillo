@@ -22,28 +22,42 @@
 //! record the measured divergence and surface it, never to widen a
 //! tolerance silently. Refusal is a result.
 
+#[cfg(feature = "full")]
 pub mod backbone;
+#[cfg(feature = "full")]
 pub mod body_profiles;
+#[cfg(feature = "full")]
 pub mod bus;
+#[cfg(feature = "full")]
 pub mod filters;
+#[cfg(feature = "full")]
 pub mod fixtures;
+#[cfg(feature = "full")]
 pub mod glow;
+#[cfg(feature = "full")]
 pub mod kernels;
+#[cfg(feature = "full")]
 pub mod pitch;
+/// Sample-rate-native, allocation-free powered modal body for live audio input.
+pub mod powered_radiator;
 
 /// Physically informed guitar and Weave networks, plus the fixed-topology
 /// rearticulation and attack-work extensions. The parity-pinned implementation
 /// remains in `src/pluck.rs`; `build.rs` appends the child extensions without
 /// widening its private state surface.
+#[cfg(feature = "full")]
 pub mod pluck {
     include!(concat!(env!("OUT_DIR"), "/pluck_generated.rs"));
 }
 
+#[cfg(feature = "full")]
 pub mod scene;
+#[cfg(feature = "full")]
 pub mod synth;
 /// Direct authored string trajectories. The committed adapter remains in
 /// `src/trajectory.rs`; `build.rs` adds the optional rearticulation receipt at
 /// the body-runtime boundary without creating a dependency cycle.
+#[cfg(feature = "full")]
 pub mod trajectory {
     include!(concat!(env!("OUT_DIR"), "/trajectory_generated.rs"));
 }

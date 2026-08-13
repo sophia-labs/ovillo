@@ -1,7 +1,7 @@
 [package]
 name = "ariadne-clap"
 version = "0.1.0"
-description = "P1 CLAP instrument wrapper around mus-dsp's StringNetworkVoice — the kernel is the product, the plugin is a window (PW9 §3)"
+description = "Ariadne Powered Body: a low-latency VST3/CLAP effect for live guitar input"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -12,10 +12,8 @@ repository.workspace = true
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-# Pinned to a rev, not a branch: a plugin ABI is not a moving target.
-# `default-features = false` drops the `vst3` feature deliberately —
-# nih-plug's VST3 export links `vst3-sys`, which is GPLv3, and this
-# workspace is MIT. VST3 is therefore NOT free for us; see README.
-nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "f36931f7af4646065488a9845d8f8c2f95252c23", default-features = false }
-mus-dsp = { path = "../../crates/mus-dsp" }
-mus-vocab = { path = "../../crates/mus-vocab" }
+mus-dsp = { path = "../../crates/mus-dsp", default-features = false }
+# nice-plug 0.2.3 uses the permissive `vst3` 0.3 bindings. The allocation
+# assertion aborts debug processing if this wrapper or the core allocates on the
+# audio thread; it is compiled out of release artifacts.
+nice_plug = { package = "nice-plug", version = "=0.2.3", default-features = false, features = ["vst3", "assert_process_allocs"] }

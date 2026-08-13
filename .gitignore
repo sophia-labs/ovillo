@@ -52,3 +52,8 @@ threader-bank-v0/
 paper/ariadne-protected-nonabelian/cantora/
 paper/ariadne-protected-nonabelian/mambo-hilo/
 paper/ariadne-protected-nonabelian/garganta-humana/
+
+# Local plug-in bundles, validation logs, public-audio audition renders, and
+# release archives. Their generators/receipts are committed; binaries and WAVs
+# remain handoff artifacts rather than repository history.
+artifacts/

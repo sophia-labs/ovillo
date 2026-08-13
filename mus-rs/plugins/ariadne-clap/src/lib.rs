@@ -1,399 +1,276 @@
-//! `ariadne-clap` — the PW9 §3 P1 skeleton: a CLAP instrument that is a
-//! *window* onto [`StringNetworkVoice`], never a second implementation of
-//! it.
+//! Ariadne Powered Body — VST3/CLAP shell around one `mus-dsp` processor.
 //!
-//! Three laws this file is written to obey, in order of importance:
-//!
-//! 1. **The kernel is the product.** Not one line of synthesis lives
-//!    here. Everything below is voice allocation, parameter plumbing,
-//!    sample-rate bookkeeping and summing. Every sample the host hears
-//!    came out of [`StringNetworkVoice::render_block`].
-//! 2. **The vocabulary IS the parameter schema** (design doc §8: "the
-//!    plugin should be a client of the declared vocabulary, not a second
-//!    hand-maintained parameter registry"). Ranges and defaults are read
-//!    from `mus_vocab::param_specs()` at instantiation, so an automation
-//!    range cannot drift from the score language. The engine's own clamps
-//!    (in `apply_control`) are the backstop, and a test in this file
-//!    fails loudly if the two registries ever disagree.
-//! 3. **Honest scope.** What P1 does not do is written down, in the
-//!    README and in comments at the exact place the shortcut is taken —
-//!    never smoothed over.
-//!
-//! ## The sample-rate situation (read this before believing the pitch)
-//!
-//! `mus-dsp` is compiled for a fixed 48 kHz (`mus_dsp::SR_F64`): delay
-//! lengths, body-mode frequencies and damping coefficients are all built
-//! against that constant. A host running at 44.1 or 96 kHz gets the 48 kHz
-//! render *reinterpreted* at its own rate, which is a pure time-scale by
-//! `R = 48000 / host_sr`.
-//!
-//! P1 undoes that scale where it can, uniformly: note frequencies and
-//! `orbit` are multiplied by `R`, slot length and `sus` are divided by it.
-//! Pitch, note length, decay time and crank speed then come out correct in
-//! wall-clock terms at any host rate. The residual is spectral and cannot
-//! be fixed from out here: the body resonances and the loop filter's
-//! corner frequencies scale with `R` too, so at 44.1 kHz the instrument's
-//! *body* is transposed down about 1.5 semitones. The real fix is a
-//! sample-rate-parametric kernel, which is engine work, not wrapper work.
+//! This crate contains parameter plumbing and plugin ABI declarations only.
+//! The sound, stability guards, reservoir, stereo radiator, receipts, and
+//! sample-rate behavior all live in [`mus_dsp::powered_radiator`].
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use mus_dsp::pluck::{ControlTarget, StringNetworkVoice};
-use mus_dsp::SR_F64;
-use mus_vocab::param_specs::{param_specs, ParamKind};
-use nih_plug::prelude::*;
+use mus_dsp::powered_radiator::{
+    PoweredRadiator, PoweredRadiatorControls, PoweredRadiatorFrame, PoweredRadiatorReceipt,
+    PoweredRadiatorSpace, PoweredRadiatorTone,
+};
+use nice_plug::prelude::*;
 
-/// Fixed polyphony. Small and constant on purpose: a Weave voice is
-/// `courses` coupled delay lines, so voices are expensive and an
-/// unbounded pool would be an unbounded CPU promise.
-const MAX_VOICES: usize = 6;
+const PARAMETER_SMOOTHING_MS: f32 = 20.0;
+const SLOW_PARAMETER_SMOOTHING_MS: f32 = 50.0;
 
-/// P1 events are slot-shaped, exactly as MUS score events are: a note is
-/// a fixed 2.0 s excitation plus the kernel's own decay tail. Note-off is
-/// ignored (see [`AriadneClap::process`]).
-const SLOT_SECONDS: f64 = 2.0;
-
-/// The nine controls the engine declares block-automatable (PW9 §4;
-/// `mus_vocab::automation_class` returns "block" for each). `sing` is the
-/// tenth and is deliberately absent from P1 — it needs a sidechain input,
-/// which is the FX shape, not the instrument shape.
-const AUTOMATABLE: [(&str, ControlTarget); 9] = [
-    ("couple", ControlTarget::Couple),
-    ("chirality", ControlTarget::Chirality),
-    ("orbit", ControlTarget::OrbitHz),
-    ("orbit_depth", ControlTarget::OrbitDepth),
-    ("curvature", ControlTarget::Curvature),
-    ("body", ControlTarget::Body),
-    ("buzz", ControlTarget::Buzz),
-    ("sus", ControlTarget::Sus),
-    ("damp", ControlTarget::Damp),
-];
-
-// ---------------------------------------------------------------- params
-
-/// `(min, max, default)` for a float-valued parameter, read out of the
-/// declared vocabulary.
-///
-/// Panics if the name is absent or not float-shaped. That is deliberate:
-/// a plugin that cannot find its own schema has nothing honest to expose,
-/// and `vocab_covers_every_declared_param` below makes the panic
-/// unreachable in any build that passes its tests.
-fn float_spec(name: &str, specs: &[mus_vocab::param_specs::ParamSpec]) -> (f32, f32, f32) {
-    let spec = specs
-        .iter()
-        .find(|spec| spec.name == name)
-        .unwrap_or_else(|| panic!("ariadne-clap: '{name}' is not in the mus vocabulary"));
-    match spec.kind {
-        ParamKind::Ratio { min, max, default }
-        | ParamKind::Seconds { min, max, default }
-        | ParamKind::Hz {
-            min, max, default, ..
-        } => (min as f32, max as f32, default.unwrap_or(min) as f32),
-        _ => panic!("ariadne-clap: '{name}' is not a float-shaped vocabulary parameter"),
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum)]
+pub enum GuitarTone {
+    #[id = "costa_clara"]
+    CostaClara,
+    #[id = "edge"]
+    Edge,
+    #[id = "grind"]
+    Grind,
+    #[id = "wall"]
+    Wall,
 }
 
-/// `(min, max, default)` for a count-valued parameter. Same contract.
-fn count_spec(name: &str, specs: &[mus_vocab::param_specs::ParamSpec]) -> (i32, i32, i32) {
-    let spec = specs
-        .iter()
-        .find(|spec| spec.name == name)
-        .unwrap_or_else(|| panic!("ariadne-clap: '{name}' is not in the mus vocabulary"));
-    match spec.kind {
-        ParamKind::Count { min, max, default } => {
-            (min as i32, max as i32, default.unwrap_or(min) as i32)
-        }
-        _ => panic!("ariadne-clap: '{name}' is not a count-shaped vocabulary parameter"),
-    }
-}
-
-/// Build a linear [`FloatParam`] straight from the vocabulary entry.
-fn vocab_float(
-    display: &str,
-    name: &str,
-    specs: &[mus_vocab::param_specs::ParamSpec],
-) -> FloatParam {
-    let (min, max, default) = float_spec(name, specs);
-    // No smoother: these are applied to live voices once per block via
-    // `apply_control`, which is the engine's declared Block automation
-    // class. A per-sample smoother would produce values nothing reads.
-    FloatParam::new(display, default, FloatRange::Linear { min, max })
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum)]
+pub enum SpaceProfile {
+    #[id = "off"]
+    Off,
+    #[id = "telarana_plate"]
+    Plate,
+    #[id = "telarana_spring"]
+    Spring,
+    #[id = "telarana_sympathique"]
+    Sympathique,
+    #[id = "telarana_shimmer_lite"]
+    ShimmerLite,
 }
 
 #[derive(Params)]
 pub struct AriadneParams {
-    // --- block-automatable (PW9 §4): retargeted on live voices ---------
-    #[id = "couple"]
-    pub couple: FloatParam,
-    #[id = "chiral"]
+    #[id = "character"]
+    pub character: EnumParam<GuitarTone>,
+    #[id = "space_profile"]
+    pub space_profile: EnumParam<SpaceProfile>,
+    #[id = "drive"]
+    pub drive: FloatParam,
+    #[id = "headroom"]
+    pub headroom: FloatParam,
+    #[id = "bias"]
+    pub bias: FloatParam,
+    #[id = "tone"]
+    pub tone: FloatParam,
+    #[id = "bloom"]
+    pub bloom: FloatParam,
+    #[id = "sustain"]
+    pub sustain: FloatParam,
+    #[id = "sag"]
+    pub sag: FloatParam,
+    #[id = "interlace"]
+    pub interlace: FloatParam,
+    #[id = "chirality"]
     pub chirality: FloatParam,
-    #[id = "orbit"]
-    pub orbit: FloatParam,
-    #[id = "orbdep"]
-    pub orbit_depth: FloatParam,
-    #[id = "curvat"]
+    #[id = "motion"]
+    pub motion: FloatParam,
+    #[id = "curvature"]
     pub curvature: FloatParam,
-    #[id = "body"]
-    pub body: FloatParam,
-    #[id = "buzz"]
-    pub buzz: FloatParam,
-    #[id = "sus"]
-    pub sus: FloatParam,
-    #[id = "damp"]
-    pub damp: FloatParam,
-
-    // --- construction-time: read only when a voice is woven ------------
-    // These change the network's topology, so they cannot be retargeted
-    // mid-note. Turning them affects the *next* note, not the ringing
-    // one — which is the honest hardware behaviour anyway (you cannot
-    // add a rod to a loom that is already sounding).
-    #[id = "course"]
-    pub courses: IntParam,
-    #[id = "dimens"]
-    pub dimension: FloatParam,
+    #[id = "feedback"]
+    pub feedback: FloatParam,
+    #[id = "space"]
+    pub space: FloatParam,
+    #[id = "room_decay"]
+    pub room_decay: FloatParam,
+    #[id = "mix"]
+    pub mix: FloatParam,
+    #[id = "output"]
+    pub output: FloatParam,
 }
 
 impl Default for AriadneParams {
     fn default() -> Self {
-        let specs = param_specs();
-        let (course_min, course_max, course_default) = count_spec("courses", &specs);
+        let linear = |name: &'static str, default, min, max| {
+            FloatParam::new(name, default, FloatRange::Linear { min, max })
+                .with_smoother(SmoothingStyle::Linear(PARAMETER_SMOOTHING_MS))
+                .with_value_to_string(formatters::v2s_f32_rounded(2))
+        };
         Self {
-            couple: vocab_float("Couple", "couple", &specs),
-            chirality: vocab_float("Chirality", "chirality", &specs),
-            orbit: vocab_float("Orbit", "orbit", &specs).with_unit(" Hz"),
-            orbit_depth: vocab_float("Orbit Depth", "orbit_depth", &specs),
-            curvature: vocab_float("Curvature", "curvature", &specs),
-            body: vocab_float("Body", "body", &specs),
-            buzz: vocab_float("Buzz", "buzz", &specs),
-            sus: vocab_float("Sus", "sus", &specs).with_unit(" s"),
-            damp: vocab_float("Damp", "damp", &specs),
-            courses: IntParam::new(
-                "Courses",
-                course_default,
-                IntRange::Linear {
-                    min: course_min,
-                    max: course_max,
+            character: EnumParam::new("Character", GuitarTone::Edge),
+            space_profile: EnumParam::new("Telaraña", SpaceProfile::Plate),
+            drive: linear("Drive", 0.42, 0.0, 1.5),
+            headroom: linear("Headroom", 0.72, 0.05, 1.0),
+            bias: linear("Bias", 0.18, -1.0, 1.0),
+            tone: linear("Tone", 0.62, 0.0, 1.0),
+            bloom: linear("Bloom", 0.36, 0.0, 1.0),
+            sustain: linear("Sustain", 0.24, 0.0, 1.0),
+            sag: linear("Sag", 0.35, 0.0, 1.0),
+            interlace: linear("Interlace", 0.42, 0.0, 1.0),
+            chirality: linear("Chirality", 0.36, -1.0, 1.0),
+            motion: FloatParam::new(
+                "Motion",
+                0.28,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 8.0,
+                    factor: FloatRange::skew_factor(-1.5),
                 },
-            ),
-            dimension: vocab_float("Dimension", "dimension", &specs),
+            )
+            .with_smoother(SmoothingStyle::Linear(SLOW_PARAMETER_SMOOTHING_MS))
+            .with_unit(" Hz")
+            .with_value_to_string(formatters::v2s_f32_rounded(2)),
+            curvature: linear("Curvature", 0.30, 0.0, 1.0),
+            feedback: FloatParam::new(
+                "Feedback",
+                0.04,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 0.28,
+                },
+            )
+            .with_smoother(SmoothingStyle::Linear(SLOW_PARAMETER_SMOOTHING_MS))
+            .with_unit(" %")
+            .with_value_to_string(formatters::v2s_f32_percentage(1))
+            .with_string_to_value(formatters::s2v_f32_percentage()),
+            space: FloatParam::new("Space Mix", 0.45, FloatRange::Linear { min: 0.0, max: 1.0 })
+                .with_smoother(SmoothingStyle::Linear(SLOW_PARAMETER_SMOOTHING_MS))
+                .with_unit(" %")
+                .with_value_to_string(formatters::v2s_f32_percentage(1))
+                .with_string_to_value(formatters::s2v_f32_percentage()),
+            room_decay: FloatParam::new(
+                "Room Decay",
+                0.42,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            )
+            .with_smoother(SmoothingStyle::Linear(SLOW_PARAMETER_SMOOTHING_MS))
+            .with_unit(" %")
+            .with_value_to_string(formatters::v2s_f32_percentage(1))
+            .with_string_to_value(formatters::s2v_f32_percentage()),
+            mix: FloatParam::new("Mix", 1.0, FloatRange::Linear { min: 0.0, max: 1.0 })
+                .with_smoother(SmoothingStyle::Linear(PARAMETER_SMOOTHING_MS))
+                .with_unit(" %")
+                .with_value_to_string(formatters::v2s_f32_percentage(1))
+                .with_string_to_value(formatters::s2v_f32_percentage()),
+            output: FloatParam::new(
+                "Output",
+                util::db_to_gain(0.0),
+                FloatRange::Skewed {
+                    min: util::db_to_gain(-24.0),
+                    max: util::db_to_gain(12.0),
+                    factor: FloatRange::gain_skew_factor(-24.0, 12.0),
+                },
+            )
+            .with_smoother(SmoothingStyle::Logarithmic(PARAMETER_SMOOTHING_MS))
+            .with_unit(" dB")
+            .with_value_to_string(formatters::v2s_f32_gain_to_db(1))
+            .with_string_to_value(formatters::s2v_f32_gain_to_db()),
         }
     }
 }
 
 impl AriadneParams {
-    /// Current host-time value of one automatable control.
-    fn automatable_value(&self, target: ControlTarget) -> f64 {
-        match target {
-            ControlTarget::Couple => self.couple.value() as f64,
-            ControlTarget::Chirality => self.chirality.value() as f64,
-            ControlTarget::OrbitHz => self.orbit.value() as f64,
-            ControlTarget::OrbitDepth => self.orbit_depth.value() as f64,
-            ControlTarget::Curvature => self.curvature.value() as f64,
-            ControlTarget::Body => self.body.value() as f64,
-            ControlTarget::Buzz => self.buzz.value() as f64,
-            ControlTarget::Sus => self.sus.value() as f64,
-            ControlTarget::Damp => self.damp.value() as f64,
-            // Not exposed at P1 — no sidechain, so no drive to mix in.
-            ControlTarget::Sing => 0.0,
-            // Not exposed at P1 either (PW10 §C, landed after this
-            // skeleton): no `AriadneParams` field yet, so there is
-            // nothing to read. Wiring it in is P2 surface work, not an
-            // engine question.
-            ControlTarget::Breath => 0.0,
-            // The bow is not exposed at P1 either. `AUTOMATABLE` never
-            // asks for these (the arm exists for exhaustiveness), and 0 is
-            // the bow's hard zero limit: the friction port stays shut and
-            // the plugin renders exactly the un-bowed voice.
-            ControlTarget::Bow | ControlTarget::BowSpeed => 0.0,
-        }
+    #[inline]
+    fn next_controls(&self) -> PoweredRadiatorControls {
+        let tone = match self.character.value() {
+            GuitarTone::CostaClara => PoweredRadiatorTone::CostaClara,
+            GuitarTone::Edge => PoweredRadiatorTone::Edge,
+            GuitarTone::Grind => PoweredRadiatorTone::Grind,
+            GuitarTone::Wall => PoweredRadiatorTone::Wall,
+        };
+        let space = match self.space_profile.value() {
+            SpaceProfile::Off => PoweredRadiatorSpace::Off,
+            SpaceProfile::Plate => PoweredRadiatorSpace::Plate,
+            SpaceProfile::Spring => PoweredRadiatorSpace::Spring,
+            SpaceProfile::Sympathique => PoweredRadiatorSpace::Sympathique,
+            SpaceProfile::ShimmerLite => PoweredRadiatorSpace::Shimmer,
+        };
+        let controls = PoweredRadiatorControls {
+            drive: self.drive.smoothed.next() as f64,
+            headroom: self.headroom.smoothed.next() as f64,
+            bias: self.bias.smoothed.next() as f64,
+            tone: self.tone.smoothed.next() as f64,
+            bloom: self.bloom.smoothed.next() as f64,
+            sustain: self.sustain.smoothed.next() as f64,
+            sag: self.sag.smoothed.next() as f64,
+            interlace: self.interlace.smoothed.next() as f64,
+            chirality: self.chirality.smoothed.next() as f64,
+            motion_hz: self.motion.smoothed.next() as f64,
+            curvature: self.curvature.smoothed.next() as f64,
+            feedback: self.feedback.smoothed.next() as f64,
+            space: 0.0,
+            room_character: 0.0,
+            room_decay: self.room_decay.smoothed.next() as f64,
+            mix: self.mix.smoothed.next() as f64,
+            output_gain: self.output.smoothed.next() as f64,
+        };
+        controls
+            .with_tone(tone)
+            .with_space(space, self.space.smoothed.next() as f64)
     }
 }
 
-// ---------------------------------------------------------------- engine
-
-/// One sounding note.
-struct VoiceSlot {
-    voice: StringNetworkVoice,
-    /// MIDI key, kept so a future note-off / choke can find its voice.
-    note: u8,
-    /// Monotonic spawn order; the smallest is the oldest, and the oldest
-    /// is what gets stolen.
-    age: u64,
-    /// Velocity as a plain output gain. This is a mixer decision, not a
-    /// synthesis one: the kernel takes no velocity, so playing harder is
-    /// currently louder but not brighter. Velocity→excitation level (the
-    /// `level` argument `physical_excitation` already takes) is an engine
-    /// seam to open in P2, not something to fake out here.
-    gain: f32,
-}
-
-/// Voice allocation, sample-rate mapping, and summing. Deliberately free
-/// of any nih-plug type so the unit tests can drive it without a host.
+/// Host-independent seam used by the plugin, tests, and offline benchmarks.
 pub struct AriadneEngine {
-    voices: Vec<VoiceSlot>,
-    /// Per-voice render destination, sized once in [`Self::prepare`].
-    scratch: Vec<f32>,
-    /// `48000 / host_sr`. See the module docs.
-    rate_ratio: f64,
-    spawned: u64,
+    body: PoweredRadiator,
 }
 
 impl Default for AriadneEngine {
     fn default() -> Self {
         Self {
-            voices: Vec::with_capacity(MAX_VOICES),
-            scratch: Vec::new(),
-            rate_ratio: 1.0,
-            spawned: 0,
+            body: PoweredRadiator::new(48_000.0).expect("48 kHz is supported"),
         }
     }
 }
 
 impl AriadneEngine {
-    /// Allocate everything the audio thread will need. Called from
-    /// `initialize()` and from the tests, never from `process()`.
-    pub fn prepare(&mut self, sample_rate: f32, max_block_size: usize) {
-        self.rate_ratio = SR_F64 / (sample_rate as f64).max(1.0);
-        self.scratch.clear();
-        self.scratch.resize(max_block_size.max(1), 0.0);
-        self.voices.clear();
-        self.voices.reserve(MAX_VOICES);
+    /// Construction/host reconfiguration boundary. All source, modal, and room
+    /// storage is allocated here, never in [`process_sample`](Self::process_sample).
+    pub fn prepare(&mut self, sample_rate: f32) -> bool {
+        match PoweredRadiator::new(sample_rate as f64) {
+            Ok(body) => {
+                self.body = body;
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    #[inline]
+    pub fn process_sample(
+        &mut self,
+        left: f32,
+        right: f32,
+        controls: PoweredRadiatorControls,
+    ) -> PoweredRadiatorFrame {
+        self.body.process_sample(left, right, controls)
+    }
+
+    pub fn process_block(
+        &mut self,
+        left: &mut [f32],
+        right: &mut [f32],
+        controls: PoweredRadiatorControls,
+    ) {
+        self.body.process_block(left, right, controls);
     }
 
     pub fn reset(&mut self) {
-        self.voices.clear();
+        self.body.reset();
     }
 
-    pub fn voice_count(&self) -> usize {
-        self.voices.len()
+    #[must_use]
+    pub fn latency_samples(&self) -> u32 {
+        self.body.latency_samples()
     }
 
-    /// Map a host-time control value into engine time. Unitless controls
-    /// pass straight through; seconds shrink and hertz grow by the same
-    /// ratio, which is exactly the inverse of the playback time-scale.
-    fn to_engine(&self, target: ControlTarget, host_value: f64) -> f64 {
-        match target {
-            ControlTarget::Sus => host_value / self.rate_ratio,
-            ControlTarget::OrbitHz => host_value * self.rate_ratio,
-            _ => host_value,
-        }
+    #[must_use]
+    pub fn tail_samples(&self) -> u32 {
+        self.body.tail_samples()
     }
 
-    /// Weave a new voice for `note`, stealing the oldest if the pool is
-    /// full.
-    ///
-    /// **P1 is not allocation-clean.** `StringNetworkVoice::weave` builds
-    /// its delay lines, body modes and excitation buffers on the spot, and
-    /// the parameter map it reads is a freshly built `BTreeMap<String,
-    /// String>` — so a note-on allocates several times on the audio
-    /// thread, and retiring a voice frees on it. That is a real (if rare
-    /// and bounded) xrun risk and it is stated here rather than hidden.
-    /// The P2 fix is a voice pool: `MAX_VOICES` voices built at
-    /// `prepare()` for the worst-case `courses`, with a `re_weave(f0,
-    /// slot)` on the engine that re-excites the existing buffers in
-    /// place. That is an engine-side seam (mus-dsp), which is why P1 does
-    /// not try to fake it from the wrapper.
-    pub fn note_on(&mut self, note: u8, velocity: f32, params: &AriadneParams) {
-        if self.voices.len() >= MAX_VOICES {
-            // Oldest-steal: the voice with the smallest age loses.
-            if let Some(index) = self
-                .voices
-                .iter()
-                .enumerate()
-                .min_by_key(|(_, slot)| slot.age)
-                .map(|(index, _)| index)
-            {
-                self.voices.remove(index);
-            }
-        }
-
-        let f0_host = util::midi_note_to_freq(note) as f64;
-        // Engine time: ask for a higher note over a shorter slot, because
-        // the 48 kHz render is played back slower (or faster) than that.
-        let f0_engine = f0_host * self.rate_ratio;
-        let slot_engine = SLOT_SECONDS / self.rate_ratio;
-
-        let mut construction: BTreeMap<String, String> = BTreeMap::new();
-        // Construction-time topology.
-        construction.insert("courses".into(), params.courses.value().to_string());
-        construction.insert("dimension".into(), params.dimension.value().to_string());
-        // The block-automatable controls also have to be *initially* set,
-        // otherwise the first block of every note would sound at the
-        // engine defaults before `push_params` catches up.
-        for (name, target) in AUTOMATABLE {
-            let value = self.to_engine(target, params.automatable_value(target));
-            construction.insert(name.into(), value.to_string());
-        }
-
-        // `gliss_ratio = 1.0`: no glissando. MIDI pitch bend is a P2 seam
-        // (it maps onto the same argument, per-voice).
-        let voice = StringNetworkVoice::weave(&construction, &[f0_engine], slot_engine, 1.0);
-        self.spawned += 1;
-        self.voices.push(VoiceSlot {
-            voice,
-            note,
-            age: self.spawned,
-            gain: velocity.clamp(0.0, 1.0),
-        });
+    #[must_use]
+    pub fn sample_rate(&self) -> f64 {
+        self.body.sample_rate()
     }
 
-    /// Retarget one control on every live voice.
-    pub fn apply_control_all(&mut self, target: ControlTarget, host_value: f64) {
-        let value = self.to_engine(target, host_value);
-        for slot in &mut self.voices {
-            slot.voice.apply_control(target, value);
-        }
-    }
-
-    /// Sum every live voice into `channels`. Channel 0 is rendered and the
-    /// rest are copies of it: the kernel emits one signal, and inventing a
-    /// stereo image out here would be exactly the "wrapper reimplements
-    /// synthesis" mistake §8 forbids. Real stereo is a bridge/pickup pair
-    /// in the engine (P2).
-    pub fn render(&mut self, channels: &mut [&mut [f32]]) {
-        let Some((first, rest)) = channels.split_first_mut() else {
-            return;
-        };
-        let mono: &mut [f32] = first;
-        mono.fill(0.0);
-
-        if !self.scratch.is_empty() {
-            let frames = mono.len();
-            let mut start = 0;
-            while start < frames {
-                let count = (frames - start).min(self.scratch.len());
-                let scratch = &mut self.scratch[..count];
-                for slot in &mut self.voices {
-                    // The one call that makes sound. Everything else in
-                    // this crate is bookkeeping around it.
-                    slot.voice.render_block(scratch);
-                    let gain = slot.gain;
-                    for (out, sample) in mono[start..start + count].iter_mut().zip(scratch.iter()) {
-                        *out += sample * gain;
-                    }
-                }
-                start += count;
-            }
-        }
-
-        for channel in rest {
-            let count = channel.len().min(mono.len());
-            channel[..count].copy_from_slice(&mono[..count]);
-        }
-
-        // Retiring a finished voice frees on the audio thread — the other
-        // half of the allocation debt documented on `note_on`.
-        self.voices.retain(|slot| !slot.voice.is_finished());
-    }
-
-    /// Notes currently sounding, for tests and for a future voice display.
-    pub fn sounding_notes(&self) -> Vec<u8> {
-        self.voices.iter().map(|slot| slot.note).collect()
+    #[must_use]
+    pub fn receipt(&self) -> PoweredRadiatorReceipt {
+        self.body.receipt()
     }
 }
-
-// ---------------------------------------------------------------- plugin
 
 pub struct AriadneClap {
     params: Arc<AriadneParams>,
@@ -409,37 +286,6 @@ impl Default for AriadneClap {
     }
 }
 
-impl AriadneClap {
-    /// Everything `initialize()` does, reachable without a host.
-    pub fn prepare(&mut self, sample_rate: f32, max_block_size: usize) {
-        self.engine.prepare(sample_rate, max_block_size);
-    }
-
-    /// Push the current value of every block-automatable parameter into
-    /// every live voice. Unconditional: `apply_control` is a clamped store
-    /// (plus a walk over at most 24 courses for `sus`/`damp`), so change
-    /// detection would buy nothing and could go stale against host
-    /// automation.
-    pub fn push_params(&mut self) {
-        for (_, target) in AUTOMATABLE {
-            let value = self.params.automatable_value(target);
-            self.engine.apply_control_all(target, value);
-        }
-    }
-
-    /// The body of `process()`, minus the host event queue: retarget, then
-    /// render. The unit tests drive exactly this, so what they exercise is
-    /// what the host gets.
-    pub fn render_block(&mut self, channels: &mut [&mut [f32]]) {
-        self.push_params();
-        self.engine.render(channels);
-    }
-
-    pub fn note_on(&mut self, note: u8, velocity: f32) {
-        self.engine.note_on(note, velocity, &self.params);
-    }
-}
-
 impl Plugin for AriadneClap {
     const NAME: &'static str = "Ariadne";
     const VENDOR: &'static str = "Sophia Labs";
@@ -447,21 +293,21 @@ impl Plugin for AriadneClap {
     const EMAIL: &'static str = "noreply@sophia-labs.com";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
-    // P1 is an instrument: no main input. The FX shape PW9 §3 actually
-    // wants to lead with — a main input routed into the `sing` seam — is
-    // the next step, and needs `AUDIO_IO_LAYOUTS` to grow a stereo input
-    // plus a `sing` parameter.
-    const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[AudioIOLayout {
-        main_input_channels: None,
-        main_output_channels: NonZeroU32::new(2),
-        ..AudioIOLayout::const_default()
-    }];
+    const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[
+        AudioIOLayout {
+            main_input_channels: NonZeroU32::new(2),
+            main_output_channels: NonZeroU32::new(2),
+            ..AudioIOLayout::const_default()
+        },
+        AudioIOLayout {
+            main_input_channels: NonZeroU32::new(1),
+            main_output_channels: NonZeroU32::new(1),
+            ..AudioIOLayout::const_default()
+        },
+    ];
 
-    const MIDI_INPUT: MidiConfig = MidiConfig::Basic;
-    // Block granularity, honestly declared: the engine's automation class
-    // is Block (PW9 §4), so asking the host to split buffers on every
-    // parameter change would buy resolution nothing downstream can use.
-    const SAMPLE_ACCURATE_AUTOMATION: bool = false;
+    const MIDI_INPUT: MidiConfig = MidiConfig::None;
+    const SAMPLE_ACCURATE_AUTOMATION: bool = true;
 
     type SysExMessage = ();
     type BackgroundTask = ();
@@ -474,21 +320,12 @@ impl Plugin for AriadneClap {
         &mut self,
         _audio_io_layout: &AudioIOLayout,
         buffer_config: &BufferConfig,
-        _context: &mut impl InitContext<Self>,
+        context: &mut impl InitContext<Self>,
     ) -> bool {
-        if buffer_config.sample_rate != mus_dsp::SR_F {
-            nih_log!(
-                "ariadne-clap: host is at {} Hz; the mus-dsp kernel is fixed at {} Hz. \
-                 Pitch and timing are rescaled, but body resonances are transposed by {:.3}x.",
-                buffer_config.sample_rate,
-                mus_dsp::SR_F,
-                buffer_config.sample_rate / mus_dsp::SR_F
-            );
+        if !self.engine.prepare(buffer_config.sample_rate) {
+            return false;
         }
-        self.engine.prepare(
-            buffer_config.sample_rate,
-            buffer_config.max_buffer_size as usize,
-        );
+        context.set_latency_samples(self.engine.latency_samples());
         true
     }
 
@@ -500,256 +337,142 @@ impl Plugin for AriadneClap {
         &mut self,
         buffer: &mut Buffer,
         _aux: &mut AuxiliaryBuffers,
-        context: &mut impl ProcessContext<Self>,
+        _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
-        // P1 handles events at block granularity: every note-on in this
-        // block starts at the block boundary, so onset timing is quantised
-        // to the buffer size. Sample-accurate onset needs per-voice start
-        // offsets in the render loop — P2, together with the voice pool.
-        while let Some(event) = context.next_event() {
-            if let NoteEvent::NoteOn { note, velocity, .. } = event {
-                self.note_on(note, velocity);
+        for channels in buffer.iter_samples() {
+            let mut channels = channels.into_iter();
+            let Some(left) = channels.next() else {
+                continue;
+            };
+            let input_left = *left;
+            if let Some(right) = channels.next() {
+                let frame =
+                    self.engine
+                        .process_sample(input_left, *right, self.params.next_controls());
+                *left = frame.left;
+                *right = frame.right;
+            } else {
+                let frame =
+                    self.engine
+                        .process_sample(input_left, input_left, self.params.next_controls());
+                *left = 0.5 * (frame.left + frame.right);
             }
-            // Note-off is deliberately ignored. A MUS event is a slot: the
-            // note rings for `SLOT_SECONDS` plus the kernel's decay tail
-            // and then retires itself. Making note-off mean something
-            // requires a release seam in the engine (damp the courses, or
-            // shorten `sus` into a release ramp) — an engine ruling, not a
-            // wrapper improvisation.
         }
 
-        // Exactly the entry points the unit tests drive — the host path
-        // and the tested path are the same two calls.
-        self.render_block(buffer.as_slice());
-
-        // Voices outlive their note-ons by seconds, so the host must keep
-        // calling us even with no input.
-        ProcessStatus::KeepAlive
+        ProcessStatus::Tail(self.engine.tail_samples())
     }
 }
 
 impl ClapPlugin for AriadneClap {
-    const CLAP_ID: &'static str = "com.sophia-labs.ariadne";
+    const CLAP_ID: &'static str = "com.sophia-labs.ariadne-powered-body";
     const CLAP_DESCRIPTION: Option<&'static str> =
-        Some("A woven string network: coupled courses with chirality, orbit and curvature");
+        Some("A work-accounted powered material and causal room field for live guitar");
     const CLAP_MANUAL_URL: Option<&'static str> = Some(Self::URL);
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[
-        ClapFeature::Instrument,
-        ClapFeature::Synthesizer,
+        ClapFeature::AudioEffect,
         ClapFeature::Stereo,
+        ClapFeature::Mono,
+        ClapFeature::Reverb,
+        ClapFeature::Distortion,
     ];
 }
 
-nih_export_clap!(AriadneClap);
+impl Vst3Plugin for AriadneClap {
+    // Stable forever once shipped: hosts and saved sessions identify the plugin
+    // by these 16 bytes, not by its display name.
+    const VST3_CLASS_ID: [u8; 16] = *b"AriadnePwrBody01";
+    const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[
+        Vst3SubCategory::Fx,
+        Vst3SubCategory::Reverb,
+        Vst3SubCategory::Distortion,
+    ];
+}
 
-// VST3 is intentionally NOT exported. nih-plug's VST3 wrapper links
-// `vst3-sys` (GPLv3); this workspace is MIT, so shipping VST3 from this
-// codebase would relicense it. Revisit if a permissive VST3 binding lands.
+nice_plug::nice_export_clap!(AriadneClap);
+nice_plug::nice_export_vst3!(AriadneClap);
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mus_dsp::powered_radiator::LATENCY_SAMPLES;
 
-    const BLOCK: usize = 512;
-
-    fn stereo_render(plugin: &mut AriadneClap, left: &mut [f32], right: &mut [f32]) {
-        let mut channels: [&mut [f32]; 2] = [left, right];
-        plugin.render_block(&mut channels);
+    #[test]
+    fn engine_is_native_rate_and_reports_declared_low_latency() {
+        let mut engine = AriadneEngine::default();
+        for rate in [44_100.0, 48_000.0, 96_000.0, 192_000.0] {
+            assert!(engine.prepare(rate));
+            assert_eq!(engine.sample_rate(), rate as f64);
+            assert_eq!(engine.latency_samples(), LATENCY_SAMPLES as u32);
+            assert_eq!(engine.tail_samples(), (rate * 20.0) as u32);
+        }
     }
 
-    /// The headline test: a note-on, four blocks, real audio out.
     #[test]
-    fn four_blocks_after_a_note_on_are_finite_and_audible() {
-        let mut plugin = AriadneClap::default();
-        plugin.prepare(mus_dsp::SR_F, BLOCK);
-        // A2 = 110 Hz, the Weave's own base register.
-        plugin.note_on(45, 1.0);
+    fn stereo_effect_is_finite_audible_and_not_fake_dual_mono() {
+        let mut engine = AriadneEngine::default();
+        let mut left = [0.0_f32; 4096];
+        let mut right = [0.0_f32; 4096];
+        left[0] = 1.0;
+        right[0] = 1.0;
+        engine.process_block(&mut left, &mut right, PoweredRadiatorControls::default());
 
-        let mut left = [0.0_f32; BLOCK];
-        let mut right = [0.0_f32; BLOCK];
         let mut peak = 0.0_f32;
-        let mut rendered = 0_usize;
-
-        for _ in 0..4 {
-            stereo_render(&mut plugin, &mut left, &mut right);
-            for (&l, &r) in left.iter().zip(right.iter()) {
-                assert!(l.is_finite(), "left channel produced {l}");
-                assert!(r.is_finite(), "right channel produced {r}");
-                assert_eq!(l, r, "P1 renders one signal into both channels");
-                peak = peak.max(l.abs());
-                rendered += 1;
-            }
+        let mut stereo_difference = 0.0_f64;
+        for (&left, &right) in left.iter().zip(right.iter()) {
+            assert!(left.is_finite() && right.is_finite());
+            peak = peak.max(left.abs()).max(right.abs());
+            stereo_difference += (left - right).abs() as f64;
         }
+        assert!(peak > 1.0e-6);
+        assert!(stereo_difference > 1.0e-6);
+        assert_eq!(engine.receipt().non_finite_resets, 0);
+    }
 
-        assert_eq!(rendered, 4 * BLOCK);
-        assert!(
-            peak > 1.0e-3,
-            "four blocks were effectively silent (peak {peak})"
+    #[test]
+    fn dry_path_is_sample_exact_at_zero_mix() {
+        let mut engine = AriadneEngine::default();
+        let mut left = [0.0_f32; 1024];
+        let mut right = [0.0_f32; 1024];
+        for (index, sample) in left.iter_mut().enumerate() {
+            *sample = (index as f32 * 0.013).sin();
+        }
+        for (index, sample) in right.iter_mut().enumerate() {
+            *sample = (index as f32 * 0.021).cos();
+        }
+        let expected_left = left;
+        let expected_right = right;
+        engine.process_block(
+            &mut left,
+            &mut right,
+            PoweredRadiatorControls {
+                mix: 0.0,
+                output_gain: 1.0,
+                ..PoweredRadiatorControls::default()
+            },
         );
-        assert!(peak < 8.0, "output ran away (peak {peak})");
+        assert!(left[..LATENCY_SAMPLES].iter().all(|sample| *sample == 0.0));
+        assert!(right[..LATENCY_SAMPLES].iter().all(|sample| *sample == 0.0));
         assert_eq!(
-            plugin.engine.voice_count(),
-            1,
-            "the voice should still be ringing"
+            &left[LATENCY_SAMPLES..],
+            &expected_left[..expected_left.len() - LATENCY_SAMPLES]
+        );
+        assert_eq!(
+            &right[LATENCY_SAMPLES..],
+            &expected_right[..expected_right.len() - LATENCY_SAMPLES]
         );
     }
 
     #[test]
-    fn silence_in_silence_out() {
-        let mut plugin = AriadneClap::default();
-        plugin.prepare(mus_dsp::SR_F, BLOCK);
-
-        let mut left = [1.0_f32; BLOCK];
-        let mut right = [1.0_f32; BLOCK];
-        stereo_render(&mut plugin, &mut left, &mut right);
-
-        assert!(left.iter().all(|&sample| sample == 0.0));
-        assert!(right.iter().all(|&sample| sample == 0.0));
-    }
-
-    #[test]
-    fn voice_pool_is_bounded_and_steals_the_oldest() {
-        let mut plugin = AriadneClap::default();
-        plugin.prepare(mus_dsp::SR_F, BLOCK);
-
-        for note in 40..(40 + MAX_VOICES as u8 + 2) {
-            plugin.note_on(note, 0.8);
-            assert!(plugin.engine.voice_count() <= MAX_VOICES);
-        }
-
-        let sounding = plugin.engine.sounding_notes();
-        assert_eq!(sounding.len(), MAX_VOICES);
-        // The two oldest (40, 41) were stolen; the newest survive.
-        assert!(!sounding.contains(&40));
-        assert!(!sounding.contains(&41));
-        assert!(sounding.contains(&(40 + MAX_VOICES as u8 + 1)));
-    }
-
-    /// Renders past the end of a voice's slot + tail and checks it retires
-    /// itself without leaving NaNs behind. Default `sus` is 2.5 s, so the
-    /// total is 2.0 + min(2.5*0.78, 4.0) ≈ 3.95 s.
-    #[test]
-    fn a_voice_retires_after_its_slot_and_tail() {
-        let mut plugin = AriadneClap::default();
-        plugin.prepare(mus_dsp::SR_F, BLOCK);
-        plugin.note_on(45, 1.0);
-
-        let mut left = [0.0_f32; BLOCK];
-        let mut right = [0.0_f32; BLOCK];
-        let blocks = (5.0 * mus_dsp::SR_F64 / BLOCK as f64).ceil() as usize;
-        for _ in 0..blocks {
-            stereo_render(&mut plugin, &mut left, &mut right);
-            assert!(left.iter().all(|sample| sample.is_finite()));
-        }
-
-        assert_eq!(plugin.engine.voice_count(), 0);
-    }
-
-    /// A host at 44.1 kHz must still be finite and audible, and the
-    /// engine-time mapping must be the one the module docs claim.
-    #[test]
-    fn a_non_engine_sample_rate_still_renders() {
-        let mut plugin = AriadneClap::default();
-        plugin.prepare(44_100.0, BLOCK);
-        plugin.note_on(45, 1.0);
-
-        let ratio = plugin.engine.rate_ratio;
-        assert!((ratio - 48_000.0 / 44_100.0).abs() < 1e-12);
-        // Seconds shrink, hertz grow.
-        assert!(plugin.engine.to_engine(ControlTarget::Sus, 2.5) < 2.5);
-        assert!(plugin.engine.to_engine(ControlTarget::OrbitHz, 0.31) > 0.31);
-        assert_eq!(plugin.engine.to_engine(ControlTarget::Couple, 0.11), 0.11);
-
-        let mut left = [0.0_f32; BLOCK];
-        let mut right = [0.0_f32; BLOCK];
-        let mut peak = 0.0_f32;
-        for _ in 0..4 {
-            stereo_render(&mut plugin, &mut left, &mut right);
-            for &sample in left.iter() {
-                assert!(sample.is_finite());
-                peak = peak.max(sample.abs());
-            }
-        }
-        assert!(peak > 1.0e-3, "44.1 kHz render was silent (peak {peak})");
-    }
-
-    /// A block larger than the scratch buffer must still render (the
-    /// chunking path), not panic or go silent.
-    ///
-    /// Four blocks, not one: a 110 Hz course is a ~436-sample delay line,
-    /// so the first 300 samples out of a fresh voice are honestly silent —
-    /// the excitation has not reached the pickup yet. That measured fact
-    /// is why the headline test above reads four blocks too.
-    #[test]
-    fn blocks_larger_than_the_prepared_maximum_still_render() {
-        let mut plugin = AriadneClap::default();
-        plugin.prepare(mus_dsp::SR_F, 64);
-        plugin.note_on(45, 1.0);
-
-        let mut left = [0.0_f32; 300];
-        let mut right = [0.0_f32; 300];
-        let mut peak = 0.0_f32;
-        for _ in 0..4 {
-            stereo_render(&mut plugin, &mut left, &mut right);
-            for &sample in left.iter() {
-                assert!(sample.is_finite());
-                peak = peak.max(sample.abs());
-            }
-        }
-        assert!(peak > 1.0e-3, "chunked render was silent (peak {peak})");
-    }
-
-    // ---- the vocabulary really is the schema, not a copy of it --------
-
-    #[test]
-    fn vocab_covers_every_declared_param() {
-        let specs = param_specs();
-        for (name, _) in AUTOMATABLE {
-            let _ = float_spec(name, &specs);
-            assert_eq!(
-                mus_vocab::automation_class(name),
-                "block",
-                "{name} is exposed as automatable but the vocabulary says otherwise"
-            );
-        }
-        let _ = float_spec("dimension", &specs);
-        let _ = count_spec("courses", &specs);
-    }
-
-    /// Drift alarm. These literals are the clamps inside
-    /// `StringNetworkVoice::apply_control` / `PluckPatch::from`. If the
-    /// engine widens a range and the vocabulary does not follow (or the
-    /// reverse), this fails and somebody has to decide which one is right
-    /// — which is the point.
-    #[test]
-    fn vocab_ranges_match_the_engine_clamps() {
-        let specs = param_specs();
-        let expected: [(&str, f32, f32, f32); 10] = [
-            ("couple", 0.0, 0.45, 0.11),
-            ("chirality", -1.0, 1.0, 0.72),
-            ("orbit", 0.0, 20.0, 0.31),
-            ("orbit_depth", 0.0, 1.0, 0.62),
-            ("curvature", 0.0, 1.0, 0.28),
-            ("body", 0.0, 1.0, 0.25),
-            ("buzz", 0.0, 1.0, 0.0),
-            ("sus", 0.05, 20.0, 2.5),
-            ("damp", 0.0, 0.95, 0.35),
-            ("dimension", 0.55, 3.0, 1.35),
-        ];
-        for (name, min, max, default) in expected {
-            assert_eq!(float_spec(name, &specs), (min, max, default), "{name}");
-        }
-        assert_eq!(count_spec("courses", &specs), (3, 24, 11));
-    }
-
-    #[test]
-    fn params_default_to_the_vocabulary_defaults() {
+    fn parameter_defaults_match_the_profile() {
         let params = AriadneParams::default();
-        assert_eq!(params.couple.value(), 0.11);
-        assert_eq!(params.chirality.value(), 0.72);
-        assert_eq!(params.orbit.value(), 0.31);
-        assert_eq!(params.courses.value(), 11);
-        assert_eq!(params.dimension.value(), 1.35);
+        let defaults = PoweredRadiatorControls::default();
+        assert!((params.drive.value() as f64 - defaults.drive).abs() < 1.0e-6);
+        assert!((params.headroom.value() as f64 - defaults.headroom).abs() < 1.0e-6);
+        assert!((params.feedback.value() as f64 - defaults.feedback).abs() < 1.0e-6);
+        assert!((params.mix.value() as f64 - defaults.mix).abs() < 1.0e-6);
+        assert_eq!(params.character.value(), GuitarTone::Edge);
+        assert_eq!(params.space_profile.value(), SpaceProfile::Plate);
+        assert_eq!(params.output.value(), 1.0);
     }
 }

@@ -5,8 +5,8 @@
 //! `body_lifetime=event`) and routes the opt-in `body_lifetime=track` surface
 //! to the score-spanning single-body executor in [`lifetime`].
 
-mod original;
 mod lifetime;
+mod original;
 
 pub use original::WalkContext;
 

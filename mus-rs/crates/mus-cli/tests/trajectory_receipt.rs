@@ -112,12 +112,10 @@ fn ordinary_render_emits_one_deterministic_trajectory_receipt() {
             .expect("control frame count")
             > 0
     );
-    assert!(
-        event["receipt"]["trajectory"]["program_digest"]
-            .as_str()
-            .expect("program digest")
-            .starts_with("sha256:")
-    );
+    assert!(event["receipt"]["trajectory"]["program_digest"]
+        .as_str()
+        .expect("program digest")
+        .starts_with("sha256:"));
     assert_eq!(
         first["eventCount"].as_u64(),
         Some(2),
@@ -149,10 +147,7 @@ fn native_pitch_trajectory_reaches_the_persistent_retune_path() {
         event["receipt"]["native_pitch_transport"].as_str(),
         Some("persistent-linear-f0-to-f1")
     );
-    assert_eq!(
-        event["receipt"]["control_frame_count"].as_u64(),
-        Some(0)
-    );
+    assert_eq!(event["receipt"]["control_frame_count"].as_u64(), Some(0));
     assert!(
         (event["receipt"]["pitch_end_ratio"]
             .as_f64()

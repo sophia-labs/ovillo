@@ -21,7 +21,10 @@ fn module_source(source: &str) -> String {
 
 fn replace_once(source: &mut String, old: &str, new: &str, label: &str) {
     let count = source.matches(old).count();
-    assert_eq!(count, 1, "{label}: expected one guarded replacement, found {count}");
+    assert_eq!(
+        count, 1,
+        "{label}: expected one guarded replacement, found {count}"
+    );
     *source = source.replacen(old, new, 1);
 }
 
@@ -34,8 +37,8 @@ fn main() {
     let manifest = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("manifest directory"));
     let output_dir = PathBuf::from(env::var_os("OUT_DIR").expect("build output directory"));
 
-    let pluck_source = fs::read_to_string(manifest.join("src/pluck.rs"))
-        .expect("read parity-pinned pluck source");
+    let pluck_source =
+        fs::read_to_string(manifest.join("src/pluck.rs")).expect("read parity-pinned pluck source");
     let mut extension = fs::read_to_string(manifest.join("src/pluck_rearticulation.rs"))
         .expect("read rearticulation extension");
     replace_once(
@@ -87,8 +90,7 @@ fn main() {
     pluck.push_str(
         "pub use rearticulation::{\n    AttackFrame, AttackSchedule, AttackScheduleReceipt, AttackWorkReceipt,\n    RearticulatedStringVoice, RearticulationError, RearticulationReceipt,\n    WorkReceiptedRender, WorkReceiptedStringVoice,\n};\n",
     );
-    fs::write(output_dir.join("pluck_generated.rs"), pluck)
-        .expect("write generated pluck module");
+    fs::write(output_dir.join("pluck_generated.rs"), pluck).expect("write generated pluck module");
 
     // The body-neutral trajectory module keeps its committed source stable.
     // This guarded stitch adds the optional body-runtime receipt at the one

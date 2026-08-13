@@ -75,10 +75,7 @@ fn track_voice() -> Voice {
             ("courses".to_string(), "3".to_string()),
             ("strum".to_string(), "0".to_string()),
             ("sus".to_string(), "0.20".to_string()),
-            (
-                "couple".to_string(),
-                "0.10@0->0.32@0.5->0.16@1".to_string(),
-            ),
+            ("couple".to_string(), "0.10@0->0.32@0.5->0.16@1".to_string()),
         ])),
         ducks: true,
     }
@@ -99,10 +96,7 @@ fn one_body_receives_dynamic_attacks_and_exact_work_across_two_bars() {
     let bar_content = BTreeMap::from([
         (
             1,
-            BTreeMap::from([(
-                "w".to_string(),
-                "{p} A3q Rq {f} A3q[acc] Rq".to_string(),
-            )]),
+            BTreeMap::from([("w".to_string(), "{p} A3q Rq {f} A3q[acc] Rq".to_string())]),
         ),
         (
             2,
@@ -158,10 +152,10 @@ fn one_body_receives_dynamic_attacks_and_exact_work_across_two_bars() {
     }
     assert!(work.total_positive_work > 0.0);
     assert!(work.peak_abs_course_sample_work > 0.0);
-    assert!((work.total_signed_work
-        - (work.total_positive_work - work.total_extracted_work))
-        .abs()
-        < 1e-9);
+    assert!(
+        (work.total_signed_work - (work.total_positive_work - work.total_extracted_work)).abs()
+            < 1e-9
+    );
 
     // At sus=0.20 the first attack is effectively gone by the second and
     // third onsets. Nontrivial energy there is evidence for real reattacks.
@@ -175,7 +169,10 @@ fn strict_transport_accepts_work_receipted_multi_attack_motion() {
     let bar_map = two_bar_map();
     let bar_content = BTreeMap::from([(
         1,
-        BTreeMap::from([("w".to_string(), "{mp} A3q Rq {f} A3q[stress] Rq".to_string())]),
+        BTreeMap::from([(
+            "w".to_string(),
+            "{mp} A3q Rq {f} A3q[stress] Rq".to_string(),
+        )]),
     )]);
     let gestures = BTreeMap::new();
     let cache = SampleCache::new();
@@ -227,16 +224,16 @@ fn continuation_rejects_non_gain_articulation() {
         &mut stats,
     )
     .unwrap_err();
-    assert!(error.to_string().contains("not a gain articulation"), "{error}");
+    assert!(
+        error.to_string().contains("not a gain articulation"),
+        "{error}"
+    );
 }
 
 #[test]
 fn breath_that_rises_from_zero_refuses_before_body_construction() {
     let bar_map = two_bar_map();
-    let bar_content = BTreeMap::from([(
-        1,
-        BTreeMap::from([("w".to_string(), "A3w".to_string())]),
-    )]);
+    let bar_content = BTreeMap::from([(1, BTreeMap::from([("w".to_string(), "A3w".to_string())]))]);
     let gestures = BTreeMap::new();
     let cache = SampleCache::new();
     let ctx = context(&bar_map, &bar_content, &gestures, &cache);
@@ -285,7 +282,10 @@ fn a_pitch_set_change_refuses_instead_of_reconstructing_the_body() {
         &mut stats,
     )
     .unwrap_err();
-    assert!(error.to_string().contains("fixed course topology"), "{error}");
+    assert!(
+        error.to_string().contains("fixed course topology"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -295,10 +295,8 @@ fn source_stage_first_event_controls_refuse_instead_of_being_ignored() {
     let cache = SampleCache::new();
 
     for token in ["A3w[off=10]", "A3w[reverse]"] {
-        let bar_content = BTreeMap::from([(
-            1,
-            BTreeMap::from([("w".to_string(), token.to_string())]),
-        )]);
+        let bar_content =
+            BTreeMap::from([(1, BTreeMap::from([("w".to_string(), token.to_string())]))]);
         let ctx = context(&bar_map, &bar_content, &gestures, &cache);
         let mut buffers = MixBuffers::new(ctx.n_total);
         let mut placed = Vec::new();
@@ -326,10 +324,7 @@ fn body_lifetime_cannot_be_overridden_by_an_event() {
     let bar_map = two_bar_map();
     let bar_content = BTreeMap::from([(
         1,
-        BTreeMap::from([(
-            "w".to_string(),
-            "A3w[body_lifetime=event]".to_string(),
-        )]),
+        BTreeMap::from([("w".to_string(), "A3w[body_lifetime=event]".to_string())]),
     )]);
     let gestures = BTreeMap::new();
     let cache = SampleCache::new();

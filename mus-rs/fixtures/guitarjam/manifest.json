@@ -1,0 +1,40 @@
+{
+  "schema": "mus.guitarjam-fixtures.v1",
+  "dataset": "Julian-br/GuitarJam",
+  "dataset_url": "https://huggingface.co/datasets/Julian-br/GuitarJam",
+  "revision": "2d467bfec90af19301b01123494f4b2ba64c5a3a",
+  "license": "CC0-1.0",
+  "recording": "Fender Stratocaster neck/middle pickup -> Focusrite Scarlett Solo -> Audacity",
+  "format": {
+    "sample_rate_hz": 44100,
+    "channels": 1,
+    "bits_per_sample": 16
+  },
+  "files": [
+    {
+      "path": "guitar_jam/test/026.wav",
+      "bytes": 1470044,
+      "sha256": "700dbfa9399c944ba60bb03d2e598a704d9d28892393665c9433558cb3fe26ab"
+    },
+    {
+      "path": "guitar_jam/test/050.wav",
+      "bytes": 987046,
+      "sha256": "22e7b845fc2d71200c72c13fedbeb5f8ac593e48a01f99875f857e0cc5dfecd0"
+    },
+    {
+      "path": "guitar_jam/test/059.wav",
+      "bytes": 2182994,
+      "sha256": "7f5e2989769aec91fddf217ee1c4ca90c186c2a1bd8a55d1781a2283bbc64248"
+    },
+    {
+      "path": "guitar_jam/test/061.wav",
+      "bytes": 2205044,
+      "sha256": "350330311602f77500e8480db1f3875855205600cfe5f4893de74bea14d4cc9e"
+    },
+    {
+      "path": "guitar_jam/test/075.wav",
+      "bytes": 1575044,
+      "sha256": "396c6a2f3925c96605fb059752b749a7dbe49066cb4f12dfda00e49b9b968a5d"
+    }
+  ]
+}

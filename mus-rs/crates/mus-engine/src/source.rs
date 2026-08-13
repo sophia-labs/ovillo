@@ -110,9 +110,8 @@ pub fn resolve(
             None => 1.0,
         };
         let freqs: Vec<f64> = ev.midis.iter().map(|&m| midi_to_hz(m, a4)).collect();
-        let (patch_map, trajectory_program) =
-            program_from_inline_string_params(&patch_map, slot_s)
-                .map_err(|error| ctx(RenderError::Invalid(format!("trajectory: {error}"))))?;
+        let (patch_map, trajectory_program) = program_from_inline_string_params(&patch_map, slot_s)
+            .map_err(|error| ctx(RenderError::Invalid(format!("trajectory: {error}"))))?;
 
         // The pluck and weave voices are POST-PARITY (mus-x): no oracle
         // line to cite. Everything else about the event pipeline treats

@@ -125,16 +125,13 @@ fn one_track_body_receives_dynamic_work_receipted_attacks_across_bars() {
         rearticulation["schema_version"].as_str(),
         Some("string-rearticulation-receipt-v1")
     );
-    let work_digest = rearticulation["work_digest"]
-        .as_str()
-        .expect("work digest");
+    let work_digest = rearticulation["work_digest"].as_str().expect("work digest");
     assert!(work_digest.starts_with("sha256:"));
     assert_eq!(work_digest.len(), 71);
-    assert_eq!(
-        rearticulation["schedule"]["attack_count"].as_u64(),
-        Some(3)
-    );
-    let attacks = rearticulation["attacks"].as_array().expect("attack receipts");
+    assert_eq!(rearticulation["schedule"]["attack_count"].as_u64(), Some(3));
+    let attacks = rearticulation["attacks"]
+        .as_array()
+        .expect("attack receipts");
     let expected = [
         10_f64.powf(-20.0 / 20.0),
         10_f64.powf((-7.0 + 4.0) / 20.0),
@@ -144,7 +141,12 @@ fn one_track_body_receives_dynamic_work_receipted_attacks_across_bars() {
         assert!((attack["gain"].as_f64().expect("gain") - expected_gain).abs() < 1e-12);
         assert!(attack["nonzero_course_samples"].as_u64().unwrap_or(0) > 0);
     }
-    assert!(rearticulation["total_positive_work"].as_f64().unwrap_or(0.0) > 0.0);
+    assert!(
+        rearticulation["total_positive_work"]
+            .as_f64()
+            .unwrap_or(0.0)
+            > 0.0
+    );
 }
 
 #[test]
@@ -170,11 +172,7 @@ fn track_lifetime_refuses_pitch_topology_changes() {
 #[test]
 fn track_lifetime_refuses_a_scalar_only_patch() {
     let root = TempDir::new();
-    let result = run_render(
-        root.path(),
-        &score("A3w", "Rh", "0.10"),
-        "no-trajectory",
-    );
+    let result = run_render(root.path(), &score("A3w", "Rh", "0.10"), "no-trajectory");
     assert!(!result.status.success());
     let error: serde_json::Value =
         serde_json::from_slice(&result.stdout).expect("structured render error");

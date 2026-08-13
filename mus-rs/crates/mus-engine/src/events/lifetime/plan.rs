@@ -99,12 +99,8 @@ fn validate_first_event_surface(event: &Note, bar: u32, abbr: &str) -> Result<()
         }
     }
     for flag in &event.flags {
-        let transform_flag = ART_SHORTEN
-            .iter()
-            .any(|(name, _)| flag.as_str() == *name)
-            || ART_GAIN
-                .iter()
-                .any(|(name, _)| flag.as_str() == *name)
+        let transform_flag = ART_SHORTEN.iter().any(|(name, _)| flag.as_str() == *name)
+            || ART_GAIN.iter().any(|(name, _)| flag.as_str() == *name)
             || matches!(flag.as_str(), "gate" | "fer");
         if !transform_flag {
             return Err(ctx_error(
@@ -130,11 +126,7 @@ fn ensure_rest_is_plain(event: &Note, bar: u32, abbr: &str) -> Result<(), Render
     Ok(())
 }
 
-fn continuation_articulation_db(
-    event: &Note,
-    bar: u32,
-    abbr: &str,
-) -> Result<f64, RenderError> {
+fn continuation_articulation_db(event: &Note, bar: u32, abbr: &str) -> Result<f64, RenderError> {
     if !event.params.is_empty() || event.gliss_midi.is_some() {
         return Err(ctx_error(
             bar,
@@ -143,10 +135,7 @@ fn continuation_articulation_db(
         ));
     }
     for flag in &event.flags {
-        if !ART_GAIN
-            .iter()
-            .any(|(name, _)| flag.as_str() == *name)
-        {
+        if !ART_GAIN.iter().any(|(name, _)| flag.as_str() == *name) {
             return Err(ctx_error(
                 bar,
                 abbr,
@@ -199,10 +188,7 @@ pub(super) fn plan_session(
             };
             if event.ql <= 0.0
                 && token.trim() != "R"
-                && matches!(
-                    event.kind.as_str(),
-                    "note" | "chord" | "rest" | "unpitched"
-                )
+                && matches!(event.kind.as_str(), "note" | "chord" | "rest" | "unpitched")
             {
                 stats
                     .bad
@@ -269,8 +255,7 @@ pub(super) fn plan_session(
                             member_event_count += 1;
                         }
                         Some(expected) => {
-                            let articulation_db =
-                                continuation_articulation_db(&event, bar, abbr)?;
+                            let articulation_db = continuation_articulation_db(&event, bar, abbr)?;
                             if event.midis.as_slice() != expected.as_slice() {
                                 return Err(ctx_error(
                                     bar,

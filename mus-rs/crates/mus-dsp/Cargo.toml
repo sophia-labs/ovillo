@@ -6,18 +6,36 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+# Preserve the historical all-kernels crate for the renderer and test suite.
+# Live plugins disable this feature so they do not inherit libsoxr or any
+# offline file/FFT machinery that the powered radiator never calls.
+default = ["full"]
+full = [
+    "dep:hound",
+    "dep:libc",
+    "dep:libsoxr",
+    "dep:mus-trajectory",
+    "dep:mus-watsn",
+    "dep:np-rand",
+    "dep:realfft",
+    "dep:rustfft",
+    "dep:serde_json",
+    "dep:sha2",
+]
+
 [dependencies]
-hound = "3.5"
-libc = "0.2"
-libsoxr = "0.2.9"
-mus-trajectory = { path = "../mus-trajectory" }
-mus-watsn = { path = "../mus-watsn" }
-np-rand = { path = "../np-rand" }
-realfft = "3.5"
-rustfft = "6"
+hound = { version = "3.5", optional = true }
+libc = { version = "0.2", optional = true }
+libsoxr = { version = "0.2.9", optional = true }
+mus-trajectory = { path = "../mus-trajectory", optional = true }
+mus-watsn = { path = "../mus-watsn", optional = true }
+np-rand = { path = "../np-rand", optional = true }
+realfft = { version = "3.5", optional = true }
+rustfft = { version = "6", optional = true }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-sha2 = "0.10"
+serde_json = { version = "1", optional = true }
+sha2 = { version = "0.10", optional = true }
 
 [dev-dependencies]
 mus-gesture = { path = "../mus-gesture" }

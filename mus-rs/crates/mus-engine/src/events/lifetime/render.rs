@@ -16,8 +16,7 @@ use crate::{EventTrajectoryReceipt, RenderError, RenderStats};
 use super::plan::{ctx_error, ctx_existing, plan_session, TrackBodySession};
 use super::WalkContext;
 
-pub(super) const TRACK_LIFETIME_CLAIM: &str =
-    "score-spanning-work-receipted-rearticulation";
+pub(super) const TRACK_LIFETIME_CLAIM: &str = "score-spanning-work-receipted-rearticulation";
 pub(super) const TRACK_LIFETIME_EVIDENCE: &str =
     "validated-numerics+engine-execution+single-construction+physical-gain-lowering+exact-attack-work+fully-unobserved-course-kernel";
 
@@ -42,10 +41,7 @@ fn join_values<T: ToString>(values: impl IntoIterator<Item = T>) -> String {
         .join(",")
 }
 
-fn lower_attacks(
-    session: &TrackBodySession,
-    abbr: &str,
-) -> Result<LoweredAttacks, RenderError> {
+fn lower_attacks(session: &TrackBodySession, abbr: &str) -> Result<LoweredAttacks, RenderError> {
     let mut frames = Vec::with_capacity(session.attacks.len());
     let mut dynamics = Vec::with_capacity(session.attacks.len());
     let mut articulation_db = Vec::with_capacity(session.attacks.len());
@@ -124,13 +120,15 @@ pub(crate) fn walk_track(
     let mut authored: BTreeMap<String, String> = synth_defaults.clone();
     authored.extend(session.first_event.params.clone());
     let (static_patch, maybe_program) =
-        program_from_inline_string_params(&authored, session.duration_seconds).map_err(|error| {
-            ctx_error(
-                session.first_bar,
-                abbr,
-                format!("track trajectory: {error}"),
-            )
-        })?;
+        program_from_inline_string_params(&authored, session.duration_seconds).map_err(
+            |error| {
+                ctx_error(
+                    session.first_bar,
+                    abbr,
+                    format!("track trajectory: {error}"),
+                )
+            },
+        )?;
     let mut program = maybe_program.ok_or_else(|| {
         ctx_error(
             session.first_bar,
@@ -163,10 +161,9 @@ pub(crate) fn walk_track(
         "attack_samples".to_string(),
         join_values(attacks.frames.iter().map(|attack| attack.at_sample)),
     );
-    program.metadata.insert(
-        "attack_dynamics".to_string(),
-        attacks.dynamics.join(","),
-    );
+    program
+        .metadata
+        .insert("attack_dynamics".to_string(), attacks.dynamics.join(","));
     program.metadata.insert(
         "attack_articulation_db".to_string(),
         join_values(attacks.articulation_db.iter().copied()),
@@ -175,10 +172,9 @@ pub(crate) fn walk_track(
         "attack_gain_db".to_string(),
         join_values(attacks.gain_db.iter().copied()),
     );
-    program.metadata.insert(
-        "attack_gains".to_string(),
-        join_values(attacks.gains()),
-    );
+    program
+        .metadata
+        .insert("attack_gains".to_string(), join_values(attacks.gains()));
     program.metadata.insert(
         "attack_gain_law".to_string(),
         "10^((dynamic_db+gain_articulation_db)/20)".to_string(),
@@ -208,10 +204,9 @@ pub(crate) fn walk_track(
         "event_local_tail_baseline".to_string(),
         notated_event_count.to_string(),
     );
-    program.metadata.insert(
-        "ordinary_trace_allocation".to_string(),
-        "none".to_string(),
-    );
+    program
+        .metadata
+        .insert("ordinary_trace_allocation".to_string(), "none".to_string());
     program.metadata.insert(
         "lifetime_end_seconds".to_string(),
         session.end_seconds.to_string(),
@@ -246,10 +241,7 @@ pub(crate) fn walk_track(
             .knots
             .first()
             .is_some_and(|knot| knot.value <= 1e-12);
-        let later_breathes = breath_track
-            .knots
-            .iter()
-            .any(|knot| knot.value > 1e-12);
+        let later_breathes = breath_track.knots.iter().any(|knot| knot.value > 1e-12);
         if starts_silent && later_breathes {
             return Err(ctx_error(
                 session.first_bar,
@@ -324,9 +316,7 @@ pub(crate) fn walk_track(
             return Err(ctx_error(
                 session.first_bar,
                 abbr,
-                format!(
-                    "body_lifetime=track requires synth=pluck or synth=weave, got {other:?}"
-                ),
+                format!("body_lifetime=track requires synth=pluck or synth=weave, got {other:?}"),
             ));
         }
     };

@@ -11,9 +11,9 @@ members = [
     "crates/mus-watsn",
     "crates/mus-trajectory",
     "crates/mus-gesture",
-    "crates/mus-trajectory",
     "crates/np-rand",
     "plugins/ariadne-clap",
+    "xtask",
 ]
 resolver = "2"
 
@@ -21,3 +21,9 @@ resolver = "2"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/sophia-labs/instrument"
+
+[patch.crates-io]
+# nice-plug 0.2.3 trusts the untrusted length prefix in a CLAP state stream and
+# can abort on a corrupt session. Keep the otherwise-identical, narrowly
+# hardened source in-tree until the fix is available in a released crate.
+nice-plug = { path = "vendor/nice-plug" }
