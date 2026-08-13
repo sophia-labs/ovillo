@@ -1,19 +1,18 @@
 [package]
 name = "ariadne-clap"
 version = "0.1.0"
-description = "Ariadne Powered Body: a low-latency VST3/CLAP effect for live guitar input"
+description = "Ariadne Terminal: a powered metric metamaterial VST3/CLAP for live guitar input"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
 # `cdylib` is what a host loads; `lib` is what the unit tests link against.
-# Without `lib` the processor struct would be untestable from `cargo test`.
 [lib]
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-mus-dsp = { path = "../../crates/mus-dsp", default-features = false }
+mus-dsp = { path = "../../crates/mus-dsp", default-features = false, features = ["ariadne-live"] }
 # nice-plug 0.2.3 uses the permissive `vst3` 0.3 bindings. The allocation
 # assertion aborts debug processing if this wrapper or the core allocates on the
 # audio thread; it is compiled out of release artifacts.
-nice_plug = { package = "nice-plug", version = "=0.2.3", default-features = false, features = ["vst3", "assert_process_allocs"] }
+nice-plug = { package = "nice-plug", version = "=0.2.3", default-features = false, features = ["vst3", "assert_process_allocs"] }
