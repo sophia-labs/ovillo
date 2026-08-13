@@ -9,6 +9,7 @@ members = [
     "crates/mus-vocab",
     "crates/mus-dsp",
     "crates/mus-watsn",
+    "crates/mus-ariadne",
     "crates/mus-trajectory",
     "crates/mus-gesture",
     "crates/np-rand",
