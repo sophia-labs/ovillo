@@ -18,6 +18,10 @@ pub mod ariadne_active_inclusion;
 /// lip-reed-like playing regimes.
 #[cfg(feature = "ariadne-live")]
 pub mod ariadne_compliant_aperture;
+/// V2 maximal body: one 24-coordinate state organized as six guitar courses
+/// or one brass bore, with the same aperture, active matter, room, and ledger.
+#[cfg(feature = "ariadne-live")]
+pub mod ariadne_metric_body;
 /// Arbitrary positive modal metric whose fixed state can organize as multiple
 /// string courses or one bore harmonic family.
 #[cfg(feature = "ariadne-live")]
@@ -33,8 +37,7 @@ pub mod ariadne_resonant_transport;
 /// Reciprocal delay-course room coupled directly to live body momentum.
 #[cfg(feature = "ariadne-live")]
 pub mod ariadne_room_halo;
-/// Maximal persistent body composing field, aperture, active matter, ordered
-/// transport, room exchange, and finite-aperture radiation.
+/// V1 one-ladder maximal body retained as an explicit scientific ablation.
 #[cfg(feature = "ariadne-live")]
 pub mod ariadne_string_brass_body;
 /// Measured construction profiles for the first shared string/brass campaign.
