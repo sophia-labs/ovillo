@@ -1,0 +1,21 @@
+{
+  "guitar_course_fundamentals_hz": [
+    82.40750727735154,
+    110.00082499690629,
+    146.83348519775006,
+    195.99918796837255,
+    246.94350268343456,
+    329.63002911040616
+  ],
+  "maximum_active_reservoir_transfer_residual": 8.673617379884035e-19,
+  "maximum_householder_scattering_residual": 1.3552527156068805e-20,
+  "maximum_relative_metric_configuration_work_residual": 4.1701124362181515e-16,
+  "maximum_room_body_coupling_residual": 2.0328790734103208e-20,
+  "maximum_two_channel_radiation_residual": 8.758188325711457e-21,
+  "oracle": "independent_standard_library_maximal_body_laws",
+  "sample_rate_hz": 96000.0,
+  "schema_version": "1.0.0",
+  "seed": 175222174,
+  "trials": 50000,
+  "trombone_first_resonance_hz": 116.54204751367475
+}
