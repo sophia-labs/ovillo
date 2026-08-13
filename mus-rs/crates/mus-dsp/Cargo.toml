@@ -9,14 +9,16 @@ repository.workspace = true
 [features]
 # Preserve the historical all-kernels crate for the renderer and test suite.
 # Live plugins disable this feature so they do not inherit libsoxr or any
-# offline file/FFT machinery that the powered radiator never calls.
+# offline file/FFT machinery.
 default = ["full"]
+# Pure Ariadne live material: only the low-level work/scattering law crate.
+ariadne-live = ["dep:mus-watsn"]
 full = [
+    "ariadne-live",
     "dep:hound",
     "dep:libc",
     "dep:libsoxr",
     "dep:mus-trajectory",
-    "dep:mus-watsn",
     "dep:np-rand",
     "dep:realfft",
     "dep:rustfft",
