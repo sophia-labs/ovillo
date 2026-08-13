@@ -37,6 +37,11 @@ jobs:
           python
           mus-rs/experiments/ariadne_fidelity_performance_v1/reference/active_resonant_laws.py
           --trials 10000 --json
+      - name: Ariadne shared string-brass law oracle
+        run: >-
+          python
+          mus-rs/experiments/ariadne_string_brass_v1/reference/unified_boundary_laws.py
+          --trials 10000 --json
       - name: install uv for parity and oracle-backed tests
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - uses: dtolnay/rust-toolchain@stable
