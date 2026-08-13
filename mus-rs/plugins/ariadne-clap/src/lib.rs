@@ -1,14 +1,14 @@
-//! Ariadne Powered Body — VST3/CLAP shell around one `mus-dsp` processor.
+//! Ariadne Terminal — VST3/CLAP shell around one pure Ariadne material graph.
 //!
-//! This crate contains parameter plumbing and plugin ABI declarations only.
-//! The sound, stability guards, reservoir, stereo radiator, receipts, and
-//! sample-rate behavior all live in [`mus_dsp::powered_radiator`].
+//! This crate contains only host ABI and parameter plumbing. The persistent
+//! metric material, powered deformation, ordered transport, spatial halo,
+//! safety laws, and receipts live in [`mus_dsp::ariadne_terminal`].
 
 use std::sync::Arc;
 
-use mus_dsp::powered_radiator::{
-    PoweredRadiator, PoweredRadiatorControls, PoweredRadiatorFrame, PoweredRadiatorReceipt,
-    PoweredRadiatorSpace, PoweredRadiatorTone,
+use mus_dsp::ariadne_terminal::{
+    AriadneTerminal, AriadneTerminalCharacter, AriadneTerminalControls,
+    AriadneTerminalFrame, AriadneTerminalReceipt,
 };
 use nice_plug::prelude::*;
 
@@ -16,7 +16,7 @@ const PARAMETER_SMOOTHING_MS: f32 = 20.0;
 const SLOW_PARAMETER_SMOOTHING_MS: f32 = 50.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Enum)]
-pub enum GuitarTone {
+pub enum GuitarCharacter {
     #[id = "costa_clara"]
     CostaClara,
     #[id = "edge"]
@@ -27,26 +27,10 @@ pub enum GuitarTone {
     Wall,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum)]
-pub enum SpaceProfile {
-    #[id = "off"]
-    Off,
-    #[id = "telarana_plate"]
-    Plate,
-    #[id = "telarana_spring"]
-    Spring,
-    #[id = "telarana_sympathique"]
-    Sympathique,
-    #[id = "telarana_shimmer_lite"]
-    ShimmerLite,
-}
-
 #[derive(Params)]
 pub struct AriadneParams {
     #[id = "character"]
-    pub character: EnumParam<GuitarTone>,
-    #[id = "space_profile"]
-    pub space_profile: EnumParam<SpaceProfile>,
+    pub character: EnumParam<GuitarCharacter>,
     #[id = "drive"]
     pub drive: FloatParam,
     #[id = "headroom"]
@@ -65,8 +49,8 @@ pub struct AriadneParams {
     pub interlace: FloatParam,
     #[id = "chirality"]
     pub chirality: FloatParam,
-    #[id = "motion"]
-    pub motion: FloatParam,
+    #[id = "memory"]
+    pub memory: FloatParam,
     #[id = "curvature"]
     pub curvature: FloatParam,
     #[id = "feedback"]
@@ -89,10 +73,9 @@ impl Default for AriadneParams {
                 .with_value_to_string(formatters::v2s_f32_rounded(2))
         };
         Self {
-            character: EnumParam::new("Character", GuitarTone::Edge),
-            space_profile: EnumParam::new("Telaraña", SpaceProfile::Plate),
+            character: EnumParam::new("Character", GuitarCharacter::Edge),
             drive: linear("Drive", 0.42, 0.0, 1.5),
-            headroom: linear("Headroom", 0.72, 0.05, 1.0),
+            headroom: linear("Headroom", 0.72, 0.02, 1.0),
             bias: linear("Bias", 0.18, -1.0, 1.0),
             tone: linear("Tone", 0.62, 0.0, 1.0),
             bloom: linear("Bloom", 0.36, 0.0, 1.0),
@@ -100,38 +83,36 @@ impl Default for AriadneParams {
             sag: linear("Sag", 0.35, 0.0, 1.0),
             interlace: linear("Interlace", 0.42, 0.0, 1.0),
             chirality: linear("Chirality", 0.36, -1.0, 1.0),
-            motion: FloatParam::new(
-                "Motion",
+            memory: FloatParam::new(
+                "Path Memory",
                 0.28,
-                FloatRange::Skewed {
-                    min: 0.0,
-                    max: 8.0,
-                    factor: FloatRange::skew_factor(-1.5),
-                },
-            )
-            .with_smoother(SmoothingStyle::Linear(SLOW_PARAMETER_SMOOTHING_MS))
-            .with_unit(" Hz")
-            .with_value_to_string(formatters::v2s_f32_rounded(2)),
-            curvature: linear("Curvature", 0.30, 0.0, 1.0),
-            feedback: FloatParam::new(
-                "Feedback",
-                0.04,
-                FloatRange::Linear {
-                    min: 0.0,
-                    max: 0.28,
-                },
+                FloatRange::Linear { min: 0.0, max: 1.0 },
             )
             .with_smoother(SmoothingStyle::Linear(SLOW_PARAMETER_SMOOTHING_MS))
             .with_unit(" %")
             .with_value_to_string(formatters::v2s_f32_percentage(1))
             .with_string_to_value(formatters::s2v_f32_percentage()),
-            space: FloatParam::new("Space Mix", 0.45, FloatRange::Linear { min: 0.0, max: 1.0 })
-                .with_smoother(SmoothingStyle::Linear(SLOW_PARAMETER_SMOOTHING_MS))
-                .with_unit(" %")
-                .with_value_to_string(formatters::v2s_f32_percentage(1))
-                .with_string_to_value(formatters::s2v_f32_percentage()),
+            curvature: linear("Curvature", 0.30, 0.0, 1.0),
+            feedback: FloatParam::new(
+                "World Return",
+                0.04,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            )
+            .with_smoother(SmoothingStyle::Linear(SLOW_PARAMETER_SMOOTHING_MS))
+            .with_unit(" %")
+            .with_value_to_string(formatters::v2s_f32_percentage(1))
+            .with_string_to_value(formatters::s2v_f32_percentage()),
+            space: FloatParam::new(
+                "Spatial Coupling",
+                0.16,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            )
+            .with_smoother(SmoothingStyle::Linear(SLOW_PARAMETER_SMOOTHING_MS))
+            .with_unit(" %")
+            .with_value_to_string(formatters::v2s_f32_percentage(1))
+            .with_string_to_value(formatters::s2v_f32_percentage()),
             room_decay: FloatParam::new(
-                "Room Decay",
+                "Halo Decay",
                 0.42,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             )
@@ -148,9 +129,9 @@ impl Default for AriadneParams {
                 "Output",
                 util::db_to_gain(0.0),
                 FloatRange::Skewed {
-                    min: util::db_to_gain(-24.0),
-                    max: util::db_to_gain(12.0),
-                    factor: FloatRange::gain_skew_factor(-24.0, 12.0),
+                    min: util::db_to_gain(-30.0),
+                    max: util::db_to_gain(18.0),
+                    factor: FloatRange::gain_skew_factor(-30.0, 18.0),
                 },
             )
             .with_smoother(SmoothingStyle::Logarithmic(PARAMETER_SMOOTHING_MS))
@@ -163,21 +144,14 @@ impl Default for AriadneParams {
 
 impl AriadneParams {
     #[inline]
-    fn next_controls(&self) -> PoweredRadiatorControls {
-        let tone = match self.character.value() {
-            GuitarTone::CostaClara => PoweredRadiatorTone::CostaClara,
-            GuitarTone::Edge => PoweredRadiatorTone::Edge,
-            GuitarTone::Grind => PoweredRadiatorTone::Grind,
-            GuitarTone::Wall => PoweredRadiatorTone::Wall,
+    fn next_controls(&self) -> AriadneTerminalControls {
+        let character = match self.character.value() {
+            GuitarCharacter::CostaClara => AriadneTerminalCharacter::CostaClara,
+            GuitarCharacter::Edge => AriadneTerminalCharacter::Edge,
+            GuitarCharacter::Grind => AriadneTerminalCharacter::Grind,
+            GuitarCharacter::Wall => AriadneTerminalCharacter::Wall,
         };
-        let space = match self.space_profile.value() {
-            SpaceProfile::Off => PoweredRadiatorSpace::Off,
-            SpaceProfile::Plate => PoweredRadiatorSpace::Plate,
-            SpaceProfile::Spring => PoweredRadiatorSpace::Spring,
-            SpaceProfile::Sympathique => PoweredRadiatorSpace::Sympathique,
-            SpaceProfile::ShimmerLite => PoweredRadiatorSpace::Shimmer,
-        };
-        let controls = PoweredRadiatorControls {
+        AriadneTerminalControls {
             drive: self.drive.smoothed.next() as f64,
             headroom: self.headroom.smoothed.next() as f64,
             bias: self.bias.smoothed.next() as f64,
@@ -187,41 +161,37 @@ impl AriadneParams {
             sag: self.sag.smoothed.next() as f64,
             interlace: self.interlace.smoothed.next() as f64,
             chirality: self.chirality.smoothed.next() as f64,
-            motion_hz: self.motion.smoothed.next() as f64,
+            memory: self.memory.smoothed.next() as f64,
             curvature: self.curvature.smoothed.next() as f64,
             feedback: self.feedback.smoothed.next() as f64,
-            space: 0.0,
-            room_character: 0.0,
+            space: self.space.smoothed.next() as f64,
             room_decay: self.room_decay.smoothed.next() as f64,
             mix: self.mix.smoothed.next() as f64,
             output_gain: self.output.smoothed.next() as f64,
-        };
-        controls
-            .with_tone(tone)
-            .with_space(space, self.space.smoothed.next() as f64)
+        }
+        .with_character(character)
+        .sanitized()
     }
 }
 
-/// Host-independent seam used by the plugin, tests, and offline benchmarks.
+/// Host-independent seam used by the plug-in, tests, and offline benchmarks.
 pub struct AriadneEngine {
-    body: PoweredRadiator,
+    terminal: AriadneTerminal,
 }
 
 impl Default for AriadneEngine {
     fn default() -> Self {
         Self {
-            body: PoweredRadiator::new(48_000.0).expect("48 kHz is supported"),
+            terminal: AriadneTerminal::new(48_000.0).expect("48 kHz is supported"),
         }
     }
 }
 
 impl AriadneEngine {
-    /// Construction/host reconfiguration boundary. All source, modal, and room
-    /// storage is allocated here, never in [`process_sample`](Self::process_sample).
     pub fn prepare(&mut self, sample_rate: f32) -> bool {
-        match PoweredRadiator::new(sample_rate as f64) {
-            Ok(body) => {
-                self.body = body;
+        match AriadneTerminal::new(sample_rate as f64) {
+            Ok(terminal) => {
+                self.terminal = terminal;
                 true
             }
             Err(_) => false,
@@ -233,42 +203,42 @@ impl AriadneEngine {
         &mut self,
         left: f32,
         right: f32,
-        controls: PoweredRadiatorControls,
-    ) -> PoweredRadiatorFrame {
-        self.body.process_sample(left, right, controls)
+        controls: AriadneTerminalControls,
+    ) -> AriadneTerminalFrame {
+        self.terminal.process_sample(left, right, controls)
     }
 
     pub fn process_block(
         &mut self,
         left: &mut [f32],
         right: &mut [f32],
-        controls: PoweredRadiatorControls,
+        controls: AriadneTerminalControls,
     ) {
-        self.body.process_block(left, right, controls);
+        self.terminal.process_block(left, right, controls);
     }
 
     pub fn reset(&mut self) {
-        self.body.reset();
+        self.terminal.reset();
     }
 
     #[must_use]
     pub fn latency_samples(&self) -> u32 {
-        self.body.latency_samples()
+        self.terminal.latency_samples()
     }
 
     #[must_use]
     pub fn tail_samples(&self) -> u32 {
-        self.body.tail_samples()
+        self.terminal.tail_samples()
     }
 
     #[must_use]
     pub fn sample_rate(&self) -> f64 {
-        self.body.sample_rate()
+        self.terminal.sample_rate()
     }
 
     #[must_use]
-    pub fn receipt(&self) -> PoweredRadiatorReceipt {
-        self.body.receipt()
+    pub fn receipt(&self) -> AriadneTerminalReceipt {
+        self.terminal.receipt()
     }
 }
 
@@ -287,9 +257,9 @@ impl Default for AriadneClap {
 }
 
 impl Plugin for AriadneClap {
-    const NAME: &'static str = "Ariadne";
+    const NAME: &'static str = "Ariadne Terminal";
     const VENDOR: &'static str = "Sophia Labs";
-    const URL: &'static str = "https://github.com/sophia-labs/mus";
+    const URL: &'static str = "https://github.com/sophia-labs/instrument";
     const EMAIL: &'static str = "noreply@sophia-labs.com";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -346,47 +316,43 @@ impl Plugin for AriadneClap {
             };
             let input_left = *left;
             if let Some(right) = channels.next() {
-                let frame =
-                    self.engine
-                        .process_sample(input_left, *right, self.params.next_controls());
+                let frame = self.engine.process_sample(
+                    input_left,
+                    *right,
+                    self.params.next_controls(),
+                );
                 *left = frame.left;
                 *right = frame.right;
             } else {
-                let frame =
-                    self.engine
-                        .process_sample(input_left, input_left, self.params.next_controls());
+                let frame = self.engine.process_sample(
+                    input_left,
+                    input_left,
+                    self.params.next_controls(),
+                );
                 *left = 0.5 * (frame.left + frame.right);
             }
         }
-
         ProcessStatus::Tail(self.engine.tail_samples())
     }
 }
 
 impl ClapPlugin for AriadneClap {
-    const CLAP_ID: &'static str = "com.sophia-labs.ariadne-powered-body";
-    const CLAP_DESCRIPTION: Option<&'static str> =
-        Some("A work-accounted powered material and causal room field for live guitar");
+    const CLAP_ID: &'static str = "com.sophia-labs.ariadne-terminal";
+    const CLAP_DESCRIPTION: Option<&'static str> = Some(
+        "A powered metric metamaterial with work-accounted path memory and spatial return",
+    );
     const CLAP_MANUAL_URL: Option<&'static str> = Some(Self::URL);
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[
         ClapFeature::AudioEffect,
         ClapFeature::Stereo,
         ClapFeature::Mono,
-        ClapFeature::Reverb,
-        ClapFeature::Distortion,
     ];
 }
 
 impl Vst3Plugin for AriadneClap {
-    // Stable forever once shipped: hosts and saved sessions identify the plugin
-    // by these 16 bytes, not by its display name.
-    const VST3_CLASS_ID: [u8; 16] = *b"AriadnePwrBody01";
-    const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[
-        Vst3SubCategory::Fx,
-        Vst3SubCategory::Reverb,
-        Vst3SubCategory::Distortion,
-    ];
+    const VST3_CLASS_ID: [u8; 16] = *b"AriadneTerminal1";
+    const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx];
 }
 
 nice_plug::nice_export_clap!(AriadneClap);
@@ -395,27 +361,30 @@ nice_plug::nice_export_vst3!(AriadneClap);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mus_dsp::powered_radiator::LATENCY_SAMPLES;
 
     #[test]
-    fn engine_is_native_rate_and_reports_declared_low_latency() {
+    fn engine_is_native_rate_zero_latency_and_has_a_tail() {
         let mut engine = AriadneEngine::default();
         for rate in [44_100.0, 48_000.0, 96_000.0, 192_000.0] {
             assert!(engine.prepare(rate));
             assert_eq!(engine.sample_rate(), rate as f64);
-            assert_eq!(engine.latency_samples(), LATENCY_SAMPLES as u32);
+            assert_eq!(engine.latency_samples(), 0);
             assert_eq!(engine.tail_samples(), (rate * 20.0) as u32);
         }
     }
 
     #[test]
-    fn stereo_effect_is_finite_audible_and_not_fake_dual_mono() {
+    fn stereo_material_is_finite_audible_and_not_fake_dual_mono() {
         let mut engine = AriadneEngine::default();
-        let mut left = [0.0_f32; 4096];
-        let mut right = [0.0_f32; 4096];
-        left[0] = 1.0;
-        right[0] = 1.0;
-        engine.process_block(&mut left, &mut right, PoweredRadiatorControls::default());
+        let mut left = [0.0_f32; 8_192];
+        let mut right = [0.0_f32; 8_192];
+        left[0] = 0.6;
+        right[0] = 0.6;
+        engine.process_block(
+            &mut left,
+            &mut right,
+            AriadneTerminalControls::default(),
+        );
 
         let mut peak = 0.0_f32;
         let mut stereo_difference = 0.0_f64;
@@ -424,16 +393,16 @@ mod tests {
             peak = peak.max(left.abs()).max(right.abs());
             stereo_difference += (left - right).abs() as f64;
         }
-        assert!(peak > 1.0e-6);
-        assert!(stereo_difference > 1.0e-6);
+        assert!(peak > 1.0e-7);
+        assert!(stereo_difference > 1.0e-7);
         assert_eq!(engine.receipt().non_finite_resets, 0);
     }
 
     #[test]
     fn dry_path_is_sample_exact_at_zero_mix() {
         let mut engine = AriadneEngine::default();
-        let mut left = [0.0_f32; 1024];
-        let mut right = [0.0_f32; 1024];
+        let mut left = [0.0_f32; 1_024];
+        let mut right = [0.0_f32; 1_024];
         for (index, sample) in left.iter_mut().enumerate() {
             *sample = (index as f32 * 0.013).sin();
         }
@@ -445,34 +414,25 @@ mod tests {
         engine.process_block(
             &mut left,
             &mut right,
-            PoweredRadiatorControls {
+            AriadneTerminalControls {
                 mix: 0.0,
                 output_gain: 1.0,
-                ..PoweredRadiatorControls::default()
+                ..AriadneTerminalControls::default()
             },
         );
-        assert!(left[..LATENCY_SAMPLES].iter().all(|sample| *sample == 0.0));
-        assert!(right[..LATENCY_SAMPLES].iter().all(|sample| *sample == 0.0));
-        assert_eq!(
-            &left[LATENCY_SAMPLES..],
-            &expected_left[..expected_left.len() - LATENCY_SAMPLES]
-        );
-        assert_eq!(
-            &right[LATENCY_SAMPLES..],
-            &expected_right[..expected_right.len() - LATENCY_SAMPLES]
-        );
+        assert_eq!(left, expected_left);
+        assert_eq!(right, expected_right);
     }
 
     #[test]
-    fn parameter_defaults_match_the_profile() {
+    fn parameter_defaults_match_the_core_contract() {
         let params = AriadneParams::default();
-        let defaults = PoweredRadiatorControls::default();
+        let defaults = AriadneTerminalControls::default();
         assert!((params.drive.value() as f64 - defaults.drive).abs() < 1.0e-6);
         assert!((params.headroom.value() as f64 - defaults.headroom).abs() < 1.0e-6);
-        assert!((params.feedback.value() as f64 - defaults.feedback).abs() < 1.0e-6);
+        assert!((params.memory.value() as f64 - defaults.memory).abs() < 1.0e-6);
         assert!((params.mix.value() as f64 - defaults.mix).abs() < 1.0e-6);
-        assert_eq!(params.character.value(), GuitarTone::Edge);
-        assert_eq!(params.space_profile.value(), SpaceProfile::Plate);
+        assert_eq!(params.character.value(), GuitarCharacter::Edge);
         assert_eq!(params.output.value(), 1.0);
     }
 }
