@@ -1,12 +1,12 @@
 //! Ariadne Terminal — VST3/CLAP shell around one pure Ariadne material graph.
 //!
-//! This crate contains only host ABI and parameter plumbing. The persistent
-//! metric material, powered deformation, ordered transport, spatial halo,
-//! safety laws, and receipts live in [`mus_dsp::ariadne_terminal`].
+//! This crate contains only host ABI and parameter plumbing. The current
+//! product engine is quarantined as a compatibility implementation owned by
+//! `mus-ariadne`; new bodies lower to `mus_ariadne::World`.
 
 use std::sync::Arc;
 
-use mus_dsp::ariadne_terminal::{
+use mus_ariadne::compat::terminal::{
     AriadneTerminal, AriadneTerminalCharacter, AriadneTerminalControls,
     AriadneTerminalFrame, AriadneTerminalReceipt,
 };
