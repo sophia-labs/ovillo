@@ -1,40 +1,24 @@
 //! Sample-faithful DSP for the MUS render face.
 //!
-//! Every public function here is a port of the equivalently named function
-//! in `mus_audio.py`, and the oracle is not prose: `mus-rs/tools/
+//! Every historical public function here is a port of the equivalently named
+//! function in `mus_audio.py`, and the oracle is not prose: `mus-rs/tools/
 //! gen_dsp_fixtures.py` dumps golden input/output vectors from the Python
-//! implementation into `mus-rs/fixtures/dsp/`, and every port carries a
-//! test that replays them through [`fixtures`]. A passing suite means
-//! "same math", not "similar idea".
+//! implementation into `mus-rs/fixtures/dsp/`, and every port carries a test
+//! that replays them. A passing suite means "same math", not "similar idea".
 //!
-//! Parity tiers (the manifest records the metric and tolerance per case):
-//!
-//! - **Pure-numpy ports** (`kernels`, `synth`, most of `filters`,
-//!   `pitch::pitch_ramp`/`pitch_polyline`): `max_abs` at 1e-6..5e-5 —
-//!   effectively exact in f32.
-//! - **Same-C-library paths** (`pitch::varispeed` via libsoxr, the same
-//!   library librosa's `soxr_hq` binds): `rel_rms` at 5e-4.
-//! - **Reimplemented-algorithm paths** (`pitch::vocode`/`stretch`, a port
-//!   of librosa's STFT phase vocoder over a different FFT): `rel_rms` at
-//!   5e-3, with exact output lengths.
-//!
-//! Where the port cannot meet its tier, the correct move is to say so —
-//! record the measured divergence and surface it, never to widen a
-//! tolerance silently. Refusal is a result.
-//!
-//! The live Ariadne modules (`power_port`, `electrodynamic_radiator`, and
-//! `powered_radiator`) are native physical contracts rather than Python ports.
-//! Their oracles are power preservation, passivity, reciprocity, and receipt
-//! closure.
+//! The live Ariadne modules are native contracts rather than Python ports.
+//! Their oracles are stored-state evolution, work/loss/radiation closure,
+//! ordered-transport identities, exact zero limits, and host invariance.
 
+/// Pure powered metric material and reciprocal spatial halo for live input.
+#[cfg(feature = "ariadne-live")]
+pub mod ariadne_terminal;
 #[cfg(feature = "full")]
 pub mod backbone;
 #[cfg(feature = "full")]
 pub mod body_profiles;
 #[cfg(feature = "full")]
 pub mod bus;
-/// Reciprocal electrical/mechanical/acoustic radiator for live physical graphs.
-pub mod electrodynamic_radiator;
 #[cfg(feature = "full")]
 pub mod filters;
 #[cfg(feature = "full")]
@@ -45,9 +29,7 @@ pub mod glow;
 pub mod kernels;
 #[cfg(feature = "full")]
 pub mod pitch;
-/// Domain-explicit effort/flow ports and power-preserving junctions.
-pub mod power_port;
-/// Sample-rate-native, allocation-free powered modal body for live audio input.
+/// Transitional live processor retained as a scientific and listening control.
 pub mod powered_radiator;
 
 /// Physically informed guitar and Weave networks, plus the fixed-topology
