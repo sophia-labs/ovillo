@@ -1,0 +1,30 @@
+# Reference only. Replace the base tag with a cluster-compatible immutable digest.
+FROM pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime
+
+ARG UID=10001
+ARG GID=10001
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    MPLBACKEND=Agg
+
+RUN groupadd --gid ${GID} ext && \
+    useradd --uid ${UID} --gid ${GID} --create-home ext
+
+WORKDIR /app
+
+# The production build should copy a generated wheel and fully pinned lock.
+COPY . /app/instrument
+RUN python -m pip install --upgrade pip && \
+    python -m pip install -e '/app/instrument/mus-rs/experiments/extension_theory_loop_2[test]' && \
+    if [ -f /app/instrument/mus-rs/experiments/extension_gpu_battery_v1/pyproject.toml ]; then \
+      python -m pip install -e '/app/instrument/mus-rs/experiments/extension_gpu_battery_v1[test]'; \
+    fi
+
+RUN mkdir -p /scratch && chown -R ${UID}:${GID} /scratch /app
+USER ${UID}:${GID}
+
+ENTRYPOINT ["python", "-m", "extension_gpu_battery"]
+CMD ["self-check"]

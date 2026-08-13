@@ -1,0 +1,94 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ext-gpu-${SHARD_ID}
+  labels:
+    app.kubernetes.io/name: extension-gpu-battery
+    app.kubernetes.io/component: gpu-worker
+    sophia-labs.com/campaign-id: ${CAMPAIGN_ID}
+    sophia-labs.com/shard-id: ${SHARD_ID}
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 10800
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: extension-gpu-battery
+        app.kubernetes.io/component: gpu-worker
+        sophia-labs.com/campaign-id: ${CAMPAIGN_ID}
+        sophia-labs.com/shard-id: ${SHARD_ID}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: ${SERVICE_ACCOUNT}
+      terminationGracePeriodSeconds: 180
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      nodeSelector:
+        accelerator.sophia-labs.com/class: ${GPU_CLASS}
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: worker
+          image: ${IMAGE_DIGEST}
+          imagePullPolicy: IfNotPresent
+          args:
+            - run-shard
+            - --shard
+            - ${SHARD_URI}
+            - --artifact-root
+            - ${ARTIFACT_ROOT}
+          env:
+            - name: EXT_CAMPAIGN_ID
+              value: ${CAMPAIGN_ID}
+            - name: EXT_SHARD_URI
+              value: ${SHARD_URI}
+            - name: EXT_ARTIFACT_ROOT
+              value: ${ARTIFACT_ROOT}
+            - name: EXT_SCRATCH_DIR
+              value: /scratch
+            - name: EXT_DEVICE
+              value: cuda
+            - name: EXT_TRAIN_DTYPE
+              value: float32
+            - name: EXT_ORACLE_DTYPE
+              value: float64
+            - name: EXT_DETERMINISM
+              value: seeded
+            - name: EXT_CHECKPOINT_SECONDS
+              value: "300"
+            - name: PYTHONHASHSEED
+              value: "0"
+            - name: AWS_REGION
+              value: ${AWS_REGION}
+          resources:
+            requests:
+              cpu: "6"
+              memory: 24Gi
+              ephemeral-storage: 50Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "12"
+              memory: 48Gi
+              ephemeral-storage: 100Gi
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: scratch
+              mountPath: /scratch
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "python -m extension_gpu_battery checkpoint-now --scratch /scratch || true"]
+      volumes:
+        - name: scratch
+          emptyDir:
+            sizeLimit: 100Gi
