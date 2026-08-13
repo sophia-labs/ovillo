@@ -25,7 +25,10 @@ pub struct MetricFieldState<const N: usize> {
 
 impl<const N: usize> Default for MetricFieldState<N> {
     fn default() -> Self {
-        Self { displacement: [0.0; N], momentum: [0.0; N] }
+        Self {
+            displacement: [0.0; N],
+            momentum: [0.0; N],
+        }
     }
 }
 
@@ -52,6 +55,15 @@ pub struct MetricLossFrame {
     pub residual: f64,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct MetricRadiationFrame {
+    pub emitted_coordinate: f64,
+    pub radiation: f64,
+    pub energy_before: f64,
+    pub energy_after: f64,
+    pub residual: f64,
+}
+
 #[derive(Debug, Clone)]
 pub struct ModalMetricWaveField<const N: usize> {
     sample_rate: f64,
@@ -69,7 +81,10 @@ impl<const N: usize> ModalMetricWaveField<N> {
         sample_rate: f64,
         configuration: ModalMetricConfiguration<N>,
     ) -> Result<Self, &'static str> {
-        if N == 0 || !sample_rate.is_finite() || !(8_000.0..=384_000.0).contains(&sample_rate) {
+        if N == 0
+            || !sample_rate.is_finite()
+            || !(8_000.0..=384_000.0).contains(&sample_rate)
+        {
             return Err("invalid modal metric dimensions or sample rate");
         }
         validate(configuration, sample_rate)?;
@@ -88,13 +103,27 @@ impl<const N: usize> ModalMetricWaveField<N> {
     }
 
     #[must_use]
-    pub fn configuration(&self) -> ModalMetricConfiguration<N> { self.configuration }
+    pub fn configuration(&self) -> ModalMetricConfiguration<N> {
+        self.configuration
+    }
 
     #[must_use]
-    pub fn state(&self) -> MetricFieldState<N> { self.state }
+    pub fn frequencies_hz(&self) -> [f64; N] {
+        self.configuration.frequency_hz
+    }
+
+    #[must_use]
+    pub fn state(&self) -> MetricFieldState<N> {
+        self.state
+    }
 
     pub fn restore_state(&mut self, state: MetricFieldState<N>) -> Result<(), &'static str> {
-        if state.displacement.iter().chain(state.momentum.iter()).any(|value| !value.is_finite()) {
+        if state
+            .displacement
+            .iter()
+            .chain(state.momentum.iter())
+            .any(|value| !value.is_finite())
+        {
             return Err("modal metric state must be finite");
         }
         self.state = state;
@@ -103,10 +132,13 @@ impl<const N: usize> ModalMetricWaveField<N> {
 
     #[must_use]
     pub fn stored_energy(&self) -> f64 {
-        0.5 * self.dt * (0..N).map(|i| {
-            self.state.momentum[i] * self.state.momentum[i]
-                + (self.omega[i] * self.state.displacement[i]).powi(2)
-        }).sum::<f64>()
+        0.5 * self.dt
+            * (0..N)
+                .map(|index| {
+                    self.state.momentum[index] * self.state.momentum[index]
+                        + (self.omega[index] * self.state.displacement[index]).powi(2)
+                })
+                .sum::<f64>()
     }
 
     pub fn set_configuration(
@@ -129,43 +161,102 @@ impl<const N: usize> ModalMetricWaveField<N> {
 
     pub fn propagate(&mut self) -> MetricPropagationFrame {
         let energy_before = self.stored_energy();
-        for i in 0..N {
-            let q = self.state.displacement[i];
-            let p = self.state.momentum[i];
-            self.state.displacement[i] = self.cosine[i] * q + self.sine[i] * p / self.omega[i];
-            self.state.momentum[i] = self.cosine[i] * p - self.sine[i] * self.omega[i] * q;
+        for index in 0..N {
+            let displacement = self.state.displacement[index];
+            let momentum = self.state.momentum[index];
+            self.state.displacement[index] = self.cosine[index] * displacement
+                + self.sine[index] * momentum / self.omega[index];
+            self.state.momentum[index] = self.cosine[index] * momentum
+                - self.sine[index] * self.omega[index] * displacement;
         }
         let energy_after = self.stored_energy();
-        MetricPropagationFrame { energy_before, energy_after, residual: energy_after - energy_before }
+        MetricPropagationFrame {
+            energy_before,
+            energy_after,
+            residual: energy_after - energy_before,
+        }
     }
 
     pub fn damp(&mut self) -> MetricLossFrame {
         let energy_before = self.stored_energy();
-        for i in 0..N {
-            self.state.displacement[i] *= self.retain[i];
-            self.state.momentum[i] *= self.retain[i];
+        for index in 0..N {
+            self.state.displacement[index] *= self.retain[index];
+            self.state.momentum[index] *= self.retain[index];
         }
         let energy_after = self.stored_energy();
         let loss = (energy_before - energy_after).max(0.0);
-        MetricLossFrame { energy_before, energy_after, loss, residual: energy_after - energy_before + loss }
+        MetricLossFrame {
+            energy_before,
+            energy_after,
+            loss,
+            residual: energy_after - energy_before + loss,
+        }
+    }
+
+    /// Remove one normalized material-flow projection as radiation. Potential
+    /// energy is untouched; the removed kinetic component is booked exactly.
+    pub fn radiate(
+        &mut self,
+        direction: &[f64; N],
+        fraction: f64,
+    ) -> Result<MetricRadiationFrame, &'static str> {
+        if !fraction.is_finite() || !(0.0..=1.0).contains(&fraction) {
+            return Err("radiation fraction must be finite in [0,1]");
+        }
+        let direction = normalized_direction(direction)?;
+        let energy_before = self.stored_energy();
+        let projection = dot(&self.state.momentum, &direction);
+        let emitted_coordinate = fraction.sqrt() * projection;
+        let removal = 1.0 - (1.0 - fraction).sqrt();
+        for index in 0..N {
+            self.state.momentum[index] -= removal * direction[index] * projection;
+        }
+        let energy_after = self.stored_energy();
+        let radiation = 0.5 * self.dt * emitted_coordinate * emitted_coordinate;
+        Ok(MetricRadiationFrame {
+            emitted_coordinate,
+            radiation,
+            energy_before,
+            energy_after,
+            residual: energy_after - energy_before + radiation,
+        })
+    }
+
+    /// Normalized generalized effort conjugate to a finite-aperture momentum
+    /// projection. This is used for compliant-boundary synchronization only;
+    /// it is not itself an unbooked source of work.
+    pub fn aperture_effort(&self, direction: &[f64; N]) -> Result<f64, &'static str> {
+        let direction = normalized_direction(direction)?;
+        Ok((0..N)
+            .map(|index| {
+                direction[index] * self.omega[index] * self.state.displacement[index]
+            })
+            .sum())
     }
 
     #[must_use]
-    pub fn displacement(&self) -> &[f64; N] { &self.state.displacement }
+    pub fn displacement(&self) -> &[f64; N] {
+        &self.state.displacement
+    }
 
     #[must_use]
-    pub fn momentum(&self) -> &[f64; N] { &self.state.momentum }
+    pub fn momentum(&self) -> &[f64; N] {
+        &self.state.momentum
+    }
 
-    pub fn momentum_mut(&mut self) -> &mut [f64; N] { &mut self.state.momentum }
+    pub fn momentum_mut(&mut self) -> &mut [f64; N] {
+        &mut self.state.momentum
+    }
 
     fn rebuild(&mut self) {
-        for i in 0..N {
-            self.omega[i] = TAU * self.configuration.frequency_hz[i];
-            let angle = self.omega[i] / self.sample_rate;
-            self.cosine[i] = angle.cos();
-            self.sine[i] = angle.sin();
-            self.retain[i] = (-3.0 * 10.0_f64.ln()
-                / (self.configuration.t60_seconds[i] * self.sample_rate)).exp();
+        for index in 0..N {
+            self.omega[index] = TAU * self.configuration.frequency_hz[index];
+            let angle = self.omega[index] / self.sample_rate;
+            self.cosine[index] = angle.cos();
+            self.sine[index] = angle.sin();
+            self.retain[index] = (-3.0 * 10.0_f64.ln()
+                / (self.configuration.t60_seconds[index] * self.sample_rate))
+                .exp();
         }
     }
 }
@@ -175,8 +266,12 @@ impl<const N: usize> ModalMetricWaveField<N> {
 #[must_use]
 pub fn six_course_guitar_metric() -> ModalMetricConfiguration<COURSE_BORE_MODES> {
     let fundamentals = [
-        82.406_889_228, 110.0, 146.832_383_959, 195.997_717_991,
-        246.941_650_628, 329.627_556_913,
+        82.406_889_228,
+        110.0,
+        146.832_383_959,
+        195.997_717_991,
+        246.941_650_628,
+        329.627_556_913,
     ];
     let mut frequency_hz = [0.0; COURSE_BORE_MODES];
     let mut t60_seconds = [0.0; COURSE_BORE_MODES];
@@ -191,7 +286,10 @@ pub fn six_course_guitar_metric() -> ModalMetricConfiguration<COURSE_BORE_MODES>
                 * (1.0 - 0.18 * partial as f64).max(0.25);
         }
     }
-    ModalMetricConfiguration { frequency_hz, t60_seconds }
+    ModalMetricConfiguration {
+        frequency_hz,
+        t60_seconds,
+    }
 }
 
 /// One B-flat trombone-like near-harmonic bore, retaining 24 partials.
@@ -206,7 +304,10 @@ pub fn trombone_bore_metric() -> ModalMetricConfiguration<COURSE_BORE_MODES> {
         let position = index as f64 / (COURSE_BORE_MODES - 1) as f64;
         3.2 + position * (0.58 - 3.2)
     });
-    ModalMetricConfiguration { frequency_hz, t60_seconds }
+    ModalMetricConfiguration {
+        frequency_hz,
+        t60_seconds,
+    }
 }
 
 /// Positive log-frequency interpolation gives a smooth metric path without
@@ -217,34 +318,67 @@ pub fn interpolate_metric(
     right: ModalMetricConfiguration<COURSE_BORE_MODES>,
     amount: f64,
 ) -> ModalMetricConfiguration<COURSE_BORE_MODES> {
-    let amount = if amount.is_finite() { amount.clamp(0.0, 1.0) } else { 0.0 };
+    let amount = if amount.is_finite() {
+        amount.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
     ModalMetricConfiguration {
-        frequency_hz: std::array::from_fn(|i| {
-            (left.frequency_hz[i].ln() + amount * (right.frequency_hz[i].ln() - left.frequency_hz[i].ln())).exp()
+        frequency_hz: std::array::from_fn(|index| {
+            (left.frequency_hz[index].ln()
+                + amount * (right.frequency_hz[index].ln() - left.frequency_hz[index].ln()))
+            .exp()
         }),
-        t60_seconds: std::array::from_fn(|i| {
-            left.t60_seconds[i] + amount * (right.t60_seconds[i] - left.t60_seconds[i])
+        t60_seconds: std::array::from_fn(|index| {
+            left.t60_seconds[index]
+                + amount * (right.t60_seconds[index] - left.t60_seconds[index])
         }),
     }
 }
 
-fn validate<const N: usize>(configuration: ModalMetricConfiguration<N>, sample_rate: f64) -> Result<(), &'static str> {
-    for i in 0..N {
-        let frequency = configuration.frequency_hz[i];
-        let t60 = configuration.t60_seconds[i];
+fn validate<const N: usize>(
+    configuration: ModalMetricConfiguration<N>,
+    sample_rate: f64,
+) -> Result<(), &'static str> {
+    for index in 0..N {
+        let frequency = configuration.frequency_hz[index];
+        let t60 = configuration.t60_seconds[index];
         if !frequency.is_finite() || frequency <= 0.0 || frequency >= 0.48 * sample_rate {
             return Err("invalid modal metric frequency");
         }
-        if !t60.is_finite() || t60 <= 0.0 { return Err("invalid modal metric loss time"); }
+        if !t60.is_finite() || t60 <= 0.0 {
+            return Err("invalid modal metric loss time");
+        }
     }
     Ok(())
 }
 
+fn normalized_direction<const N: usize>(direction: &[f64; N]) -> Result<[f64; N], &'static str> {
+    if direction.iter().any(|value| !value.is_finite()) {
+        return Err("aperture direction must be finite");
+    }
+    let norm = direction.iter().map(|value| value * value).sum::<f64>().sqrt();
+    if !norm.is_finite() || norm <= 1.0e-12 {
+        return Err("aperture direction must be nondegenerate");
+    }
+    Ok(direction.map(|value| value / norm))
+}
+
+fn dot<const N: usize>(left: &[f64; N], right: &[f64; N]) -> f64 {
+    left.iter()
+        .zip(right)
+        .map(|(left, right)| left * right)
+        .sum()
+}
+
 fn distance<const N: usize>(left: &MetricFieldState<N>, right: &MetricFieldState<N>) -> f64 {
-    (0..N).map(|i| {
-        (left.displacement[i] - right.displacement[i]).powi(2)
-            + (left.momentum[i] - right.momentum[i]).powi(2)
-    }).sum::<f64>().sqrt()
+    (0..N)
+        .map(|index| {
+            (left.displacement[index] - right.displacement[index]).powi(2)
+                + (left.momentum[index] - right.momentum[index]).powi(2)
+        })
+        .sum::<f64>()
+        .sqrt()
 }
 
 #[cfg(test)]
@@ -254,7 +388,14 @@ mod tests {
     #[test]
     fn guitar_really_contains_six_simultaneous_courses() {
         let metric = six_course_guitar_metric();
-        let fundamentals = [82.406_889_228, 110.0, 146.832_383_959, 195.997_717_991, 246.941_650_628, 329.627_556_913];
+        let fundamentals = [
+            82.406_889_228,
+            110.0,
+            146.832_383_959,
+            195.997_717_991,
+            246.941_650_628,
+            329.627_556_913,
+        ];
         for course in 0..6 {
             let measured = metric.frequency_hz[4 * course];
             assert!((measured / fundamentals[course] - 1.0).abs() < 2.0e-5);
@@ -263,7 +404,8 @@ mod tests {
 
     #[test]
     fn guitar_and_trombone_are_metrics_on_exactly_the_same_state() {
-        let mut body = ModalMetricWaveField::try_new(96_000.0, six_course_guitar_metric()).unwrap();
+        let mut body =
+            ModalMetricWaveField::try_new(96_000.0, six_course_guitar_metric()).unwrap();
         let mut state = MetricFieldState::default();
         state.displacement[0] = 0.01;
         state.displacement[7] = -0.004;
@@ -278,9 +420,25 @@ mod tests {
     #[test]
     fn interpolation_never_leaves_positive_metric_cone() {
         for step in 0..=100 {
-            let metric = interpolate_metric(six_course_guitar_metric(), trombone_bore_metric(), step as f64 / 100.0);
+            let metric = interpolate_metric(
+                six_course_guitar_metric(),
+                trombone_bore_metric(),
+                step as f64 / 100.0,
+            );
             assert!(metric.frequency_hz.iter().all(|frequency| *frequency > 0.0));
             assert!(metric.t60_seconds.iter().all(|t60| *t60 > 0.0));
         }
+    }
+
+    #[test]
+    fn finite_aperture_radiation_closes() {
+        let mut body =
+            ModalMetricWaveField::try_new(96_000.0, six_course_guitar_metric()).unwrap();
+        let mut state = MetricFieldState::default();
+        state.momentum = std::array::from_fn(|index| 0.1 * (index as f64 * 0.31).cos());
+        body.restore_state(state).unwrap();
+        let frame = body.radiate(&[1.0; COURSE_BORE_MODES], 0.2).unwrap();
+        assert!(frame.radiation > 0.0);
+        assert!(frame.residual.abs() < 3.0e-18);
     }
 }
