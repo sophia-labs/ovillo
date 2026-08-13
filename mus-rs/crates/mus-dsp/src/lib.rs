@@ -10,6 +10,10 @@
 //! Their oracles are stored-state evolution, work/loss/radiation closure,
 //! ordered-transport identities, exact zero limits, and host invariance.
 
+/// Thresholded, reservoir-paid active matter discovered by the first
+/// electric-region fidelity campaign.
+#[cfg(feature = "ariadne-live")]
+pub mod ariadne_active_inclusion;
 /// Pure powered metric material and reciprocal spatial halo for live input.
 #[cfg(feature = "ariadne-live")]
 pub mod ariadne_terminal;
