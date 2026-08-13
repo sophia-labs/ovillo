@@ -14,6 +14,10 @@
 /// electric-region fidelity campaign.
 #[cfg(feature = "ariadne-live")]
 pub mod ariadne_active_inclusion;
+/// State-dependent, metric-compatible exchange between authored
+/// near-internal-resonance material modes.
+#[cfg(feature = "ariadne-live")]
+pub mod ariadne_resonant_transport;
 /// Pure powered metric material and reciprocal spatial halo for live input.
 #[cfg(feature = "ariadne-live")]
 pub mod ariadne_terminal;
