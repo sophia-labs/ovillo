@@ -21,6 +21,9 @@
 //! declared kinetic metric; every negative increment is reported as internal
 //! loss. A zero momentum state remains an exact fixed point.
 
+#![allow(clippy::needless_range_loop)]
+
+#[cfg(test)]
 use std::array;
 
 pub const ACTIVE_RANKS: usize = 3;
