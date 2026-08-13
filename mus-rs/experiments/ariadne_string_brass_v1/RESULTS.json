@@ -1,0 +1,127 @@
+{
+  "behavior": {
+    "continuous_morph": {
+      "late_fundamental_fraction": 0.18508613569012553,
+      "late_peak_frequency_hz": 118.8888888888889,
+      "peak": 0.15776816122322035,
+      "post_morph_rms": 0.0490779455170532,
+      "pre_morph_rms": 0.027791917553543617,
+      "rms": 0.038260765121713884
+    },
+    "guitar": {
+      "first_attack_rms": 0.040530801081173705,
+      "first_note_decay_ratio": 0.43715254297533285,
+      "first_note_dominant_frequency_hz": 232.5,
+      "first_note_spectral_centroid_hz": 201.71235169644683,
+      "first_tail_rms": 0.017718142761462892,
+      "peak": 0.11536330293980059,
+      "rms": 0.02383361929137893
+    },
+    "trombone": {
+      "attack_ratio": 1.4882585369114163,
+      "crest": 2.5848896779974617,
+      "full_rms": 0.046017293978126345,
+      "fundamental_fraction": 0.2804264701142408,
+      "harmonic_richness": 0.7195735298857592,
+      "peak": 0.14438140288040743,
+      "peak_freq": 119.33333333333333,
+      "rms": 0.04631611689675687,
+      "steady_to_attack_rms": 1.2715646705404435
+    }
+  },
+  "campaign": "ariadne_string_brass_v1",
+  "claim_boundary": {
+    "field_reset_in_continuous_morph": false,
+    "listener_validated": false,
+    "named_instrument_fidelity": false,
+    "renderer_switch": false,
+    "rust_execution_certified": false,
+    "same_fixed_rank_body": true,
+    "state_dimension": 24
+  },
+  "date": "2026-08-13",
+  "law_oracle": {
+    "exact_zero": true,
+    "maximum_active_work_residual": 2.168404344971009e-19,
+    "maximum_aperture_energy_absolute_residual": 5.329070518200751e-15,
+    "maximum_aperture_energy_relative_residual": 4.8006631716615585e-12,
+    "maximum_configuration_work_absolute_residual": 8.731149137020111e-11,
+    "maximum_configuration_work_relative_residual": 3.2025878401160686e-16,
+    "maximum_inverse_length_error": 8.881784197001252e-16,
+    "maximum_modal_propagation_absolute_residual": 4.3655745685100555e-11,
+    "maximum_modal_propagation_relative_residual": 1.0553058791799632e-15,
+    "maximum_radiation_residual": 1.8295911660692887e-19,
+    "maximum_source_boundary_residual": 7.792703114739563e-20,
+    "maximum_sweep_metric_residual": 5.421010862427522e-20,
+    "seed": 10951379,
+    "trials": 20000
+  },
+  "open_gates": [
+    "Rust compile, fmt, Clippy, and workspace replay",
+    "fixed-clock host conversion and aliasing",
+    "robust slide/embouchure co-control across multiple resonances",
+    "external guitar and trombone corpus holdouts",
+    "blinded listener and player evidence",
+    "integration behind an experimental anatomy rather than default terminal"
+  ],
+  "receipts": {
+    "continuous_morph": {
+      "configuration_work": -6.20289520132159e-08,
+      "declared_loss": 0.011018930627551037,
+      "maximum_state": 0.4865121596287623,
+      "source_work": 0.011109190227354337
+    },
+    "guitar": {
+      "configuration_work": 1.6447048692355167e-09,
+      "declared_loss": 1.8626885368504488e-06,
+      "maximum_state": 0.24190649569738884,
+      "source_work": 1.8630812791642578e-06
+    },
+    "trombone": {
+      "configuration_work": 0.0,
+      "declared_loss": 0.014122820544889845,
+      "maximum_state": 0.46798411183738384,
+      "source_work": 0.01412344850714454
+    }
+  },
+  "reference_configuration": {
+    "guitar": {
+      "active_boundary_rate_per_second": 0.0,
+      "aperture_natural_frequency_hz": 540.0,
+      "dispersion": 1.8e-05,
+      "length_ratio": "fretting trajectory 1.0 to 2^(-7/12)",
+      "sustained_source": 0.0
+    },
+    "internal_sample_rate_hz": 96000,
+    "reference_frequency_hz": 116.5,
+    "trombone": {
+      "active_boundary_rate_per_second": 38.0,
+      "aperture_natural_frequency_hz": 110.0,
+      "boundary_phase": -0.012,
+      "dispersion": 1.9e-05,
+      "length_ratio": 1.015,
+      "source_to_aperture_rate_hz": 12000.0,
+      "source_to_field_rate_hz": 2400.0,
+      "sustained_source_wave": 0.264,
+      "sweep_rate_hz": 3500.0
+    }
+  },
+  "reference_performance": {
+    "192000": {
+      "ns_per_sample": 761.4441302076594,
+      "real_time_factor": 6.840072865113462,
+      "seconds": 0.14619727299987062
+    },
+    "48000": {
+      "ns_per_sample": 744.9553958357076,
+      "real_time_factor": 27.965880171875302,
+      "seconds": 0.03575785900011397
+    },
+    "96000": {
+      "ns_per_sample": 760.6924895829555,
+      "real_time_factor": 13.693663088980323,
+      "seconds": 0.07302647899996373
+    }
+  },
+  "schema_version": "1.0.0"
+}
