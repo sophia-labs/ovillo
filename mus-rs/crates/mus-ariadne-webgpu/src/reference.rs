@@ -1,4 +1,4 @@
-use crate::types::{Impulse2D, WaveSheetParams};
+use crate::types::{ObserverImpulse2D, WaveSheetParams};
 
 /// CPU reference grid for conformance and refinement tests.
 #[derive(Debug, Clone, PartialEq)]
@@ -52,17 +52,21 @@ impl ReferenceField2D {
     }
 }
 
-/// Local-support CPU analogue of `ImpulseRaster2D`.
+/// Local-support CPU analogue of `ObserverImpulseRaster2D`.
 #[must_use]
-pub fn raster_impulses_reference(
+pub fn raster_observer_impulses_reference(
     width: usize,
     height: usize,
-    impulses: &[Impulse2D],
+    impulses: &[ObserverImpulse2D],
 ) -> ReferenceField2D {
     let width = width.max(1);
     let height = height.max(1);
     let mut output = ReferenceField2D::zero(width, height);
-    for impulse in impulses.iter().copied().map(Impulse2D::sanitized) {
+    for impulse in impulses
+        .iter()
+        .copied()
+        .map(ObserverImpulse2D::sanitized)
+    {
         let center_x = impulse.position_radius.x * width as f32;
         let center_y = impulse.position_radius.y * height as f32;
         let radius_x = impulse.position_radius.z * width as f32;
@@ -124,24 +128,24 @@ pub fn step_wave_reference(
                 + source[0] * parameters.constitutive.w)
                 * parameters.integration.y;
             let height = center[0] + velocity * dt;
-            let foam = center[2] * (-parameters.constitutive.x * dt).exp()
+            let structure = center[2] * (-parameters.constitutive.x * dt).exp()
                 + parameters.constitutive.y * velocity.abs()
                 + source[1];
-            let optical = center[3] * (-parameters.constitutive.z * dt).exp() + source[2];
+            let emission = center[3] * (-parameters.constitutive.z * dt).exp() + source[2];
             let output_index = next.index(x, y);
             next.cells[output_index] = [
                 height.clamp(-parameters.limits.x, parameters.limits.x),
                 velocity.clamp(-parameters.limits.y, parameters.limits.y),
-                foam.clamp(0.0, parameters.limits.z),
-                optical.clamp(0.0, parameters.limits.w),
+                structure.clamp(0.0, parameters.limits.z),
+                emission.clamp(0.0, parameters.limits.w),
             ];
         }
     }
     next
 }
 
-/// Simple nonnegative storage proxy for numerical regression tests. This is not
-/// promoted as Ariadne's physical energy ledger.
+/// Simple nonnegative storage proxy for visual regression tests. It is not an
+/// Ariadne physical energy ledger.
 #[must_use]
 pub fn storage_proxy(field: &ReferenceField2D) -> f64 {
     field
@@ -162,14 +166,14 @@ mod tests {
 
     #[test]
     fn zero_impulses_produce_an_exactly_zero_target() {
-        let field = raster_impulses_reference(32, 32, &[]);
+        let field = raster_observer_impulses_reference(32, 32, &[]);
         assert!(field.cells().iter().all(|cell| *cell == [0.0; 4]));
     }
 
     #[test]
     fn compact_impulse_has_local_support() {
-        let impulse = Impulse2D::new([0.5, 0.5], 0.1, 1.0, 0.5);
-        let field = raster_impulses_reference(64, 64, &[impulse]);
+        let impulse = ObserverImpulse2D::new([0.5, 0.5], 0.1, 1.0, 0.5);
+        let field = raster_observer_impulses_reference(64, 64, &[impulse]);
         assert!(field.get(32, 32)[0] > 0.0);
         assert_eq!(field.get(0, 0), [0.0; 4]);
         assert_eq!(field.get(63, 63), [0.0; 4]);
@@ -189,10 +193,10 @@ mod tests {
 
     #[test]
     fn reset_is_exact() {
-        let impulse = raster_impulses_reference(
+        let impulse = raster_observer_impulses_reference(
             16,
             16,
-            &[Impulse2D::new([0.5, 0.5], 0.2, 1.0, 0.0)],
+            &[ObserverImpulse2D::new([0.5, 0.5], 0.2, 1.0, 0.0)],
         );
         let next = step_wave_reference(
             &impulse,
