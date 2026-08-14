@@ -9,6 +9,7 @@ use super::WORLD_PLAN_SCHEMA_VERSION;
 
 /// Reusable local anatomy. It owns no shared field, observer, placement, or ledger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BodySpec {
     pub anatomy_name: String,
     pub configuration_path: ConfigurationPath,
@@ -20,7 +21,7 @@ pub struct BodySpec {
 
 impl BodySpec {
     #[must_use]
-    pub fn from_world_spec(spec: &WorldSpec) -> Self {
+    pub(crate) fn from_template(spec: &WorldSpec) -> Self {
         Self {
             anatomy_name: spec.anatomy_name.clone(),
             configuration_path: spec.configuration_path.clone(),
@@ -34,6 +35,7 @@ impl BodySpec {
 
 /// World-space placement metadata. Coupling remains explicit in ports and edges.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BodyPose {
     pub position: [f64; 3],
     /// Unit quaternion in `[x, y, z, w]` order.
@@ -51,6 +53,7 @@ impl Default for BodyPose {
 
 /// Shared delayed-field anatomy, independent of any particular body aperture.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SharedSpaceSpec {
     pub delays_seconds: [f64; SPACE_COURSES],
     pub scattering_direction: [f64; SPACE_COURSES],
@@ -60,7 +63,7 @@ pub struct SharedSpaceSpec {
 
 impl SharedSpaceSpec {
     #[must_use]
-    pub fn from_space_spec(spec: SpaceSpec) -> Self {
+    pub(crate) fn from_space_spec(spec: SpaceSpec) -> Self {
         Self {
             delays_seconds: spec.delays_seconds,
             scattering_direction: spec.scattering_direction,
@@ -72,6 +75,7 @@ impl SharedSpaceSpec {
 
 /// One body's finite-rank reciprocal aperture into the shared delayed field.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SpacePortSpec {
     pub body_directions: [[f64; MODE_COUNT]; SPACE_COURSES],
     pub coupling_weights: [f64; SPACE_COURSES],
@@ -79,7 +83,7 @@ pub struct SpacePortSpec {
 
 impl SpacePortSpec {
     #[must_use]
-    pub fn from_space_spec(spec: SpaceSpec) -> Self {
+    pub(crate) fn from_space_spec(spec: SpaceSpec) -> Self {
         Self {
             body_directions: spec.body_directions,
             coupling_weights: spec.coupling_weights,
@@ -88,6 +92,7 @@ impl SpacePortSpec {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BodyInstanceSpec {
     pub id: String,
     pub body: BodySpec,
@@ -98,6 +103,7 @@ pub struct BodyInstanceSpec {
 
 /// Storage-free reciprocal exchange between two body apertures.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DirectCouplingSpec {
     pub id: String,
     pub left_body: String,
@@ -108,27 +114,13 @@ pub struct DirectCouplingSpec {
     pub weight: f64,
 }
 
+/// Content-addressed physical construction plan.
+///
+/// Observation, presentation, and GPU constitution are deliberately absent.
+/// A visual or listening program binds to this plan by digest without changing
+/// the identity of the physical world.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ObserverBodyTap {
-    pub body_id: String,
-    pub left_projection: f64,
-    pub right_projection: f64,
-}
-
-/// Non-loading readout of already-radiated body and shared-space coordinates.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ObserverSpec {
-    pub id: String,
-    #[serde(default)]
-    pub body_taps: Vec<ObserverBodyTap>,
-    #[serde(default)]
-    pub space_left_projection: f64,
-    #[serde(default)]
-    pub space_right_projection: f64,
-    pub output_scale: f64,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WorldPlan {
     pub schema_version: String,
     pub world_name: String,
@@ -137,8 +129,6 @@ pub struct WorldPlan {
     pub shared_space: SharedSpaceSpec,
     #[serde(default)]
     pub direct_couplings: Vec<DirectCouplingSpec>,
-    pub observers: Vec<ObserverSpec>,
-    pub primary_observer: String,
 }
 
 impl WorldPlan {
@@ -147,8 +137,6 @@ impl WorldPlan {
         internal_sample_rate_hz: f64,
         bodies: Vec<BodyInstanceSpec>,
         shared_space: SharedSpaceSpec,
-        observers: Vec<ObserverSpec>,
-        primary_observer: String,
     ) -> Self {
         Self {
             schema_version: WORLD_PLAN_SCHEMA_VERSION.to_owned(),
@@ -157,8 +145,6 @@ impl WorldPlan {
             bodies,
             shared_space,
             direct_couplings: Vec::new(),
-            observers,
-            primary_observer,
         }
     }
 }
