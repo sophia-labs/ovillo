@@ -1,51 +1,34 @@
-//! Canonical multi-body Ariadne composition runtime.
+//! Canonical multi-body Ariadne physical runtime.
 
 mod build;
 mod process;
 mod types;
 
-pub use types::{
-    ObserverOutput, SharedFrameOutput, SharedWorldControls, SharedWorldError,
-    SharedWorldReceipt,
-};
+pub use types::{WorldControls, WorldError, WorldFrame, WorldReceipt};
 
 use std::collections::BTreeMap;
 
 use mus_watsn::WorkLedger;
 
 use crate::body::Body;
-use crate::coupling::CouplingNetwork;
+use crate::coupling::{CouplingFrame, CouplingNetwork};
 use crate::plan::WorldPlan;
-use crate::shared_space::SharedSpace;
+use crate::shared_space::{SharedSpace, SharedSpaceFrame};
 
-#[derive(Debug, Clone)]
-pub(super) struct BoundObserverTap {
-    pub(super) body: usize,
-    pub(super) left: f64,
-    pub(super) right: f64,
-}
-
-#[derive(Debug, Clone)]
-pub(super) struct BoundObserver {
-    pub(super) id: String,
-    pub(super) body_taps: Vec<BoundObserverTap>,
-    pub(super) space_left: f64,
-    pub(super) space_right: f64,
-    pub(super) scale: f64,
-}
-
-/// Several persistent bodies, one shared field, one coupling graph, and one ledger.
-pub struct SharedWorld {
+/// Several persistent bodies, one shared field, one coupling graph, and one
+/// global physical ledger. Observation and presentation are separate programs.
+pub struct World {
     pub(super) plan: WorldPlan,
     pub(super) plan_digest: String,
     pub(super) body_indices: BTreeMap<String, usize>,
     pub(super) bodies: Vec<Body>,
     pub(super) space: SharedSpace,
     pub(super) couplings: CouplingNetwork,
-    pub(super) observers: Vec<BoundObserver>,
-    pub(super) primary_observer: usize,
     pub(super) body_emissions: Vec<f64>,
-    pub(super) observer_outputs: Vec<ObserverOutput>,
+    pub(super) body_source_work: Vec<f64>,
+    pub(super) body_internal_loss: Vec<f64>,
+    pub(super) last_space_frame: SharedSpaceFrame,
+    pub(super) last_coupling_frame: CouplingFrame,
     pub(super) ledger: WorkLedger,
     pub(super) sample_frames: u64,
     pub(super) pending_control_work: f64,
