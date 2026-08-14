@@ -1,0 +1,16 @@
+[package]
+name = "ariadne-world-export"
+version = "0.1.0"
+description = "Export one Ariadne World run as sound, typed observations, and optical constitution"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+hound = "3.5"
+mus-ariadne = { path = "../../crates/mus-ariadne" }
+mus-ariadne-webgpu-bridge = { path = "../../crates/mus-ariadne-webgpu-bridge" }
+mus-observation = { path = "../../crates/mus-observation" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
