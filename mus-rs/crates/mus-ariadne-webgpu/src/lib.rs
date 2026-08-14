@@ -7,6 +7,7 @@
 //! optical-constitution plan.
 
 pub mod capability;
+pub mod clock;
 pub mod law;
 pub mod primitive;
 pub mod reference;
@@ -16,6 +17,7 @@ pub mod telemetry;
 pub mod types;
 
 pub use capability::CapabilityProfile;
+pub use clock::{OpticalClock, OpticalClockError};
 pub use law::{Cadence, Domain, LawClass, PrimitiveDescriptor, SpatialSupport, ZeroLaw};
 pub use primitive::{
     GpuPrimitive, ImpulseRasterConfig, ObserverImpulseRaster2D, PrimitiveError,
