@@ -16,4 +16,10 @@ fn main() {
             .expect("valid wave-sheet WESL module path"),
         "ariadne_wave_sheet",
     );
+    compiler.build_artifact(
+        &"package::world_present"
+            .parse()
+            .expect("valid World-present WESL module path"),
+        "ariadne_world_present",
+    );
 }

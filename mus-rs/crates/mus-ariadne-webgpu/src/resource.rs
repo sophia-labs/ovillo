@@ -65,6 +65,11 @@ impl PingPongTexture2D {
     }
 
     #[must_use]
+    pub fn view(&self, index: usize) -> Option<&wgpu::TextureView> {
+        self.views.get(index)
+    }
+
+    #[must_use]
     pub const fn read_index(&self) -> usize {
         self.read_index
     }
@@ -72,6 +77,11 @@ impl PingPongTexture2D {
     #[must_use]
     pub fn read_texture(&self) -> &wgpu::Texture {
         &self.textures[self.read_index]
+    }
+
+    #[must_use]
+    pub fn texture(&self, index: usize) -> Option<&wgpu::Texture> {
+        self.textures.get(index)
     }
 
     pub fn swap(&mut self) {

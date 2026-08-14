@@ -44,6 +44,7 @@ pub struct OpticalPacketCompiler {
     physical_world_digest: String,
     observation_schema_digest: String,
     optical_constitution_digest: String,
+    channel_count: usize,
     bodies: Vec<BoundBody>,
     field: BoundField,
     couplings: Vec<BoundCoupling>,
@@ -90,6 +91,7 @@ impl OpticalPacketCompiler {
             physical_world_digest: plan.physical_world_digest.clone(),
             observation_schema_digest: plan.observation_schema_digest.clone(),
             optical_constitution_digest: plan.digest()?,
+            channel_count: schema.channels.len(),
             bodies,
             field,
             couplings,
@@ -112,17 +114,37 @@ impl OpticalPacketCompiler {
     }
 
     #[must_use]
+    pub const fn channel_count(&self) -> usize {
+        self.channel_count
+    }
+
+    #[must_use]
     pub fn packet_count(&self) -> usize {
         self.bodies.len() + self.couplings.len() + 1
     }
 
     /// Compile one typed observation frame into preallocated GPU packets.
-    /// No allocation or name lookup occurs.
     pub fn compile_into(
         &self,
         frame: &ObservationFrame,
         output: &mut [ObserverImpulse2D],
     ) -> Result<usize, OpticalCompileError> {
+        self.compile_values_into(&frame.values, output)
+    }
+
+    /// Compile caller-owned observation storage into caller-owned GPU packets.
+    /// No allocation or name lookup occurs.
+    pub fn compile_values_into(
+        &self,
+        values: &[ObservationValue],
+        output: &mut [ObserverImpulse2D],
+    ) -> Result<usize, OpticalCompileError> {
+        if values.len() != self.channel_count {
+            return Err(OpticalCompileError::FrameWidth {
+                expected: self.channel_count,
+                actual: values.len(),
+            });
+        }
         let required = self.packet_count();
         if output.len() < required {
             return Err(OpticalCompileError::OutputCapacity {
@@ -131,10 +153,10 @@ impl OpticalPacketCompiler {
             });
         }
         for (index, body) in self.bodies.iter().enumerate() {
-            let material = positive(frame, body.material_energy)?;
-            let reservoir = positive(frame, body.reservoir_energy)?;
-            let emission = signed(frame, body.emission)?;
-            let source_work = signed(frame, body.source_work)?;
+            let material = positive(values, body.material_energy)?;
+            let reservoir = positive(values, body.reservoir_energy)?;
+            let emission = signed(values, body.emission)?;
+            let source_work = signed(values, body.source_work)?;
             output[index] = ObserverImpulse2D::new(
                 body.position,
                 body.radius * (1.0 + 0.20 * soft_positive(material, 2_000.0)),
@@ -147,10 +169,10 @@ impl OpticalPacketCompiler {
             tint_packet(&mut output[index], body.color);
         }
         let field_index = self.bodies.len();
-        let field_energy = positive(frame, self.field.stored_energy)?;
-        let left = signed(frame, self.field.emitted_left)?;
-        let right = signed(frame, self.field.emitted_right)?;
-        let exchange = signed(frame, self.field.exchange)?;
+        let field_energy = positive(values, self.field.stored_energy)?;
+        let left = signed(values, self.field.emitted_left)?;
+        let right = signed(values, self.field.emitted_right)?;
+        let exchange = signed(values, self.field.exchange)?;
         output[field_index] = ObserverImpulse2D::new(
             self.field.position,
             self.field.radius * (1.0 + 0.25 * soft_positive(field_energy, 4_000.0)),
@@ -163,7 +185,7 @@ impl OpticalPacketCompiler {
 
         let coupling_offset = field_index + 1;
         for (offset, coupling) in self.couplings.iter().enumerate() {
-            let exchange = signed(frame, coupling.exchange)?;
+            let exchange = signed(values, coupling.exchange)?;
             output[coupling_offset + offset] = ObserverImpulse2D::new(
                 coupling.position,
                 coupling.radius,
@@ -246,12 +268,14 @@ fn channel(
         .ok_or_else(|| OpticalCompileError::UnknownChannel(id.to_owned()))
 }
 
-fn value(frame: &ObservationFrame, index: usize) -> Result<f64, OpticalCompileError> {
-    let value = frame
-        .values
+fn value(values: &[ObservationValue], index: usize) -> Result<f64, OpticalCompileError> {
+    let value = values
         .get(index)
         .copied()
-        .ok_or(OpticalCompileError::FrameWidth)?
+        .ok_or(OpticalCompileError::FrameWidth {
+            expected: index.saturating_add(1),
+            actual: values.len(),
+        })?
         .as_f64();
     if value.is_finite() {
         Ok(value)
@@ -260,12 +284,12 @@ fn value(frame: &ObservationFrame, index: usize) -> Result<f64, OpticalCompileEr
     }
 }
 
-fn positive(frame: &ObservationFrame, index: usize) -> Result<f64, OpticalCompileError> {
-    Ok(value(frame, index)?.max(0.0))
+fn positive(values: &[ObservationValue], index: usize) -> Result<f64, OpticalCompileError> {
+    Ok(value(values, index)?.max(0.0))
 }
 
-fn signed(frame: &ObservationFrame, index: usize) -> Result<f64, OpticalCompileError> {
-    value(frame, index)
+fn signed(values: &[ObservationValue], index: usize) -> Result<f64, OpticalCompileError> {
+    value(values, index)
 }
 
 fn soft_positive(value: f64, scale: f64) -> f32 {
@@ -277,9 +301,6 @@ fn signed_soft(value: f64, scale: f64) -> f32 {
 }
 
 fn tint_packet(packet: &mut ObserverImpulse2D, color: [f32; 3]) {
-    // The packet remains interpretation-neutral at the GPU primitive layer. The
-    // bridge uses channel magnitudes to carry a compact color-weighted optical
-    // signature in its nonphysical auxiliary channels.
     packet.channels.x *= color[0].max(0.05);
     packet.channels.y *= color[1].max(0.05);
     packet.channels.z *= color[2].max(0.05);
@@ -295,8 +316,8 @@ pub enum OpticalCompileError {
     UnknownCoupling(String),
     #[error("optical compiler references unknown observation channel {0:?}")]
     UnknownChannel(String),
-    #[error("observation frame does not match the bound schema width")]
-    FrameWidth,
+    #[error("observation frame width is {actual}; expected {expected}")]
+    FrameWidth { expected: usize, actual: usize },
     #[error("observation frame contains a non-finite value")]
     NonFiniteFrame,
     #[error("optical packet output capacity is {actual}; at least {required} is required")]
@@ -317,25 +338,41 @@ mod tests {
         let schema = observation.schema().unwrap();
         let optical = OpticalConstitutionPlan::canonical(&world, &observation).unwrap();
         let compiler = OpticalPacketCompiler::compile(&optical, &world, &schema).unwrap();
-        let frame = ObservationFrame::new(
-            400,
-            schema
-                .channels
-                .iter()
-                .map(|channel| match channel.scalar_type {
-                    mus_observation::ScalarType::F32 => ObservationValue::F32(0.0),
-                    mus_observation::ScalarType::F64 => ObservationValue::F64(0.0),
-                    mus_observation::ScalarType::U64 => ObservationValue::U64(400),
-                })
-                .collect(),
-        );
+        let values = schema
+            .channels
+            .iter()
+            .map(|channel| match channel.scalar_type {
+                mus_observation::ScalarType::F32 => ObservationValue::F32(0.0),
+                mus_observation::ScalarType::F64 => ObservationValue::F64(0.0),
+                mus_observation::ScalarType::U64 => ObservationValue::U64(400),
+            })
+            .collect::<Vec<_>>();
+        let frame = ObservationFrame::new(400, values.clone());
         let mut packets = vec![ObserverImpulse2D::zeroed(); compiler.packet_count()];
         assert_eq!(
             compiler.compile_into(&frame, &mut packets).unwrap(),
             compiler.packet_count()
         );
+        assert_eq!(
+            compiler.compile_values_into(&values, &mut packets).unwrap(),
+            compiler.packet_count()
+        );
         assert!(packets.iter().all(|packet| {
             packet.position_radius.is_finite() && packet.channels.is_finite()
         }));
+    }
+
+    #[test]
+    fn mismatched_frame_width_refuses_before_packet_mutation() {
+        let world = WorldPlan::string_brass_v1(48_000.0);
+        let observation = canonical_optical_observation_program(&world, 400).unwrap();
+        let schema = observation.schema().unwrap();
+        let optical = OpticalConstitutionPlan::canonical(&world, &observation).unwrap();
+        let compiler = OpticalPacketCompiler::compile(&optical, &world, &schema).unwrap();
+        let mut packets = vec![ObserverImpulse2D::zeroed(); compiler.packet_count()];
+        assert!(matches!(
+            compiler.compile_values_into(&[], &mut packets),
+            Err(OpticalCompileError::FrameWidth { .. })
+        ));
     }
 }

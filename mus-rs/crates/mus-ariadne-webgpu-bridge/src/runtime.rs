@@ -3,7 +3,7 @@ use mus_ariadne_webgpu::{
     ObserverImpulse2D, OpticalClock, OpticalClockError, SurfaceStepReceipt,
     WaveSheetParams, WaveSurface2D, WaveSurfaceConfig,
 };
-use mus_observation::{ObservationFrame, ObservationSchema};
+use mus_observation::{ObservationFrame, ObservationSchema, ObservationValue};
 
 use crate::compiler::{OpticalCompileError, OpticalPacketCompiler};
 use crate::plan::{OpticalConstitutionPlan, OpticalPlanError};
@@ -89,51 +89,112 @@ impl WorldOpticalSurface {
     }
 
     #[must_use]
+    pub fn state_view_at(&self, index: usize) -> Option<&wgpu::TextureView> {
+        self.surface.state_view_at(index)
+    }
+
+    #[must_use]
+    pub const fn state_read_index(&self) -> usize {
+        self.surface.state_read_index()
+    }
+
+    #[must_use]
     pub fn state_texture(&self) -> &wgpu::Texture {
         self.surface.state_texture()
     }
 
-    /// Return how many fixed optical steps are due at an absolute material
-    /// tick. The caller must then supply exactly that many schema-valid
-    /// observations at the corresponding step ticks; stale observations are
-    /// never duplicated implicitly.
-    pub fn steps_due(&mut self, material_tick: u64) -> Result<u32, OpticalRuntimeError> {
-        Ok(self.clock.advance_to_tick(material_tick)?)
+    #[must_use]
+    pub const fn completed_steps(&self) -> u64 {
+        self.clock.completed_steps()
     }
 
     #[must_use]
-    pub fn material_tick_for_step(&self, step: u64) -> u64 {
-        self.clock.material_tick_for_step(step)
+    pub const fn pending_steps(&self) -> u64 {
+        self.clock.pending_steps()
     }
 
-    /// Encode exactly one fixed optical step from one typed observation.
+    #[must_use]
+    pub const fn is_caught_up(&self) -> bool {
+        self.clock.is_caught_up()
+    }
+
+    #[must_use]
+    pub const fn reset_pending(&self) -> bool {
+        self.reset_pending
+    }
+
+    /// Encode a pending observer reset even when no constitutive step is due.
+    /// Returns whether a reset pass was written.
+    pub fn encode_pending_reset(&mut self, encoder: &mut wgpu::CommandEncoder) -> bool {
+        if !std::mem::take(&mut self.reset_pending) {
+            return false;
+        }
+        self.surface.encode_reset(encoder);
+        true
+    }
+
+    #[must_use]
+    pub fn next_step_tick(&self) -> Option<u64> {
+        self.clock.next_step_tick()
+    }
+
+    /// Schedule bounded fixed-rate observer work toward an absolute material
+    /// tick. Repeating a target is how historical replay progresses in batches.
+    pub fn schedule_to_tick(&mut self, material_tick: u64) -> Result<u32, OpticalRuntimeError> {
+        Ok(self.clock.schedule_to_tick(material_tick)?)
+    }
+
+    /// Encode exactly one fixed optical step from one typed observation frame.
     pub fn encode_step(
         &mut self,
         queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
         frame: &ObservationFrame,
     ) -> Result<OpticalAdvanceReceipt, OpticalRuntimeError> {
+        self.encode_values_step(queue, encoder, frame.tick, &frame.values)
+    }
+
+    /// Encode exactly one fixed optical step from caller-owned observation
+    /// storage. No allocation occurs on this path.
+    pub fn encode_values_step(
+        &mut self,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        material_tick: u64,
+        values: &[ObservationValue],
+    ) -> Result<OpticalAdvanceReceipt, OpticalRuntimeError> {
+        let expected = self
+            .clock
+            .next_step_tick()
+            .ok_or(OpticalRuntimeError::NoScheduledStep)?;
+        if material_tick != expected {
+            return Err(OpticalRuntimeError::UnexpectedObservationTick {
+                expected,
+                actual: material_tick,
+            });
+        }
         if self
             .last_encoded_tick
-            .is_some_and(|previous| frame.tick <= previous)
+            .is_some_and(|previous| material_tick <= previous)
         {
             return Err(OpticalRuntimeError::NonMonotoneObservation {
                 previous: self.last_encoded_tick.unwrap_or_default(),
-                next: frame.tick,
+                next: material_tick,
             });
         }
-        let packet_count = self.compiler.compile_into(frame, &mut self.packets)?;
-        let reset = std::mem::take(&mut self.reset_pending);
+        let packet_count = self.compiler.compile_values_into(values, &mut self.packets)?;
+        let reset = self.encode_pending_reset(encoder);
         let receipt: SurfaceStepReceipt = self.surface.encode(
             queue,
             encoder,
             &self.packets[..packet_count],
-            self.parameters.with_reset(reset),
+            self.parameters,
         )?;
-        self.last_encoded_tick = Some(frame.tick);
+        let optical_step = self.clock.complete_next_step(material_tick)?;
+        self.last_encoded_tick = Some(material_tick);
         Ok(OpticalAdvanceReceipt {
-            material_tick: frame.tick,
-            optical_step: self.clock.completed_steps(),
+            material_tick,
+            optical_step,
             impulse_count: receipt.impulse_count,
             upload_bytes: receipt.upload_bytes,
             dispatch_workgroups: receipt.dispatch_workgroups,
@@ -141,7 +202,7 @@ impl WorldOpticalSurface {
         })
     }
 
-    /// Reset observer and sensor history. The physical World is untouched.
+    /// Reset observer history and scheduling. The physical World is untouched.
     pub fn reset(&mut self) {
         self.clock.reset();
         self.reset_pending = true;
@@ -159,6 +220,10 @@ pub enum OpticalRuntimeError {
     Clock(#[from] OpticalClockError),
     #[error(transparent)]
     Primitive(#[from] mus_ariadne_webgpu::PrimitiveError),
+    #[error("no optical step has been scheduled")]
+    NoScheduledStep,
+    #[error("optical step requires observation tick {expected}, received {actual}")]
+    UnexpectedObservationTick { expected: u64, actual: u64 },
     #[error("optical observation tick is not monotone: {previous} then {next}")]
     NonMonotoneObservation { previous: u64, next: u64 },
 }

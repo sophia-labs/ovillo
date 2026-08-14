@@ -9,6 +9,7 @@
 pub mod capability;
 pub mod clock;
 pub mod law;
+pub mod presentation;
 pub mod primitive;
 pub mod reference;
 pub mod resource;
@@ -20,6 +21,7 @@ mod zero;
 pub use capability::CapabilityProfile;
 pub use clock::{OpticalClock, OpticalClockError};
 pub use law::{Cadence, Domain, LawClass, PrimitiveDescriptor, SpatialSupport, ZeroLaw};
+pub use presentation::{PresentationParams, WorldPresenter};
 pub use primitive::{
     GpuPrimitive, ImpulseRasterConfig, ObserverImpulseRaster2D, PrimitiveError,
     WaveSheet2D, WaveSheetConfig,

@@ -1,0 +1,92 @@
+name: ariadne-world-webgpu
+
+on:
+  push:
+    paths:
+      - "mus-rs/crates/mus-observation/**"
+      - "mus-rs/crates/mus-ariadne/src/observation/**"
+      - "mus-rs/crates/mus-ariadne-webgpu/**"
+      - "mus-rs/crates/mus-ariadne-webgpu-bridge/**"
+      - "mus-rs/crates/mus-ariadne-webgpu-web/**"
+      - "mus-rs/tools/ariadne-world-export/**"
+      - "web/ariadne-world/**"
+      - "mus-rs/Cargo.toml"
+      - "mus-rs/Cargo.lock"
+      - ".github/workflows/ariadne-world-webgpu.yml"
+  pull_request:
+    paths:
+      - "mus-rs/crates/mus-observation/**"
+      - "mus-rs/crates/mus-ariadne/src/observation/**"
+      - "mus-rs/crates/mus-ariadne-webgpu/**"
+      - "mus-rs/crates/mus-ariadne-webgpu-bridge/**"
+      - "mus-rs/crates/mus-ariadne-webgpu-web/**"
+      - "mus-rs/tools/ariadne-world-export/**"
+      - "web/ariadne-world/**"
+      - "mus-rs/Cargo.toml"
+      - "mus-rs/Cargo.lock"
+      - ".github/workflows/ariadne-world-webgpu.yml"
+
+jobs:
+  native-and-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: mus-rs
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: formatting
+        run: cargo fmt --all -- --check
+        working-directory: mus-rs
+
+      - name: independent optical-clock oracle
+        run: python mus-rs/tools/verify_ariadne_optical_clock.py --trials 10000 --json
+
+      - name: observation, optical, and bridge tests
+        run: >-
+          cargo test --release
+          -p mus-observation
+          -p mus-ariadne-webgpu
+          -p mus-ariadne-webgpu-bridge
+          -p mus-ariadne-webgpu-web
+        working-directory: mus-rs
+
+      - name: focused clippy
+        run: >-
+          cargo clippy
+          -p mus-observation
+          -p mus-ariadne
+          -p mus-ariadne-webgpu
+          -p mus-ariadne-webgpu-bridge
+          -p mus-ariadne-webgpu-web
+          -p ariadne-world-export
+          --all-targets --all-features -- -D warnings
+        working-directory: mus-rs
+
+      - name: portable browser build
+        run: >-
+          cargo check
+          -p mus-ariadne-webgpu-web
+          --target wasm32-unknown-unknown
+        working-directory: mus-rs
+
+      - name: canonical exporter build
+        run: cargo check -p ariadne-world-export
+        working-directory: mus-rs
+
+      - name: browser source syntax
+        run: node --check web/ariadne-world/main.js
+
+      - name: shell source syntax
+        run: bash -n web/ariadne-world/build.sh web/ariadne-world/serve.sh
+
+      - name: no audio-analysis or fixed trace path
+        run: |
+          ! grep -R --line-number -E "AnalyserNode|fftSize|getByteFrequencyData|getFloatFrequencyData|ARIAV001|\.ariav" web/ariadne-world mus-rs/crates/mus-ariadne-webgpu-web

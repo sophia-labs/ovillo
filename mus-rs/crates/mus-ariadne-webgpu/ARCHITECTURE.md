@@ -1,107 +1,123 @@
-# Ariadne GPU architecture v0
+# Ariadne WebGPU architecture
 
-## 1. Constitutional unit
+## 1. Causal domains
 
-A primitive is a law over persistent GPU resources, not merely a draw call.
-Every primitive declares:
-
-```text
-Domain          world | observer | sensor | presentation
-Law             neutral transport | work injection | constitutive evolution |
-                dissipation | radiation | non-loading observation | sensor memory
-Cadence         every frame | fixed rate | event-driven | dirty
-Support         dense | event raster | active tiles | sparse bricks | full screen
-Zero law        an exact or tolerance-bounded absence statement
-Receipt         timing, quality, resource, and optionally physical residuals
-```
-
-This keeps the causal boundary inspectable when many optical and material laws
-share one render graph.
-
-## 2. Three execution lanes
-
-### Authoritative
-
-State that affects sound, gameplay, physical receipts, or future world
-evolution. Its integration law cannot change because presentation quality is
-reduced.
-
-### Optical constitution
-
-Derived emission, stress, density, orientation, refraction, and radiation.
-Quality may vary only when the approximation is declared non-loading.
-
-### Sensor and presentation
-
-Phosphor, exposure, bloom, temporal reconstruction, and viewport composition.
-This lane may adapt aggressively to a measured frame budget.
-
-## 3. First graph
+Every primitive declares one domain and one law class.
 
 ```text
-host event ring
-      |
-      v
-ImpulseRaster2D -- one local quad per event
-      |
-      v
-accumulated RGBA16F impulse field
-      |
-      v
-WaveSheet2D -- tiled 16 x 16 stencil with an 18 x 18 shared-memory halo
-      |
-      v
-persistent RGBA16F state
-  R height
-  G velocity
-  B foam/turbulence
-  A optical excitation
+Domain
+  world          authoritative state that can affect physical evolution
+  observer       non-loading state derived from physical observations
+  sensor         camera/display memory
+  presentation   final viewport composition
+
+Law class
+  neutral transport
+  observer excitation
+  constitutive evolution
+  dissipation
+  radiation
+  non-loading observation
+  sensor memory
 ```
 
-The previous Ariadne Sea proof evaluates every event in every cell. The first
-library graph instead evaluates each compact event only over its covered pixels,
-then advances the dense field with one impulse read per output cell.
+The production graph in this crate uses only observer, sensor, and presentation
+state. `mus-ariadne` remains the sole authoritative physical runtime.
 
-## 4. Resource ownership
+## 2. Construction and execution
 
-The library owns persistent textures, bind groups, pipelines, and hot-path GPU
-buffers. Consumers own:
+Construction may compile shaders and allocate textures, buffers, pipelines, and
+bind groups. Normal replay performs no resource creation, name lookup, graph
+search, or synchronous readback.
 
-- adapter/device creation;
-- surfaces and presentation;
-- the absolute Ariadne clock;
-- authoritative world state;
-- event semantics;
-- final graph composition.
+```text
+OpticalConstitutionPlan
+        |
+        v
+OpticalPacketCompiler
+  channel names -> fixed indices
+  body/field/edge IDs -> fixed packet slots
+        |
+        v
+WorldOpticalSurface
+  integer-rational fixed clock
+  preallocated packet storage
+  persistent wave surface
+        |
+        v
+WorldPresenter
+  current ping-pong view -> presentation target
+```
 
-After warm-up, normal operation should allocate no GPU resources and no host
-vectors per frame. V0 exposes upload methods; the next migration adds a
-preallocated event-ring writer for consumers.
+The semantic bridge is a separate crate. The GPU primitive layer never assigns
+instrument-, score-, page-, or game-specific meanings to its channels.
 
-## 5. Shader system
+## 3. Fixed optical time
 
-WESL is the authored shader format. `build.rs` compiles named modules into WGSL
-artifacts; Rust embeds those artifacts with `include_wesl!`. Generated WGSL is
-the code passed to `wgpu`/Naga and browser WebGPU.
+Presentation frames request progress toward an absolute material tick. The
+clock records a target step but completes a step only after its observation has
+been validated and its GPU commands encoded.
 
-The portable baseline requires only:
+A distant seek is replayed in bounded batches. Presentation may pause while the
+observer catches up; it may not skip or stretch constitutive steps silently.
 
-- `f32` shader arithmetic;
-- `rgba16float` render/storage textures;
-- ordinary workgroup memory;
-- render and compute pipelines.
+The first implementation submits once per fixed optical step because every step
+updates the same event and uniform buffers. A later staging-ring implementation
+may batch command buffers only if it preserves the identical step sequence.
 
-Timestamp queries and `shader-f16` are optional capability tiers, never hidden
-requirements.
+## 4. Persistent field graph
 
-## 6. Promotion rule
+`ObserverImpulseRaster2D` rasterizes compact local packets over their declared
+support. `WaveSheet2D` then performs one tiled dense update from the accumulated
+field. This avoids a cell-by-event inner loop.
 
-A primitive may begin as an observer-owned visual law. It becomes an Ariadne
-world law only after:
+The four persistent channels are deliberately generic:
 
-1. its state and energy/storage meaning are declared;
-2. source, loss, radiation, and transport semantics are separated;
-3. its zero laws pass;
-4. refinement behavior is measured;
-5. authoritative timing is independent of display refresh;
-6. any reciprocal loading is included in the global ledger.
+```text
+R  height / scalar optical displacement
+G  motion
+B  structure
+A  emission
+```
+
+They are not physical units. The content-addressed bridge declares how physical
+observations map into these observer coordinates.
+
+## 5. Reset and seek
+
+Observer reset is a separate zeroing pass over persistent field state. The next
+ordinary constitutive step consumes the requested observation. Seeking backward
+therefore means:
+
+```text
+reset observer state
+replay fixed optical steps from tick zero
+present current replay state
+```
+
+The immutable physical run is never rerun or modified by a viewer seek.
+
+## 6. Presentation
+
+`WorldPresenter` is presentation-only. It derives a normal from the observer
+field and maps motion, structure, and emission to display color. Both ping-pong
+views are bound at construction, so selecting the readable state is an index,
+not a per-frame resource rebuild.
+
+Presentation failure, surface loss, adaptive quality, or browser suspension
+cannot change the physical run or its receipt.
+
+## 7. Promotion rule
+
+A GPU primitive may enter the authoritative world lane only after all of the
+following are true:
+
+1. persistent state and storage functional are declared;
+2. source work, control work, internal loss, exchange, and radiation are
+   separately accounted;
+3. reciprocal ports participate in the global ledger;
+4. cadence is independent of display refresh;
+5. exact-zero, segmentation, refinement, and CPU/GPU conformance laws pass;
+6. quality adaptation cannot change authoritative evolution;
+7. failure and device-loss semantics preserve or explicitly refuse the physical
+   claim.

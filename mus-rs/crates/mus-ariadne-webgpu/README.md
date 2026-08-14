@@ -1,35 +1,63 @@
 # `mus-ariadne-webgpu`
 
-`mus-ariadne-webgpu` is the first reusable WebGPU substrate for Ariadne visual
-worlds. It is deliberately **not** a general-purpose game engine. Its primitive
-unit is a persistent field law with a declared Ariadne meaning:
+`mus-ariadne-webgpu` is Ariadne's reusable GPU substrate for persistent,
+non-loading optical constitutions and presentation. It is not a second physical
+World and it is not a game engine.
 
-- where the state lives (`world`, `observer`, `sensor`, or `presentation`);
-- whether the pass transports, injects work, evolves constitution, dissipates,
-  radiates, or observes without loading;
-- when the pass runs;
-- what exact-zero law it must satisfy;
-- what performance and scientific receipts it emits.
+The clean dependency boundary is:
 
-The first slice extracts the two load-bearing operations behind Ariadne Sea:
+```text
+mus-ariadne World
+       |
+       v
+mus-observation typed frames
+       |
+       v
+mus-ariadne-webgpu-bridge
+  content-addressed semantic binding
+       |
+       v
+mus-ariadne-webgpu
+  persistent observer fields + presentation
+```
 
-1. `ImpulseRaster2D`: local event splats into a compact additive impulse field;
-2. `WaveSheet2D`: a tiled, persistent wave/foam/optical field advanced from one
-   accumulated impulse sample per cell.
+The crate owns persistent textures, buffers, pipelines, fixed optical clocks,
+and portable WESL-authored laws. It owns no `WorldPlan`, physical ledger,
+listener, window, page-specific channel table, or game semantics.
 
-This removes the prototype's `cells × events` inner loop and creates the seam
-for later derivatives, Schlieren optics, director transport, phosphor banks,
-active tiles, and indirect dispatch.
+## Primitive graph
 
-## Deliberate boundaries
+```text
+ObserverImpulseRaster2D
+  compact typed observations -> local additive excitation field
+             |
+             v
+WaveSheet2D
+  fixed-rate tiled constitutive evolution
+             |
+             v
+WorldPresenter
+  non-loading full-screen presentation
+```
 
-- The crate owns no window or swap-chain policy.
-- The crate accepts an existing `wgpu::Device`, `Queue`, and command encoder.
-- The first primitives are non-loading visual/material support; promotion into
-  authoritative Ariadne physics requires an explicit bridge and receipts.
-- Shader source is authored as WESL and compiled to ordinary WGSL at build time.
-- Native and browser builds use the same Rust API and generated WGSL.
-- The current Ariadne Sea renderer remains the behavioral reference until a
-  later migration commit proves visual and game equivalence.
+`WaveSheet2D` remains observer-owned. Its height, motion, structure, and
+emission channels are an optical constitution; they are not the authoritative
+Ariadne sea or an alternative physical-energy ledger.
 
-See `ARCHITECTURE.md`, `BENCHMARK-PLAN.md`, and `ACKNOWLEDGEMENTS.md`.
+## Runtime laws
+
+- Absolute Ariadne material ticks are the only scheduling authority.
+- Optical steps use an integer-rational fixed clock independent of display
+  refresh.
+- Scheduling is transactional: a failed encode does not complete a step.
+- Long seeks replay in bounded batches.
+- Reset clears observer history separately, so the first post-reset observation
+  is not discarded.
+- Persistent GPU resources and bind groups are allocated before replay.
+- Presentation quality may vary only in non-authoritative lanes.
+- Promotion of any GPU state into `Domain::World` requires an explicit storage
+  law, source/loss/radiation decomposition, reciprocal ports, refinement
+  evidence, and participation in the one physical ledger.
+
+See `ARCHITECTURE.md`, `INTEGRATION.md`, `BENCHMARK-PLAN.md`, and
+`ACKNOWLEDGEMENTS.md`.

@@ -11,7 +11,10 @@ use mus_ariadne::{
 use mus_ariadne_webgpu_bridge::{
     canonical_optical_observation_program, OpticalConstitutionPlan,
 };
-use mus_observation::{encode_trace, ObservationFrame, ObservationTrace, ObservationValue, ScalarType};
+use mus_observation::{
+    digest_json, encode_trace, ObservationFrame, ObservationTrace, ObservationValue, RunIdentity,
+    ScalarType,
+};
 use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -128,21 +131,40 @@ fn run() -> Result<(), String> {
     fs::create_dir_all(&config.output).map_err(|error| error.to_string())?;
     let source = read_wav(&config.input)?;
     let sample_rate = source.sample_rate_hz;
-    let (observation_rate_hz, cadence_ticks) = exact_rate(sample_rate, TARGET_OPTICAL_RATE_HZ)?;
+    let tail_frames = (config.tail_seconds * sample_rate as f64).round() as usize;
+    let horizon = source
+        .frames
+        .len()
+        .checked_add(tail_frames)
+        .ok_or_else(|| "render horizon overflows addressable memory".to_owned())?;
+    let (observation_rate_hz, cadence_ticks) =
+        exact_rate(sample_rate, TARGET_OPTICAL_RATE_HZ)?;
 
     let plan = WorldPlan::string_brass_v1(sample_rate as f64);
+    let physical_world_digest = plan.digest().map_err(|error| error.to_string())?;
     let listener_spec = StereoListenerSpec::all_bodies(&plan, config.controls.listener_scale)
         .map_err(|error| error.to_string())?;
-    let listener = StereoListener::bind(&listener_spec, &plan)
-        .map_err(|error| error.to_string())?;
+    let listener =
+        StereoListener::bind(&listener_spec, &plan).map_err(|error| error.to_string())?;
     let observation_program = canonical_optical_observation_program(&plan, cadence_ticks)
         .map_err(|error| error.to_string())?;
-    let observation_schema = observation_program.schema().map_err(|error| error.to_string())?;
+    let observation_schema = observation_program
+        .schema()
+        .map_err(|error| error.to_string())?;
+    let observation_program_digest = observation_program
+        .digest()
+        .map_err(|error| error.to_string())?;
+    let observation_schema_digest = observation_schema
+        .digest()
+        .map_err(|error| error.to_string())?;
     let mut optical_plan = OpticalConstitutionPlan::canonical(&plan, &observation_program)
         .map_err(|error| error.to_string())?;
     optical_plan.surface.fixed_rate_hz = observation_rate_hz;
     optical_plan
         .validate(&plan, &observation_schema)
+        .map_err(|error| error.to_string())?;
+    let optical_constitution_digest = optical_plan
+        .digest()
         .map_err(|error| error.to_string())?;
 
     let source_adapter = json!({
@@ -152,16 +174,34 @@ fn run() -> Result<(), String> {
         "rightWeight": 0.5,
         "sourceCoupling": config.controls.source_coupling,
     });
-    let run_identity = json!({
-        "physicalWorldDigest": plan.digest().map_err(|error| error.to_string())?,
-        "listenerDigest": listener.listener_digest(),
-        "observationProgramDigest": observation_program.digest().map_err(|error| error.to_string())?,
-        "opticalConstitutionDigest": optical_plan.digest().map_err(|error| error.to_string())?,
-        "sourceSha256": source.sha256,
-        "sourceAdapter": source_adapter,
+    let intervention = json!({
+        "schema": "ariadne-wav-intervention-v1",
+        "source": {
+            "sha256": source.sha256.clone(),
+            "channels": source.channels,
+            "adapter": source_adapter.clone(),
+        },
         "controls": config.controls,
     });
-    let run_digest = digest_json(&run_identity)?;
+    let intervention_digest = digest_json(&intervention).map_err(|error| error.to_string())?;
+    let source_frames = u64::try_from(source.frames.len())
+        .map_err(|_| "source frame count exceeds u64".to_owned())?;
+    let tail_frames_u64 = u64::try_from(tail_frames)
+        .map_err(|_| "tail frame count exceeds u64".to_owned())?;
+    let run_identity = RunIdentity::new(
+        physical_world_digest.clone(),
+        listener.listener_digest().to_owned(),
+        intervention_digest.clone(),
+        observation_program_digest.clone(),
+        observation_schema_digest.clone(),
+        optical_constitution_digest.clone(),
+        sample_rate,
+        observation_rate_hz,
+        source_frames,
+        tail_frames_u64,
+    )
+    .map_err(|error| error.to_string())?;
+    let run_digest = run_identity.digest().map_err(|error| error.to_string())?;
 
     let mut world = World::from_plan(plan.clone()).map_err(|error| error.to_string())?;
     world
@@ -175,13 +215,15 @@ fn run() -> Result<(), String> {
         .map_err(|error| error.to_string())?;
     let mut observation_frames = vec![ObservationFrame::new(0, observation_values.clone())];
 
-    let tail_frames = (config.tail_seconds * sample_rate as f64).round() as usize;
-    let horizon = source.frames.len() + tail_frames;
     let mut audio = Vec::with_capacity(horizon);
     let world_controls = config.controls.world();
     let mut body_controls = vec![BodyControls::default(); world.body_count()];
     for index in 0..horizon {
-        let input = source.frames.get(index).copied().unwrap_or([0.0, 0.0]);
+        let input = source
+            .frames
+            .get(index)
+            .copied()
+            .unwrap_or([0.0, 0.0]);
         let source_coordinate = 0.5 * (input[0] as f64 + input[1] as f64);
         body_controls[0] = config.controls.body(source_coordinate);
         let frame = world
@@ -216,7 +258,7 @@ fn run() -> Result<(), String> {
     let trace = ObservationTrace::new(
         observation_schema.clone(),
         run_digest.clone(),
-        horizon as u64,
+        run_identity.horizon_ticks,
         observation_frames,
     )
     .map_err(|error| error.to_string())?;
@@ -228,30 +270,38 @@ fn run() -> Result<(), String> {
     let program_path = config.output.join("observation.program.json");
     let schema_path = config.output.join("observation.schema.json");
     let optical_path = config.output.join("optical.plan.json");
+    let intervention_path = config.output.join("intervention.json");
+    let identity_path = config.output.join("run.identity.json");
     write_wav(&audio_path, sample_rate, &audio)?;
-    fs::write(&trace_path, encode_trace(&trace).map_err(|error| error.to_string())?)
-        .map_err(|error| error.to_string())?;
+    fs::write(
+        &trace_path,
+        encode_trace(&trace).map_err(|error| error.to_string())?,
+    )
+    .map_err(|error| error.to_string())?;
     write_json(&plan_path, &plan)?;
     write_json(&listener_path, &listener_spec)?;
     write_json(&program_path, &observation_program)?;
     write_json(&schema_path, &observation_schema)?;
     write_json(&optical_path, &optical_plan)?;
+    write_json(&intervention_path, &intervention)?;
+    write_json(&identity_path, &run_identity)?;
 
     let receipt = world.receipt();
     let manifest = json!({
         "schema": "ariadne-world-audiovisual-bundle-v1",
         "claim": "one physical World; sound and WebGPU data are non-loading observation programs",
         "runDigest": run_digest,
-        "physicalWorldDigest": plan.digest().map_err(|error| error.to_string())?,
+        "physicalWorldDigest": physical_world_digest,
         "listenerDigest": listener.listener_digest(),
-        "observationProgramDigest": observation_program.digest().map_err(|error| error.to_string())?,
-        "observationSchemaDigest": observation_schema.digest().map_err(|error| error.to_string())?,
-        "opticalConstitutionDigest": optical_plan.digest().map_err(|error| error.to_string())?,
+        "interventionDigest": intervention_digest,
+        "observationProgramDigest": observation_program_digest,
+        "observationSchemaDigest": observation_schema_digest,
+        "opticalConstitutionDigest": optical_constitution_digest,
         "sampleRateHz": sample_rate,
         "observationRateHz": observation_rate_hz,
-        "sourceFrames": source.frames.len(),
-        "tailFrames": tail_frames,
-        "horizonTicks": horizon,
+        "sourceFrames": run_identity.source_frames,
+        "tailFrames": run_identity.tail_frames,
+        "horizonTicks": run_identity.horizon_ticks,
         "source": {
             "path": config.input.display().to_string(),
             "sha256": source.sha256,
@@ -267,6 +317,8 @@ fn run() -> Result<(), String> {
             "observationProgram": "observation.program.json",
             "observationSchema": "observation.schema.json",
             "opticalPlan": "optical.plan.json",
+            "intervention": "intervention.json",
+            "runIdentity": "run.identity.json",
         },
         "digests": {
             "audio": file_digest(&audio_path)?,
@@ -276,6 +328,8 @@ fn run() -> Result<(), String> {
             "observationProgram": file_digest(&program_path)?,
             "observationSchema": file_digest(&schema_path)?,
             "opticalPlan": file_digest(&optical_path)?,
+            "intervention": file_digest(&intervention_path)?,
+            "runIdentity": file_digest(&identity_path)?,
         },
         "finalReceipt": {
             "sourceWork": receipt.source_work,
@@ -302,12 +356,20 @@ fn parse_args() -> Result<Config, String> {
     let output = PathBuf::from(args.next().ok_or_else(usage)?);
     let tail_seconds = args
         .next()
-        .map(|value| value.parse::<f64>().map_err(|_| format!("invalid tail {value:?}")))
+        .map(|value| {
+            value
+                .parse::<f64>()
+                .map_err(|_| format!("invalid tail {value:?}"))
+        })
         .transpose()?
         .unwrap_or(DEFAULT_TAIL_SECONDS);
     let material_organization = args
         .next()
-        .map(|value| value.parse::<f64>().map_err(|_| format!("invalid organization {value:?}")))
+        .map(|value| {
+            value
+                .parse::<f64>()
+                .map_err(|_| format!("invalid organization {value:?}"))
+        })
         .transpose()?
         .unwrap_or(RunControls::default().material_organization);
     if args.next().is_some()
@@ -420,8 +482,12 @@ fn write_wav(path: &Path, sample_rate_hz: u32, frames: &[[f32; 2]]) -> Result<()
     )
     .map_err(|error| error.to_string())?;
     for frame in frames {
-        writer.write_sample(frame[0]).map_err(|error| error.to_string())?;
-        writer.write_sample(frame[1]).map_err(|error| error.to_string())?;
+        writer
+            .write_sample(frame[0])
+            .map_err(|error| error.to_string())?;
+        writer
+            .write_sample(frame[1])
+            .map_err(|error| error.to_string())?;
     }
     writer.finalize().map_err(|error| error.to_string())
 }
@@ -432,11 +498,6 @@ fn write_json(path: &Path, value: &impl Serialize) -> Result<(), String> {
         serde_json::to_vec_pretty(value).map_err(|error| error.to_string())?,
     )
     .map_err(|error| error.to_string())
-}
-
-fn digest_json(value: &impl Serialize) -> Result<String, String> {
-    let bytes = serde_json::to_vec(value).map_err(|error| error.to_string())?;
-    Ok(format!("sha256:{:x}", Sha256::digest(bytes)))
 }
 
 fn file_digest(path: &Path) -> Result<String, String> {

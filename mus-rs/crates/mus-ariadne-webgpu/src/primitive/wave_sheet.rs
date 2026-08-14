@@ -34,13 +34,15 @@ impl WaveSheetConfig {
     }
 }
 
-/// Persistent tiled wave/foam/optical field. The shader loads one 18 x 18
-/// height tile into workgroup memory for each 16 x 16 output tile.
+/// Persistent tiled observer field. The shader loads one 18 x 18 height tile
+/// into workgroup memory for each 16 x 16 output tile.
 pub struct WaveSheet2D {
     config: WaveSheetConfig,
     state: PingPongTexture2D,
     parameters: wgpu::Buffer,
+    _reset_parameters: wgpu::Buffer,
     bind_groups: [wgpu::BindGroup; 2],
+    reset_bind_groups: [wgpu::BindGroup; 2],
     pipeline: wgpu::ComputePipeline,
 }
 
@@ -65,11 +67,15 @@ impl WaveSheet2D {
             },
         );
         let initial = WaveSheetParams::portable(config.width, config.height, 1.0 / 60.0);
-        let parameter_bytes = bytemuck::bytes_of(&initial);
         let parameters = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Ariadne WaveSheet2D parameters"),
-            contents: parameter_bytes,
+            contents: bytemuck::bytes_of(&initial),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let reset_parameters = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Ariadne WaveSheet2D reset parameters"),
+            contents: bytemuck::bytes_of(&initial.with_reset(true)),
+            usage: wgpu::BufferUsages::UNIFORM,
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Ariadne WaveSheet2D WESL"),
@@ -86,7 +92,8 @@ impl WaveSheet2D {
         let layout = pipeline.get_bind_group_layout(0);
         let create_bind_group = |label: &'static str,
                                  read: &wgpu::TextureView,
-                                 write: &wgpu::TextureView| {
+                                 write: &wgpu::TextureView,
+                                 parameter_buffer: &wgpu::Buffer| {
             device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some(label),
                 layout: &layout,
@@ -105,20 +112,46 @@ impl WaveSheet2D {
                     },
                     wgpu::BindGroupEntry {
                         binding: 3,
-                        resource: parameters.as_entire_binding(),
+                        resource: parameter_buffer.as_entire_binding(),
                     },
                 ],
             })
         };
         let bind_groups = [
-            create_bind_group("Ariadne WaveSheet2D A to B", state.read_view(), state.write_view()),
-            create_bind_group("Ariadne WaveSheet2D B to A", state.write_view(), state.read_view()),
+            create_bind_group(
+                "Ariadne WaveSheet2D A to B",
+                state.read_view(),
+                state.write_view(),
+                &parameters,
+            ),
+            create_bind_group(
+                "Ariadne WaveSheet2D B to A",
+                state.write_view(),
+                state.read_view(),
+                &parameters,
+            ),
+        ];
+        let reset_bind_groups = [
+            create_bind_group(
+                "Ariadne WaveSheet2D reset A to B",
+                state.read_view(),
+                state.write_view(),
+                &reset_parameters,
+            ),
+            create_bind_group(
+                "Ariadne WaveSheet2D reset B to A",
+                state.write_view(),
+                state.read_view(),
+                &reset_parameters,
+            ),
         ];
         Ok(Self {
             config,
             state,
             parameters,
+            _reset_parameters: reset_parameters,
             bind_groups,
+            reset_bind_groups,
             pipeline,
         })
     }
@@ -137,14 +170,10 @@ impl WaveSheet2D {
                 name: "wave-sheet parameters",
             });
         }
-        let mut parameters = parameters.sanitized();
+        let mut parameters = parameters.sanitized().with_reset(false);
         parameters.dimensions.x = self.config.width;
         parameters.dimensions.y = self.config.height;
-        queue.write_buffer(
-            &self.parameters,
-            0,
-            bytemuck::bytes_of(&parameters),
-        );
+        queue.write_buffer(&self.parameters, 0, bytemuck::bytes_of(&parameters));
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -163,9 +192,38 @@ impl WaveSheet2D {
         Ok(())
     }
 
+    /// Clear observer history with a dedicated immutable reset uniform. The
+    /// next ordinary step can therefore consume its observation rather than
+    /// losing it to a combined reset/update pass.
+    pub fn encode_reset(&mut self, encoder: &mut wgpu::CommandEncoder) {
+        let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: Some("Ariadne WaveSheet2D reset pass"),
+            timestamp_writes: None,
+        });
+        pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(0, &self.reset_bind_groups[self.state.read_index()], &[]);
+        pass.dispatch_workgroups(
+            self.config.width.div_ceil(16),
+            self.config.height.div_ceil(16),
+            1,
+        );
+        drop(pass);
+        self.state.swap();
+    }
+
     #[must_use]
     pub fn state_view(&self) -> &wgpu::TextureView {
         self.state.read_view()
+    }
+
+    #[must_use]
+    pub fn state_view_at(&self, index: usize) -> Option<&wgpu::TextureView> {
+        self.state.view(index)
+    }
+
+    #[must_use]
+    pub const fn state_read_index(&self) -> usize {
+        self.state.read_index()
     }
 
     #[must_use]

@@ -29,10 +29,7 @@ pub struct WaveSurface2D {
 }
 
 impl WaveSurface2D {
-    pub fn new(
-        device: &wgpu::Device,
-        config: WaveSurfaceConfig,
-    ) -> Result<Self, PrimitiveError> {
+    pub fn new(device: &wgpu::Device, config: WaveSurfaceConfig) -> Result<Self, PrimitiveError> {
         let impulses = ObserverImpulseRaster2D::new(
             device,
             ImpulseRasterConfig {
@@ -77,9 +74,24 @@ impl WaveSurface2D {
         })
     }
 
+    /// Clear the persistent observer field without consuming an observation.
+    pub fn encode_reset(&mut self, encoder: &mut wgpu::CommandEncoder) {
+        self.wave.encode_reset(encoder);
+    }
+
     #[must_use]
     pub fn state_view(&self) -> &wgpu::TextureView {
         self.wave.state_view()
+    }
+
+    #[must_use]
+    pub fn state_view_at(&self, index: usize) -> Option<&wgpu::TextureView> {
+        self.wave.state_view_at(index)
+    }
+
+    #[must_use]
+    pub const fn state_read_index(&self) -> usize {
+        self.wave.state_read_index()
     }
 
     #[must_use]

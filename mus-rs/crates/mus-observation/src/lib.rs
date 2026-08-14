@@ -7,9 +7,13 @@
 
 #![forbid(unsafe_code)]
 
+pub mod run;
 pub mod schema;
 pub mod trace;
 
+pub use run::{
+    digest_json, RunIdentity, RunIdentityError, RUN_IDENTITY_VERSION,
+};
 pub use schema::{
     Aggregation, ChannelSpec, ClaimDomain, Interpolation, ObservationSchema,
     ScalarType, SchemaError, OBSERVATION_SCHEMA_VERSION,

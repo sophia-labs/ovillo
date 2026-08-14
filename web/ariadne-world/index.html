@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ariadne World</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">Sophia Labs · one physical world</p>
+          <h1>Ariadne World</h1>
+          <p class="lede">
+            A non-loading WebGPU observation of persistent bodies, their shared field,
+            and one global work ledger.
+          </p>
+        </div>
+        <div class="actions">
+          <button id="load-default" type="button">Load demo bundle</button>
+          <label class="file-label">
+            Open bundle files
+            <input id="bundle-files" type="file" multiple />
+          </label>
+        </div>
+      </header>
+
+      <section class="stage">
+        <canvas id="world" aria-label="Ariadne World optical observer"></canvas>
+        <div class="stage-overlay">
+          <span id="gpu-status">WebGPU is initializing…</span>
+          <span id="clock-status">tick 0</span>
+        </div>
+      </section>
+
+      <section class="transport">
+        <audio id="audio" controls preload="metadata"></audio>
+        <p id="message" role="status">Load a canonical Ariadne audiovisual bundle.</p>
+      </section>
+
+      <section class="facts" aria-label="World facts">
+        <div><span>world</span><code id="world-digest">—</code></div>
+        <div><span>observation</span><code id="observation-digest">—</code></div>
+        <div><span>optical constitution</span><code id="optical-digest">—</code></div>
+        <div><span>run</span><code id="run-digest">—</code></div>
+        <div><span>pending optical steps</span><strong id="pending-steps">0</strong></div>
+        <div><span>global closure</span><strong id="closure">—</strong></div>
+      </section>
+
+      <details>
+        <summary>Bundle manifest and capability receipt</summary>
+        <pre id="receipt"></pre>
+      </details>
+    </main>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

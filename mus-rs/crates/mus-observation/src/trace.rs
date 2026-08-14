@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -153,7 +151,10 @@ impl ObservationTrace {
             }
             if let Some(previous) = previous {
                 if frame.tick <= previous {
-                    return Err(TraceError::NonMonotone { previous, next: frame.tick });
+                    return Err(TraceError::NonMonotone {
+                        previous,
+                        next: frame.tick,
+                    });
                 }
             }
             previous = Some(frame.tick);
@@ -167,53 +168,82 @@ impl ObservationTrace {
     }
 
     #[must_use]
-    pub fn sample_at_tick(&self, tick: u64) -> Vec<ObservationValue> {
+    pub fn zero_value_buffer(&self) -> Vec<ObservationValue> {
+        self.metadata
+            .schema
+            .channels
+            .iter()
+            .map(|channel| match channel.scalar_type {
+                ScalarType::F32 => ObservationValue::F32(0.0),
+                ScalarType::F64 => ObservationValue::F64(0.0),
+                ScalarType::U64 => ObservationValue::U64(0),
+            })
+            .collect()
+    }
+
+    /// Sample into caller-owned storage. The method performs no allocation and
+    /// applies each channel's declared interpolation law.
+    pub fn sample_at_tick_into(
+        &self,
+        tick: u64,
+        output: &mut [ObservationValue],
+    ) -> Result<(), TraceError> {
+        if output.len() != self.metadata.schema.channels.len() {
+            return Err(TraceError::OutputWidth {
+                expected: self.metadata.schema.channels.len(),
+                actual: output.len(),
+            });
+        }
         if self.frames.len() == 1 || tick <= self.frames[0].tick {
-            return self.frames[0].values.clone();
+            output.copy_from_slice(&self.frames[0].values);
+            return Ok(());
         }
         let last = self.frames.len() - 1;
         if tick >= self.frames[last].tick {
-            return self.frames[last].values.clone();
+            output.copy_from_slice(&self.frames[last].values);
+            return Ok(());
         }
         let right = self
             .frames
-            .binary_search_by(|frame| {
-                if frame.tick < tick {
-                    Ordering::Less
-                } else if frame.tick > tick {
-                    Ordering::Greater
-                } else {
-                    Ordering::Equal
-                }
-            })
+            .binary_search_by(|frame| frame.tick.cmp(&tick))
             .unwrap_or_else(|index| index);
         if self.frames[right].tick == tick {
-            return self.frames[right].values.clone();
+            output.copy_from_slice(&self.frames[right].values);
+            return Ok(());
         }
         let left = right - 1;
         let left_frame = &self.frames[left];
         let right_frame = &self.frames[right];
         let span = (right_frame.tick - left_frame.tick).max(1) as f64;
         let alpha = (tick - left_frame.tick) as f64 / span;
-        self.metadata
-            .schema
-            .channels
-            .iter()
-            .enumerate()
-            .map(|(index, channel)| match channel.interpolation {
+        for (index, channel) in self.metadata.schema.channels.iter().enumerate() {
+            output[index] = match channel.interpolation {
                 Interpolation::Step => left_frame.values[index],
                 Interpolation::Linear => interpolate(
                     left_frame.values[index],
                     right_frame.values[index],
                     alpha,
                 ),
-            })
-            .collect()
+            };
+        }
+        Ok(())
+    }
+
+    #[must_use]
+    pub fn sample_at_tick(&self, tick: u64) -> Vec<ObservationValue> {
+        let mut output = self.zero_value_buffer();
+        self.sample_at_tick_into(tick, &mut output)
+            .expect("trace-owned sample buffer has the exact schema width");
+        output
     }
 
     #[must_use]
     pub fn sample_at_seconds(&self, seconds: f64) -> Vec<ObservationValue> {
-        let seconds = if seconds.is_finite() { seconds.max(0.0) } else { 0.0 };
+        let seconds = if seconds.is_finite() {
+            seconds.max(0.0)
+        } else {
+            0.0
+        };
         let tick = (seconds * self.metadata.schema.sample_rate_hz as f64)
             .round()
             .clamp(0.0, self.metadata.horizon_ticks as f64) as u64;
@@ -227,7 +257,8 @@ pub fn encode_trace(trace: &ObservationTrace) -> Result<Vec<u8>, TraceError> {
         .map_err(|error| TraceError::Serialization(error.to_string()))?;
     let metadata_len = u32::try_from(metadata.len()).map_err(|_| TraceError::MetadataTooLarge)?;
     let frame_stride = trace.metadata.schema.frame_stride_bytes();
-    let mut output = Vec::with_capacity(PREFIX_BYTES + metadata.len() + frame_stride * trace.frames.len());
+    let mut output =
+        Vec::with_capacity(PREFIX_BYTES + metadata.len() + frame_stride * trace.frames.len());
     output.extend_from_slice(&TRACE_MAGIC);
     output.extend_from_slice(&TRACE_FORMAT_VERSION.to_le_bytes());
     output.extend_from_slice(&metadata_len.to_le_bytes());
@@ -341,7 +372,9 @@ fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, TraceError> {
         expected_at_least: end,
         actual: bytes.len(),
     })?;
-    Ok(u32::from_le_bytes(slice.try_into().expect("four-byte slice")))
+    Ok(u32::from_le_bytes(
+        slice.try_into().expect("four-byte slice"),
+    ))
 }
 
 fn read_u64(bytes: &[u8], offset: usize) -> Result<u64, TraceError> {
@@ -350,7 +383,9 @@ fn read_u64(bytes: &[u8], offset: usize) -> Result<u64, TraceError> {
         expected_at_least: end,
         actual: bytes.len(),
     })?;
-    Ok(u64::from_le_bytes(slice.try_into().expect("eight-byte slice")))
+    Ok(u64::from_le_bytes(
+        slice.try_into().expect("eight-byte slice"),
+    ))
 }
 
 #[derive(Debug, Error)]
@@ -362,7 +397,10 @@ pub enum TraceError {
     #[error("unsupported observation trace format version {0}")]
     FormatVersion(u32),
     #[error("observation trace length is {actual}, expected at least {expected_at_least}")]
-    Length { expected_at_least: usize, actual: usize },
+    Length {
+        expected_at_least: usize,
+        actual: usize,
+    },
     #[error("observation trace length is {actual}, expected exactly {expected}")]
     ExactLength { expected: usize, actual: usize },
     #[error("observation trace metadata is too large")]
@@ -374,8 +412,16 @@ pub enum TraceError {
     #[error("observation trace declares {declared} frames but contains {actual}")]
     FrameCount { declared: u64, actual: usize },
     #[error("observation frame {tick} has {actual} values; expected {expected}")]
-    ChannelCount { tick: u64, expected: usize, actual: usize },
-    #[error("observation frame {tick} channel {channel} expected {expected:?}, found {actual:?}")]
+    ChannelCount {
+        tick: u64,
+        expected: usize,
+        actual: usize,
+    },
+    #[error("observation output has width {actual}; expected {expected}")]
+    OutputWidth { expected: usize, actual: usize },
+    #[error(
+        "observation frame {tick} channel {channel} expected {expected:?}, found {actual:?}"
+    )]
     ValueType {
         tick: u64,
         channel: usize,
@@ -449,12 +495,26 @@ mod tests {
     }
 
     #[test]
-    fn interpolation_is_schema_driven() {
+    fn interpolation_is_schema_driven_and_allocation_free_when_requested() {
         let trace = fixture();
+        let mut output = trace.zero_value_buffer();
+        trace.sample_at_tick_into(24_000, &mut output).unwrap();
         assert_eq!(
-            trace.sample_at_tick(24_000),
+            output,
             vec![ObservationValue::F64(1.0), ObservationValue::U64(1)]
         );
+        assert_eq!(trace.sample_at_tick(24_000), output);
+    }
+
+    #[test]
+    fn wrong_output_width_refuses_without_mutating_storage() {
+        let trace = fixture();
+        let mut output = [ObservationValue::F64(99.0)];
+        assert!(matches!(
+            trace.sample_at_tick_into(0, &mut output),
+            Err(TraceError::OutputWidth { .. })
+        ));
+        assert_eq!(output, [ObservationValue::F64(99.0)]);
     }
 
     #[test]
