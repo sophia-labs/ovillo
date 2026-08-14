@@ -2,16 +2,16 @@ use mus_trajectory::TrajectoryReceipt;
 
 use crate::body::BodyControls;
 use crate::plan::WorldPlan;
-use crate::shared_world::SharedWorldControls;
+use crate::shared_world::WorldControls;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct SharedCoordinates {
+pub struct WorldCoordinates {
     pub body_configurations: Vec<f64>,
     pub bodies: Vec<BodyControls>,
-    pub world: SharedWorldControls,
+    pub world: WorldControls,
 }
 
-impl SharedCoordinates {
+impl WorldCoordinates {
     #[must_use]
     pub fn for_plan(plan: &WorldPlan) -> Self {
         Self {
@@ -21,7 +21,7 @@ impl SharedCoordinates {
                 .map(|body| body.body.configuration_path.initial_amount)
                 .collect(),
             bodies: vec![BodyControls::default(); plan.bodies.len()],
-            world: SharedWorldControls::default(),
+            world: WorldControls::default(),
         }
     }
 }
@@ -50,7 +50,6 @@ pub(super) enum WorldCoordinate {
     SpaceDecay,
     SpaceRadiation,
     CouplingScale,
-    ObservationScale,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,66 +74,52 @@ pub(super) struct BoundFrame {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SharedTrajectoryBindError {
+pub enum TrajectoryBindError {
     Compile(String),
-    ClockMismatch {
-        program_hz: u32,
-        world_hz: u32,
-    },
+    ClockMismatch { program_hz: u32, world_hz: u32 },
     UnknownCoordinate(String),
     UnknownBody(String),
     CoordinateStateMismatch {
         expected_bodies: usize,
         actual_bodies: usize,
     },
-    SampleMovedBackward {
-        current: u64,
-        requested: u64,
-    },
+    SampleMovedBackward { current: u64, requested: u64 },
     World(String),
 }
 
-impl std::fmt::Display for SharedTrajectoryBindError {
+impl std::fmt::Display for TrajectoryBindError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Compile(message) => {
-                write!(formatter, "trajectory compile failed: {message}")
-            }
+            Self::Compile(message) => write!(formatter, "trajectory compile failed: {message}"),
             Self::ClockMismatch {
                 program_hz,
                 world_hz,
             } => write!(
                 formatter,
-                "trajectory clock {program_hz} Hz does not match Shared World clock {world_hz} Hz"
+                "trajectory clock {program_hz} Hz does not match Ariadne World clock {world_hz} Hz"
             ),
-            Self::UnknownCoordinate(name) => {
-                write!(formatter, "unknown Shared World coordinate: {name}")
-            }
-            Self::UnknownBody(id) => {
-                write!(formatter, "unknown Shared World body: {id}")
-            }
+            Self::UnknownCoordinate(name) => write!(formatter, "unknown World coordinate: {name}"),
+            Self::UnknownBody(id) => write!(formatter, "unknown World body: {id}"),
             Self::CoordinateStateMismatch {
                 expected_bodies,
                 actual_bodies,
             } => write!(
                 formatter,
-                "Shared World coordinates expected {expected_bodies} bodies, received {actual_bodies}"
+                "World coordinates expected {expected_bodies} bodies, received {actual_bodies}"
             ),
             Self::SampleMovedBackward { current, requested } => write!(
                 formatter,
                 "trajectory cursor cannot move backward from {current} to {requested}"
             ),
-            Self::World(message) => {
-                write!(formatter, "Shared World rejected trajectory update: {message}")
-            }
+            Self::World(message) => write!(formatter, "World rejected trajectory update: {message}"),
         }
     }
 }
 
-impl std::error::Error for SharedTrajectoryBindError {}
+impl std::error::Error for TrajectoryBindError {}
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct SharedTrajectoryBinding {
+pub struct TrajectoryBinding {
     pub(super) body_count: usize,
     pub(super) frames: Vec<BoundFrame>,
     pub(super) cursor: usize,
