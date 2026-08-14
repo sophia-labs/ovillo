@@ -25,6 +25,7 @@ pub mod field;
 mod ir;
 pub mod law;
 pub mod observation;
+pub mod performance;
 pub mod plan;
 mod shared_space;
 mod shared_trajectory;
@@ -43,6 +44,7 @@ pub use observation::{
     StereoListener, StereoListenerSpec, WorldObservationChannel,
     WorldObservationProgram,
 };
+pub use performance::{WorldCostEstimate, WorldLayout};
 pub use plan::{
     BodyInstanceSpec, BodyPose, BodySpec, DirectCouplingSpec, PlanError,
     SharedSpaceSpec, SpacePortSpec, WorldPlan, WORLD_PLAN_SCHEMA_VERSION,
