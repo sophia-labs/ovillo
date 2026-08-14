@@ -15,6 +15,7 @@ pub mod resource;
 pub mod surface;
 pub mod telemetry;
 pub mod types;
+mod zero;
 
 pub use capability::CapabilityProfile;
 pub use clock::{OpticalClock, OpticalClockError};
