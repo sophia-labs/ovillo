@@ -31,6 +31,12 @@ impl BodySpec {
             reservoir: spec.reservoir,
         }
     }
+
+    #[cfg(test)]
+    #[must_use]
+    pub(crate) fn from_world_spec(spec: &WorldSpec) -> Self {
+        Self::from_template(spec)
+    }
 }
 
 /// World-space placement metadata. Coupling remains explicit in ports and edges.
