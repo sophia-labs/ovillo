@@ -1,8 +1,10 @@
 //! WebGPU constitutive visual-compute primitives for persistent Ariadne worlds.
 //!
-//! The crate intentionally owns neither a window nor a presentation surface.
-//! Consumers provide a `wgpu::Device`, `Queue`, and command encoder, then
-//! compose persistent primitives into an Ariadne law graph.
+//! This crate owns persistent GPU resources and non-loading optical, sensor,
+//! and presentation laws. It owns no Ariadne physical World, listener, window,
+//! or page-specific interpretation. Consumers provide a `wgpu::Device`,
+//! `Queue`, and command encoder, then bind typed observations through a separate
+//! optical-constitution plan.
 
 pub mod capability;
 pub mod law;
@@ -16,12 +18,12 @@ pub mod types;
 pub use capability::CapabilityProfile;
 pub use law::{Cadence, Domain, LawClass, PrimitiveDescriptor, SpatialSupport, ZeroLaw};
 pub use primitive::{
-    GpuPrimitive, ImpulseRaster2D, ImpulseRasterConfig, PrimitiveError, WaveSheet2D,
-    WaveSheetConfig,
+    GpuPrimitive, ImpulseRasterConfig, ObserverImpulseRaster2D, PrimitiveError,
+    WaveSheet2D, WaveSheetConfig,
 };
 pub use surface::{SurfaceStepReceipt, WaveSurface2D, WaveSurfaceConfig};
 pub use telemetry::{PerformanceReceipt, QualityGovernor, QualityLevel};
-pub use types::{FramePacket, Impulse2D, WaveSheetParams};
+pub use types::{ObserverImpulse2D, OpticalFrameHeader, WaveSheetParams};
 
 #[cfg(feature = "profiling")]
 pub use wgpu_profiler;
