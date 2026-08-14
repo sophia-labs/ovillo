@@ -2,12 +2,9 @@ use mus_watsn::WorkFrame;
 
 use crate::body::BodyControls;
 
-use super::{
-    SharedFrameOutput, SharedWorld, SharedWorldControls, SharedWorldError,
-    SharedWorldReceipt,
-};
+use super::{World, WorldControls, WorldError, WorldFrame, WorldReceipt};
 
-impl SharedWorld {
+impl World {
     /// Advance one shared material-clock sample.
     ///
     /// All vectors and graph bindings are allocated at construction. The hot
@@ -15,10 +12,10 @@ impl SharedWorld {
     pub fn process_sample(
         &mut self,
         body_controls: &[BodyControls],
-        controls: SharedWorldControls,
-    ) -> Result<SharedFrameOutput, SharedWorldError> {
+        controls: WorldControls,
+    ) -> Result<WorldFrame, WorldError> {
         if body_controls.len() != self.bodies.len() {
-            return Err(SharedWorldError::BodyControlCount {
+            return Err(WorldError::BodyControlCount {
                 expected: self.bodies.len(),
                 actual: body_controls.len(),
             });
@@ -43,10 +40,12 @@ impl SharedWorld {
         {
             let frame = body
                 .process_local(body_control, returning_space_activity)
-                .map_err(|error| SharedWorldError::Body {
+                .map_err(|error| WorldError::Body {
                     id: self.plan.bodies[index].id.clone(),
                     message: error.to_string(),
                 })?;
+            self.body_source_work[index] = frame.source_work;
+            self.body_internal_loss[index] = frame.internal_loss;
             source_work += frame.source_work;
             internal_loss += frame.internal_loss;
             local_residual = local_residual
@@ -61,14 +60,13 @@ impl SharedWorld {
                 &mut self.bodies,
                 controls.direct_coupling,
             )
-            .map_err(|error| {
-                SharedWorldError::Coupling(error.to_string())
-            })?;
+            .map_err(|error| WorldError::Coupling(error.to_string()))?;
+        self.last_coupling_frame = coupling;
         local_residual = local_residual.max(coupling.metric_residual.abs());
 
         self.space
             .begin_frame()
-            .map_err(|error| SharedWorldError::Space(error.to_string()))?;
+            .map_err(|error| WorldError::Space(error.to_string()))?;
         let mut space_exchange_into_bodies = 0.0;
         let mut space_metric_residual = 0.0;
         for index in 0..self.bodies.len() {
@@ -79,13 +77,10 @@ impl SharedWorld {
                     &self.plan.bodies[index].space_port,
                     controls.space,
                 )
-                .map_err(|error| {
-                    SharedWorldError::Space(error.to_string())
-                })?;
+                .map_err(|error| WorldError::Space(error.to_string()))?;
             space_exchange_into_bodies += exchange.signed_into_body;
             space_metric_residual += exchange.metric_residual;
-            local_residual =
-                local_residual.max(exchange.metric_residual.abs());
+            local_residual = local_residual.max(exchange.metric_residual.abs());
         }
         let space_frame = self
             .space
@@ -94,7 +89,8 @@ impl SharedWorld {
                 space_exchange_into_bodies,
                 space_metric_residual,
             )
-            .map_err(|error| SharedWorldError::Space(error.to_string()))?;
+            .map_err(|error| WorldError::Space(error.to_string()))?;
+        self.last_space_frame = space_frame;
         internal_loss += space_frame.internal_loss;
         local_residual = local_residual
             .max(space_frame.coupling_metric_residual.abs())
@@ -103,12 +99,8 @@ impl SharedWorld {
         let mut radiation = space_frame.radiation;
         for index in 0..self.bodies.len() {
             let emitted = self.bodies[index]
-                .radiate(
-                    body_controls[index]
-                        .sanitized()
-                        .radiation_fraction,
-                )
-                .map_err(|error| SharedWorldError::Body {
+                .radiate(body_controls[index].sanitized().radiation_fraction)
+                .map_err(|error| WorldError::Body {
                     id: self.plan.bodies[index].id.clone(),
                     message: error.to_string(),
                 })?;
@@ -119,7 +111,7 @@ impl SharedWorld {
 
         let energy_end = self.total_stored_energy();
         if !energy_end.is_finite() {
-            return Err(SharedWorldError::NonFiniteState);
+            return Err(WorldError::NonFiniteState);
         }
         let ledger_frame = WorkFrame {
             energy_start,
@@ -132,38 +124,16 @@ impl SharedWorld {
         };
         self.ledger.push(ledger_frame);
         self.sample_frames += 1;
-        local_residual =
-            local_residual.max(ledger_frame.residual().abs());
-        self.maximum_local_residual =
-            self.maximum_local_residual.max(local_residual);
+        local_residual = local_residual.max(ledger_frame.residual().abs());
+        self.maximum_local_residual = self.maximum_local_residual.max(local_residual);
 
-        for index in 0..self.observers.len() {
-            let observer = &self.observers[index];
-            let mut left =
-                observer.space_left * space_frame.emitted_left;
-            let mut right =
-                observer.space_right * space_frame.emitted_right;
-            for tap in &observer.body_taps {
-                left += tap.left * self.body_emissions[tap.body];
-                right += tap.right * self.body_emissions[tap.body];
-            }
-            let scale = observer.scale * controls.observation_scale;
-            self.observer_outputs[index].left = scale * left;
-            self.observer_outputs[index].right = scale * right;
-            if !self.observer_outputs[index].left.is_finite()
-                || !self.observer_outputs[index].right.is_finite()
-            {
-                return Err(SharedWorldError::NonFiniteState);
-            }
-        }
-        let primary = &self.observer_outputs[self.primary_observer];
-        Ok(SharedFrameOutput {
-            left: primary.left,
-            right: primary.right,
+        Ok(WorldFrame {
             source_work,
             control_work,
             internal_loss,
             radiation,
+            space_emitted_left: space_frame.emitted_left,
+            space_emitted_right: space_frame.emitted_right,
             direct_exchange_into_left: coupling.exchange_into_left,
             space_exchange_into_bodies,
             local_residual,
@@ -171,16 +141,14 @@ impl SharedWorld {
     }
 
     #[must_use]
-    pub fn receipt(&self) -> SharedWorldReceipt {
-        SharedWorldReceipt {
+    pub fn receipt(&self) -> WorldReceipt {
+        WorldReceipt {
             plan_digest: self.plan_digest.clone(),
             sample_frames: self.sample_frames,
             body_count: self.bodies.len(),
             direct_coupling_count: self.couplings.edge_count(),
-            observer_count: self.observers.len(),
             source_work: self.ledger.source_work,
-            control_work: self.ledger.control_work
-                + self.pending_control_work,
+            control_work: self.ledger.control_work + self.pending_control_work,
             internal_loss: self.ledger.internal_loss,
             radiation: self.ledger.radiation_loss,
             initial_energy: self
