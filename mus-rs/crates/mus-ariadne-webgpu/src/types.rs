@@ -3,31 +3,38 @@ use encase::{ShaderType, UniformBuffer};
 use glam::{UVec4, Vec4};
 use serde::{Deserialize, Serialize};
 
-/// A compact event splatted into the impulse field.
+/// A compact, non-loading event splatted into an observer-owned field.
 ///
-/// `position_radius = (x, y, radius, compactness)` in normalized world space.
-/// `channels = (momentum, foam, optical_work, auxiliary)`.
+/// `position_radius = (x, y, radius, compactness)` in normalized optical-world
+/// space. `channels = (motion, structure, emission, auxiliary)`; the semantic
+/// bridge that creates the packet is content-addressed separately.
 #[repr(C)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Pod, Zeroable, ShaderType, Serialize, Deserialize,
 )]
-pub struct Impulse2D {
+pub struct ObserverImpulse2D {
     pub position_radius: Vec4,
     pub channels: Vec4,
 }
 
-impl Impulse2D {
+impl ObserverImpulse2D {
     #[must_use]
-    pub fn new(position: [f32; 2], radius: f32, momentum: f32, foam: f32) -> Self {
+    pub fn new(position: [f32; 2], radius: f32, motion: f32, structure: f32) -> Self {
         Self {
             position_radius: Vec4::new(position[0], position[1], radius, 3.0),
-            channels: Vec4::new(momentum, foam, 0.0, 0.0),
+            channels: Vec4::new(motion, structure, 0.0, 0.0),
         }
     }
 
     #[must_use]
-    pub fn with_optical_work(mut self, optical_work: f32) -> Self {
-        self.channels.z = optical_work;
+    pub fn with_emission(mut self, emission: f32) -> Self {
+        self.channels.z = emission;
+        self
+    }
+
+    #[must_use]
+    pub fn with_auxiliary(mut self, auxiliary: f32) -> Self {
+        self.channels.w = auxiliary;
         self
     }
 
@@ -40,11 +47,7 @@ impl Impulse2D {
     #[must_use]
     pub fn sanitized(self) -> Self {
         let finite = |value: f32, fallback: f32| {
-            if value.is_finite() {
-                value
-            } else {
-                fallback
-            }
+            if value.is_finite() { value } else { fallback }
         };
         Self {
             position_radius: Vec4::new(
@@ -63,34 +66,45 @@ impl Impulse2D {
     }
 }
 
-/// Fixed frame packet intended to become the shared hot-path upload contract.
+/// Fixed header for one optical-constitution step.
 #[repr(C)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Pod, Zeroable, ShaderType, Serialize, Deserialize,
 )]
-pub struct FramePacket {
-    /// `(sample_lo, sample_hi, event_count, flags)`.
+pub struct OpticalFrameHeader {
+    /// `(material_tick_lo, material_tick_hi, event_count, flags)`.
     pub clock: UVec4,
-    /// `(dt_seconds, absolute_seconds, display_frame, quality_level)`.
+    /// `(fixed_dt_seconds, absolute_seconds, optical_step, quality_level)`.
     pub timing: Vec4,
-    /// Consumer-defined observer pose or local frame.
+    /// Consumer-defined non-loading camera or local observer frame.
     pub observer: Vec4,
-    /// Compact scientific/performance receipt inputs.
-    pub receipt: Vec4,
 }
 
-impl Default for FramePacket {
+impl Default for OpticalFrameHeader {
     fn default() -> Self {
         Self {
             clock: UVec4::ZERO,
             timing: Vec4::ZERO,
             observer: Vec4::ZERO,
-            receipt: Vec4::ZERO,
         }
     }
 }
 
-/// Uniform block for one wave-sheet integration step.
+impl OpticalFrameHeader {
+    #[must_use]
+    pub fn with_material_tick(mut self, tick: u64) -> Self {
+        self.clock.x = tick as u32;
+        self.clock.y = (tick >> 32) as u32;
+        self
+    }
+
+    #[must_use]
+    pub fn material_tick(self) -> u64 {
+        u64::from(self.clock.x) | (u64::from(self.clock.y) << 32)
+    }
+}
+
+/// Uniform block for one observer wave-sheet integration step.
 #[repr(C)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Pod, Zeroable, ShaderType, Serialize, Deserialize,
@@ -100,9 +114,9 @@ pub struct WaveSheetParams {
     pub dimensions: UVec4,
     /// `(dt, damping, wave_speed_squared, restoring_force)`.
     pub integration: Vec4,
-    /// `(foam_decay, foam_velocity_gain, optical_decay, impulse_scale)`.
+    /// `(structure_decay, motion_gain, emission_decay, impulse_scale)`.
     pub constitutive: Vec4,
-    /// `(max_height, max_velocity, max_foam, max_optical)`.
+    /// `(max_height, max_velocity, max_structure, max_emission)`.
     pub limits: Vec4,
 }
 
@@ -142,30 +156,24 @@ impl WaveSheetParams {
 
 #[inline]
 fn finite(value: f32, fallback: f32) -> f32 {
-    if value.is_finite() {
-        value
-    } else {
-        fallback
-    }
+    if value.is_finite() { value } else { fallback }
 }
 
-/// Encode the shared frame packet according to WGSL uniform layout.
 #[must_use]
-pub fn encode_frame_packet(value: &FramePacket) -> Vec<u8> {
+pub fn encode_optical_frame_header(value: &OpticalFrameHeader) -> Vec<u8> {
     let mut buffer = UniformBuffer::new(Vec::new());
     buffer
         .write(value)
-        .expect("fixed-footprint Ariadne frame packet must encode");
+        .expect("fixed-footprint optical frame header must encode");
     buffer.into_inner()
 }
 
-/// Encode one wave-sheet parameter block according to WGSL uniform layout.
 #[must_use]
 pub fn encode_wave_sheet_params(value: &WaveSheetParams) -> Vec<u8> {
     let mut buffer = UniformBuffer::new(Vec::new());
     buffer
         .write(value)
-        .expect("fixed-footprint Ariadne wave parameters must encode");
+        .expect("fixed-footprint observer-wave parameters must encode");
     buffer.into_inner()
 }
 
@@ -174,8 +182,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn frame_packet_has_stable_uniform_footprint() {
-        assert_eq!(encode_frame_packet(&FramePacket::default()).len(), 64);
+    fn optical_header_has_stable_uniform_footprint_and_tick_roundtrip() {
+        let header = OpticalFrameHeader::default().with_material_tick(u64::MAX - 7);
+        assert_eq!(header.material_tick(), u64::MAX - 7);
+        assert_eq!(encode_optical_frame_header(&header).len(), 48);
     }
 
     #[test]
@@ -188,7 +198,7 @@ mod tests {
 
     #[test]
     fn impulse_sanitization_refuses_nonfinite_values() {
-        let impulse = Impulse2D {
+        let impulse = ObserverImpulse2D {
             position_radius: Vec4::new(f32::NAN, f32::INFINITY, -0.0, f32::NEG_INFINITY),
             channels: Vec4::splat(f32::NAN),
         }
