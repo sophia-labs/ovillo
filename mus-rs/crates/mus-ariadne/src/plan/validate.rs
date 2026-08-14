@@ -7,8 +7,7 @@ use crate::ir::{MODE_COUNT, SPACE_COURSES, TRANSPORT_PAIRS};
 use super::helpers::*;
 use super::{
     BodyPose, BodySpec, PlanError, SharedSpaceSpec, SpacePortSpec, WorldPlan,
-    MAX_BODY_INSTANCES, MAX_DIRECT_COUPLINGS, MAX_OBSERVERS, MAX_OBSERVER_TAPS,
-    WORLD_PLAN_SCHEMA_VERSION,
+    MAX_BODY_INSTANCES, MAX_DIRECT_COUPLINGS, WORLD_PLAN_SCHEMA_VERSION,
 };
 
 const INDEPENDENCE_EPS: f64 = 1.0e-8;
@@ -63,6 +62,7 @@ impl BodySpec {
                 "configuration path names must be nonempty and initial_amount must be in [0,1]",
             ));
         }
+        // Validate the complete authored path rather than only its endpoints.
         for step in 0..=32 {
             path.configuration_at(step as f64 / 32.0)
                 .validate(sample_rate_hz)
@@ -182,12 +182,6 @@ impl WorldPlan {
                 "world exceeds coupling capacity",
             ));
         }
-        if self.observers.is_empty() || self.observers.len() > MAX_OBSERVERS {
-            return Err(PlanError::new(
-                "invalid-observer-count",
-                format!("world must contain 1..={MAX_OBSERVERS} observers"),
-            ));
-        }
         self.shared_space.validate()?;
 
         let mut body_ids = BTreeSet::new();
@@ -241,86 +235,6 @@ impl WorldPlan {
                     ),
                 ));
             }
-        }
-
-        let total_taps: usize = self
-            .observers
-            .iter()
-            .map(|observer| observer.body_taps.len())
-            .sum();
-        if total_taps > MAX_OBSERVER_TAPS {
-            return Err(PlanError::new(
-                "too-many-observer-taps",
-                "world exceeds observer-tap capacity",
-            ));
-        }
-        let mut observer_ids = BTreeSet::new();
-        for observer in &self.observers {
-            validate_id("observer", &observer.id)?;
-            if !observer_ids.insert(observer.id.as_str()) {
-                return Err(PlanError::new(
-                    "duplicate-observer-id",
-                    format!("duplicate observer id {:?}", observer.id),
-                ));
-            }
-            if !observer.output_scale.is_finite()
-                || !(0.0..=64.0).contains(&observer.output_scale)
-            {
-                return Err(PlanError::new(
-                    "invalid-observer-scale",
-                    format!(
-                        "observer {:?} output_scale must be finite in [0,64]",
-                        observer.id
-                    ),
-                ));
-            }
-            let mut nonzero = observer.space_left_projection != 0.0
-                || observer.space_right_projection != 0.0;
-            for tap in &observer.body_taps {
-                if !body_ids.contains(tap.body_id.as_str()) {
-                    return Err(PlanError::new(
-                        "unknown-observer-body",
-                        format!(
-                            "observer {:?} references unknown body {:?}",
-                            observer.id, tap.body_id
-                        ),
-                    ));
-                }
-                if !tap.left_projection.is_finite()
-                    || !tap.right_projection.is_finite()
-                {
-                    return Err(PlanError::new(
-                        "invalid-observer-projection",
-                        format!(
-                            "observer {:?} has non-finite body projection",
-                            observer.id
-                        ),
-                    ));
-                }
-                nonzero |= tap.left_projection != 0.0
-                    || tap.right_projection != 0.0;
-            }
-            if !observer.space_left_projection.is_finite()
-                || !observer.space_right_projection.is_finite()
-                || !nonzero
-            {
-                return Err(PlanError::new(
-                    "invalid-observer-aperture",
-                    format!(
-                        "observer {:?} must have finite nonzero projections",
-                        observer.id
-                    ),
-                ));
-            }
-        }
-        if !observer_ids.contains(self.primary_observer.as_str()) {
-            return Err(PlanError::new(
-                "unknown-primary-observer",
-                format!(
-                    "primary observer {:?} is not declared",
-                    self.primary_observer
-                ),
-            ));
         }
         Ok(())
     }
