@@ -1,22 +1,24 @@
 //! Content-addressed construction plan for one multi-body Ariadne world.
+//!
+//! The plan contains physical anatomy only. Observation programs, optical
+//! constitutions, sensors, and presentation bind to its digest without changing
+//! the identity of the world.
 
-mod compat;
 mod helpers;
+mod preset;
 mod types;
 mod validate;
 #[cfg(test)]
 mod tests;
 
 pub use types::{
-    BodyInstanceSpec, BodyPose, BodySpec, DirectCouplingSpec, ObserverBodyTap,
-    ObserverSpec, SharedSpaceSpec, SpacePortSpec, WorldPlan,
+    BodyInstanceSpec, BodyPose, BodySpec, DirectCouplingSpec, SharedSpaceSpec,
+    SpacePortSpec, WorldPlan,
 };
 
-pub const WORLD_PLAN_SCHEMA_VERSION: &str = "ariadne-world-plan-v1";
+pub const WORLD_PLAN_SCHEMA_VERSION: &str = "ariadne-world-plan-v2";
 pub const MAX_BODY_INSTANCES: usize = 64;
 pub const MAX_DIRECT_COUPLINGS: usize = 4_096;
-pub const MAX_OBSERVERS: usize = 64;
-pub const MAX_OBSERVER_TAPS: usize = 4_096;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanError {
