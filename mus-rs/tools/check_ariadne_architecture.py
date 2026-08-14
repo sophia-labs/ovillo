@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Fail when Ariadne grows a second physical-world architecture.
 
-`mus-ariadne` owns anatomy, law, state, space, trajectories, execution, and
-receipts. `mus-dsp` may expose a temporary inline import shim, but it may not own
-an Ariadne source file. Host adapters depend on the canonical crate directly.
+`mus-ariadne` owns construction plans, local bodies, shared fields, physical
+couplings, trajectories, observers, execution, and the one global receipt. Host
+adapters depend on the canonical crate directly. A musical phenotype may add a
+BodySpec or gesture compiler, but not another private World or ledger.
 """
 
 from __future__ import annotations
@@ -23,6 +24,9 @@ REQUIRED_CANONICAL_FILES = (
     "README.md",
     "src/lib.rs",
     "src/ir.rs",
+    "src/plan.rs",
+    "src/body.rs",
+    "src/coupling.rs",
     "src/world.rs",
     "src/field.rs",
     "src/space.rs",
@@ -33,17 +37,26 @@ REQUIRED_CANONICAL_FILES = (
     "src/law/transport.rs",
 )
 
-# Patterns are checked inside `World::process_sample`, in execution order.
-REQUIRED_STAGE_PATTERNS = (
+# Patterns are checked after whitespace removal. Body-local law ordering and
+# world-composition ordering are separate constitutional invariants.
+REQUIRED_BODY_STAGE_PATTERNS = (
     ("external work", "letwork_input"),
     ("compliant boundary", "self.aperture.process"),
     ("active material", "self.active.process"),
     ("ordered transport", "self.transport.process"),
     ("conservative propagation", "self.field.propagate"),
     ("passive loss", "self.field.damp"),
-    ("space exchange", "self.space.process"),
-    ("radiation", ".radiate("),
-    ("ledger", "self.ledger.push"),
+)
+
+REQUIRED_WORLD_STAGE_PATTERNS = (
+    ("body-local evolution", ".process_local("),
+    ("direct body coupling", "self.couplings.process"),
+    ("open shared field", "self.space.begin_frame"),
+    ("body/shared-field exchange", "space.exchange_port"),
+    ("shared-field propagation", "self.space.finish_frame"),
+    ("body radiation", ".radiate("),
+    ("global ledger", "self.ledger.push"),
+    ("non-loading observation", "self.observer_outputs[index]"),
 )
 
 FORBIDDEN_CANONICAL_DEPENDENCIES = (
@@ -67,6 +80,30 @@ def rust_sources(directory: Path) -> list[Path]:
 def fail_if_missing(failures: list[str], path: Path, label: str) -> None:
     if not path.exists():
         failures.append(f"{label}: {path.relative_to(ROOT)}")
+
+
+def check_order(
+    failures: list[str],
+    text: str,
+    function_name: str,
+    end_marker: str,
+    stages: tuple[tuple[str, str], ...],
+    label: str,
+) -> None:
+    start = text.find(function_name)
+    end = text.find(end_marker, start + 1)
+    if start < 0 or end < 0:
+        failures.append(f"canonical {label} does not expose the frozen execution function")
+        return
+    body = re.sub(r"\s+", "", text[start:end])
+    cursor = -1
+    for stage, pattern in stages:
+        next_cursor = body.find(pattern, cursor + 1)
+        if next_cursor < 0:
+            failures.append(f"canonical {label} omits {stage!r} ({pattern!r})")
+        elif next_cursor <= cursor:
+            failures.append(f"canonical {label} order is not frozen at {stage!r}")
+        cursor = max(cursor, next_cursor)
 
 
 def main() -> int:
@@ -110,34 +147,57 @@ def main() -> int:
                     f"{path.relative_to(ROOT)}"
                 )
 
+    body_path = ARIADNE / "src" / "body.rs"
+    if body_path.exists():
+        body_text = body_path.read_text(encoding="utf-8")
+        check_order(
+            failures,
+            body_text,
+            "pub fn process_local",
+            "pub fn radiate",
+            REQUIRED_BODY_STAGE_PATTERNS,
+            "Body local execution",
+        )
+        if "pub struct Body" not in body_text:
+            failures.append("canonical runtime does not expose persistent Body")
+        for forbidden in ("WorkLedger", "ReciprocalSpace"):
+            if forbidden in body_text:
+                failures.append(
+                    f"Body improperly owns world-level component {forbidden!r}"
+                )
+
+    plan_path = ARIADNE / "src" / "plan.rs"
+    if plan_path.exists():
+        plan_text = plan_path.read_text(encoding="utf-8")
+        for required in (
+            "pub struct WorldPlan",
+            "pub struct BodyInstanceSpec",
+            "pub struct SharedSpaceSpec",
+            "pub struct DirectCouplingSpec",
+            "pub struct ObserverSpec",
+        ):
+            if required not in plan_text:
+                failures.append(f"WorldPlan IR omits {required!r}")
+
     world_path = ARIADNE / "src" / "world.rs"
     if world_path.exists():
         world_text = world_path.read_text(encoding="utf-8")
-        start = world_text.find("pub fn process_sample")
-        end = world_text.find("pub fn receipt", start + 1)
-        if start < 0 or end < 0:
-            failures.append("canonical World does not expose process_sample and receipt")
-        else:
-            # Rustfmt is free to split chained calls across lines. The
-            # architecture guard cares about stage identity and order, not
-            # presentation whitespace.
-            process_text = re.sub(r"\s+", "", world_text[start:end])
-            cursor = -1
-            for stage, pattern in REQUIRED_STAGE_PATTERNS:
-                next_cursor = process_text.find(pattern, cursor + 1)
-                if next_cursor < 0:
-                    failures.append(
-                        f"canonical sample execution omits {stage!r} ({pattern!r})"
-                    )
-                elif next_cursor <= cursor:
-                    failures.append(
-                        f"canonical sample execution order is not frozen at {stage!r}"
-                    )
-                cursor = max(cursor, next_cursor)
+        check_order(
+            failures,
+            world_text,
+            "pub fn process_shared_sample",
+            "pub fn receipt",
+            REQUIRED_WORLD_STAGE_PATTERNS,
+            "Shared World execution",
+        )
         if "pub struct World" not in world_text:
             failures.append("canonical runtime does not expose one World")
         if "WorkLedger" not in world_text:
-            failures.append("canonical runtime does not own one work ledger")
+            failures.append("canonical World does not own one global work ledger")
+        if "Vec<Body>" not in world_text:
+            failures.append("canonical World does not own several Body instances")
+        if "Vec<ReciprocalSpace" in world_text:
+            failures.append("canonical World gives bodies private shared fields")
 
     dsp_src = DSP / "src"
     for path in sorted(dsp_src.glob("ariadne_*.rs")):
@@ -207,8 +267,9 @@ def main() -> int:
         return 1
 
     print(
-        "Ariadne architecture check passed: one canonical crate, one World, "
-        "one sample order, one ledger, and no duplicate DSP bodies."
+        "Ariadne architecture check passed: one canonical WorldPlan, many local "
+        "Bodies, one shared field, one coupling graph, non-loading observers, "
+        "and one global ledger."
     )
     return 0
 

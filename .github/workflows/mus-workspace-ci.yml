@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Ariadne single-architecture constitution
+      - name: Ariadne Shared World architecture
         run: python mus-rs/tools/check_ariadne_architecture.py
       - name: Ariadne pure-physics constitution
         run: python mus-rs/tools/check_ariadne_pure_physics.py
@@ -50,6 +50,9 @@ jobs:
           workspaces: mus-rs
       - name: canonical Ariadne feature matrix
         run: cargo test -p mus-ariadne --all-features --release
+        working-directory: mus-rs
+      - name: Shared World execution smoke
+        run: cargo run -p mus-ariadne --release --example shared_world_bench -- 4 0.1
         working-directory: mus-rs
       - name: fmt
         run: cargo fmt --all -- --check

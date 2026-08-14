@@ -3,78 +3,168 @@
 `mus-ariadne` is the canonical host-free runtime for Ariadne's persistent metamaterial world.
 
 ```text
-WorldSpec
-  anatomy, capacities, field metric, compliant boundary, active material,
-  ordered transport, reciprocal space, and radiation
+WorldPlan
+  shared clock
+  BodyInstance[]
+  shared spatial field
+  reciprocal coupling graph
+  Observer[]
         |
         v
-World::try_new
-  validation, normalization, allocation, digest, and structural cost model
+World::from_plan
+  validation, content address, allocation, port binding, cost model
         |
         +---- TrajectoryProgram
-        |       -> TrajectoryBinding::compile
-        |       -> typed runtime updates
+        |       -> SharedTrajectoryBinding::compile
+        |       -> typed body/world updates
         |
         v
 World
-  one persistent state + one frozen sample order + one WorkLedger
+  several persistent bodies
+  + one shared field
+  + one global WorkLedger
         |
         v
-FrameOutput + WorldReceipt
+radiation + non-loading observers + SharedWorldReceipt
 ```
+
+The validated one-body `WorldSpec` remains an exact compatibility embedding:
+
+```text
+World::try_new(WorldSpec)
+    ==
+World::from_plan(WorldPlan::from_single_body(WorldSpec))
+```
+
+This keeps the product path stable while moving the canonical ontology from
+“one body with a private room” to “many bodies in one shared world.”
+
+## Programming paradigm
+
+- A **track** is an authoring or mix lane.
+- A **voice** is an event stream.
+- A **BodySpec** is reusable local anatomy.
+- A **BodyInstance** is one persistent physical individual.
+- A **shared field** is world state through which several bodies may exchange energy.
+- A **coupling edge** is an explicit reciprocal relation between body apertures.
+- An **observer** is non-loading unless it is promoted to a physical port.
+
+Notes and game actions excite named bodies; they do not create fresh bodies.
+A piano track may address one compound body, a drum-kit track may address several
+bodies, and doubled parts instantiate separate bodies from one anatomy.
 
 New musical capabilities enter as one of:
 
 1. a reusable local law under `law/`;
-2. a field or space representation satisfying the same energy and receipt contract;
-3. a `WorldSpec` anatomy or configuration path;
-4. a `mus-trajectory` program over canonical world coordinates;
-5. a `mus-gesture` compiler lowering to the same trajectory and operator IR.
+2. a `BodySpec` or shared-field representation satisfying the energy contract;
+3. a reciprocal coupling edge or declared stateful coupling law;
+4. a `WorldPlan` composition;
+5. a `mus-trajectory` program over typed body/world coordinates;
+6. a `mus-gesture` or Extension compiler lowering to the same program IR.
 
-A new instrument-specific renderer is not an accepted extension mechanism.
-
-## Programming paradigm
-
-- Describe anatomy rather than a serial processor. Instruments are regions and paths in `WorldSpec` configuration space.
-- Keep state persistent. Gestures act on one world; fresh bodies require an explicit reset.
-- Separate conservative transport, external work, control work, loss, and radiation under one global balance.
-- Treat space as a body. Delayed fields exchange energy bidirectionally with material state.
-- Compile names away. Parsing, graph search, and optimization finish before the sample path.
-- Add configurations before laws. A new law is justified only after honest search and ablation show a missing capability.
+A new instrument-specific renderer, private room, or private work ledger is not
+an accepted extension mechanism.
 
 ## Dependency direction
 
 - `mus-watsn`: executable mathematical laws, sparse operators, and the ledger.
 - `mus-trajectory`: validated content-addressed authored paths.
 - `mus-gesture`: inverse path compilation.
-- `mus-ariadne`: physical-world IR, state, laws, execution, radiation, and receipts.
+- `mus-ariadne`: bodies, fields, couplings, observers, execution, and receipts.
 - `mus-dsp`: historical MUS kernels and explicit scientific controls.
-- plug-ins: ABI, smoothing, clock conversion, and state migration; no physical law.
+- plug-ins and games: ABI, interaction, presentation, and program compilation; no private physical law.
 
-No dependency may point from `mus-ariadne` into `mus-dsp`, a plug-in, analysis code, target fitting, or an optimizer.
+No dependency may point from `mus-ariadne` into `mus-dsp`, a plug-in, game,
+analysis code, target fitting, or an optimizer.
 
 ## Frozen material-clock order
 
 ```text
-external work
--> compliant boundary
--> reservoir-paid active material
--> ordered metric-compatible transport
--> conservative field propagation
--> passive loss
--> reciprocal space exchange and evolution
--> material and space radiation
--> one ledger frame
+for each body:
+  external work
+  -> compliant boundary
+  -> reservoir-paid active material
+  -> ordered metric-compatible transport
+  -> conservative field propagation
+  -> passive loss
+
+all bodies:
+  -> direct reciprocal body/body coupling
+  -> body/shared-field exchange
+  -> shared-field scattering, loss, and propagation
+  -> body and shared-field radiation
+  -> one global ledger frame
+  -> non-loading observers
 ```
 
-Changing this order changes the physical model and requires a runtime version change plus new law, listening, and performance evidence.
+Changing this order changes the physical model and requires a runtime-version
+change plus new law, compatibility, listening, and performance evidence.
+
+## Typed shared trajectories
+
+A shared trajectory names body coordinates as:
+
+```text
+body:<body-id>/material_organization
+body:<body-id>/source_wave
+body:<body-id>/work_input
+body:<body-id>/active.coupling
+body:<body-id>/active.drive
+body:<body-id>/transport.interlace
+body:<body-id>/radiation.fraction
+```
+
+World coordinates remain:
+
+```text
+space.coupling
+space.decay
+space.radiation
+coupling.scale
+observation.scale
+```
+
+Names, body IDs, units, bounds, and sample rate are resolved at construction.
+The material thread sees typed indices and numeric values only.
+
+## Energy constitution
+
+For bodies `i`, shared fields `a`, and any future stateful coupling edges `e`,
+
+```text
+H_world = sum_i H_body_i + sum_a H_field_a + sum_e H_edge_e
+```
+
+One global receipt closes:
+
+```text
+Delta H_world
+  = source work
+  + configuration/control work
+  - internal loss
+  - physical radiation
+  + numerical residual
+```
+
+Body/body and body/field exchange are internal diagnostics. They never appear as
+newly created source work. Physical radiation removes energy once; any number of
+ordinary observers may read the emitted coordinates without removing it again.
 
 ## Real-time contract
 
-Construction may allocate, parse, hash, normalize, orthogonalize, and build delay storage. The sample path allocates and locks nothing, performs no name lookup, file I/O, FFT, graph search, optimization, or artifact work, and advances one fixed-capacity persistent world.
+Construction may allocate, parse, hash, normalize, orthogonalize, build delay
+storage, compile body IDs, and bind observer taps. The sample path allocates and
+locks nothing, performs no name lookup, file I/O, FFT, graph search,
+optimization, or artifact work, and advances fixed-capacity state.
 
-`RuntimeLayout` exposes state and delay storage. `CostEstimate` reports deterministic operation counts and is explicitly not a benchmark. Hardware timing is recorded separately with compiler, CPU, sample rate, block size, world digest, and build profile.
+`RuntimeLayout::from_plan` exposes state and shared delay storage.
+`CostEstimate::for_plan` exposes deterministic body, edge, port, and observer
+operation counts and is explicitly not a benchmark.
 
 ## Product compatibility
 
-The currently shipped Terminal remains under `compat::terminal` so existing sessions and parameter IDs survive this migration. The plug-in imports it directly from `mus-ariadne`. It may receive safety and migration fixes, but new physical capability belongs in `World`.
+The Ariadne CLAP/VST3 product now runs through canonical `World::try_new`. Its
+stable one-body API, parameter IDs, and session identity remain intact. New
+multi-body products and MUS score lowering should construct `WorldPlan` and use
+`World::from_plan`; they must not create a bank of independent Worlds and call
+their studio sum a shared physical system.
