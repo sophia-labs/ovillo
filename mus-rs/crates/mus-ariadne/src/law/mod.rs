@@ -2,4 +2,5 @@
 
 pub mod active;
 pub mod aperture;
+pub mod medium;
 pub mod transport;

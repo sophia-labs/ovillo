@@ -38,6 +38,13 @@ pub use ir::{
     WorldConfiguration, ACTIVE_RANKS, MODE_COUNT, SPACE_COURSES,
     TRANSPORT_PAIRS,
 };
+pub use law::medium::{
+    LocalConstitutiveMedium, LocalMediumDamageReceipt, LocalMediumEdgeSpec,
+    LocalMediumError, LocalMediumInputFrame, LocalMediumObserverSpec,
+    LocalMediumPlan, LocalMediumReconfigurationReceipt, LocalMediumSiteSpec,
+    LocalMediumSourceDrive, LocalMediumSourceSpec, LocalMediumState,
+    LocalMediumStepReceipt, LOCAL_MEDIUM_SCHEMA_VERSION,
+};
 pub use observation::{
     BoundObservationProgram, ListenerError, ObservationProgramError,
     ObservationRuntimeError, ObservationSource, StereoBodyTap, StereoFrame,

@@ -1,0 +1,30 @@
+[project]
+name = "extension-generation-3"
+version = "0.1.0"
+description = "Learned constitutive worlds compiled into Ariadne local media"
+requires-python = ">=3.11"
+dependencies = [
+  "torch>=2.7,<2.11",
+  "numpy>=2.0,<3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
+
+[project.scripts]
+extension-generation3 = "extension_generation3.cli:main"
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

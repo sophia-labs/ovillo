@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia-labs.dev/schemas/ariadne-local-medium-v1.schema.json",
+  "title": "Ariadne local constitutive medium v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "name",
+    "sample_rate_hz",
+    "sites",
+    "edges",
+    "sources",
+    "observers"
+  ],
+  "properties": {
+    "schema_version": {"const": "ariadne-local-medium-v1"},
+    "name": {"type": "string", "minLength": 1},
+    "sample_rate_hz": {"type": "number", "minimum": 1, "maximum": 1000000},
+    "sites": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/site"}
+    },
+    "edges": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/edge"}
+    },
+    "sources": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/source"}
+    },
+    "observers": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/observer"}
+    }
+  },
+  "$defs": {
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "wave_metric",
+        "wave_decay_per_second",
+        "evidence_decay_per_second",
+        "reservoir_capacity",
+        "reservoir_leak_per_second",
+        "active_rate_per_second",
+        "active_threshold",
+        "active_target_wave_energy",
+        "initial_wave",
+        "initial_evidence",
+        "initial_reservoir"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "wave_metric": {"type": "number", "exclusiveMinimum": 0},
+        "wave_decay_per_second": {"type": "number", "minimum": 0},
+        "evidence_decay_per_second": {"type": "number", "minimum": 0},
+        "reservoir_capacity": {"type": "number", "exclusiveMinimum": 0},
+        "reservoir_leak_per_second": {"type": "number", "minimum": 0},
+        "active_rate_per_second": {"type": "number", "minimum": 0},
+        "active_threshold": {"type": "number", "minimum": 0},
+        "active_target_wave_energy": {"type": "number", "minimum": 0},
+        "initial_wave": {"type": "number"},
+        "initial_evidence": {"type": "number", "minimum": 0},
+        "initial_reservoir": {"type": "number", "minimum": 0}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "left",
+        "right",
+        "wave_rate_radians_per_second",
+        "evidence_rate_per_second",
+        "enabled"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "left": {"type": "integer", "minimum": 0},
+        "right": {"type": "integer", "minimum": 0},
+        "wave_rate_radians_per_second": {"type": "number"},
+        "evidence_rate_per_second": {"type": "number", "minimum": 0},
+        "enabled": {"type": "boolean"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "site", "wave_gain", "evidence_gain", "work_gain"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "site": {"type": "integer", "minimum": 0},
+        "wave_gain": {"type": "number"},
+        "evidence_gain": {"type": "number"},
+        "work_gain": {"type": "number"}
+      }
+    },
+    "observer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "wave_weights",
+        "evidence_weights",
+        "reservoir_weights",
+        "bias"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "wave_weights": {"type": "array", "items": {"type": "number"}},
+        "evidence_weights": {"type": "array", "items": {"type": "number"}},
+        "reservoir_weights": {"type": "array", "items": {"type": "number"}},
+        "bias": {"type": "number"}
+      }
+    }
+  }
+}

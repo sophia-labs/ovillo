@@ -1,0 +1,25 @@
+{
+  "format": "sophia.instrument.extension.experiment-catalog/v1",
+  "status_date": "2026-08-14",
+  "experiments": [
+    {
+      "id": "extension-scaling-phase-v2",
+      "title": "Extension Scaling Phase v2",
+      "status": "completed_aws_tranche_external_branch",
+      "source_branch": "agent/extension-scaling-phase-v2",
+      "source_commit": "61a840e8cc9d2f5d433ad4b8564a2aa58ac5893a",
+      "entrypoint": "extension/experiments/scaling-phase-v2/README.md",
+      "note": "The immutable S0-S2 campaign remains on its source branch and is not copied into the Ariadne-based Generation 3 branch."
+    },
+    {
+      "id": "extension-generation-3",
+      "title": "Extension Generation 3: learned constitutive worlds",
+      "status": "construction_implemented",
+      "source_branch": "agent/extension-generation-3",
+      "base_branch": "agent/ariadne-world-webgpu-finish",
+      "entrypoint": "extension/experiments/generation-3/README.md",
+      "ariadne_law": "mus-rs/crates/mus-ariadne/src/law/medium.rs",
+      "cross_runtime_fixture": "extension/experiments/generation-3/fixtures/cross-runtime.json"
+    }
+  ]
+}
