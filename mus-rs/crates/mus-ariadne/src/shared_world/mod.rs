@@ -1,6 +1,7 @@
 //! Canonical multi-body Ariadne physical runtime.
 
 mod build;
+mod observe;
 mod process;
 mod types;
 
