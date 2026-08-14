@@ -1,0 +1,29 @@
+[package]
+name = "mus-ariadne-webgpu"
+version = "0.1.0"
+description = "WebGPU constitutive visual-compute primitives for persistent Ariadne material worlds"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+build = "build.rs"
+
+[features]
+default = ["profiling"]
+profiling = ["dep:wgpu-profiler"]
+
+[dependencies]
+bytemuck = { version = "1", features = ["derive"] }
+encase = "0.12"
+glam = { version = "0.30", features = ["bytemuck", "encase", "serde"] }
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+wgpu = "29"
+wgpu-profiler = { version = "0.27", optional = true }
+wesl = "0.4"
+
+[build-dependencies]
+wesl = "0.4"
+
+[dev-dependencies]
+approx = "0.5"
+serde_json = "1"

@@ -1,0 +1,98 @@
+use crate::primitive::{
+    ImpulseRaster2D, ImpulseRasterConfig, PrimitiveError, WaveSheet2D, WaveSheetConfig,
+};
+use crate::types::{Impulse2D, WaveSheetParams};
+use serde::{Deserialize, Serialize};
+use std::mem::size_of;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WaveSurfaceConfig {
+    pub width: u32,
+    pub height: u32,
+    pub max_impulses: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SurfaceStepReceipt {
+    pub impulse_count: u32,
+    pub upload_bytes: u64,
+    pub dispatch_workgroups: [u32; 3],
+}
+
+/// First composable Ariadne GPU graph: local impulse rasterization followed by
+/// one tiled persistent wave-sheet step.
+pub struct WaveSurface2D {
+    config: WaveSurfaceConfig,
+    impulses: ImpulseRaster2D,
+    wave: WaveSheet2D,
+}
+
+impl WaveSurface2D {
+    pub fn new(
+        device: &wgpu::Device,
+        config: WaveSurfaceConfig,
+    ) -> Result<Self, PrimitiveError> {
+        let impulses = ImpulseRaster2D::new(
+            device,
+            ImpulseRasterConfig {
+                width: config.width,
+                height: config.height,
+                max_impulses: config.max_impulses,
+            },
+        )?;
+        let wave = WaveSheet2D::new(
+            device,
+            impulses.view(),
+            WaveSheetConfig {
+                width: config.width,
+                height: config.height,
+            },
+        )?;
+        Ok(Self {
+            config,
+            impulses,
+            wave,
+        })
+    }
+
+    pub fn encode(
+        &mut self,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        impulses: &[Impulse2D],
+        parameters: WaveSheetParams,
+    ) -> Result<SurfaceStepReceipt, PrimitiveError> {
+        self.impulses.upload(queue, impulses)?;
+        self.impulses.encode(encoder);
+        self.wave.encode(queue, encoder, parameters)?;
+        Ok(SurfaceStepReceipt {
+            impulse_count: self.impulses.impulse_count(),
+            upload_bytes: (impulses.len() * size_of::<Impulse2D>()) as u64,
+            dispatch_workgroups: [
+                self.config.width.div_ceil(16),
+                self.config.height.div_ceil(16),
+                1,
+            ],
+        })
+    }
+
+    #[must_use]
+    pub fn state_view(&self) -> &wgpu::TextureView {
+        self.wave.state_view()
+    }
+
+    #[must_use]
+    pub fn state_texture(&self) -> &wgpu::Texture {
+        self.wave.state_texture()
+    }
+
+    #[must_use]
+    pub fn impulse_view(&self) -> &wgpu::TextureView {
+        self.impulses.view()
+    }
+
+    #[must_use]
+    pub const fn config(&self) -> WaveSurfaceConfig {
+        self.config
+    }
+}
