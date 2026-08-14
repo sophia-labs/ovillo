@@ -1,17 +1,17 @@
 use super::{GpuPrimitive, PrimitiveError};
 use crate::law::{Cadence, Domain, LawClass, PrimitiveDescriptor, SpatialSupport, ZeroLaw};
-use crate::types::Impulse2D;
+use crate::types::ObserverImpulse2D;
 use std::mem::size_of;
 
 pub const DESCRIPTOR: PrimitiveDescriptor = PrimitiveDescriptor {
-    name: "ImpulseRaster2D",
+    name: "ObserverImpulseRaster2D",
     domain: Domain::Observer,
-    law: LawClass::WorkInjection,
-    cadence: Cadence::EveryFrame,
+    law: LawClass::ObserverExcitation,
+    cadence: Cadence::OnEvent,
     support: SpatialSupport::EventRaster,
     zero_law: ZeroLaw {
         name: "zero-event",
-        statement: "clearing with zero impulses leaves every target channel exactly zero",
+        statement: "clearing with zero observer impulses leaves every target channel exactly zero",
     },
 };
 
@@ -39,28 +39,28 @@ impl ImpulseRasterConfig {
     }
 }
 
-/// Renders compact local event quads into one additive `rgba16float` impulse
-/// texture. Cost follows covered event pixels instead of field cells times
-/// event count.
-pub struct ImpulseRaster2D {
+/// Renders compact local observer events into one additive `rgba16float`
+/// excitation texture. Cost follows covered event pixels instead of field cells
+/// times event count.
+pub struct ObserverImpulseRaster2D {
     config: ImpulseRasterConfig,
     target: wgpu::Texture,
     target_view: wgpu::TextureView,
     impulse_buffer: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
     pipeline: wgpu::RenderPipeline,
-    scratch: Vec<Impulse2D>,
+    scratch: Vec<ObserverImpulse2D>,
     impulse_count: u32,
 }
 
-impl ImpulseRaster2D {
+impl ObserverImpulseRaster2D {
     pub fn new(
         device: &wgpu::Device,
         config: ImpulseRasterConfig,
     ) -> Result<Self, PrimitiveError> {
         let config = config.validate()?;
         let target = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("Ariadne ImpulseRaster2D target"),
+            label: Some("Ariadne observer impulse target"),
             size: wgpu::Extent3d {
                 width: config.width,
                 height: config.height,
@@ -77,17 +77,17 @@ impl ImpulseRaster2D {
         });
         let target_view = target.create_view(&wgpu::TextureViewDescriptor::default());
         let impulse_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Ariadne ImpulseRaster2D events"),
-            size: (config.max_impulses * size_of::<Impulse2D>()) as u64,
+            label: Some("Ariadne observer impulses"),
+            size: (config.max_impulses * size_of::<ObserverImpulse2D>()) as u64,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Ariadne ImpulseRaster2D WESL"),
+            label: Some("Ariadne observer impulse WESL"),
             source: wgpu::ShaderSource::Wgsl(wesl::include_wesl!("ariadne_impulse_raster")),
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Ariadne ImpulseRaster2D pipeline"),
+            label: Some("Ariadne observer impulse pipeline"),
             layout: None,
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -123,7 +123,7 @@ impl ImpulseRaster2D {
             cache: None,
         });
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Ariadne ImpulseRaster2D bind group"),
+            label: Some("Ariadne observer impulse bind group"),
             layout: &pipeline.get_bind_group_layout(0),
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -145,7 +145,7 @@ impl ImpulseRaster2D {
     pub fn upload(
         &mut self,
         queue: &wgpu::Queue,
-        impulses: &[Impulse2D],
+        impulses: &[ObserverImpulse2D],
     ) -> Result<(), PrimitiveError> {
         if impulses.len() > self.config.max_impulses {
             return Err(PrimitiveError::TooManyImpulses {
@@ -155,7 +155,7 @@ impl ImpulseRaster2D {
         }
         self.scratch.clear();
         self.scratch
-            .extend(impulses.iter().copied().map(Impulse2D::sanitized));
+            .extend(impulses.iter().copied().map(ObserverImpulse2D::sanitized));
         self.impulse_count = self.scratch.len() as u32;
         if !self.scratch.is_empty() {
             queue.write_buffer(
@@ -167,7 +167,7 @@ impl ImpulseRaster2D {
         Ok(())
     }
 
-    /// Clear the impulse target and rasterize the currently uploaded events.
+    /// Clear the excitation target and rasterize the currently uploaded events.
     pub fn encode(&self, encoder: &mut wgpu::CommandEncoder) {
         let color_attachment = Some(wgpu::RenderPassColorAttachment {
             view: &self.target_view,
@@ -180,7 +180,7 @@ impl ImpulseRaster2D {
         });
         let color_attachments = [color_attachment];
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Ariadne ImpulseRaster2D pass"),
+            label: Some("Ariadne observer impulse pass"),
             color_attachments: &color_attachments,
             depth_stencil_attachment: None,
             timestamp_writes: None,
@@ -215,7 +215,7 @@ impl ImpulseRaster2D {
     }
 }
 
-impl GpuPrimitive for ImpulseRaster2D {
+impl GpuPrimitive for ObserverImpulseRaster2D {
     fn descriptor(&self) -> &'static PrimitiveDescriptor {
         &DESCRIPTOR
     }
