@@ -4,9 +4,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Domain {
+    /// Authoritative state included in the Ariadne World and global ledger.
     World,
+    /// Non-loading persistent interpretation of physical observations.
     Observer,
+    /// Camera, retina, phosphor, exposure, or recording-device memory.
     Sensor,
+    /// Stateless or freely adaptive viewport composition.
     Presentation,
 }
 
@@ -15,12 +19,16 @@ pub enum Domain {
 #[serde(rename_all = "kebab-case")]
 pub enum LawClass {
     NeutralTransport,
-    WorkInjection,
+    /// Physical work accepted by an authoritative World-domain primitive.
+    PhysicalWorkInjection,
+    /// Nonphysical excitation of an observer-owned field from typed readouts.
+    ObserverExcitation,
     ConstitutiveEvolution,
     Dissipation,
     Radiation,
     NonLoadingObservation,
     SensorMemory,
+    Presentation,
 }
 
 /// Spatial support used to choose a suitable execution strategy.
@@ -35,7 +43,7 @@ pub enum SpatialSupport {
 }
 
 /// Declared scheduling cadence. Presentation is free to interpolate, but the
-/// primitive's authoritative cadence remains explicit.
+/// primitive's constitutive cadence remains explicit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "hz", rename_all = "kebab-case")]
 pub enum Cadence {
