@@ -1,0 +1,16 @@
+[package]
+name = "mus-ariadne-webgpu-bridge"
+version = "0.1.0"
+description = "Typed optical constitutions from Ariadne World observations to WebGPU packets"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+mus-ariadne = { path = "../mus-ariadne" }
+mus-ariadne-webgpu = { path = "../mus-ariadne-webgpu", default-features = false }
+mus-observation = { path = "../mus-observation" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.10"
+thiserror = "2"
