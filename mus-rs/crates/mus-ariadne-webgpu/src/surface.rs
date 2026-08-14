@@ -1,7 +1,8 @@
 use crate::primitive::{
-    ImpulseRaster2D, ImpulseRasterConfig, PrimitiveError, WaveSheet2D, WaveSheetConfig,
+    ImpulseRasterConfig, ObserverImpulseRaster2D, PrimitiveError, WaveSheet2D,
+    WaveSheetConfig,
 };
-use crate::types::{Impulse2D, WaveSheetParams};
+use crate::types::{ObserverImpulse2D, WaveSheetParams};
 use serde::{Deserialize, Serialize};
 use std::mem::size_of;
 
@@ -19,11 +20,11 @@ pub struct SurfaceStepReceipt {
     pub dispatch_workgroups: [u32; 3],
 }
 
-/// First composable Ariadne GPU graph: local impulse rasterization followed by
-/// one tiled persistent wave-sheet step.
+/// Observer-owned optical graph: local excitation rasterization followed by one
+/// tiled persistent wave-sheet step.
 pub struct WaveSurface2D {
     config: WaveSurfaceConfig,
-    impulses: ImpulseRaster2D,
+    impulses: ObserverImpulseRaster2D,
     wave: WaveSheet2D,
 }
 
@@ -32,7 +33,7 @@ impl WaveSurface2D {
         device: &wgpu::Device,
         config: WaveSurfaceConfig,
     ) -> Result<Self, PrimitiveError> {
-        let impulses = ImpulseRaster2D::new(
+        let impulses = ObserverImpulseRaster2D::new(
             device,
             ImpulseRasterConfig {
                 width: config.width,
@@ -59,7 +60,7 @@ impl WaveSurface2D {
         &mut self,
         queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
-        impulses: &[Impulse2D],
+        impulses: &[ObserverImpulse2D],
         parameters: WaveSheetParams,
     ) -> Result<SurfaceStepReceipt, PrimitiveError> {
         self.impulses.upload(queue, impulses)?;
@@ -67,7 +68,7 @@ impl WaveSurface2D {
         self.wave.encode(queue, encoder, parameters)?;
         Ok(SurfaceStepReceipt {
             impulse_count: self.impulses.impulse_count(),
-            upload_bytes: (impulses.len() * size_of::<Impulse2D>()) as u64,
+            upload_bytes: (impulses.len() * size_of::<ObserverImpulse2D>()) as u64,
             dispatch_workgroups: [
                 self.config.width.div_ceil(16),
                 self.config.height.div_ceil(16),
