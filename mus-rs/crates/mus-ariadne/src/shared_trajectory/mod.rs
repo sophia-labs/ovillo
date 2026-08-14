@@ -1,4 +1,4 @@
-//! Construction-time binding from authored trajectories into one Shared World.
+//! Construction-time binding from authored trajectories into one Ariadne World.
 //!
 //! Names and body IDs are resolved once. The material-clock path advances a
 //! monotone cursor through typed updates and performs no parsing, allocation,
@@ -7,6 +7,4 @@
 mod runtime;
 mod types;
 
-pub use types::{
-    SharedCoordinates, SharedTrajectoryBindError, SharedTrajectoryBinding,
-};
+pub use types::{TrajectoryBindError, TrajectoryBinding, WorldCoordinates};
