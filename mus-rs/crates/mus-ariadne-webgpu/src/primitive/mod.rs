@@ -1,7 +1,7 @@
 mod impulse_raster;
 mod wave_sheet;
 
-pub use impulse_raster::{ImpulseRaster2D, ImpulseRasterConfig};
+pub use impulse_raster::{ImpulseRasterConfig, ObserverImpulseRaster2D};
 pub use wave_sheet::{WaveSheet2D, WaveSheetConfig};
 
 use crate::law::PrimitiveDescriptor;
