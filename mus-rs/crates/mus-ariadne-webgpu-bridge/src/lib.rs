@@ -9,6 +9,7 @@
 
 mod compiler;
 mod plan;
+mod runtime;
 
 pub use compiler::{OpticalCompileError, OpticalPacketCompiler};
 pub use plan::{
@@ -17,3 +18,4 @@ pub use plan::{
     OpticalPlanError, OpticalSurfaceSpec, SharedFieldOpticalSpec,
     OPTICAL_CONSTITUTION_VERSION,
 };
+pub use runtime::{OpticalAdvanceReceipt, OpticalRuntimeError, WorldOpticalSurface};
