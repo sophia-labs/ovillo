@@ -1,0 +1,13 @@
+[package]
+name = "mus-observation"
+version = "0.1.0"
+description = "Typed non-loading observation programs and traces for Ariadne worlds"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.10"
+thiserror = "2"
