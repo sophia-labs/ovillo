@@ -2,8 +2,8 @@
 //!
 //! V1 edges are storage-free metric-compatible exchanges between one normalized
 //! momentum aperture on each body. A compliant or dissipative edge that owns
-//! state belongs in a later constitutive edge type rather than being hidden in
-//! this transport.
+//! state belongs in an explicit constitutive edge type rather than being hidden
+//! in this transport.
 
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
@@ -97,6 +97,7 @@ struct CompiledDirectCoupling {
 pub struct CouplingNetwork {
     body_count: usize,
     edges: Vec<CompiledDirectCoupling>,
+    last_exchanges_into_left: Vec<f64>,
 }
 
 impl CouplingNetwork {
@@ -114,6 +115,7 @@ impl CouplingNetwork {
         }
         Ok(Self {
             body_count: plan.bodies.len(),
+            last_exchanges_into_left: vec![0.0; edges.len()],
             edges,
         })
     }
@@ -123,8 +125,23 @@ impl CouplingNetwork {
         self.edges.len()
     }
 
+    #[must_use]
+    pub fn edge_id(&self, index: usize) -> Option<&str> {
+        self.edges.get(index).map(|edge| edge.id.as_str())
+    }
+
+    #[must_use]
+    pub fn last_exchange_into_left(&self, index: usize) -> Option<f64> {
+        self.last_exchanges_into_left.get(index).copied()
+    }
+
+    #[must_use]
+    pub fn last_exchanges_into_left(&self) -> &[f64] {
+        &self.last_exchanges_into_left
+    }
+
     pub fn process(
-        &self,
+        &mut self,
         sample_rate_hz: f64,
         bodies: &mut [Body],
         controls: CouplingControls,
@@ -135,13 +152,14 @@ impl CouplingNetwork {
                 actual: bodies.len(),
             });
         }
+        self.last_exchanges_into_left.fill(0.0);
         let controls = controls.sanitized();
         if controls.scale == 0.0 || self.edges.is_empty() {
             return Ok(CouplingFrame::default());
         }
         let dt = sample_rate_hz.recip();
         let mut frame = CouplingFrame::default();
-        for edge in &self.edges {
+        for (index, edge) in self.edges.iter().enumerate() {
             let (left_body, right_body) = two_mut(bodies, edge.left_body, edge.right_body)
                 .ok_or_else(|| CouplingError::RepeatedBody(edge.id.clone()))?;
             let left_projection = dot(left_body.momentum(), &edge.left_direction);
@@ -167,6 +185,7 @@ impl CouplingNetwork {
                 * (next_left * next_left + next_right * next_right
                     - left_projection * left_projection
                     - right_projection * right_projection);
+            self.last_exchanges_into_left[index] = left_exchange;
             frame.exchange_into_left += left_exchange;
             frame.metric_residual += residual;
             frame.maximum_abs_angle = frame.maximum_abs_angle.max(angle.abs());
@@ -262,11 +281,10 @@ fn finite(value: f64) -> f64 {
 mod tests {
     use super::*;
     use crate::body::BodyControls;
-    use crate::ir::WorldSpec;
     use crate::plan::{BodyInstanceSpec, DirectCouplingSpec, WorldPlan};
 
     fn coupled_plan() -> WorldPlan {
-        let mut plan = WorldPlan::from_single_body(WorldSpec::string_brass_v1());
+        let mut plan = WorldPlan::string_brass_v1(96_000.0);
         let mut second: BodyInstanceSpec = plan.bodies[0].clone();
         second.id = "body/1".to_owned();
         plan.bodies.push(second);
@@ -280,18 +298,13 @@ mod tests {
             rate_hz: 400.0,
             weight: 1.0,
         });
-        plan.observers[0].body_taps.push(crate::plan::ObserverBodyTap {
-            body_id: "body/1".to_owned(),
-            left_projection: 1.0,
-            right_projection: 1.0,
-        });
         plan
     }
 
     #[test]
-    fn direct_exchange_is_metric_compatible() {
+    fn direct_exchange_is_metric_compatible_and_observable() {
         let plan = coupled_plan();
-        let network = CouplingNetwork::compile(&plan).unwrap();
+        let mut network = CouplingNetwork::compile(&plan).unwrap();
         let mut bodies = plan
             .bodies
             .iter()
@@ -316,6 +329,8 @@ mod tests {
             .unwrap();
         let energy_after = bodies.iter().map(Body::total_stored_energy).sum::<f64>();
         assert!(frame.active_edges > 0);
+        assert_eq!(network.edge_id(0), Some("bridge/0"));
+        assert_eq!(network.last_exchange_into_left(0), Some(frame.exchange_into_left));
         assert!(frame.metric_residual.abs() < 1.0e-17);
         assert!((energy_after - energy_before).abs() < 1.0e-17);
     }
