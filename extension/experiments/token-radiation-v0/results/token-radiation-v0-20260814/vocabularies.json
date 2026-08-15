@@ -1,0 +1,550 @@
+[
+  {
+    "entries": [
+      {
+        "display": "a",
+        "id": 0,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "61"
+      },
+      {
+        "display": "b",
+        "id": 1,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "62"
+      },
+      {
+        "display": "c",
+        "id": 2,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "63"
+      },
+      {
+        "display": "d",
+        "id": 3,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "64"
+      },
+      {
+        "display": "e",
+        "id": 4,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "65"
+      },
+      {
+        "display": "<eos>",
+        "id": 5,
+        "kind": "eos",
+        "score": 0.0,
+        "surface_hex": null
+      }
+    ],
+    "format": "sophia.instrument.token-radiation.vocabulary/v1",
+    "name": "bytes"
+  },
+  {
+    "entries": [
+      {
+        "display": "a",
+        "id": 0,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "61"
+      },
+      {
+        "display": "b",
+        "id": 1,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "62"
+      },
+      {
+        "display": "c",
+        "id": 2,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "63"
+      },
+      {
+        "display": "d",
+        "id": 3,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "64"
+      },
+      {
+        "display": "e",
+        "id": 4,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "65"
+      },
+      {
+        "display": "ab",
+        "id": 5,
+        "kind": "bpe_merge",
+        "score": 124.0,
+        "surface_hex": "6162"
+      },
+      {
+        "display": "ac",
+        "id": 6,
+        "kind": "bpe_merge",
+        "score": 110.0,
+        "surface_hex": "6163"
+      },
+      {
+        "display": "ad",
+        "id": 7,
+        "kind": "bpe_merge",
+        "score": 60.0,
+        "surface_hex": "6164"
+      },
+      {
+        "display": "ba",
+        "id": 8,
+        "kind": "bpe_merge",
+        "score": 39.0,
+        "surface_hex": "6261"
+      },
+      {
+        "display": "bc",
+        "id": 9,
+        "kind": "bpe_merge",
+        "score": 49.0,
+        "surface_hex": "6263"
+      },
+      {
+        "display": "ce",
+        "id": 10,
+        "kind": "bpe_merge",
+        "score": 33.0,
+        "surface_hex": "6365"
+      },
+      {
+        "display": "db",
+        "id": 11,
+        "kind": "bpe_merge",
+        "score": 77.0,
+        "surface_hex": "6462"
+      },
+      {
+        "display": "ec",
+        "id": 12,
+        "kind": "bpe_merge",
+        "score": 147.0,
+        "surface_hex": "6563"
+      },
+      {
+        "display": "aca",
+        "id": 13,
+        "kind": "bpe_merge",
+        "score": 24.0,
+        "surface_hex": "616361"
+      },
+      {
+        "display": "bdb",
+        "id": 14,
+        "kind": "bpe_merge",
+        "score": 44.0,
+        "surface_hex": "626462"
+      },
+      {
+        "display": "dad",
+        "id": 15,
+        "kind": "bpe_merge",
+        "score": 28.0,
+        "surface_hex": "646164"
+      },
+      {
+        "display": "acac",
+        "id": 16,
+        "kind": "bpe_merge",
+        "score": 26.0,
+        "surface_hex": "61636163"
+      },
+      {
+        "display": "<eos>",
+        "id": 17,
+        "kind": "eos",
+        "score": 0.0,
+        "surface_hex": null
+      }
+    ],
+    "format": "sophia.instrument.token-radiation.vocabulary/v1",
+    "name": "bpe-18"
+  },
+  {
+    "entries": [
+      {
+        "display": "a",
+        "id": 0,
+        "kind": "byte",
+        "score": 3.9761269690108616,
+        "surface_hex": "61"
+      },
+      {
+        "display": "b",
+        "id": 1,
+        "kind": "byte",
+        "score": 1.171783748029944,
+        "surface_hex": "62"
+      },
+      {
+        "display": "c",
+        "id": 2,
+        "kind": "byte",
+        "score": 0.28623992946671356,
+        "surface_hex": "63"
+      },
+      {
+        "display": "d",
+        "id": 3,
+        "kind": "byte",
+        "score": 1.5913563412445362,
+        "surface_hex": "64"
+      },
+      {
+        "display": "e",
+        "id": 4,
+        "kind": "byte",
+        "score": 2.0984083250545313,
+        "surface_hex": "65"
+      },
+      {
+        "display": "ba",
+        "id": 5,
+        "kind": "unigram_piece",
+        "score": 60.90706475017129,
+        "surface_hex": "6261"
+      },
+      {
+        "display": "ec",
+        "id": 6,
+        "kind": "unigram_piece",
+        "score": 41.854555445194414,
+        "surface_hex": "6563"
+      },
+      {
+        "display": "aca",
+        "id": 7,
+        "kind": "unigram_piece",
+        "score": 51.18925726566337,
+        "surface_hex": "616361"
+      },
+      {
+        "display": "bdb",
+        "id": 8,
+        "kind": "unigram_piece",
+        "score": 32.16287194428321,
+        "surface_hex": "626462"
+      },
+      {
+        "display": "cbc",
+        "id": 9,
+        "kind": "unigram_piece",
+        "score": 34.05097778358486,
+        "surface_hex": "636263"
+      },
+      {
+        "display": "dad",
+        "id": 10,
+        "kind": "unigram_piece",
+        "score": 41.996458297831396,
+        "surface_hex": "646164"
+      },
+      {
+        "display": "cece",
+        "id": 11,
+        "kind": "unigram_piece",
+        "score": 14.433472480005198,
+        "surface_hex": "63656365"
+      },
+      {
+        "display": "bdbce",
+        "id": 12,
+        "kind": "unigram_piece",
+        "score": 8.906037851567179,
+        "surface_hex": "6264626365"
+      },
+      {
+        "display": "bdbec",
+        "id": 13,
+        "kind": "unigram_piece",
+        "score": 9.584871580991727,
+        "surface_hex": "6264626563"
+      },
+      {
+        "display": "cecbc",
+        "id": 14,
+        "kind": "unigram_piece",
+        "score": 13.010726827068224,
+        "surface_hex": "6365636263"
+      },
+      {
+        "display": "dadab",
+        "id": 15,
+        "kind": "unigram_piece",
+        "score": 10.733526075914517,
+        "surface_hex": "6461646162"
+      },
+      {
+        "display": "ecaca",
+        "id": 16,
+        "kind": "unigram_piece",
+        "score": 9.301163587257276,
+        "surface_hex": "6563616361"
+      },
+      {
+        "display": "<eos>",
+        "id": 17,
+        "kind": "eos",
+        "score": 0.0,
+        "surface_hex": null
+      }
+    ],
+    "format": "sophia.instrument.token-radiation.vocabulary/v1",
+    "name": "unigram-18"
+  },
+  {
+    "entries": [
+      {
+        "display": "a",
+        "id": 0,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "61"
+      },
+      {
+        "display": "b",
+        "id": 1,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "62"
+      },
+      {
+        "display": "c",
+        "id": 2,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "63"
+      },
+      {
+        "display": "d",
+        "id": 3,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "64"
+      },
+      {
+        "display": "e",
+        "id": 4,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "65"
+      },
+      {
+        "display": "ab",
+        "id": 5,
+        "kind": "predictive_piece",
+        "score": 59.886823083040056,
+        "surface_hex": "6162"
+      },
+      {
+        "display": "ac",
+        "id": 6,
+        "kind": "predictive_piece",
+        "score": 110.25835574580715,
+        "surface_hex": "6163"
+      },
+      {
+        "display": "bd",
+        "id": 7,
+        "kind": "predictive_piece",
+        "score": 91.85719979999637,
+        "surface_hex": "6264"
+      },
+      {
+        "display": "cb",
+        "id": 8,
+        "kind": "predictive_piece",
+        "score": 74.35435371790939,
+        "surface_hex": "6362"
+      },
+      {
+        "display": "ce",
+        "id": 9,
+        "kind": "predictive_piece",
+        "score": 59.51596865094595,
+        "surface_hex": "6365"
+      },
+      {
+        "display": "da",
+        "id": 10,
+        "kind": "predictive_piece",
+        "score": 115.70409396739196,
+        "surface_hex": "6461"
+      },
+      {
+        "display": "ec",
+        "id": 11,
+        "kind": "predictive_piece",
+        "score": 69.26450798087795,
+        "surface_hex": "6563"
+      },
+      {
+        "display": "ada",
+        "id": 12,
+        "kind": "predictive_piece",
+        "score": 61.587366725750385,
+        "surface_hex": "616461"
+      },
+      {
+        "display": "bdb",
+        "id": 13,
+        "kind": "predictive_piece",
+        "score": 53.741069476069974,
+        "surface_hex": "626462"
+      },
+      {
+        "display": "cac",
+        "id": 14,
+        "kind": "predictive_piece",
+        "score": 58.5426398737442,
+        "surface_hex": "636163"
+      },
+      {
+        "display": "cec",
+        "id": 15,
+        "kind": "predictive_piece",
+        "score": 64.55909154829517,
+        "surface_hex": "636563"
+      },
+      {
+        "display": "eca",
+        "id": 16,
+        "kind": "predictive_piece",
+        "score": 55.709523254285365,
+        "surface_hex": "656361"
+      },
+      {
+        "display": "<eos>",
+        "id": 17,
+        "kind": "eos",
+        "score": 0.0,
+        "surface_hex": null
+      }
+    ],
+    "format": "sophia.instrument.token-radiation.vocabulary/v1",
+    "name": "predictive-18"
+  },
+  {
+    "entries": [
+      {
+        "display": "a",
+        "id": 0,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "61"
+      },
+      {
+        "display": "b",
+        "id": 1,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "62"
+      },
+      {
+        "display": "c",
+        "id": 2,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "63"
+      },
+      {
+        "display": "d",
+        "id": 3,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "64"
+      },
+      {
+        "display": "e",
+        "id": 4,
+        "kind": "byte",
+        "score": 0.0,
+        "surface_hex": "65"
+      },
+      {
+        "display": "ab",
+        "id": 5,
+        "kind": "oracle_motif",
+        "score": 1.0,
+        "surface_hex": "6162"
+      },
+      {
+        "display": "ba",
+        "id": 6,
+        "kind": "oracle_motif",
+        "score": 1.0,
+        "surface_hex": "6261"
+      },
+      {
+        "display": "ce",
+        "id": 7,
+        "kind": "oracle_motif",
+        "score": 1.0,
+        "surface_hex": "6365"
+      },
+      {
+        "display": "ec",
+        "id": 8,
+        "kind": "oracle_motif",
+        "score": 1.0,
+        "surface_hex": "6563"
+      },
+      {
+        "display": "aca",
+        "id": 9,
+        "kind": "oracle_motif",
+        "score": 1.0,
+        "surface_hex": "616361"
+      },
+      {
+        "display": "bdb",
+        "id": 10,
+        "kind": "oracle_motif",
+        "score": 1.0,
+        "surface_hex": "626462"
+      },
+      {
+        "display": "cbc",
+        "id": 11,
+        "kind": "oracle_motif",
+        "score": 1.0,
+        "surface_hex": "636263"
+      },
+      {
+        "display": "dad",
+        "id": 12,
+        "kind": "oracle_motif",
+        "score": 1.0,
+        "surface_hex": "646164"
+      },
+      {
+        "display": "<eos>",
+        "id": 13,
+        "kind": "eos",
+        "score": 0.0,
+        "surface_hex": null
+      }
+    ],
+    "format": "sophia.instrument.token-radiation.vocabulary/v1",
+    "name": "oracle-motifs"
+  }
+]

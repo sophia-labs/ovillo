@@ -1,0 +1,23 @@
+{
+  "body_batch_size": 16,
+  "body_steps": 60,
+  "cpu_threads": 1,
+  "detector_batch_size": 6,
+  "detector_kinds": [
+    "linear",
+    "positive_frame"
+  ],
+  "detector_steps": 24,
+  "radiation_fraction": 0.04,
+  "radiation_modes": [
+    "passive",
+    "nonloading"
+  ],
+  "radiation_rank": 4,
+  "seed": 20260814,
+  "sequence_bytes": 32,
+  "sites": 8,
+  "train_sequences": 48,
+  "validation_sequences": 16,
+  "vocabulary_size": 18
+}

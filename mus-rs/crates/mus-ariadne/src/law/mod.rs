@@ -3,4 +3,5 @@
 pub mod active;
 pub mod aperture;
 pub mod medium;
+pub mod radiation;
 pub mod transport;

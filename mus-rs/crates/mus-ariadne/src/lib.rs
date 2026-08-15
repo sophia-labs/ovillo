@@ -35,26 +35,28 @@ pub use body::{Body, BodyControls, BodyError, BodyLocalFrame, BodyReconfiguratio
 pub use coupling::{CouplingControls, CouplingError, CouplingFrame, CouplingNetwork};
 pub use ir::{
     ApertureSpec, ConfigurationPath, MetricSpec, ReservoirSpec, TransportSpec,
-    WorldConfiguration, ACTIVE_RANKS, MODE_COUNT, SPACE_COURSES,
-    TRANSPORT_PAIRS,
+    WorldConfiguration, ACTIVE_RANKS, MODE_COUNT, SPACE_COURSES, TRANSPORT_PAIRS,
 };
 pub use law::medium::{
     LocalConstitutiveMedium, LocalMediumDamageReceipt, LocalMediumEdgeSpec,
-    LocalMediumError, LocalMediumInputFrame, LocalMediumObserverSpec,
-    LocalMediumPlan, LocalMediumReconfigurationReceipt, LocalMediumSiteSpec,
-    LocalMediumSourceDrive, LocalMediumSourceSpec, LocalMediumState,
-    LocalMediumStepReceipt, LOCAL_MEDIUM_SCHEMA_VERSION,
+    LocalMediumError, LocalMediumInputFrame, LocalMediumObserverSpec, LocalMediumPlan,
+    LocalMediumReconfigurationReceipt, LocalMediumSiteSpec, LocalMediumSourceDrive,
+    LocalMediumSourceSpec, LocalMediumState, LocalMediumStepReceipt,
+    LOCAL_MEDIUM_SCHEMA_VERSION,
+};
+pub use law::radiation::{
+    MetricRadiationAperture, MetricRadiationError, MetricRadiationPlan,
+    MetricRadiationReceipt, METRIC_RADIATION_SCHEMA_VERSION,
 };
 pub use observation::{
     BoundObservationProgram, ListenerError, ObservationProgramError,
-    ObservationRuntimeError, ObservationSource, StereoBodyTap, StereoFrame,
-    StereoListener, StereoListenerSpec, WorldObservationChannel,
-    WorldObservationProgram,
+    ObservationRuntimeError, ObservationSource, StereoBodyTap, StereoFrame, StereoListener,
+    StereoListenerSpec, WorldObservationChannel, WorldObservationProgram,
 };
 pub use performance::{WorldCostEstimate, WorldLayout};
 pub use plan::{
-    BodyInstanceSpec, BodyPose, BodySpec, DirectCouplingSpec, PlanError,
-    SharedSpaceSpec, SpacePortSpec, WorldPlan, WORLD_PLAN_SCHEMA_VERSION,
+    BodyInstanceSpec, BodyPose, BodySpec, DirectCouplingSpec, PlanError, SharedSpaceSpec,
+    SpacePortSpec, WorldPlan, WORLD_PLAN_SCHEMA_VERSION,
 };
 pub use shared_space::{
     SharedSpaceControls, SharedSpaceError, SharedSpaceExchange, SharedSpaceFrame,

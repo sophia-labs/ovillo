@@ -1,0 +1,85 @@
+name: Token Radiation v0
+
+on:
+  pull_request:
+    paths:
+      - "extension/experiments/token-radiation-v0/**"
+      - "extension/experiments/catalog.json"
+      - "mus-rs/crates/mus-ariadne/src/law/radiation.rs"
+      - "mus-rs/crates/mus-ariadne/src/law/mod.rs"
+      - "mus-rs/crates/mus-ariadne/src/lib.rs"
+      - "mus-rs/crates/mus-ariadne/tests/metric_radiation_fixture.rs"
+      - "mus-rs/crates/mus-ariadne/examples/metric_radiation_proof.rs"
+      - ".github/workflows/token-radiation-v0.yml"
+  push:
+    branches:
+      - agent/token-radiation-v0
+    paths:
+      - "extension/experiments/token-radiation-v0/**"
+      - "extension/experiments/catalog.json"
+      - "mus-rs/crates/mus-ariadne/src/law/radiation.rs"
+      - "mus-rs/crates/mus-ariadne/src/law/mod.rs"
+      - "mus-rs/crates/mus-ariadne/src/lib.rs"
+      - "mus-rs/crates/mus-ariadne/tests/metric_radiation_fixture.rs"
+      - "mus-rs/crates/mus-ariadne/examples/metric_radiation_proof.rs"
+      - ".github/workflows/token-radiation-v0.yml"
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        working-directory: extension/experiments/token-radiation-v0
+        run: python -m pip install -e '.[dev]'
+      - name: Compile and test
+        working-directory: extension/experiments/token-radiation-v0
+        run: |
+          python -m compileall -q src tests scripts
+          pytest -q
+      - name: Verify fixtures and committed result
+        working-directory: extension/experiments/token-radiation-v0
+        run: |
+          python scripts/verify_fixture.py
+          python scripts/verify_committed_result.py
+          python scripts/check_boundaries.py
+      - name: Deterministic tiny campaign
+        working-directory: extension/experiments/token-radiation-v0
+        run: |
+          token-radiation-v0 run \
+            --output /tmp/token-radiation-smoke \
+            --sequence-bytes 12 \
+            --train-sequences 10 \
+            --validation-sequences 4 \
+            --body-steps 2 \
+            --detector-steps 2 \
+            --vocabulary-size 10 \
+            --radiation-modes passive \
+            --detectors linear
+          token-radiation-v0 verify /tmp/token-radiation-smoke
+
+  rust-law:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Format
+        working-directory: mus-rs
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        working-directory: mus-rs
+        run: cargo clippy -p mus-ariadne --all-targets -- -D warnings
+      - name: Radiation law tests
+        working-directory: mus-rs
+        run: cargo test --release -p mus-ariadne law::radiation::tests
+      - name: Cross-runtime fixture
+        working-directory: mus-rs
+        run: cargo test --release -p mus-ariadne --test metric_radiation_fixture
+      - name: Proof example
+        working-directory: mus-rs
+        run: cargo run --release -p mus-ariadne --example metric_radiation_proof

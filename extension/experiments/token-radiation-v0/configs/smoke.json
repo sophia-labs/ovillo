@@ -1,0 +1,18 @@
+{
+  "body_steps": 24,
+  "cpu_threads": 1,
+  "detector_kinds": [
+    "linear",
+    "positive_frame"
+  ],
+  "detector_steps": 12,
+  "radiation_modes": [
+    "passive",
+    "nonloading"
+  ],
+  "seed": 20260814,
+  "sequence_bytes": 24,
+  "train_sequences": 24,
+  "validation_sequences": 8,
+  "vocabulary_size": 14
+}

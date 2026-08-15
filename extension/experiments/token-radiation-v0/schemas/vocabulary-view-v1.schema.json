@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia.invalid/schemas/token-radiation-vocabulary-v1.schema.json",
+  "title": "Token Radiation detector vocabulary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "name", "entries"],
+  "properties": {
+    "format": {"const": "sophia.instrument.token-radiation.vocabulary/v1"},
+    "name": {"type": "string", "minLength": 1},
+    "entries": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "surface_hex", "display", "kind", "score"],
+        "properties": {
+          "id": {"type": "integer", "minimum": 0},
+          "surface_hex": {"type": ["string", "null"], "pattern": "^(?:[0-9a-f]{2})*$"},
+          "display": {"type": "string"},
+          "kind": {"type": "string", "minLength": 1},
+          "score": {"type": "number"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "format": "sophia.instrument.ariadne.metric-radiation-fixture/v1",
+  "loading": {
+    "booked_radiation": 0.18936755775973727,
+    "emitted": [
+      0.36874788134984576,
+      0.4561497731222439,
+      0.18624580532189172
+    ],
+    "projected_intensity": 0.18936755775973727,
+    "residual": -8.326672684688674e-17,
+    "state_after": [
+      0.555607775323564,
+      -0.4830134785598215,
+      0.8124961104191366,
+      0.1984313483298443,
+      -1.1
+    ],
+    "storage_after": 2.766257442240263,
+    "storage_before": 2.9556250000000004
+  },
+  "metric": [
+    0.75,
+    1.25,
+    2.0,
+    1.5,
+    3.0
+  ],
+  "nonloading": {
+    "booked_radiation": 0.0,
+    "emitted": [
+      0.36874788134984576,
+      0.4561497731222439,
+      0.18624580532189172
+    ],
+    "projected_intensity": 0.18936755775973727,
+    "residual": 0.0,
+    "state_after": [
+      0.7,
+      -0.4,
+      0.9,
+      0.25,
+      -1.1
+    ],
+    "storage_after": 2.9556250000000004,
+    "storage_before": 2.9556250000000004
+  },
+  "plan": {
+    "fraction": 0.37,
+    "id": "token-radiation-cross-runtime",
+    "rows": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.6,
+        0.8,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ]
+    ],
+    "schema_version": "ariadne-metric-radiation-v1"
+  },
+  "plan_sha256": "3f2d5b93b40598edc252cdb06a43453061752cf17315010d8fe1090d07992d20",
+  "state": [
+    0.7,
+    -0.4,
+    0.9,
+    0.25,
+    -1.1
+  ]
+}

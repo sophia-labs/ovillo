@@ -1,19 +1,22 @@
 # Extension
 
-Extension studies predictive transport systems, learns them in invariant and
-causally testable coordinates, and compiles successful realizations into lawful
-persistent bodies.
+Extension is the research program for discovering predictive transport systems,
+learning them in invariant coordinates, and compiling accepted constitutions
+into lawful Ariadne bodies.
 
-Ariadne is the canonical execution substrate for persistence, local material
-law, sources, reservoirs, transport, loss, apertures, reconfiguration, and
-receipts. Extension remains responsible for tasks, learning, developmental
-programs, interventions, statistical analysis, architecture comparisons, and
-compiler search.
+## Current generation
 
-Current generation:
+- [`experiments/generation-3/`](experiments/generation-3/) — learned
+  constitutive worlds and the first `ariadne-local-medium-v1` compiler seam.
+- [`experiments/token-radiation-v0/`](experiments/token-radiation-v0/) — finite-rank
+  predictive radiation and vocabulary detector views over one byte-driven body.
 
-- [`experiments/generation-3`](experiments/generation-3): learned constitutive
-  worlds compiled to `mus-ariadne::law::medium`.
+## Historical campaign pin
 
-Historical GPU Battery and scaling results remain on their content-addressed
-source branches and are not rewritten by this branch.
+The completed Scaling Phase v2 AWS campaign remains on the immutable branch
+`agent/extension-scaling-phase-v2` at
+`61a840e8cc9d2f5d433ad4b8564a2aa58ac5893a`. Its artifacts are not copied into
+the Ariadne-based Generation 3 history.
+
+See [`experiments/catalog.json`](experiments/catalog.json) for machine-readable
+provenance.
