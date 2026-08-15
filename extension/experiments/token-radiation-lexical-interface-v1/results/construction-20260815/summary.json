@@ -1,0 +1,111 @@
+{
+  "closed_surface_feedback_loop": {
+    "emitted_operator_step_accuracy": 0.9395833333333333,
+    "exact_event_boundary_sequence_rate": 0.625,
+    "exact_semantic_sequence_rate": 0.675,
+    "surface_roundtrip_operator_accuracy": 0.9506944444444444
+  },
+  "config": {
+    "batch_size": 32,
+    "calibration_examples": 120,
+    "event_count": 12,
+    "interface_augmentations": 3,
+    "interface_steps": 600,
+    "lexical_steps": 420,
+    "macro_steps": 600,
+    "predictor_steps": 350,
+    "radiation_fraction": 0.04,
+    "seed": 20260815,
+    "sites": 16,
+    "test_examples": 120,
+    "trace_window": 4,
+    "train_examples": 560
+  },
+  "decision": {
+    "bidirectional_interface_construction_supported": true,
+    "closed_surface_loop_scaling_gate_passed": false,
+    "declared_articulator_promoted_as_learned": false,
+    "event_clock_promoted_as_unsupervised": false,
+    "full_interface_learned_end_to_end": false,
+    "gpu_scale_warranted": false,
+    "next_experiment": "learn the articulatory body and event hazard jointly while retaining exact operator-feedback and surface-codec controls",
+    "one_body_operator_macro_promoted": false,
+    "two_body_operator_surface_separation_promoted": true
+  },
+  "event_interface": {
+    "calibrated_threshold": 0.53,
+    "calibration_boundary_f1": 0.9915535122420613,
+    "combined_boundary_auc": 0.9986717512568005,
+    "combined_homograph_accuracy": 1.0,
+    "combined_operator_accuracy": 1.0,
+    "radiation_boundary_auc": 0.9746906778688337,
+    "radiation_homograph_accuracy": 1.0,
+    "radiation_operator_accuracy": 0.9930555820465088,
+    "shuffled_radiation_boundary_auc": 0.4991720324587379,
+    "surface_boundary_auc": 0.9823849941464086,
+    "surface_homograph_accuracy": 0.8141592741012573,
+    "surface_operator_accuracy": 0.9083333611488342
+  },
+  "format": "sophia.instrument.token-radiation.lexical-interface/v1",
+  "lexical_radiation_body": {
+    "current_boundary_auc": 0.5960930147143217,
+    "event_count": 1440,
+    "homograph_accuracy": 0.3274336283185841,
+    "maximum_radiation_closure_residual": 1.8596649169921875e-05,
+    "mean_radiation_per_byte": 2.2262656688690186,
+    "next_byte_bpb": 2.088481903076172,
+    "next_operator_accuracy": 0.5820512771606445,
+    "operator_accuracy": 0.5888888835906982
+  },
+  "one_body_macro_diagnostic": {
+    "mean_microsteps_saved": 1.4371744394302368,
+    "operator_macro": {
+      "mean_emission_relative_error": 0.36515459418296814,
+      "mean_state_relative_error": 0.3618118464946747,
+      "median_state_relative_error": 0.31331995129585266,
+      "next_operator_agreement": 0.8557942509651184
+    },
+    "surface_macro": {
+      "mean_emission_relative_error": 0.16817443072795868,
+      "mean_state_relative_error": 0.16722463071346283,
+      "median_state_relative_error": 0.14411316812038422,
+      "next_operator_agreement": 0.9729817509651184
+    }
+  },
+  "scientific_digest": "4072fe49daa7dd353c85b0aac74eb31e6f2812739717ea94daf40e99339662a2",
+  "status": "controlled_cpu_construction",
+  "surface_neutral_predictive_body": {
+    "feedback_emission_identity_max_error": 0.0,
+    "feedback_state_identity_max_error": 0.0,
+    "latent_closed_loop_exact_sequence_rate": 1.0,
+    "latent_closed_loop_step_accuracy": 1.0,
+    "maximum_radiation_closure_residual": 5.662441253662109e-06,
+    "teacher_group_accuracy": 0.9948717951774597,
+    "teacher_mode_accuracy": 1.0,
+    "teacher_next_operator_accuracy": 1.0
+  },
+  "world": {
+    "context_dependent_homograph_hex": "6261",
+    "interface_surface_augmentations": 3,
+    "noncommutative_witness": {
+      "F_after_R": [
+        3,
+        1,
+        0
+      ],
+      "R_after_F": [
+        1,
+        1,
+        0
+      ]
+    },
+    "operators": [
+      "R",
+      "L",
+      "F",
+      "T"
+    ],
+    "test_latent_examples": 120,
+    "train_latent_examples": 560
+  }
+}

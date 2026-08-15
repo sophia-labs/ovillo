@@ -10,6 +10,11 @@ into lawful Ariadne bodies.
   constitutive worlds and the first `ariadne-local-medium-v1` compiler seam.
 - [`experiments/token-radiation-v0/`](experiments/token-radiation-v0/) — finite-rank
   predictive radiation and vocabulary detector views over one byte-driven body.
+- [`experiments/token-radiation-paired-operator-v1/`](experiments/token-radiation-paired-operator-v1/)
+  — paired loading, operator-class codecs, and CPU falsifier infrastructure.
+- [`experiments/token-radiation-lexical-interface-v1/`](experiments/token-radiation-lexical-interface-v1/)
+  — bidirectional lexical events, surface-neutral operator gestures, and an
+  explicit radiation-to-surface-to-feedback loop.
 
 ## Historical campaign pin
 

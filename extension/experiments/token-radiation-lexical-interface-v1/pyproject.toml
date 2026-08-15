@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "token-radiation-lexical-interface-v1"
+version = "0.1.0"
+description = "CPU construction for bidirectional Ariadne lexical radiation"
+requires-python = ">=3.12"
+dependencies = [
+  "numpy==2.3.5",
+  "torch==2.10.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==8.4.2"]
+
+[project.scripts]
+token-radiation-lexical-interface-v1 = "token_radiation_lexical_interface_v1.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

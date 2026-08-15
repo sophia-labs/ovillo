@@ -1,0 +1,8 @@
+{
+  "files": {
+    "config.json": "8b3d7a45b933334ee2abc3ee7c89795fb8d136e29c0fd47cf9247793982751ae",
+    "summary.json": "ef98ee0d1d2c6b11c05c772672b4eeb3dd5c1516eceb8d40da8881734679d532"
+  },
+  "format": "sophia.instrument.result-manifest/v1",
+  "scientific_digest": "4072fe49daa7dd353c85b0aac74eb31e6f2812739717ea94daf40e99339662a2"
+}

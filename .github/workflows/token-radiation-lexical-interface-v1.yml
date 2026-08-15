@@ -1,0 +1,42 @@
+name: Token Radiation lexical interface v1
+
+on:
+  pull_request:
+    paths:
+      - "extension/experiments/token-radiation-lexical-interface-v1/**"
+      - "extension/README.md"
+      - "extension/experiments/catalog.json"
+      - ".github/workflows/token-radiation-lexical-interface-v1.yml"
+  push:
+    branches:
+      - agent/token-radiation-lexical-interface-v1
+    paths:
+      - "extension/experiments/token-radiation-lexical-interface-v1/**"
+      - "extension/README.md"
+      - "extension/experiments/catalog.json"
+      - ".github/workflows/token-radiation-lexical-interface-v1.yml"
+
+jobs:
+  cpu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        working-directory: extension/experiments/token-radiation-lexical-interface-v1
+        run: python -m pip install -e '.[dev]'
+      - name: Compile and test
+        working-directory: extension/experiments/token-radiation-lexical-interface-v1
+        run: |
+          python -m compileall -q src tests
+          pytest -q
+      - name: Verify committed result
+        working-directory: extension/experiments/token-radiation-lexical-interface-v1
+        run: token-radiation-lexical-interface-v1 verify results/construction-20260815
+      - name: Tiny deterministic smoke
+        working-directory: extension/experiments/token-radiation-lexical-interface-v1
+        run: |
+          token-radiation-lexical-interface-v1 smoke /tmp/lexical-interface-smoke
+          token-radiation-lexical-interface-v1 verify /tmp/lexical-interface-smoke

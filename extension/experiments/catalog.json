@@ -29,8 +29,17 @@
       "source_branch": "agent/token-radiation-v0",
       "status": "controlled_construction_implemented",
       "title": "Ariadne Token Radiation v0"
+    },
+    {
+      "base_branch": "agent/token-radiation-paired-operator-v1",
+      "committed_result_manifest": "extension/experiments/token-radiation-lexical-interface-v1/results/construction-20260815/manifest.json",
+      "entrypoint": "extension/experiments/token-radiation-lexical-interface-v1/README.md",
+      "id": "token-radiation-lexical-interface-v1",
+      "source_branch": "agent/token-radiation-lexical-interface-v1",
+      "status": "controlled_cpu_construction",
+      "title": "Token Radiation bidirectional lexical interface v1"
     }
   ],
   "format": "sophia.instrument.extension.experiment-catalog/v1",
-  "status_date": "2026-08-14"
+  "status_date": "2026-08-15"
 }

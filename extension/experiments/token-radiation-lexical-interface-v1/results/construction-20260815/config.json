@@ -1,0 +1,17 @@
+{
+  "batch_size": 32,
+  "calibration_examples": 120,
+  "event_count": 12,
+  "format": "sophia.instrument.token-radiation.lexical-interface/v1",
+  "interface_augmentations": 3,
+  "interface_steps": 600,
+  "lexical_steps": 420,
+  "macro_steps": 600,
+  "predictor_steps": 350,
+  "radiation_fraction": 0.04,
+  "seed": 20260815,
+  "sites": 16,
+  "test_examples": 120,
+  "trace_window": 4,
+  "train_examples": 560
+}
