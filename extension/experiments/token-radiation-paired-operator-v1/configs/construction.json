@@ -1,0 +1,21 @@
+{
+  "body_batch_size": 14,
+  "body_steps": 48,
+  "cpu_threads": 1,
+  "detector_batch_size": 7,
+  "detector_replicates": 1,
+  "detector_steps": 40,
+  "operator_families": ["structured", "iid_motifs"],
+  "operator_fraction": 0.16,
+  "operator_probe_states": 18,
+  "paired_seeds": [20260814, 20260815, 20260816],
+  "probe_steps": 32,
+  "radiation_fractions": [0.0, 0.01, 0.04, 0.16, 0.5],
+  "radiation_rank": 4,
+  "seed": 20260814,
+  "sequence_bytes": 32,
+  "sites": 8,
+  "train_sequences": 48,
+  "validation_sequences": 16,
+  "vocabulary_size": 18
+}
