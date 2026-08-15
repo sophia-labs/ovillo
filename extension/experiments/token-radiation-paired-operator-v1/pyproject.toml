@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "token-radiation-paired-operator-v1"
+version = "0.1.0"
+description = "CPU causal loading and operator-vocabulary experiments for Ariadne Token Radiation"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=2.0",
+  "torch>=2.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.9"]
+
+[project.scripts]
+token-radiation-paired-operator-v1 = "token_radiation_paired_operator_v1.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
