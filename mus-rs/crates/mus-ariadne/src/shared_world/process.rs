@@ -1,14 +1,14 @@
 use mus_watsn::WorkFrame;
 
 use crate::body::BodyControls;
+use crate::constitutive_body::ConstitutiveBodyControls;
 
 use super::{World, WorldControls, WorldError, WorldFrame, WorldReceipt};
 
 impl World {
-    /// Advance one shared material-clock sample.
-    ///
-    /// All vectors and graph bindings are allocated at construction. The hot
-    /// path performs no string lookup, graph search, locking, or allocation.
+    /// Legacy modal-body entrypoint. It remains allocation-free and executes the
+    /// same coupling, shared-space, radiation, and global-ledger path as mixed
+    /// constitutive worlds.
     pub fn process_sample(
         &mut self,
         body_controls: &[BodyControls],
@@ -28,7 +28,6 @@ impl World {
             .unwrap_or(physical_energy_start);
         let control_work = std::mem::take(&mut self.pending_control_work);
         let returning_space_activity = self.space.activity();
-
         let mut source_work = 0.0;
         let mut internal_loss = 0.0;
         let mut local_residual = 0.0_f64;
@@ -39,9 +38,12 @@ impl World {
             .enumerate()
         {
             let frame = body
-                .process_local(body_control, returning_space_activity)
+                .process_local(
+                    &ConstitutiveBodyControls::Modal(body_control),
+                    returning_space_activity,
+                )
                 .map_err(|error| WorldError::Body {
-                    id: self.plan.bodies[index].id.clone(),
+                    id: self.body_ids[index].clone(),
                     message: error.to_string(),
                 })?;
             self.body_source_work[index] = frame.source_work;
@@ -52,11 +54,101 @@ impl World {
                 .max(frame.local_residual)
                 .max(frame.closure_residual.abs());
         }
+        self.finish_after_local(
+            controls,
+            energy_start,
+            control_work,
+            source_work,
+            internal_loss,
+            local_residual,
+            |index| body_controls[index].sanitized().radiation_fraction,
+        )
+    }
 
+    /// Mixed-constitution entrypoint for modal and local-medium bodies in the
+    /// canonical shared world.
+    pub fn process_constitutive_sample(
+        &mut self,
+        body_controls: &[ConstitutiveBodyControls],
+        controls: WorldControls,
+    ) -> Result<WorldFrame, WorldError> {
+        if body_controls.len() != self.bodies.len() {
+            return Err(WorldError::BodyControlCount {
+                expected: self.bodies.len(),
+                actual: body_controls.len(),
+            });
+        }
+        let controls = controls.sanitized();
+        let physical_energy_start = self.total_stored_energy();
+        let energy_start = self
+            .pending_energy_start
+            .take()
+            .unwrap_or(physical_energy_start);
+        let control_work = std::mem::take(&mut self.pending_control_work);
+        let returning_space_activity = self.space.activity();
+        let mut source_work = 0.0;
+        let mut internal_loss = 0.0;
+        let mut local_residual = 0.0_f64;
+        for (index, (body, body_control)) in self
+            .bodies
+            .iter_mut()
+            .zip(body_controls.iter())
+            .enumerate()
+        {
+            let frame = body
+                .process_local(body_control, returning_space_activity)
+                .map_err(|error| WorldError::Body {
+                    id: self.body_ids[index].clone(),
+                    message: error.to_string(),
+                })?;
+            self.body_source_work[index] = frame.source_work;
+            self.body_internal_loss[index] = frame.internal_loss;
+            source_work += frame.source_work;
+            internal_loss += frame.internal_loss;
+            local_residual = local_residual
+                .max(frame.local_residual)
+                .max(frame.closure_residual.abs());
+        }
+        self.finish_after_local(
+            controls,
+            energy_start,
+            control_work,
+            source_work,
+            internal_loss,
+            local_residual,
+            |index| match &body_controls[index] {
+                ConstitutiveBodyControls::Modal(controls) => {
+                    controls.sanitized().radiation_fraction
+                }
+                ConstitutiveBodyControls::LocalMedium(controls) => {
+                    if controls.radiation_fraction.is_finite() {
+                        controls.radiation_fraction.clamp(0.0, 1.0)
+                    } else {
+                        0.0
+                    }
+                }
+            },
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn finish_after_local<F>(
+        &mut self,
+        controls: WorldControls,
+        energy_start: f64,
+        control_work: f64,
+        source_work: f64,
+        mut internal_loss: f64,
+        mut local_residual: f64,
+        mut radiation_fraction: F,
+    ) -> Result<WorldFrame, WorldError>
+    where
+        F: FnMut(usize) -> f64,
+    {
         let coupling = self
             .couplings
-            .process(
-                self.plan.internal_sample_rate_hz,
+            .process_constitutive(
+                self.sample_rate_hz,
                 &mut self.bodies,
                 controls.direct_coupling,
             )
@@ -74,7 +166,7 @@ impl World {
                 .space
                 .exchange_port(
                     self.bodies[index].momentum_mut(),
-                    &self.plan.bodies[index].space_port,
+                    &self.space_ports[index],
                     controls.space,
                 )
                 .map_err(|error| WorldError::Space(error.to_string()))?;
@@ -99,12 +191,13 @@ impl World {
         let mut radiation = space_frame.radiation;
         for index in 0..self.bodies.len() {
             let emitted = self.bodies[index]
-                .radiate(body_controls[index].sanitized().radiation_fraction)
+                .radiate(radiation_fraction(index))
                 .map_err(|error| WorldError::Body {
-                    id: self.plan.bodies[index].id.clone(),
+                    id: self.body_ids[index].clone(),
                     message: error.to_string(),
                 })?;
-            self.body_emissions[index] = emitted.emitted_coordinate;
+            self.body_emissions[index] = emitted.emitted.first().copied().unwrap_or(0.0);
+            self.body_radiation[index].clone_from(&emitted.emitted);
             radiation += emitted.radiation;
             local_residual = local_residual.max(emitted.residual.abs());
         }

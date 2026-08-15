@@ -1,0 +1,73 @@
+name: Token Radiation unified world v1
+
+on:
+  pull_request:
+    paths:
+      - "extension/experiments/token-radiation-unified-world-v1/**"
+      - "extension/experiments/catalog.json"
+      - "extension/README.md"
+      - "mus-rs/crates/mus-ariadne/src/constitutive_body.rs"
+      - "mus-rs/crates/mus-ariadne/src/constitutive_body/**"
+      - "mus-rs/crates/mus-ariadne/src/coupling.rs"
+      - "mus-rs/crates/mus-ariadne/src/lib.rs"
+      - "mus-rs/crates/mus-ariadne/src/performance.rs"
+      - "mus-rs/crates/mus-ariadne/src/plan/**"
+      - "mus-rs/crates/mus-ariadne/src/shared_world/**"
+      - "mus-rs/crates/mus-ariadne/tests/constitutive_shared_world.rs"
+      - "mus-rs/crates/mus-ariadne/examples/constitutive_shared_world_proof.rs"
+      - ".github/workflows/token-radiation-unified-world-v1.yml"
+  push:
+    branches:
+      - agent/token-radiation-unified-world-v1
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        working-directory: extension/experiments/token-radiation-unified-world-v1
+        run: python -m pip install -e '.[dev]'
+      - name: Validate
+        working-directory: extension/experiments/token-radiation-unified-world-v1
+        run: |
+          python -m compileall -q src tests scripts
+          pytest -q
+          python scripts/verify_committed_result.py
+          python scripts/check_boundaries.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path('.').rglob('*.json'):
+              json.loads(path.read_text())
+          PY
+      - name: Deterministic smoke
+        working-directory: extension/experiments/token-radiation-unified-world-v1
+        run: |
+          token-radiation-unified-world-v1 run configs/smoke.json /tmp/unified-world-smoke
+          token-radiation-unified-world-v1 verify /tmp/unified-world-smoke
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Format
+        working-directory: mus-rs
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        working-directory: mus-rs
+        run: cargo clippy -p mus-ariadne --all-targets -- -D warnings
+      - name: Ariadne crate
+        working-directory: mus-rs
+        run: cargo test --release -p mus-ariadne
+      - name: Constitutive shared world
+        working-directory: mus-rs
+        run: |
+          cargo test --release -p mus-ariadne --test constitutive_shared_world
+          cargo run --release -p mus-ariadne --example constitutive_shared_world_proof

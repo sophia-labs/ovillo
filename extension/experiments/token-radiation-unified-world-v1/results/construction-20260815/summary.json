@@ -1,0 +1,469 @@
+{
+  "aggregate": {
+    "direct": {
+      "mean": {
+        "current_accuracy": 0.8363715410232544,
+        "exact_sequence_rate": 0.14149305721124014,
+        "homograph_accuracy": 0.7672814925511678,
+        "max_closure_residual": 5.062421162923177e-05,
+        "mean_final_energy": 99.10838572184245,
+        "mean_internal_loss": 6.712442557017009,
+        "mean_source_work": 105.82085673014323,
+        "mode_accuracy": 0.6726345419883728,
+        "next_accuracy": 0.5729166666666666
+      },
+      "replicates": 3,
+      "std": {
+        "current_accuracy": 0.024565271696186632,
+        "exact_sequence_rate": 0.08002135211764586,
+        "homograph_accuracy": 0.06948133350916123,
+        "max_closure_residual": 5.775878369206308e-06,
+        "mean_final_energy": 9.63884725367913,
+        "mean_internal_loss": 1.8878552375982136,
+        "mean_source_work": 11.353587275012462,
+        "mode_accuracy": 0.006855702294450623,
+        "next_accuracy": 0.04770927356883338
+      }
+    },
+    "isolated": {
+      "mean": {
+        "current_accuracy": 0.3356119791666667,
+        "exact_sequence_rate": 0.0,
+        "homograph_accuracy": 0.3916781544685364,
+        "max_closure_residual": 3.7749608357747397e-06,
+        "mean_final_energy": 10.196563084920248,
+        "mean_internal_loss": 0.5805901487668356,
+        "mean_source_work": 10.777154922485352,
+        "mode_accuracy": 0.5928819378217062,
+        "next_accuracy": 0.4280598958333333
+      },
+      "replicates": 3,
+      "std": {
+        "current_accuracy": 0.06882950315431537,
+        "exact_sequence_rate": 0.0,
+        "homograph_accuracy": 0.13436589427244475,
+        "max_closure_residual": 7.305453741888298e-07,
+        "mean_final_energy": 1.6869037301227632,
+        "mean_internal_loss": 0.09148190114256467,
+        "mean_source_work": 1.704012944653769,
+        "mode_accuracy": 0.007500345358983013,
+        "next_accuracy": 0.007136754906434425
+      }
+    },
+    "oracle_handoff": {
+      "mean": {
+        "current_accuracy": 0.9465060830116272,
+        "exact_sequence_rate": 0.5720486144224802,
+        "homograph_accuracy": 1.0,
+        "max_closure_residual": 1.4742215474446615e-05,
+        "mean_final_energy": 39.66359202067057,
+        "mean_internal_loss": 5.739656130472819,
+        "mean_source_work": 45.403245290120445,
+        "mode_accuracy": 0.7811414996782938,
+        "next_accuracy": 0.6839192708333334
+      },
+      "replicates": 3,
+      "std": {
+        "current_accuracy": 0.027160118490574644,
+        "exact_sequence_rate": 0.21728109143482413,
+        "homograph_accuracy": 0.0,
+        "max_closure_residual": 8.001737024626045e-07,
+        "mean_final_energy": 2.446288194850406,
+        "mean_internal_loss": 0.733856525483039,
+        "mean_source_work": 1.8454761895021816,
+        "mode_accuracy": 0.03017158381565224,
+        "next_accuracy": 0.01821948354369639
+      }
+    },
+    "shared": {
+      "mean": {
+        "current_accuracy": 0.7145182291666666,
+        "exact_sequence_rate": 0.038194445272286735,
+        "homograph_accuracy": 0.7100362181663513,
+        "max_closure_residual": 3.727277119954427e-05,
+        "mean_final_energy": 73.20584615071614,
+        "mean_internal_loss": 2.8458868265151978,
+        "mean_source_work": 76.05170822143555,
+        "mode_accuracy": 0.7296006878217062,
+        "next_accuracy": 0.5574001669883728
+      },
+      "replicates": 3,
+      "std": {
+        "current_accuracy": 0.05655262860358328,
+        "exact_sequence_rate": 0.03437324739480049,
+        "homograph_accuracy": 0.044271214884466815,
+        "max_closure_residual": 1.2085624631377589e-05,
+        "mean_final_energy": 26.347576752484326,
+        "mean_internal_loss": 1.453331548644715,
+        "mean_source_work": 27.77421511379509,
+        "mode_accuracy": 0.03737809060696223,
+        "next_accuracy": 0.033048863736753906
+      }
+    }
+  },
+  "config": {
+    "batch_size": 48,
+    "courses": 2,
+    "learning_rate": 0.01,
+    "replicates": 3,
+    "seed": 20260815,
+    "settle_steps": 1,
+    "sites": 8,
+    "test_events": 8,
+    "train_events": 6,
+    "train_steps": 300
+  },
+  "decision": {
+    "canonical_rust_world_execution_confirmed": false,
+    "chance_current_accuracy": 0.25,
+    "cross_world_field_permutation_accuracy": 0.3366970519224803,
+    "gpu_scale_warranted": false,
+    "lexical_port_disabled_accuracy": 0.2853732655445735,
+    "maximum_float32_mirror_closure_residual": 5.7220458984375e-05,
+    "observer_not_in_causal_path": true,
+    "predictive_port_disabled_accuracy": 0.2772352447112401,
+    "privileged_operator_handoff_removed": true,
+    "shared_beats_isolated_by": 0.37890624999999994,
+    "shared_field_signal_causally_supported": true,
+    "shared_minus_direct": -0.12185331185658776,
+    "shared_world_performance_gate_passed": false
+  },
+  "format": "sophia.instrument.token-radiation-unified-world-v1/result-v1",
+  "notes": [
+    "The CPU experiment is a differentiable mirror of the canonical Ariadne ordering: local bodies, reciprocal coupling or delayed shared-field exchange, then one global storage/work/loss closure.",
+    "The committed Rust integration compiles local-medium-v1 behind a fixed-rank storage-bearing world boundary; Rust execution was unavailable in the construction environment.",
+    "No token or latent-operator identity is passed between the two bodies in shared mode; operator logits are non-loading analysis heads on predictive-body state.",
+    "Cross-world field permutation is a randomized causal control across batch worlds; its per-world energy residual is intentionally not interpreted as an Ariadne ledger."
+  ],
+  "runs": [
+    {
+      "controls": {},
+      "elapsed_seconds": 11.359708217999923,
+      "final_loss": 0.4497046172618866,
+      "initial_loss": 2.3743433952331543,
+      "metrics": {
+        "current_accuracy": 0.9156901240348816,
+        "exact_sequence_rate": 0.3255208432674408,
+        "homograph_accuracy": 1.0,
+        "max_closure_residual": 1.4007091522216797e-05,
+        "mean_final_energy": 37.50620651245117,
+        "mean_internal_loss": 5.898867130279541,
+        "mean_source_work": 43.40509033203125,
+        "mode_accuracy": 0.7994791865348816,
+        "next_accuracy": 0.7057291865348816
+      },
+      "mode": "oracle_handoff",
+      "seed": 20260815
+    },
+    {
+      "controls": {},
+      "elapsed_seconds": 11.270375289999947,
+      "final_loss": 1.9648209810256958,
+      "initial_loss": 2.445913076400757,
+      "metrics": {
+        "current_accuracy": 0.3102213442325592,
+        "exact_sequence_rate": 0.0,
+        "homograph_accuracy": 0.39792388677597046,
+        "max_closure_residual": 3.814697265625e-06,
+        "mean_final_energy": 7.93311882019043,
+        "mean_internal_loss": 0.5205115079879761,
+        "mean_source_work": 8.453618049621582,
+        "mode_accuracy": 0.5992838740348816,
+        "next_accuracy": 0.4332682192325592
+      },
+      "mode": "isolated",
+      "seed": 20260815
+    },
+    {
+      "controls": {},
+      "elapsed_seconds": 16.26073531300017,
+      "final_loss": 0.693256676197052,
+      "initial_loss": 2.408142328262329,
+      "metrics": {
+        "current_accuracy": 0.8037109375,
+        "exact_sequence_rate": 0.0390625,
+        "homograph_accuracy": 0.7024221420288086,
+        "max_closure_residual": 5.14984130859375e-05,
+        "mean_final_energy": 93.45272064208984,
+        "mean_internal_loss": 4.623146057128906,
+        "mean_source_work": 98.07584381103516,
+        "mode_accuracy": 0.6656901240348816,
+        "next_accuracy": 0.6149088740348816
+      },
+      "mode": "direct",
+      "seed": 20260815
+    },
+    {
+      "controls": {
+        "cross_world_field_permutation": {
+          "current_accuracy": 0.3362630307674408,
+          "exact_sequence_rate": 0.0078125,
+          "homograph_accuracy": 0.2456747442483902,
+          "mode_accuracy": 0.5266926884651184,
+          "next_accuracy": 0.3662109375,
+          "physical_ledger_applicable": false
+        },
+        "lexical_port_disabled": {
+          "current_accuracy": 0.2047526091337204,
+          "exact_sequence_rate": 0.0,
+          "homograph_accuracy": 0.22145329415798187,
+          "max_closure_residual": 3.844499588012695e-05,
+          "mean_final_energy": 87.9198226928711,
+          "mean_internal_loss": 2.7899017333984375,
+          "mean_source_work": 90.70968627929688,
+          "mode_accuracy": 0.5472005009651184,
+          "next_accuracy": 0.3782552182674408,
+          "physical_ledger_applicable": true
+        },
+        "predictive_port_disabled": {
+          "current_accuracy": 0.3212890625,
+          "exact_sequence_rate": 0.0,
+          "homograph_accuracy": 0.22145329415798187,
+          "max_closure_residual": 6.389617919921875e-05,
+          "mean_final_energy": 101.7026596069336,
+          "mean_internal_loss": 5.199957370758057,
+          "mean_source_work": 106.90255737304688,
+          "mode_accuracy": 0.5472005009651184,
+          "next_accuracy": 0.3782552182674408,
+          "physical_ledger_applicable": true
+        }
+      },
+      "elapsed_seconds": 25.471552017000022,
+      "final_loss": 0.7779890298843384,
+      "initial_loss": 2.373988628387451,
+      "metrics": {
+        "current_accuracy": 0.7744140625,
+        "exact_sequence_rate": 0.03125,
+        "homograph_accuracy": 0.6989619135856628,
+        "max_closure_residual": 5.340576171875e-05,
+        "mean_final_energy": 107.44290161132812,
+        "mean_internal_loss": 4.856621742248535,
+        "mean_source_work": 112.2994384765625,
+        "mode_accuracy": 0.7610676884651184,
+        "next_accuracy": 0.6038411259651184
+      },
+      "mode": "shared",
+      "seed": 20260815
+    },
+    {
+      "controls": {},
+      "elapsed_seconds": 10.481233761999874,
+      "final_loss": 0.4720321595668793,
+      "initial_loss": 2.4141361713409424,
+      "metrics": {
+        "current_accuracy": 0.9420573115348816,
+        "exact_sequence_rate": 0.5364583134651184,
+        "homograph_accuracy": 1.0,
+        "max_closure_residual": 1.436471939086914e-05,
+        "mean_final_energy": 43.08445358276367,
+        "mean_internal_loss": 4.771902561187744,
+        "mean_source_work": 47.856353759765625,
+        "mode_accuracy": 0.8053385615348816,
+        "next_accuracy": 0.6848958134651184
+      },
+      "mode": "oracle_handoff",
+      "seed": 20270822
+    },
+    {
+      "controls": {},
+      "elapsed_seconds": 9.822178736000069,
+      "final_loss": 1.9601318836212158,
+      "initial_loss": 2.57609224319458,
+      "metrics": {
+        "current_accuracy": 0.2669270932674408,
+        "exact_sequence_rate": 0.0,
+        "homograph_accuracy": 0.22408026456832886,
+        "max_closure_residual": 4.649162292480469e-06,
+        "mean_final_energy": 10.675536155700684,
+        "mean_internal_loss": 0.7098581194877625,
+        "mean_source_work": 11.385414123535156,
+        "mode_accuracy": 0.5823567509651184,
+        "next_accuracy": 0.41796875
+      },
+      "mode": "isolated",
+      "seed": 20270822
+    },
+    {
+      "controls": {},
+      "elapsed_seconds": 16.51849477199994,
+      "final_loss": 0.8259048461914062,
+      "initial_loss": 2.559138774871826,
+      "metrics": {
+        "current_accuracy": 0.8629557490348816,
+        "exact_sequence_rate": 0.1510416716337204,
+        "homograph_accuracy": 0.735785961151123,
+        "max_closure_residual": 5.7220458984375e-05,
+        "mean_final_energy": 112.67731475830078,
+        "mean_internal_loss": 9.196578979492188,
+        "mean_source_work": 121.87396240234375,
+        "mode_accuracy": 0.6702473759651184,
+        "next_accuracy": 0.5061848759651184
+      },
+      "mode": "direct",
+      "seed": 20270822
+    },
+    {
+      "controls": {
+        "cross_world_field_permutation": {
+          "current_accuracy": 0.3502604067325592,
+          "exact_sequence_rate": 0.0,
+          "homograph_accuracy": 0.39464882016181946,
+          "mode_accuracy": 0.5533854365348816,
+          "next_accuracy": 0.3681640625,
+          "physical_ledger_applicable": false
+        },
+        "lexical_port_disabled": {
+          "current_accuracy": 0.326171875,
+          "exact_sequence_rate": 0.0,
+          "homograph_accuracy": 0.3645485043525696,
+          "max_closure_residual": 2.775341272354126e-05,
+          "mean_final_energy": 53.419620513916016,
+          "mean_internal_loss": 1.3863919973373413,
+          "mean_source_work": 54.806026458740234,
+          "mode_accuracy": 0.5823567509651184,
+          "next_accuracy": 0.3317057192325592,
+          "physical_ledger_applicable": true
+        },
+        "predictive_port_disabled": {
+          "current_accuracy": 0.1930338591337204,
+          "exact_sequence_rate": 0.0,
+          "homograph_accuracy": 0.0735785961151123,
+          "max_closure_residual": 1.9550323486328125e-05,
+          "mean_final_energy": 40.876708984375,
+          "mean_internal_loss": 1.2826411724090576,
+          "mean_source_work": 42.159358978271484,
+          "mode_accuracy": 0.5198567509651184,
+          "next_accuracy": 0.3603515625,
+          "physical_ledger_applicable": true
+        }
+      },
+      "elapsed_seconds": 27.555114323999987,
+      "final_loss": 1.3592891693115234,
+      "initial_loss": 2.5540060997009277,
+      "metrics": {
+        "current_accuracy": 0.638671875,
+        "exact_sequence_rate": 0.0,
+        "homograph_accuracy": 0.6622073650360107,
+        "max_closure_residual": 2.4318695068359375e-05,
+        "mean_final_energy": 43.35310363769531,
+        "mean_internal_loss": 1.4717813730239868,
+        "mean_source_work": 44.82490158081055,
+        "mode_accuracy": 0.7506510615348816,
+        "next_accuracy": 0.5387369990348816
+      },
+      "mode": "shared",
+      "seed": 20270822
+    },
+    {
+      "controls": {},
+      "elapsed_seconds": 11.641982669999834,
+      "final_loss": 0.4798877239227295,
+      "initial_loss": 2.260535478591919,
+      "metrics": {
+        "current_accuracy": 0.9817708134651184,
+        "exact_sequence_rate": 0.8541666865348816,
+        "homograph_accuracy": 1.0,
+        "max_closure_residual": 1.5854835510253906e-05,
+        "mean_final_energy": 38.400115966796875,
+        "mean_internal_loss": 6.548198699951172,
+        "mean_source_work": 44.94829177856445,
+        "mode_accuracy": 0.7386067509651184,
+        "next_accuracy": 0.6611328125
+      },
+      "mode": "oracle_handoff",
+      "seed": 20280829
+    },
+    {
+      "controls": {},
+      "elapsed_seconds": 11.681606917999943,
+      "final_loss": 1.8964858055114746,
+      "initial_loss": 2.359264373779297,
+      "metrics": {
+        "current_accuracy": 0.4296875,
+        "exact_sequence_rate": 0.0,
+        "homograph_accuracy": 0.5530303120613098,
+        "max_closure_residual": 2.86102294921875e-06,
+        "mean_final_energy": 11.981034278869629,
+        "mean_internal_loss": 0.5114008188247681,
+        "mean_source_work": 12.492432594299316,
+        "mode_accuracy": 0.5970051884651184,
+        "next_accuracy": 0.4329427182674408
+      },
+      "mode": "isolated",
+      "seed": 20280829
+    },
+    {
+      "controls": {},
+      "elapsed_seconds": 17.061930672000017,
+      "final_loss": 0.7677973508834839,
+      "initial_loss": 2.3821120262145996,
+      "metrics": {
+        "current_accuracy": 0.8424479365348816,
+        "exact_sequence_rate": 0.234375,
+        "homograph_accuracy": 0.8636363744735718,
+        "max_closure_residual": 4.315376281738281e-05,
+        "mean_final_energy": 91.19512176513672,
+        "mean_internal_loss": 6.317602634429932,
+        "mean_source_work": 97.51276397705078,
+        "mode_accuracy": 0.6819661259651184,
+        "next_accuracy": 0.59765625
+      },
+      "mode": "direct",
+      "seed": 20280829
+    },
+    {
+      "controls": {
+        "cross_world_field_permutation": {
+          "current_accuracy": 0.3235677182674408,
+          "exact_sequence_rate": 0.0026041667442768812,
+          "homograph_accuracy": 0.24621212482452393,
+          "mode_accuracy": 0.5335286259651184,
+          "next_accuracy": 0.3684895932674408,
+          "physical_ledger_applicable": false
+        },
+        "lexical_port_disabled": {
+          "current_accuracy": 0.3251953125,
+          "exact_sequence_rate": 0.0,
+          "homograph_accuracy": 0.7007575631141663,
+          "max_closure_residual": 4.398822784423828e-05,
+          "mean_final_energy": 93.77997589111328,
+          "mean_internal_loss": 2.3635802268981934,
+          "mean_source_work": 96.14352416992188,
+          "mode_accuracy": 0.6009114384651184,
+          "next_accuracy": 0.4140625,
+          "physical_ledger_applicable": true
+        },
+        "predictive_port_disabled": {
+          "current_accuracy": 0.3173828125,
+          "exact_sequence_rate": 0.0,
+          "homograph_accuracy": 0.5340909361839294,
+          "max_closure_residual": 3.635883331298828e-05,
+          "mean_final_energy": 67.54296112060547,
+          "mean_internal_loss": 2.0750930309295654,
+          "mean_source_work": 69.61803436279297,
+          "mode_accuracy": 0.6009114384651184,
+          "next_accuracy": 0.3929036557674408,
+          "physical_ledger_applicable": true
+        }
+      },
+      "elapsed_seconds": 24.613816629000212,
+      "final_loss": 1.0055840015411377,
+      "initial_loss": 2.3940420150756836,
+      "metrics": {
+        "current_accuracy": 0.73046875,
+        "exact_sequence_rate": 0.0833333358168602,
+        "homograph_accuracy": 0.7689393758773804,
+        "max_closure_residual": 3.409385681152344e-05,
+        "mean_final_energy": 68.821533203125,
+        "mean_internal_loss": 2.2092573642730713,
+        "mean_source_work": 71.0307846069336,
+        "mode_accuracy": 0.6770833134651184,
+        "next_accuracy": 0.5296223759651184
+      },
+      "mode": "shared",
+      "seed": 20280829
+    }
+  ],
+  "scientific_digest": "fe412bf08a1c1b84c895c00d67ddf746aa3107fe5e38b1b07e68fb3c9f28b502",
+  "status": "cpu_construction_differentiable_shared_world_mirror"
+}

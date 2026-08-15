@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sophia.systems/schemas/ariadne-world-plan-v3.schema.json",
+  "title": "Ariadne world plan v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "world_name",
+    "internal_sample_rate_hz",
+    "bodies",
+    "shared_space"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ariadne-world-plan-v3"
+    },
+    "world_name": {
+      "$ref": "#/$defs/id"
+    },
+    "internal_sample_rate_hz": {
+      "type": "number",
+      "minimum": 8000,
+      "maximum": 384000
+    },
+    "bodies": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/body_instance"
+      }
+    },
+    "shared_space": {
+      "$ref": "#/$defs/shared_space"
+    },
+    "direct_couplings": {
+      "type": "array",
+      "maxItems": 4096,
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/direct_coupling"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^\\S+$"
+    },
+    "vector24": {
+      "type": "array",
+      "minItems": 24,
+      "maxItems": 24,
+      "items": {
+        "type": "number"
+      }
+    },
+    "vector4": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "number"
+      }
+    },
+    "body_instance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "constitution",
+        "space_port"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "constitution": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "body"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "modal"
+                },
+                "body": {
+                  "type": "object"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "boundary"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "local_medium"
+                },
+                "boundary": {
+                  "$ref": "#/$defs/local_medium_boundary"
+                }
+              }
+            }
+          ]
+        },
+        "space_port": {
+          "$ref": "#/$defs/space_port"
+        },
+        "pose": {
+          "$ref": "#/$defs/pose"
+        }
+      }
+    },
+    "local_medium_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "medium",
+        "boundary_reservoir_capacity",
+        "radiation_direction"
+      ],
+      "properties": {
+        "medium": {
+          "type": "object",
+          "description": "ariadne-local-medium-v1 physical plan; world integration requires the embedded observers array to be empty",
+          "properties": {
+            "schema_version": {
+              "const": "ariadne-local-medium-v1"
+            },
+            "observers": {
+              "type": "array",
+              "maxItems": 0
+            }
+          },
+          "required": [
+            "schema_version"
+          ]
+        },
+        "inputs": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/port_input"
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/port_output"
+          }
+        },
+        "boundary_reservoir_capacity": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "initial_boundary_reservoir": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0
+        },
+        "boundary_decay_per_second": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0
+        },
+        "radiation_direction": {
+          "$ref": "#/$defs/vector24"
+        }
+      }
+    },
+    "port_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "boundary_direction",
+        "wave_gain",
+        "evidence_gain"
+      ],
+      "properties": {
+        "source": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "boundary_direction": {
+          "$ref": "#/$defs/vector24"
+        },
+        "wave_gain": {
+          "type": "number"
+        },
+        "evidence_gain": {
+          "type": "number"
+        }
+      }
+    },
+    "port_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wave_weights",
+        "evidence_weights",
+        "reservoir_weights",
+        "boundary_direction",
+        "gain_per_second"
+      ],
+      "properties": {
+        "wave_weights": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "evidence_weights": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "reservoir_weights": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "boundary_direction": {
+          "$ref": "#/$defs/vector24"
+        },
+        "gain_per_second": {
+          "type": "number"
+        }
+      }
+    },
+    "space_port": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "body_directions",
+        "coupling_weights"
+      ],
+      "properties": {
+        "body_directions": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/vector24"
+          }
+        },
+        "coupling_weights": {
+          "$ref": "#/$defs/vector4"
+        }
+      }
+    },
+    "pose": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "orientation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "required": [
+        "position",
+        "orientation"
+      ],
+      "properties": {
+        "position": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
+        },
+        "orientation": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "shared_space": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "delays_seconds",
+        "scattering_direction",
+        "radiation_left",
+        "radiation_right"
+      ],
+      "properties": {
+        "delays_seconds": {
+          "$ref": "#/$defs/vector4"
+        },
+        "scattering_direction": {
+          "$ref": "#/$defs/vector4"
+        },
+        "radiation_left": {
+          "$ref": "#/$defs/vector4"
+        },
+        "radiation_right": {
+          "$ref": "#/$defs/vector4"
+        }
+      }
+    },
+    "direct_coupling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "left_body",
+        "right_body",
+        "left_direction",
+        "right_direction",
+        "rate_hz",
+        "weight"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "left_body": {
+          "$ref": "#/$defs/id"
+        },
+        "right_body": {
+          "$ref": "#/$defs/id"
+        },
+        "left_direction": {
+          "$ref": "#/$defs/vector24"
+        },
+        "right_direction": {
+          "$ref": "#/$defs/vector24"
+        },
+        "rate_hz": {
+          "type": "number",
+          "minimum": 0
+        },
+        "weight": {
+          "type": "number",
+          "minimum": -16,
+          "maximum": 16
+        }
+      }
+    }
+  }
+}

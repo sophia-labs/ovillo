@@ -1,10 +1,15 @@
 use std::collections::BTreeMap;
 
-use crate::body::{Body, BodyError, BodyReconfigurationFrame};
+use crate::body::BodyReconfigurationFrame;
+use crate::constitutive_body::{ConstitutiveBodyError, WorldBody};
 use crate::coupling::CouplingNetwork;
 use crate::field::MetricFieldState;
 use crate::ir::{MODE_COUNT, SPACE_COURSES};
-use crate::plan::{BodyPose, PlanError, WorldPlan};
+use crate::law::medium::LocalMediumState;
+use crate::plan::{
+    BodyConstitutionSpec, BodyPose, ConstitutiveWorldPlan, PlanError, SpacePortSpec,
+    WorldPlan,
+};
 use crate::shared_space::SharedSpace;
 
 use super::{World, WorldError};
@@ -15,8 +20,8 @@ impl From<PlanError> for WorldError {
     }
 }
 
-impl From<BodyError> for WorldError {
-    fn from(error: BodyError) -> Self {
+impl From<ConstitutiveBodyError> for WorldError {
+    fn from(error: ConstitutiveBodyError) -> Self {
         Self::Body {
             id: "<unbound>".to_owned(),
             message: error.to_string(),
@@ -28,37 +33,114 @@ impl World {
     pub fn from_plan(plan: WorldPlan) -> Result<Self, WorldError> {
         plan.validate()?;
         let plan_digest = plan.digest()?;
-        let body_indices = plan
-            .bodies
-            .iter()
-            .enumerate()
-            .map(|(index, instance)| (instance.id.clone(), index))
-            .collect::<BTreeMap<_, _>>();
         let mut bodies = Vec::with_capacity(plan.bodies.len());
         for instance in &plan.bodies {
             bodies.push(
-                Body::try_new(plan.internal_sample_rate_hz, instance.body.clone()).map_err(
-                    |error| WorldError::Body {
-                        id: instance.id.clone(),
-                        message: error.to_string(),
+                WorldBody::from_constitution(
+                    plan.internal_sample_rate_hz,
+                    BodyConstitutionSpec::Modal {
+                        body: instance.body.clone(),
                     },
-                )?,
+                )
+                .map_err(|error| WorldError::Body {
+                    id: instance.id.clone(),
+                    message: error.to_string(),
+                })?,
             );
         }
-        let space = SharedSpace::try_new(plan.internal_sample_rate_hz, plan.shared_space)
-            .map_err(|error| WorldError::Space(error.to_string()))?;
         let couplings = CouplingNetwork::compile(&plan)
             .map_err(|error| WorldError::Coupling(error.to_string()))?;
-        let body_count = bodies.len();
+        let body_ids = plan.bodies.iter().map(|body| body.id.clone()).collect();
+        let body_poses = plan.bodies.iter().map(|body| body.pose).collect();
+        let space_ports = plan.bodies.iter().map(|body| body.space_port).collect();
+        Self::from_parts(
+            Some(plan.clone()),
+            None,
+            plan.world_name.clone(),
+            plan.internal_sample_rate_hz,
+            plan_digest,
+            body_ids,
+            body_poses,
+            space_ports,
+            bodies,
+            plan.shared_space,
+            couplings,
+        )
+    }
 
+    pub fn from_constitutive_plan(plan: ConstitutiveWorldPlan) -> Result<Self, WorldError> {
+        plan.validate()?;
+        let plan_digest = plan.digest()?;
+        let mut bodies = Vec::with_capacity(plan.bodies.len());
+        for instance in &plan.bodies {
+            bodies.push(
+                WorldBody::from_constitution(
+                    plan.internal_sample_rate_hz,
+                    instance.constitution.clone(),
+                )
+                .map_err(|error| WorldError::Body {
+                    id: instance.id.clone(),
+                    message: error.to_string(),
+                })?,
+            );
+        }
+        let couplings = CouplingNetwork::compile_constitutive(&plan)
+            .map_err(|error| WorldError::Coupling(error.to_string()))?;
+        let body_ids = plan.bodies.iter().map(|body| body.id.clone()).collect();
+        let body_poses = plan.bodies.iter().map(|body| body.pose).collect();
+        let space_ports = plan.bodies.iter().map(|body| body.space_port).collect();
+        Self::from_parts(
+            None,
+            Some(plan.clone()),
+            plan.world_name.clone(),
+            plan.internal_sample_rate_hz,
+            plan_digest,
+            body_ids,
+            body_poses,
+            space_ports,
+            bodies,
+            plan.shared_space,
+            couplings,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn from_parts(
+        legacy_plan: Option<WorldPlan>,
+        constitutive_plan: Option<ConstitutiveWorldPlan>,
+        world_name: String,
+        sample_rate_hz: f64,
+        plan_digest: String,
+        body_ids: Vec<String>,
+        body_poses: Vec<BodyPose>,
+        space_ports: Vec<SpacePortSpec>,
+        bodies: Vec<WorldBody>,
+        shared_space: crate::plan::SharedSpaceSpec,
+        couplings: CouplingNetwork,
+    ) -> Result<Self, WorldError> {
+        let body_indices = body_ids
+            .iter()
+            .enumerate()
+            .map(|(index, id)| (id.clone(), index))
+            .collect::<BTreeMap<_, _>>();
+        let space = SharedSpace::try_new(sample_rate_hz, shared_space)
+            .map_err(|error| WorldError::Space(error.to_string()))?;
+        let body_count = bodies.len();
         Ok(Self {
-            plan,
+            legacy_plan,
+            constitutive_plan,
+            world_name,
+            sample_rate_hz,
             plan_digest,
             body_indices,
+            body_ids,
+            body_poses,
+            space_ports,
             bodies,
             space,
             couplings,
             body_emissions: vec![0.0; body_count],
+            body_radiation: vec![Vec::new(); body_count],
             body_source_work: vec![0.0; body_count],
             body_internal_loss: vec![0.0; body_count],
             last_space_frame: Default::default(),
@@ -71,9 +153,28 @@ impl World {
         })
     }
 
+    /// Legacy modal plan. New mixed-constitution code should use
+    /// `constitutive_plan()` or plan-independent world metadata.
     #[must_use]
     pub fn plan(&self) -> &WorldPlan {
-        &self.plan
+        self.legacy_plan
+            .as_ref()
+            .expect("World::plan() is only defined for legacy modal plans")
+    }
+
+    #[must_use]
+    pub fn legacy_plan(&self) -> Option<&WorldPlan> {
+        self.legacy_plan.as_ref()
+    }
+
+    #[must_use]
+    pub fn constitutive_plan(&self) -> Option<&ConstitutiveWorldPlan> {
+        self.constitutive_plan.as_ref()
+    }
+
+    #[must_use]
+    pub fn world_name(&self) -> &str {
+        &self.world_name
     }
 
     #[must_use]
@@ -83,7 +184,7 @@ impl World {
 
     #[must_use]
     pub fn sample_rate_hz(&self) -> f64 {
-        self.plan.internal_sample_rate_hz
+        self.sample_rate_hz
     }
 
     #[must_use]
@@ -98,32 +199,37 @@ impl World {
 
     #[must_use]
     pub fn body_id(&self, index: usize) -> Option<&str> {
-        self.plan.bodies.get(index).map(|body| body.id.as_str())
+        self.body_ids.get(index).map(String::as_str)
     }
 
     #[must_use]
     pub fn body_pose(&self, index: usize) -> Option<BodyPose> {
-        self.plan.bodies.get(index).map(|body| body.pose)
+        self.body_poses.get(index).copied()
     }
 
     #[must_use]
     pub fn body_state(&self, index: usize) -> Option<MetricFieldState<MODE_COUNT>> {
-        self.bodies.get(index).map(Body::field_state)
+        self.bodies.get(index).map(WorldBody::field_state)
+    }
+
+    #[must_use]
+    pub fn body_local_medium_state(&self, index: usize) -> Option<&LocalMediumState> {
+        self.bodies.get(index).and_then(WorldBody::local_medium_state)
     }
 
     #[must_use]
     pub fn body_material_energy(&self, index: usize) -> Option<f64> {
-        self.bodies.get(index).map(Body::material_stored_energy)
+        self.bodies.get(index).map(WorldBody::material_stored_energy)
     }
 
     #[must_use]
     pub fn body_reservoir_energy(&self, index: usize) -> Option<f64> {
-        self.bodies.get(index).map(Body::reservoir_energy)
+        self.bodies.get(index).map(WorldBody::reservoir_energy)
     }
 
     #[must_use]
     pub fn body_configuration_amount(&self, index: usize) -> Option<f64> {
-        self.bodies.get(index).map(Body::configuration_amount)
+        self.bodies.get(index).and_then(WorldBody::configuration_amount)
     }
 
     #[must_use]
@@ -134,6 +240,11 @@ impl World {
     #[must_use]
     pub fn body_emissions(&self) -> &[f64] {
         &self.body_emissions
+    }
+
+    #[must_use]
+    pub fn body_radiation(&self, index: usize) -> Option<&[f64]> {
+        self.body_radiation.get(index).map(Vec::as_slice)
     }
 
     #[must_use]
@@ -195,7 +306,7 @@ impl World {
     pub fn total_stored_energy(&self) -> f64 {
         self.bodies
             .iter()
-            .map(Body::total_stored_energy)
+            .map(WorldBody::total_stored_energy)
             .sum::<f64>()
             + self.space.stored_energy()
     }
@@ -219,10 +330,9 @@ impl World {
         amount: f64,
     ) -> Result<BodyReconfigurationFrame, WorldError> {
         let id = self
-            .plan
-            .bodies
+            .body_ids
             .get(index)
-            .map(|body| body.id.clone())
+            .cloned()
             .ok_or_else(|| WorldError::UnknownBody(format!("index/{index}")))?;
         let energy_before = self.total_stored_energy();
         if self.pending_energy_start.is_none() {
@@ -239,7 +349,13 @@ impl World {
     }
 
     pub fn reset(&mut self) -> Result<(), WorldError> {
-        let replacement = Self::from_plan(self.plan.clone())?;
+        let replacement = if let Some(plan) = self.legacy_plan.clone() {
+            Self::from_plan(plan)?
+        } else if let Some(plan) = self.constitutive_plan.clone() {
+            Self::from_constitutive_plan(plan)?
+        } else {
+            return Err(WorldError::Plan("world has no construction plan".to_owned()));
+        };
         *self = replacement;
         Ok(())
     }

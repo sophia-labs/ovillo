@@ -11,21 +11,31 @@ use std::collections::BTreeMap;
 
 use mus_watsn::WorkLedger;
 
-use crate::body::Body;
+use crate::constitutive_body::WorldBody;
 use crate::coupling::{CouplingFrame, CouplingNetwork};
-use crate::plan::WorldPlan;
+use crate::plan::{
+    BodyPose, ConstitutiveWorldPlan, SpacePortSpec, WorldPlan,
+};
 use crate::shared_space::{SharedSpace, SharedSpaceFrame};
 
 /// Several persistent bodies, one shared field, one coupling graph, and one
-/// global physical ledger. Observation and presentation are separate programs.
+/// global physical ledger. Modal and local-medium constitutions compile into
+/// this same executor. Observation and presentation remain separate programs.
 pub struct World {
-    pub(super) plan: WorldPlan,
+    pub(super) legacy_plan: Option<WorldPlan>,
+    pub(super) constitutive_plan: Option<ConstitutiveWorldPlan>,
+    pub(super) world_name: String,
+    pub(super) sample_rate_hz: f64,
     pub(super) plan_digest: String,
     pub(super) body_indices: BTreeMap<String, usize>,
-    pub(super) bodies: Vec<Body>,
+    pub(super) body_ids: Vec<String>,
+    pub(super) body_poses: Vec<BodyPose>,
+    pub(super) space_ports: Vec<SpacePortSpec>,
+    pub(super) bodies: Vec<WorldBody>,
     pub(super) space: SharedSpace,
     pub(super) couplings: CouplingNetwork,
     pub(super) body_emissions: Vec<f64>,
+    pub(super) body_radiation: Vec<Vec<f64>>,
     pub(super) body_source_work: Vec<f64>,
     pub(super) body_internal_loss: Vec<f64>,
     pub(super) last_space_frame: SharedSpaceFrame,

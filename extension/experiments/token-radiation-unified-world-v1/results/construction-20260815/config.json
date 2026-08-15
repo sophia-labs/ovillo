@@ -1,0 +1,12 @@
+{
+  "batch_size": 48,
+  "courses": 2,
+  "learning_rate": 0.01,
+  "replicates": 3,
+  "seed": 20260815,
+  "settle_steps": 1,
+  "sites": 8,
+  "test_events": 8,
+  "train_events": 6,
+  "train_steps": 300
+}

@@ -15,6 +15,9 @@ into lawful Ariadne bodies.
 - [`experiments/token-radiation-lexical-interface-v1/`](experiments/token-radiation-lexical-interface-v1/)
   — bidirectional lexical events, surface-neutral operator gestures, and an
   explicit radiation-to-surface-to-feedback loop.
+- [`experiments/token-radiation-unified-world-v1/`](experiments/token-radiation-unified-world-v1/)
+  — typed local-medium bodies inside canonical Unified Ariadne, with lexical
+  and predictive bodies communicating through one delayed shared field.
 
 ## Historical campaign pin
 

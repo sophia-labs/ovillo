@@ -1,9 +1,10 @@
-//! Content-addressed construction plan for one multi-body Ariadne world.
+//! Content-addressed construction plans for one multi-body Ariadne world.
 //!
-//! The plan contains physical anatomy only. Observation programs, optical
-//! constitutions, sensors, and presentation bind to its digest without changing
-//! the identity of the world.
+//! Legacy modal plans and mixed constitutive plans compile into the same
+//! canonical `World` executor. Observation programs, optical constitutions,
+//! sensors, and presentation bind by digest without changing physical identity.
 
+mod constitutive;
 mod helpers;
 mod preset;
 mod types;
@@ -11,6 +12,11 @@ mod validate;
 #[cfg(test)]
 mod tests;
 
+pub use constitutive::{
+    BodyConstitutionSpec, ConstitutiveBodyInstanceSpec, ConstitutiveWorldPlan,
+    LocalMediumBoundarySpec, LocalMediumPortInputBinding,
+    LocalMediumPortOutputBinding, WORLD_PLAN_V3_SCHEMA_VERSION,
+};
 pub use types::{
     BodyInstanceSpec, BodyPose, BodySpec, DirectCouplingSpec, SharedSpaceSpec,
     SpacePortSpec, WorldPlan,

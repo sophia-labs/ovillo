@@ -1,9 +1,8 @@
 //! Sparse reciprocal coupling graph between persistent Ariadne bodies.
 //!
-//! V1 edges are storage-free metric-compatible exchanges between one normalized
-//! momentum aperture on each body. A compliant or dissipative edge that owns
-//! state belongs in an explicit constitutive edge type rather than being hidden
-//! in this transport.
+//! Couplings act on every constitution's fixed-size boundary momentum. Modal
+//! bodies expose their native momentum; local media expose the storage-bearing
+//! boundary transducer defined by `LocalMediumBoundarySpec`.
 
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
@@ -11,8 +10,9 @@ use std::f64::consts::TAU;
 use mus_watsn::givens;
 
 use crate::body::Body;
+use crate::constitutive_body::WorldBody;
 use crate::ir::MODE_COUNT;
-use crate::plan::{DirectCouplingSpec, PlanError, WorldPlan};
+use crate::plan::{ConstitutiveWorldPlan, DirectCouplingSpec, PlanError, WorldPlan};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CouplingControls {
@@ -36,8 +36,6 @@ impl CouplingControls {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct CouplingFrame {
-    /// Signed kinetic-energy change accumulated on each edge's declared left
-    /// body. The matching right-body change is its negative up to residual.
     pub exchange_into_left: f64,
     pub metric_residual: f64,
     pub maximum_abs_angle: f64,
@@ -62,9 +60,7 @@ impl std::fmt::Display for CouplingError {
             Self::InvalidDirection(id) => {
                 write!(formatter, "coupling {id:?} has a degenerate aperture direction")
             }
-            Self::RepeatedBody(id) => {
-                write!(formatter, "coupling {id:?} joins a body to itself")
-            }
+            Self::RepeatedBody(id) => write!(formatter, "coupling {id:?} joins a body to itself"),
             Self::BodyCountMismatch { expected, actual } => write!(
                 formatter,
                 "coupling network expected {expected} bodies, received {actual}"
@@ -103,18 +99,34 @@ pub struct CouplingNetwork {
 impl CouplingNetwork {
     pub fn compile(plan: &WorldPlan) -> Result<Self, CouplingError> {
         plan.validate()?;
-        let body_indices = plan
-            .bodies
-            .iter()
+        Self::compile_parts(
+            plan.bodies.iter().map(|body| body.id.as_str()),
+            &plan.direct_couplings,
+        )
+    }
+
+    pub fn compile_constitutive(plan: &ConstitutiveWorldPlan) -> Result<Self, CouplingError> {
+        plan.validate()?;
+        Self::compile_parts(
+            plan.bodies.iter().map(|body| body.id.as_str()),
+            &plan.direct_couplings,
+        )
+    }
+
+    fn compile_parts<'a>(
+        body_ids: impl Iterator<Item = &'a str>,
+        specs: &[DirectCouplingSpec],
+    ) -> Result<Self, CouplingError> {
+        let body_indices = body_ids
             .enumerate()
-            .map(|(index, body)| (body.id.as_str(), index))
+            .map(|(index, id)| (id, index))
             .collect::<BTreeMap<_, _>>();
-        let mut edges = Vec::with_capacity(plan.direct_couplings.len());
-        for spec in &plan.direct_couplings {
+        let mut edges = Vec::with_capacity(specs.len());
+        for spec in specs {
             edges.push(compile_edge(spec, &body_indices)?);
         }
         Ok(Self {
-            body_count: plan.bodies.len(),
+            body_count: body_indices.len(),
             last_exchanges_into_left: vec![0.0; edges.len()],
             edges,
         })
@@ -140,10 +152,30 @@ impl CouplingNetwork {
         &self.last_exchanges_into_left
     }
 
+    /// Legacy public coupling surface for callers that operate directly on
+    /// authored modal bodies.
     pub fn process(
         &mut self,
         sample_rate_hz: f64,
         bodies: &mut [Body],
+        controls: CouplingControls,
+    ) -> Result<CouplingFrame, CouplingError> {
+        self.process_impl(sample_rate_hz, bodies, controls)
+    }
+
+    pub(crate) fn process_constitutive(
+        &mut self,
+        sample_rate_hz: f64,
+        bodies: &mut [WorldBody],
+        controls: CouplingControls,
+    ) -> Result<CouplingFrame, CouplingError> {
+        self.process_impl(sample_rate_hz, bodies, controls)
+    }
+
+    fn process_impl<T: CoupledBody>(
+        &mut self,
+        sample_rate_hz: f64,
+        bodies: &mut [T],
         controls: CouplingControls,
     ) -> Result<CouplingFrame, CouplingError> {
         if bodies.len() != self.body_count {
@@ -162,20 +194,20 @@ impl CouplingNetwork {
         for (index, edge) in self.edges.iter().enumerate() {
             let (left_body, right_body) = two_mut(bodies, edge.left_body, edge.right_body)
                 .ok_or_else(|| CouplingError::RepeatedBody(edge.id.clone()))?;
-            let left_projection = dot(left_body.momentum(), &edge.left_direction);
-            let right_projection = dot(right_body.momentum(), &edge.right_direction);
+            let left_projection = dot(left_body.coupled_momentum(), &edge.left_direction);
+            let right_projection = dot(right_body.coupled_momentum(), &edge.right_direction);
             if !left_projection.is_finite() || !right_projection.is_finite() {
                 return Err(CouplingError::NonFiniteState);
             }
             let angle = TAU * edge.rate_hz * dt * edge.weight * controls.scale;
             let (next_left, next_right) = givens(left_projection, right_projection, angle);
             add_projection(
-                left_body.momentum_mut(),
+                left_body.coupled_momentum_mut(),
                 &edge.left_direction,
                 next_left - left_projection,
             );
             add_projection(
-                right_body.momentum_mut(),
+                right_body.coupled_momentum_mut(),
                 &edge.right_direction,
                 next_right - right_projection,
             );
@@ -194,6 +226,31 @@ impl CouplingNetwork {
             }
         }
         Ok(frame)
+    }
+}
+
+trait CoupledBody {
+    fn coupled_momentum(&self) -> &[f64; MODE_COUNT];
+    fn coupled_momentum_mut(&mut self) -> &mut [f64; MODE_COUNT];
+}
+
+impl CoupledBody for Body {
+    fn coupled_momentum(&self) -> &[f64; MODE_COUNT] {
+        self.momentum()
+    }
+
+    fn coupled_momentum_mut(&mut self) -> &mut [f64; MODE_COUNT] {
+        self.momentum_mut()
+    }
+}
+
+impl CoupledBody for WorldBody {
+    fn coupled_momentum(&self) -> &[f64; MODE_COUNT] {
+        self.momentum()
+    }
+
+    fn coupled_momentum_mut(&mut self) -> &mut [f64; MODE_COUNT] {
+        self.momentum_mut()
     }
 }
 
@@ -239,11 +296,7 @@ fn two_mut<T>(slice: &mut [T], left: usize, right: usize) -> Option<(&mut T, &mu
 }
 
 fn normalize<const N: usize>(mut direction: [f64; N]) -> Option<[f64; N]> {
-    let norm = direction
-        .iter()
-        .map(|value| value * value)
-        .sum::<f64>()
-        .sqrt();
+    let norm = direction.iter().map(|value| value * value).sum::<f64>().sqrt();
     if !norm.is_finite() || norm <= 1.0e-12 {
         return None;
     }
@@ -255,10 +308,7 @@ fn normalize<const N: usize>(mut direction: [f64; N]) -> Option<[f64; N]> {
 
 #[inline]
 fn dot<const N: usize>(left: &[f64; N], right: &[f64; N]) -> f64 {
-    left.iter()
-        .zip(right)
-        .map(|(left, right)| left * right)
-        .sum()
+    left.iter().zip(right).map(|(left, right)| left * right).sum()
 }
 
 #[inline]
@@ -270,11 +320,7 @@ fn add_projection<const N: usize>(state: &mut [f64; N], direction: &[f64; N], am
 
 #[inline]
 fn finite(value: f64) -> f64 {
-    if value.is_finite() {
-        value
-    } else {
-        0.0
-    }
+    if value.is_finite() { value } else { 0.0 }
 }
 
 #[cfg(test)]
@@ -308,7 +354,9 @@ mod tests {
         let mut bodies = plan
             .bodies
             .iter()
-            .map(|instance| Body::try_new(plan.internal_sample_rate_hz, instance.body.clone()).unwrap())
+            .map(|instance| {
+                Body::try_new(plan.internal_sample_rate_hz, instance.body.clone()).unwrap()
+            })
             .collect::<Vec<_>>();
         bodies[0]
             .process_local(
@@ -330,7 +378,10 @@ mod tests {
         let energy_after = bodies.iter().map(Body::total_stored_energy).sum::<f64>();
         assert!(frame.active_edges > 0);
         assert_eq!(network.edge_id(0), Some("bridge/0"));
-        assert_eq!(network.last_exchange_into_left(0), Some(frame.exchange_into_left));
+        assert_eq!(
+            network.last_exchange_into_left(0),
+            Some(frame.exchange_into_left)
+        );
         assert!(frame.metric_residual.abs() < 1.0e-17);
         assert!((energy_after - energy_before).abs() < 1.0e-17);
     }

@@ -1,25 +1,28 @@
 //! Ariadne's canonical circuit-free metamaterial runtime.
 //!
 //! ```text
-//! WorldPlan
-//!   bodies + shared fields + reciprocal coupling graph
+//! WorldPlan / ConstitutiveWorldPlan
+//!   typed bodies + shared fields + reciprocal coupling graph
 //!       |
 //!       v
-//! World::from_plan
+//! World::from_plan / World::from_constitutive_plan
 //!   one persistent physical state + one material clock + one global ledger
 //!       |
-//!       +---- TrajectoryBinding       physical interventions
-//!       +---- StereoListener          non-loading sound observation
-//!       +---- BoundObservationProgram non-loading typed data observation
+//!       +---- body/world controls     physical interventions
+//!       +---- radiation/state getters non-loading observation boundary
+//!       +---- legacy v2 bindings      trajectory/listener/typed observation
 //! ```
 //!
 //! There is no instrument-specific renderer, compatibility terminal, embedded
 //! listener, or alternate one-body execution path. A one-body instrument is a
-//! one-element `WorldPlan`; a score is a larger plan over the same executor.
+//! one-element plan; learned local media and authored modal bodies execute in
+//! the same canonical `World`. Plan-v3 trajectory and typed-observation binding
+//! are explicit follow-on adapters rather than alternate execution paths.
 
 #![forbid(unsafe_code)]
 
 pub mod body;
+mod constitutive_body;
 pub mod coupling;
 pub mod field;
 mod ir;
@@ -32,31 +35,29 @@ mod shared_trajectory;
 mod shared_world;
 
 pub use body::{Body, BodyControls, BodyError, BodyLocalFrame, BodyReconfigurationFrame};
+pub use constitutive_body::{
+    ConstitutiveBodyControls, ConstitutiveBodyError, LocalMediumBodyControls,
+};
 pub use coupling::{CouplingControls, CouplingError, CouplingFrame, CouplingNetwork};
 pub use ir::{
     ApertureSpec, ConfigurationPath, MetricSpec, ReservoirSpec, TransportSpec,
-    WorldConfiguration, ACTIVE_RANKS, MODE_COUNT, SPACE_COURSES, TRANSPORT_PAIRS,
-};
-pub use law::medium::{
-    LocalConstitutiveMedium, LocalMediumDamageReceipt, LocalMediumEdgeSpec,
-    LocalMediumError, LocalMediumInputFrame, LocalMediumObserverSpec, LocalMediumPlan,
-    LocalMediumReconfigurationReceipt, LocalMediumSiteSpec, LocalMediumSourceDrive,
-    LocalMediumSourceSpec, LocalMediumState, LocalMediumStepReceipt,
-    LOCAL_MEDIUM_SCHEMA_VERSION,
-};
-pub use law::radiation::{
-    MetricRadiationAperture, MetricRadiationError, MetricRadiationPlan,
-    MetricRadiationReceipt, METRIC_RADIATION_SCHEMA_VERSION,
+    WorldConfiguration, ACTIVE_RANKS, MODE_COUNT, SPACE_COURSES,
+    TRANSPORT_PAIRS,
 };
 pub use observation::{
     BoundObservationProgram, ListenerError, ObservationProgramError,
-    ObservationRuntimeError, ObservationSource, StereoBodyTap, StereoFrame, StereoListener,
-    StereoListenerSpec, WorldObservationChannel, WorldObservationProgram,
+    ObservationRuntimeError, ObservationSource, StereoBodyTap, StereoFrame,
+    StereoListener, StereoListenerSpec, WorldObservationChannel,
+    WorldObservationProgram,
 };
 pub use performance::{WorldCostEstimate, WorldLayout};
 pub use plan::{
-    BodyInstanceSpec, BodyPose, BodySpec, DirectCouplingSpec, PlanError, SharedSpaceSpec,
-    SpacePortSpec, WorldPlan, WORLD_PLAN_SCHEMA_VERSION,
+    BodyConstitutionSpec, BodyInstanceSpec, BodyPose, BodySpec,
+    ConstitutiveBodyInstanceSpec, ConstitutiveWorldPlan, DirectCouplingSpec,
+    LocalMediumBoundarySpec, LocalMediumPortInputBinding,
+    LocalMediumPortOutputBinding, PlanError, SharedSpaceSpec, SpacePortSpec,
+    WorldPlan, WORLD_PLAN_V3_SCHEMA_VERSION,
+    WORLD_PLAN_SCHEMA_VERSION,
 };
 pub use shared_space::{
     SharedSpaceControls, SharedSpaceError, SharedSpaceExchange, SharedSpaceFrame,
