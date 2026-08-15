@@ -1,0 +1,21 @@
+{
+  "body_batch_size": 4,
+  "body_steps": 2,
+  "cpu_threads": 1,
+  "detector_batch_size": 2,
+  "detector_replicates": 1,
+  "detector_steps": 2,
+  "operator_families": ["structured"],
+  "operator_fraction": 0.16,
+  "operator_probe_states": 3,
+  "paired_seeds": [20260814],
+  "probe_steps": 2,
+  "radiation_fractions": [0.0, 0.16],
+  "radiation_rank": 2,
+  "seed": 20260814,
+  "sequence_bytes": 12,
+  "sites": 4,
+  "train_sequences": 8,
+  "validation_sequences": 3,
+  "vocabulary_size": 10
+}
