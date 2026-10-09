@@ -1,0 +1,15 @@
+[package]
+name = "ovillo-mcp"
+description = "An MCP server (stdio) that lets a Claude session drive a running Ovillo through its control socket."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "ovillo-mcp"
+path = "src/main.rs"
+
+[dependencies]
+# JSON-RPC over stdio is written by hand: no MCP SDK.
+serde_json = { workspace = true }
