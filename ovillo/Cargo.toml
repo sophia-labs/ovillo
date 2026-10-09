@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/sophia-labs/instrument"
+
+[workspace.dependencies]
+# The canonical Ariadne World, from this checkout's mus-rs workspace.
+mus-ariadne = { path = "../mus-rs/crates/mus-ariadne" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hound = "3.5"
+rtrb = "0.4"
+# Pinned as Tesitura pins it (its Cargo.lock seeded this one).
+cpal = "=0.18.2"
+realfft = "3.5"
+
+# Ariadne and the guitar run in real time even in `cargo run` (dev) builds.
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev.package.ovillo-dsp]
+opt-level = 3

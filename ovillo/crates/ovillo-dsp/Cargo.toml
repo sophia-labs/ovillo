@@ -1,0 +1,16 @@
+[package]
+name = "ovillo-dsp"
+description = "Ovillo's sound: a simulated electric guitar, the Ariadne World engine, and the rig that joins them."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+mus-ariadne = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rtrb = { workspace = true }
+
+[dev-dependencies]
+hound = { workspace = true }

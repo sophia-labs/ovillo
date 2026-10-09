@@ -1,0 +1,22 @@
+{
+  "material_organization": 0.06,
+  "source_coupling": 1.0,
+  "work_input": 0.004,
+  "active_coupling": 0.46,
+  "active_drive": 0.42,
+  "headroom": 0.72,
+  "sustain": 0.24,
+  "sag": 0.35,
+  "bloom": 0.36,
+  "feedback": 0.04,
+  "active_space": 0.16,
+  "interlace": 0.42,
+  "memory": 0.28,
+  "space_coupling": 0.16,
+  "space_decay": 0.42,
+  "space_radiation": 0.2,
+  "body_radiation": 0.008,
+  "listener_scale": 40.0,
+  "mix": 1.0,
+  "output_gain": 5.0
+}

@@ -1,0 +1,26 @@
+[package]
+name = "ovillo-app"
+description = "Ovillo: a bench instrument for playing a guitar through the Ariadne World and watching what happens inside it."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "ovillo"
+path = "src/main.rs"
+
+[dependencies]
+# Zed's GPUI, pinned exactly as Tesitura pins it (gpui-pre = "=0.3.6", zed@bcf6582, Apache-2.0).
+gpui = { package = "gpui-pre", version = "=0.3.6", default-features = false, features = ["font-kit"] }
+# `runtime_shaders`: this Mac has only the Command Line Tools (no `metal` compiler).
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.6", features = ["font-kit", "runtime_shaders"] }
+ovillo-dsp = { path = "../ovillo-dsp" }
+cpal = { workspace = true }
+rtrb = { workspace = true }
+realfft = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+hound = { workspace = true }
+# Embeds Info.plist (bundle id, NSMicrophoneUsageDescription) in the bare binary.
+embed_plist = "1.2"
