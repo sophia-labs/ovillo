@@ -9,7 +9,8 @@ use ovillo_dsp::ariadne::{AriadneControls, PARAMS};
 use ovillo_dsp::compose::SHAPES;
 use ovillo_dsp::guitar::{GuitarSettings, Pickup, STRINGS, STRING_NAMES};
 use ovillo_dsp::player::{Event, Pattern};
-use ovillo_dsp::rig::{Command, MASTER_MAX_DB, MASTER_MIN_DB};
+use ovillo_dsp::rig::{Command, Source, MASTER_MAX_DB, MASTER_MIN_DB};
+use std::sync::atomic::Ordering;
 use ovillo_dsp::score;
 use serde_json::{json, Map, Value};
 
@@ -56,6 +57,7 @@ const OPS: &[&str] = &[
     "set_output",
     "record",
     "play_score",
+    "set_input",
 ];
 
 fn norm(s: &str) -> String {
@@ -155,6 +157,7 @@ fn active_id(a: Active) -> String {
         Active::TimeDiv => "time_div".into(),
         Active::AmpDiv => "amp_div".into(),
         Active::Master => "master".into(),
+        Active::InputGain => "input_gain".into(),
     }
 }
 
@@ -166,6 +169,7 @@ fn active_arg(s: &str) -> Result<Active, String> {
         "timediv" | "time" => Active::TimeDiv,
         "ampdiv" | "ampldiv" | "amp" => Active::AmpDiv,
         "master" => Active::Master,
+        "inputgain" | "ingain" => Active::InputGain,
         _ => Active::Param(param_index(s).ok_or_else(|| {
             format!("unknown function \"{s}\" (tempo, tone, volume, time_div, amp_div, master, or a parameter id)")
         })?),
@@ -294,6 +298,7 @@ impl Ovillo {
                 Ok(self.record_json())
             }
             "play_score" => self.op_play_score(args),
+            "set_input" => self.op_set_input(args),
             other => Err(format!("unknown op \"{other}\" (ops: {})", OPS.join(", "))),
         }
     }
@@ -537,6 +542,72 @@ impl Ovillo {
         Ok(json!({"strummed": frets, "dir": if down { "down" } else { "up" }, "spells": name_chord(&notes)}))
     }
 
+    fn op_set_input(&mut self, args: &Value) -> Result<Value, String> {
+        let o = args_obj("set_input", args, &["source", "gain_db", "channel"])?;
+        let Some((device, channels)) = self.audio.as_ref().and_then(|a| a.input.as_ref()).map(|i| (i.device.clone(), i.channels)) else {
+            return Err("this Ovillo has no live input: it was started without --input <device> (e.g. --input Scarlett), \
+                        so the simulated guitar is the only source. Restart it with --input to play an audio interface."
+                .into());
+        };
+        // Check everything before changing anything.
+        let source = match str_arg(&o, "source")? {
+            None => None,
+            Some("live") => Some(true),
+            Some("sim") => Some(false),
+            Some(other) => return Err(format!("source \"{other}\" must be live or sim")),
+        };
+        let gain = f64_arg(&o, "gain_db")?;
+        if let Some(g) = gain {
+            if !(-24.0..=36.0).contains(&g) {
+                return Err(format!("gain_db {g} is out of range -24..=36"));
+            }
+        }
+        let channel = match o.get("channel") {
+            None | Some(Value::Null) => None,
+            Some(Value::String(c)) if c == "auto" => Some(None),
+            Some(v) => {
+                let n = v.as_u64().or_else(|| v.as_str().and_then(|c| c.parse().ok())).unwrap_or(0) as usize;
+                if n < 1 || n > channels as usize {
+                    return Err(format!("channel {v} must be \"auto\" or 1..={channels} ({device} has {channels} input channels)"));
+                }
+                Some(Some(n - 1))
+            }
+        };
+        if let Some(c) = channel {
+            self.pin_input_channel(c)?;
+        }
+        if let Some(g) = gain {
+            self.set_input_gain(g);
+        }
+        if let Some(live) = source {
+            self.set_source(live)?;
+        }
+        Ok(self.input_json())
+    }
+
+    fn input_json(&self) -> Value {
+        let t = self.tele;
+        let input = self.audio.as_ref().and_then(|a| a.input.as_ref());
+        let channel = input.map(|i| {
+            let pinned = i.pinned.load(Ordering::Relaxed);
+            let current = i.channel.load(Ordering::Relaxed);
+            let is_pinned = pinned < i.channels as usize;
+            json!({"mode": if is_pinned { "pinned" } else { "auto" }, "pinned": is_pinned.then_some(pinned + 1), "current": current + 1, "label": self.input_channel_label(i)})
+        });
+        json!({
+            "source": if self.live { "live" } else { "sim" },
+            "rig_source": t.map(|t| if t.source == Source::Live { "live" } else { "sim" }),
+            "available": input.is_some(),
+            "device": input.map(|i| i.device.clone()),
+            "channels": input.map(|i| i.channels),
+            "channel": channel,
+            "gain_db": self.input_gain_db,
+            "input_starved": t.map(|t| t.input_starved),
+            "input_dropped": t.map(|t| t.input_dropped),
+            "input_overflow": input.map(|i| i.overflow.load(Ordering::Relaxed)),
+        })
+    }
+
     fn op_play_score(&mut self, args: &Value) -> Result<Value, String> {
         let o = args_obj("play_score", args, &["score"])?;
         let v = match o.get("score") {
@@ -674,6 +745,7 @@ impl Ovillo {
             "menu": self.menu_json(),
             "ariadne": params,
             "guitar": self.guitar_json(),
+            "input": self.input_json(),
             "transport": self.transport_json(),
             "display": self.display_json(),
             "output": {"master_db": self.master_db, "muted": self.muted, "master_gain_now": t.map(|t| t.master)},

@@ -99,7 +99,7 @@ fn main() {
     m.send(&json!({"jsonrpc": "2.0", "method": "notifications/initialized"}));
     let tools = m.request("tools/list", json!({}));
     let n = tools["result"]["tools"].as_array().map_or(0, Vec::len);
-    m.check(n == 18, "eighteen tools");
+    m.check(n == 19, "nineteen tools");
     println!("{n} tools; driving each against the instrument on {socket}");
 
     // get_state
@@ -111,7 +111,18 @@ fn main() {
     m.check(s["menu"]["softkeys"].as_array().map_or(0, Vec::len) == 8, "eight softkeys");
     m.check(s["annunciators"]["CTL"] == true, "CTL lit while we are connected");
     m.check(s["annunciators"]["MUTE"] == true, "MUTE annunciator lit");
+    m.check(s["input"]["source"] == "sim" && s["input"]["available"] == false && s["input"]["device"].is_null(), "no live input: the source is the simulated guitar");
+    m.check(s["input"]["gain_db"].is_number() && s["input"]["input_starved"] == 0 && s["input"]["input_dropped"] == 0, "input gain and counters reported");
     println!("  instance pid {pid}, device {}, {} Hz", s["audio"]["device"], s["audio"]["sample_rate"]);
+
+    // set_input on an instance started without --input: a clear refusal, and nothing changes.
+    let e = m.tool_error("set_input", json!({"source": "live"}));
+    m.check(e.contains("no live input") && e.contains("--input"), "set_input explains there is no live input");
+    m.tool_error("set_input", json!({"channel": 1, "gain_db": 6}));
+    let k = m.tool("press_keys", json!({"keys": "i"}));
+    m.check(k["message"].as_str().is_some_and(|t| t.contains("NO LIVE INPUT")), "the i key says the same on screen");
+    let s = m.tool("get_state", json!({}));
+    m.check(s["input"]["source"] == "sim", "still the simulated guitar");
 
     // set_output (stay muted: someone may be listening)
     let o = m.tool("set_output", json!({"master_db": -12, "mute": true}));

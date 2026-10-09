@@ -45,6 +45,7 @@ pub enum Active {
     AmpDiv,
     /// The master (monitor) level, in dB.
     Master,
+    InputGain,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,6 +70,8 @@ pub enum Action {
     DefaultPatch,
     ToggleMute,
     Record,
+    ToggleSource,
+    CycleInputChannel,
     Nothing,
 }
 
@@ -123,6 +126,8 @@ pub struct View<'a> {
     pub master_db: f64,
     pub muted: bool,
     pub recording: bool,
+    /// With a live input: (live now, input gain dB, channel label).
+    pub input: Option<(bool, f64, String)>,
 }
 
 pub fn fmt_master(db: f64, muted: bool) -> String {
@@ -160,7 +165,11 @@ pub fn title(m: Menu) -> String {
 pub fn softkeys(m: Menu, v: &View) -> Vec<Softkey> {
     let mut keys: Vec<Softkey> = match m {
         Menu::Root => vec![
-            key("SOURCE", format!("{} ▸", v.pattern), Action::Open(Menu::Source)),
+            key(
+                "SOURCE",
+                if v.input.as_ref().is_some_and(|i| i.0) { "LIVE ▸".to_string() } else { format!("{} ▸", v.pattern) },
+                Action::Open(Menu::Source),
+            ),
             key("MATERIAL", "▸", Action::Open(Menu::Ariadne(0))),
             key("METABOL", "▸", Action::Open(Menu::Ariadne(1))),
             key("SPACE+OUT", "▸", Action::Open(Menu::Ariadne(2))),
@@ -169,6 +178,19 @@ pub fn softkeys(m: Menu, v: &View) -> Vec<Softkey> {
             Softkey { lit: v.playing, ..key("PLAY", if v.playing { "STOP" } else { "START" }, Action::PlayStop) },
             key("OUTPUT", format!("{} ▸", fmt_master(v.master_db, v.muted)), Action::Open(Menu::Output)),
         ],
+        Menu::Source if v.input.is_some() => {
+            let (live, gain, ch) = v.input.clone().unwrap_or_default();
+            vec![
+                Softkey { lit: live, ..key("SOURCE", if live { "LIVE IN" } else { "SIM GUITAR" }, Action::ToggleSource) },
+                key("IN GAIN", format!("{gain:+.1} dB"), Action::Activate(Active::InputGain)),
+                key("IN CHAN", ch, Action::CycleInputChannel),
+                key("PATTERN", v.pattern, Action::CyclePattern),
+                key("TEMPO", format!("{:.0} BPM", v.bpm), Action::Activate(Active::Tempo)),
+                key("PICKUP", v.pickup, Action::CyclePickup),
+                key("MUTE", "STRINGS", Action::MuteStrings),
+                key("RETURN", "", Action::Return),
+            ]
+        }
         Menu::Source => vec![
             key("PATTERN", v.pattern, Action::CyclePattern),
             key("TEMPO", format!("{:.0} BPM", v.bpm), Action::Activate(Active::Tempo)),

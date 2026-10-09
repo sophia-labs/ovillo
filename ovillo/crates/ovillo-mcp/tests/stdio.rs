@@ -50,11 +50,11 @@ fn the_handshake_the_tools_and_an_absent_instrument() {
     let names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
     for want in [
         "get_state", "press_keys", "set_params", "get_patch", "load_patch", "save_patch", "default_patch", "set_guitar",
-        "set_display", "transport", "pluck", "strum", "mute_strings", "reset_world", "set_output", "record", "play_score", "screenshot",
+        "set_display", "transport", "pluck", "strum", "mute_strings", "reset_world", "set_output", "record", "play_score", "set_input", "screenshot",
     ] {
         assert!(names.contains(&want), "missing tool {want}");
     }
-    assert_eq!(names.len(), 18);
+    assert_eq!(names.len(), 19);
     for t in tools {
         assert_eq!(t["inputSchema"]["type"], "object", "{}", t["name"]);
         assert!(t["description"].as_str().unwrap().len() > 60, "{} needs a real description", t["name"]);

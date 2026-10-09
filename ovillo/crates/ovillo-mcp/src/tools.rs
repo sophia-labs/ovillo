@@ -48,14 +48,14 @@ pub fn list() -> Value {
         {
             "name": "get_state",
             "title": "Read the instrument",
-            "description": "Everything on Ovillo's screen as data: the current menu and its eight softkey labels (and which is lit), the active knob function; all twenty Ariadne parameters with id, label, value, range and display text; the guitar (pickup, tone, volume, hum); the transport (composition, key it is in, tempo, playing, the loaded score and where it is, every composition with a one-line description); the display (upper spectrum/scope, lower world/tab, square map/xy/chord, map Y, time/div, amp/div, modes, hold); the master output (dB, muted); recording state and take paths; meters (in/out peak and RMS dBFS, before the master); the World's readings (material, reservoir and space energy in dB, configuration, ledger); DSP load; the guitarist's truth (each string's fret, pitch, level, whether it sounds, and the chord they spell); annunciators; pid, sample rate, audio device, socket. Call it first, and after changes to confirm them.",
+            "description": "Everything on Ovillo's screen as data: the current menu and its eight softkey labels (and which is lit), the active knob function; all twenty Ariadne parameters with id, label, value, range and display text; the guitar (pickup, tone, volume, hum); the input (source live or sim, the audio interface's name and channel count, channel auto or pinned and the one in use, input gain dB, input_starved and input_dropped sample counts); the transport (composition, key it is in, tempo, playing, the loaded score and where it is, every composition with a one-line description); the display (upper spectrum/scope, lower world/tab, square map/xy/chord, map Y, time/div, amp/div, modes, hold); the master output (dB, muted); recording state and take paths; meters (in/out peak and RMS dBFS, before the master); the World's readings (material, reservoir and space energy in dB, configuration, ledger); DSP load; the guitarist's truth (each string's fret, pitch, level, whether it sounds, and the chord they spell); annunciators; pid, sample rate, audio device, socket. Call it first, and after changes to confirm them.",
             "inputSchema": {"type": "object", "properties": {}, "additionalProperties": false},
             "annotations": {"readOnlyHint": true}
         },
         {
             "name": "press_keys",
             "title": "Press keys",
-            "description": "Press keys on the instrument exactly as a person would, in order, through the app's own key handler (the escape hatch: anything the keyboard can do). Keys: 1-8 (or f1-f8) are the softkeys on the right bezel; escape returns to the main menu; up/down (or right/left) turn the knob, i.e. change the lit softkey's quantity, and 'shift+up' turns it finely; z x c v b n pluck the open strings low to high ('shift+z' harder); space starts/stops the guitarist; tab toggles spectrum/scope; r records a take; m mutes the strings; h toggles max hold; 0 resets the World; - and = step the master level 1 dB (shift: 0.1 dB); \\ (or `) toggles the master mute. Main menu softkeys: 1 SOURCE, 2 MATERIAL, 3 METABOLISM, 4 SPACE+OUT, 5 DISPLAY, 6 PATCH, 7 PLAY, 8 OUTPUT. Example: \"5 5 6 escape\" opens DISPLAY, switches the lower screen to the TAB, cycles the square, and returns. Returns which keys were taken, the menu now showing and its softkeys.",
+            "description": "Press keys on the instrument exactly as a person would, in order, through the app's own key handler (the escape hatch: anything the keyboard can do). Keys: 1-8 (or f1-f8) are the softkeys on the right bezel; escape returns to the main menu; up/down (or right/left) turn the knob, i.e. change the lit softkey's quantity, and 'shift+up' turns it finely; z x c v b n pluck the open strings low to high ('shift+z' harder); space starts/stops the guitarist; tab toggles spectrum/scope; r records a take; m mutes the strings; h toggles max hold; 0 resets the World; i switches the source between the live input and the simulated guitar (only when started with --input); - and = step the master level 1 dB (shift: 0.1 dB); \\ (or `) toggles the master mute. With a live input the SOURCE menu becomes SOURCE LIVE/SIM, IN GAIN, IN CHAN, PATTERN, TEMPO, PICKUP, MUTE, RETURN. Main menu softkeys: 1 SOURCE, 2 MATERIAL, 3 METABOLISM, 4 SPACE+OUT, 5 DISPLAY, 6 PATCH, 7 PLAY, 8 OUTPUT. Example: \"5 5 6 escape\" opens DISPLAY, switches the lower screen to the TAB, cycles the square, and returns. Returns which keys were taken, the menu now showing and its softkeys.",
             "inputSchema": {
                 "type": "object",
                 "properties": {"keys": {"description": "Keys separated by spaces (\"5 5 6 escape\"), or a list. Modifier: \"shift+<key>\".", "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]}},
@@ -123,7 +123,7 @@ pub fn list() -> Value {
         {
             "name": "set_display",
             "title": "Set the display",
-            "description": "Change what the screens show (any subset). upper: spectrum (dry blue, Ariadne orange, the body's 24 modes as green stems, the strings as ticks) or scope (triggered waveforms). lower: world (ten seconds of material/reservoir/space energy) or tab (scrolling tablature of what the guitarist plays). square: map (the configuration map: x = organization, y = map_y), xy (the output's M/S display) or chord (a chord box of the strings sounding). map_y: the map's y parameter (active_drive, work_input, active_coupling, space_coupling, interlace, sag). time_div_ms (scope: 0.5 1 2 5 10 20 50 100) and amp_div (0.005 … 0.5 FS); the nearest step is used. modes (show mode stems), hold (max hold on the spectrum), clear_hold. menu: open a softkey menu (main, source, material, metabolism, space, display, patch, output). active: make a function the knob's (tempo, tone, volume, time_div, amp_div, master, or a parameter id), or null.",
+            "description": "Change what the screens show (any subset). upper: spectrum (dry blue, Ariadne orange, the body's 24 modes as green stems, the strings as ticks) or scope (triggered waveforms). lower: world (ten seconds of material/reservoir/space energy) or tab (scrolling tablature of what the guitarist plays). square: map (the configuration map: x = organization, y = map_y), xy (the output's M/S display) or chord (a chord box of the strings sounding). map_y: the map's y parameter (active_drive, work_input, active_coupling, space_coupling, interlace, sag). time_div_ms (scope: 0.5 1 2 5 10 20 50 100) and amp_div (0.005 … 0.5 FS); the nearest step is used. modes (show mode stems), hold (max hold on the spectrum), clear_hold. menu: open a softkey menu (main, source, material, metabolism, space, display, patch, output). active: make a function the knob's (tempo, tone, volume, time_div, amp_div, master, input_gain, or a parameter id), or null.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -230,6 +230,20 @@ pub fn list() -> Value {
                 "type": "object",
                 "properties": {"score": {"type": ["object", "string"], "description": "The score object (or its JSON text)."}},
                 "required": ["score"], "additionalProperties": false
+            }
+        },
+        {
+            "name": "set_input",
+            "title": "Live input: source, gain, channel",
+            "description": "When Ovillo was started with --input <device> (an audio interface such as the Scarlett), a real guitar can replace the simulated one as the dry signal into Ariadne. source: \"live\" (the interface) or \"sim\" (the simulated guitarist and guitar); gain_db: -24 to 36 dB on the input; channel: \"auto\" (follow the loudest input channel) or a channel number from 1. Any subset; the same as SOURCE ▸ SOURCE / IN GAIN / IN CHAN and the i key. While live, the guitarist and the simulated guitar are silent and the tab shows nothing new. On an instance started without --input this returns an error saying so. get_state's input section shows the result, with input_starved and input_dropped counts (samples the input was late with, or dropped to keep latency low).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "source": {"type": "string", "enum": ["live", "sim"]},
+                    "gain_db": {"type": "number", "minimum": -24, "maximum": 36},
+                    "channel": {"oneOf": [{"type": "string", "enum": ["auto"]}, {"type": "integer", "minimum": 1}]}
+                },
+                "additionalProperties": false
             }
         },
         {

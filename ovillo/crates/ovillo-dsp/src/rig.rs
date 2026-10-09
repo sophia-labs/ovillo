@@ -54,6 +54,10 @@ pub enum Command {
     Score(Box<Score>),
     /// Reseed the guitarist.
     Seed(u32),
+    /// Where the dry signal comes from.
+    Source(Source),
+    /// Linear gain on the live input.
+    InputGain(f32),
 }
 
 /// dB to the master stage's linear gain, clamped to its range.
@@ -61,6 +65,20 @@ pub enum Command {
 pub fn master_gain(db: f64) -> f32 {
     10f64.powf(db.clamp(MASTER_MIN_DB, MASTER_MAX_DB) / 20.0) as f32
 }
+
+/// The dry signal: the simulated guitarist, or the audio interface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Source {
+    Sim,
+    Live,
+}
+
+/// How full the live-input ring is kept (samples): enough to ride out the
+/// input and output callbacks running out of step, little enough to feel
+/// immediate. Above `INPUT_MAX_FILL` the oldest samples are dropped, which is
+/// also how drift between two devices' clocks is absorbed.
+pub const INPUT_TARGET_FILL: usize = 256;
+pub const INPUT_MAX_FILL: usize = 2048;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct ScopeFrame {
@@ -106,6 +124,11 @@ pub struct Telemetry {
     pub score_ends: u32,
     /// Guitarist events dropped because its queue was full.
     pub queue_overflow: u64,
+    pub source: Source,
+    /// Live input samples the output wanted but the input had not delivered.
+    pub input_starved: u64,
+    /// Live input samples dropped to keep latency down.
+    pub input_dropped: u64,
 }
 
 pub struct RigEnds {
@@ -148,6 +171,11 @@ pub struct Rig {
     radiation: f64,
     dropped_scope: u64,
     load: f32,
+    source: Source,
+    input: Option<rtrb::Consumer<f32>>,
+    input_gain: f32,
+    input_starved: u64,
+    input_dropped: u64,
 }
 
 impl Rig {
@@ -192,6 +220,11 @@ impl Rig {
             radiation: 0.0,
             dropped_scope: 0,
             load: 0.0,
+            source: Source::Sim,
+            input: None,
+            input_gain: 1.0,
+            input_starved: 0,
+            input_dropped: 0,
         };
         Ok((rig, RigEnds { commands: cmd_tx, scope: scope_rx, telemetry: tele_rx, events: ev_rx, garbage: gb_rx }))
     }
@@ -204,6 +237,13 @@ impl Rig {
     #[must_use]
     pub fn plan_digest(&self) -> &str {
         self.ariadne.plan_digest()
+    }
+
+    /// Give the rig a live input (samples pushed by an input stream at the
+    /// same sample rate) and switch to it.
+    pub fn attach_input(&mut self, input: rtrb::Consumer<f32>) {
+        self.input = Some(input);
+        self.source = Source::Live;
     }
 
     /// Reseed the guitarist directly (before the stream starts).
@@ -250,6 +290,13 @@ impl Rig {
                     }
                 }
                 Command::Seed(seed) => self.player.seed(seed),
+                Command::Source(s) => {
+                    self.source = if self.input.is_some() { s } else { Source::Sim };
+                    if self.source == Source::Live {
+                        self.guitar.mute_all();
+                    }
+                }
+                Command::InputGain(g) => self.input_gain = g.clamp(0.0, 64.0),
             }
         }
         // Return anything still waiting for room on the garbage ring.
@@ -286,11 +333,22 @@ impl Rig {
     /// One sample: (dry DI, wet left, wet right).
     #[inline]
     pub fn frame(&mut self) -> (f32, f32, f32) {
-        let events = &mut self.events;
-        self.player.tick_with(&mut self.guitar, |t, e| {
-            let _ = events.push((t, e));
-        });
-        let dry = self.guitar.tick();
+        let dry = match (self.source, &mut self.input) {
+            (Source::Live, Some(input)) => match input.pop() {
+                Ok(x) if x.is_finite() => x * self.input_gain,
+                _ => {
+                    self.input_starved += 1;
+                    0.0
+                }
+            },
+            _ => {
+                let events = &mut self.events;
+                self.player.tick_with(&mut self.guitar, |t, e| {
+                    let _ = events.push((t, e));
+                });
+                self.guitar.tick()
+            }
+        };
         let target = self.target.as_array();
         for i in 0..20 {
             self.current[i] += (target[i] - self.current[i]) * self.coef[i];
@@ -358,6 +416,9 @@ impl Rig {
             score_loops,
             score_ends,
             queue_overflow: self.player.overflow(),
+            source: self.source,
+            input_starved: self.input_starved,
+            input_dropped: self.input_dropped,
         };
         let _ = self.telemetry.push(t);
         self.block = 0;
@@ -376,6 +437,19 @@ impl Rig {
         let start = Instant::now();
         self.drain_commands();
         let channels = channels.max(1);
+        if let Some(input) = &mut self.input {
+            // Keep the input ring near its target fill: drop the oldest
+            // samples when it has run ahead (latency, clock drift).
+            let frames = out.len() / channels;
+            let fill = input.slots();
+            if fill > INPUT_MAX_FILL + frames {
+                let excess = fill - (INPUT_TARGET_FILL + frames);
+                if let Ok(chunk) = input.read_chunk(excess) {
+                    chunk.commit_all();
+                    self.input_dropped += excess as u64;
+                }
+            }
+        }
         for frame in out.chunks_mut(channels) {
             let (_, l, r) = self.frame();
             let m = self.master_tick();
@@ -665,6 +739,49 @@ mod tests {
         }
         assert!(max_up <= step_bound, "gain jumped {max_up} on the way up");
         assert!((rig.master - master_gain(-12.0)).abs() < 1e-6, "{}", rig.master);
+    }
+
+    #[test]
+    fn the_master_stage_mutes_a_live_input_too() {
+        let (mut rig, mut ends) = Rig::new(SR).unwrap();
+        let (mut tx, rx) = rtrb::RingBuffer::<f32>::new(INPUT_MAX_FILL * 4);
+        rig.attach_input(rx);
+        ends.commands.push(Command::Ariadne(ovillo_patch())).unwrap();
+        let mut phase = 0.0f32;
+        let mut buf = [0.0f32; 2 * 64];
+        let mut run = |rig: &mut Rig, blocks: usize, out_peak: &mut f32, last_block_peak: &mut f32| {
+            for _ in 0..blocks {
+                for _ in 0..64 {
+                    // A plucked-string-ish input: a decaying 110 Hz tone, restruck every half second.
+                    let env = (-((phase / (std::f32::consts::TAU * 110.0 / SR as f32)) % (SR as f32 / 2.0)) / 6000.0).exp();
+                    let _ = tx.push(0.3 * env * phase.sin());
+                    phase += std::f32::consts::TAU * 110.0 / SR as f32;
+                }
+                rig.process(&mut buf, 2);
+                *last_block_peak = buf.iter().fold(0.0f32, |m, x| m.max(x.abs()));
+                *out_peak = out_peak.max(*last_block_peak);
+            }
+        };
+        let (mut before, mut last) = (0.0f32, 0.0f32);
+        run(&mut rig, 750, &mut before, &mut last);
+        assert!(before > 1e-3, "the live input reaches the output: {before}");
+        ends.commands.push(Command::Master { gain: 1.0, mute: true }).unwrap();
+        let (mut during, mut tail) = (0.0f32, 0.0f32);
+        run(&mut rig, 300, &mut during, &mut tail);
+        assert_eq!(tail, 0.0, "muted live output is silent");
+        let mut t = None;
+        while let Ok(x) = ends.telemetry.pop() {
+            t = Some(x);
+        }
+        let t = t.unwrap();
+        assert_eq!(t.source, Source::Live);
+        assert!(t.master_muted && t.master == 0.0);
+        assert_eq!((t.input_starved, t.input_dropped), (0, 0), "fed in step: nothing starved or dropped");
+        let mut dry = 0.0f32;
+        while let Ok(f) = ends.scope.pop() {
+            dry = dry.max(f.dry.abs());
+        }
+        assert!(dry > 0.01, "the screens still see the input: {dry}");
     }
 
     #[test]

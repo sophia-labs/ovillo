@@ -22,13 +22,16 @@
 //!
 //! ```text
 //! ovillo [--keys "<key> <key> …"] [--socket <path>|off] [--mute] [--no-activate]
+//!        [--input <device>] [--output <device>] [--input-gain <dB>]
 //! ```
 //! `--keys` presses keys through the same path as the keyboard, at startup
 //! (e.g. `--keys "5 5 6 6 escape"` opens the TAB and the CHORD BOX).
 //! `--socket` puts the control socket somewhere other than the per-user
 //! default (`$OVILLO_SOCKET` does the same; `off` disables it). `--mute`
 //! (or `OVILLO_MUTE=1`) starts with the master muted, silent from the first
-//! sample. `--no-activate` opens the window without taking focus.
+//! sample. `--no-activate` opens the window without taking focus. `--input`
+//! plays a guitar from an audio interface (a substring of its name) instead
+//! of the simulated one; `--output` picks the output device.
 
 mod analysis;
 mod audio;
@@ -49,7 +52,7 @@ use menu::{Action, Active, Menu, Softkey, View, AMP_DIVS, MAP_Y, TIME_DIVS_MS};
 use ovillo_dsp::ariadne::{AriadneControls, PARAMS};
 use ovillo_dsp::guitar::{GuitarSettings, Pickup, STRINGS, STRING_NAMES};
 use ovillo_dsp::player::{Event, Pattern};
-use ovillo_dsp::rig::{master_gain, Command, ScopeFrame, Telemetry, MASTER_MAX_DB, MASTER_MIN_DB};
+use ovillo_dsp::rig::{master_gain, Command, ScopeFrame, Source, Telemetry, MASTER_MAX_DB, MASTER_MIN_DB};
 use ovillo_dsp::score::Score;
 use std::cell::Cell;
 use std::collections::VecDeque;
@@ -231,6 +234,10 @@ struct Cli {
     socket: Option<String>,
     mute: bool,
     no_activate: bool,
+    /// Substrings of the audio devices' names (`--input Scarlett`).
+    input: Option<String>,
+    output: Option<String>,
+    input_gain: Option<f64>,
 }
 
 impl Cli {
@@ -243,6 +250,9 @@ impl Cli {
             socket: value("--socket"),
             mute: args.iter().any(|a| a == "--mute") || env_on("OVILLO_MUTE"),
             no_activate: args.iter().any(|a| a == "--no-activate"),
+            input: value("--input"),
+            output: value("--output"),
+            input_gain: value("--input-gain").and_then(|g| g.parse().ok()),
         }
     }
 }
@@ -301,6 +311,9 @@ struct Ovillo {
     control: control::Control,
     score: Option<ScoreInfo>,
     score_ends_seen: u32,
+    /// The dry signal is the audio interface (only if one was opened).
+    live: bool,
+    input_gain_db: f64,
 }
 
 impl Ovillo {
@@ -315,7 +328,8 @@ impl Ovillo {
             }
         };
         let seed = SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(1, |d| d.subsec_nanos() ^ d.as_secs() as u32);
-        let (audio, error) = match audio::start(cli.mute, seed) {
+        let opts = audio::Options { output: cli.output.clone(), input: cli.input.clone(), muted: cli.mute, seed };
+        let (audio, error) = match audio::start(&opts) {
             Ok(a) => (Some(a), None),
             Err(e) => (None, Some(format!("NO AUDIO: {e}"))),
         };
@@ -366,10 +380,17 @@ impl Ovillo {
             control: control::Control::start(control::socket_path(cli.socket.as_deref())),
             score: None,
             score_ends_seen: 0,
+            live: false,
+            input_gain_db: cli.input_gain.unwrap_or(0.0).clamp(-24.0, 36.0),
         };
         if let Some(p) = s.control.path.clone().filter(|_| s.control.status == control::Status::Listening) {
             let _ = OWNED_SOCKET.set(p);
         }
+        if let Some(i) = s.audio.as_ref().and_then(|a| a.input.as_ref()) {
+            s.live = true;
+            s.message = Some((format!("LIVE INPUT: {} ({} CH)", i.device.to_uppercase(), i.channels), Instant::now(), false));
+        }
+        s.send(Command::InputGain(10f64.powf(s.input_gain_db / 20.0) as f32));
         s.send(Command::Ariadne(s.controls));
         s.send(Command::Guitar(s.guitar));
         s.send(Command::Pattern(s.pattern));
@@ -389,6 +410,35 @@ impl Ovillo {
         self.master_db = db.clamp(MASTER_MIN_DB, MASTER_MAX_DB);
         self.muted = mute;
         self.send(Command::Master { gain: master_gain(self.master_db), mute });
+    }
+
+    /// The dry signal: the audio interface (`true`) or the simulated guitar.
+    fn set_source(&mut self, live: bool) -> Result<(), String> {
+        if live && !self.audio.as_ref().is_some_and(|a| a.input.is_some()) {
+            return Err("NO LIVE INPUT: START WITH --input <DEVICE>".into());
+        }
+        self.live = live;
+        self.send(Command::Source(if live { Source::Live } else { Source::Sim }));
+        self.say(if live { "SOURCE: LIVE INPUT" } else { "SOURCE: SIMULATED GUITAR" }, false);
+        Ok(())
+    }
+
+    /// The live input's gain in dB (−24…36).
+    fn set_input_gain(&mut self, db: f64) {
+        self.input_gain_db = db.clamp(-24.0, 36.0);
+        self.send(Command::InputGain(10f64.powf(self.input_gain_db / 20.0) as f32));
+    }
+
+    /// Pin the live input to a channel (0-based), or follow the loudest (`None`).
+    fn pin_input_channel(&mut self, ch: Option<usize>) -> Result<(), String> {
+        let i = self.audio.as_ref().and_then(|a| a.input.as_ref()).ok_or("NO LIVE INPUT: START WITH --input <DEVICE>")?;
+        match ch {
+            Some(c) if c >= i.channels as usize => Err(format!("{} HAS {} INPUT CHANNELS", i.device.to_uppercase(), i.channels)),
+            _ => {
+                i.pinned.store(ch.unwrap_or(usize::MAX), Ordering::Relaxed);
+                Ok(())
+            }
+        }
     }
 
     /// Hand a checked score to the guitarist.
@@ -415,6 +465,7 @@ impl Ovillo {
             Some(Active::TimeDiv) => format!("TIME/DIV  {} ms", TIME_DIVS_MS[self.time_div]),
             Some(Active::AmpDiv) => format!("AMPL/DIV  {} FS", AMP_DIVS[self.amp_div]),
             Some(Active::Master) => format!("MASTER  {:+.1} dB{}", self.master_db, if self.muted { "  MUTED" } else { "" }),
+            Some(Active::InputGain) => format!("INPUT GAIN  {:+.1} dB", self.input_gain_db),
             None => String::new(),
         }
     }
@@ -622,7 +673,14 @@ impl Ovillo {
             master_db: self.master_db,
             muted: self.muted,
             recording: self.take.is_some(),
+            input: self.audio.as_ref().and_then(|a| a.input.as_ref()).map(|i| (self.live, self.input_gain_db, self.input_channel_label(i))),
         }
+    }
+
+    fn input_channel_label(&self, i: &audio::Input) -> String {
+        let pinned = i.pinned.load(std::sync::atomic::Ordering::Relaxed);
+        let ch = i.channel.load(std::sync::atomic::Ordering::Relaxed);
+        if pinned < i.channels as usize { format!("{}", pinned + 1) } else { format!("AUTO {}", ch + 1) }
     }
 
     fn press(&mut self, a: Action) {
@@ -694,6 +752,18 @@ impl Ovillo {
                 self.say(if self.muted { "MASTER MUTED" } else { "MASTER ON" }, false);
             }
             Action::Record => self.toggle_record(),
+            Action::ToggleSource => {
+                let live = !self.live;
+                if let Err(e) = self.set_source(live) {
+                    self.say(e, true);
+                }
+            }
+            Action::CycleInputChannel => {
+                if let Some((n, p)) = self.audio.as_ref().and_then(|a| a.input.as_ref()).map(|i| (i.channels as usize, i.pinned.load(Ordering::Relaxed))) {
+                    let next = if p >= n { Some(0) } else if p + 1 < n { Some(p + 1) } else { None };
+                    let _ = self.pin_input_channel(next);
+                }
+            }
             Action::Nothing => {}
         }
     }
@@ -738,6 +808,7 @@ impl Ovillo {
                 self.amp_div = (self.amp_div as i64 + n.signum() as i64).clamp(0, AMP_DIVS.len() as i64 - 1) as usize
             }
             Active::Master => self.set_master(self.master_db + n * if fine { 0.1 } else { 1.0 }, self.muted),
+            Active::InputGain => self.set_input_gain(self.input_gain_db + n * if fine { 0.1 } else { 0.5 }),
         }
     }
 
@@ -822,6 +893,7 @@ impl Ovillo {
             "h" => self.press(Action::ToggleHold),
             "m" => self.press(Action::MuteStrings),
             "r" => self.press(Action::Record),
+            "i" => self.press(Action::ToggleSource),
             "0" => self.press(Action::ResetWorld),
             // The master: − and = step it a dB (Shift: a tenth); \ or ` mutes.
             "-" | "_" => self.set_master(self.master_db - if shift { 0.1 } else { 1.0 }, self.muted),
@@ -1349,14 +1421,24 @@ impl Render for Ovillo {
             .flex()
             .justify_between()
             .child(t(
-                format!(
-                    "SIM GUITAR  {}  {}  {:.0} BPM   ->   ARIADNE WORLD {}   {:.1} kHz",
-                    self.guitar.pickup.label(),
-                    piece,
-                    self.bpm,
-                    digest,
-                    sr / 1000.0
-                ),
+                match self.audio.as_ref().and_then(|a| a.input.as_ref()).filter(|_| self.live) {
+                    Some(i) => format!(
+                        "LIVE IN  {}  CH {}  {:+.1} dB   ->   ARIADNE WORLD {}   {:.1} kHz",
+                        i.device.to_uppercase(),
+                        self.input_channel_label(i),
+                        self.input_gain_db,
+                        digest,
+                        sr / 1000.0
+                    ),
+                    None => format!(
+                        "SIM GUITAR  {}  {}  {:.0} BPM   ->   ARIADNE WORLD {}   {:.1} kHz",
+                        self.guitar.pickup.label(),
+                        piece,
+                        self.bpm,
+                        digest,
+                        sr / 1000.0
+                    ),
+                },
                 TEXT,
             ))
             .child(t(format!("T {:8.2} s", now), TEXT));
