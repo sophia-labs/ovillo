@@ -1,27 +1,35 @@
 //! Render the rig offline and time it against real time.
 //!
 //! ```text
-//! cargo run -p ovillo-dsp --example render -- <seconds> <pattern> <out-dir> [pickup] [patch.json]
+//! cargo run -p ovillo-dsp --example render -- <seconds> <pattern|score.json> <out-dir> [pickup] [patch.json]
 //! ```
-//! Writes `<pattern>-dry.wav` (mono DI) and `<pattern>-wet.wav` (stereo
-//! Ariadne), and prints levels, the World's closure residual, and the real-time
-//! factor of the guitar alone and of the whole rig.
+//! `<pattern>` is any composition (`wander travis blues ambient melody strum
+//! arpeggio riff notes`); a path ending in `.json` is played as a score.
+//! Writes `<name>-dry.wav` (mono DI) and `<name>-wet.wav` (stereo Ariadne),
+//! and prints levels, the World's closure residual, and the real-time factor
+//! of the guitar alone and of the whole rig.
 
 use ovillo_dsp::ariadne::AriadneControls;
 use ovillo_dsp::guitar::{Guitar, GuitarSettings, Pickup};
 use ovillo_dsp::player::{Pattern, Player};
 use ovillo_dsp::rig::{Command, Rig};
+use ovillo_dsp::score;
 use std::time::Instant;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let seconds: f64 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(8.0);
-    let pattern = match args.get(2).map(String::as_str).unwrap_or("strum") {
-        "arpeggio" => Pattern::Arpeggio,
-        "riff" => Pattern::Riff,
-        "notes" => Pattern::Notes,
-        "off" => Pattern::Off,
-        _ => Pattern::Strum,
+    let which = args.get(2).map(String::as_str).unwrap_or("wander");
+    let score_text = which.ends_with(".json").then(|| std::fs::read_to_string(which).expect("score file"));
+    let pattern = if score_text.is_some() {
+        Pattern::Score
+    } else {
+        Pattern::from_id(which).unwrap_or_else(|| panic!("unknown pattern {which}"))
+    };
+    let name = if score_text.is_some() {
+        std::path::Path::new(which).file_stem().map_or("score".into(), |s| s.to_string_lossy().into_owned())
+    } else {
+        pattern.id().to_string()
     };
     let out_dir = std::path::PathBuf::from(args.get(3).cloned().unwrap_or_else(|| ".".into()));
     let pickup = match args.get(4).map(String::as_str).unwrap_or("bridge") {
@@ -41,6 +49,9 @@ fn main() {
     g.set(settings);
     let mut p = Player::new(sr);
     p.set_pattern(pattern);
+    if let Some(t) = &score_text {
+        let _ = p.load_score(Box::new(score::parse_str(t, 92.0).expect("score")));
+    }
     let t0 = Instant::now();
     let mut sink = 0.0f32;
     for _ in 0..n {
@@ -53,6 +64,11 @@ fn main() {
     let (mut rig, mut ends) = Rig::new(sr).expect("rig");
     ends.commands.push(Command::Guitar(settings)).unwrap();
     ends.commands.push(Command::Pattern(pattern)).unwrap();
+    if let Some(t) = &score_text {
+        let sc = score::parse_str(t, 92.0).expect("score");
+        println!("score: {}", sc.summary());
+        ends.commands.push(Command::Score(Box::new(sc))).unwrap();
+    }
     if let Some(c) = patch {
         ends.commands.push(Command::Ariadne(c)).unwrap();
     }
@@ -100,7 +116,6 @@ fn main() {
     );
 
     std::fs::create_dir_all(&out_dir).unwrap();
-    let name = format!("{:?}", pattern).to_lowercase();
     let spec = |ch| hound::WavSpec { channels: ch, sample_rate: sr as u32, bits_per_sample: 32, sample_format: hound::SampleFormat::Float };
     let mut w = hound::WavWriter::create(out_dir.join(format!("{name}-dry.wav")), spec(1)).unwrap();
     for x in &dry {
