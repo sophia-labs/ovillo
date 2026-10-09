@@ -174,10 +174,11 @@ fn apply_update(
     let value = finite(update.value);
     match update.coordinate {
         CoordinateId::Body { body, coordinate } => {
+            let actual_bodies = coordinates.bodies.len();
             let controls = coordinates.bodies.get_mut(body).ok_or(
                 TrajectoryBindError::CoordinateStateMismatch {
                     expected_bodies: world.body_count(),
-                    actual_bodies: coordinates.bodies.len(),
+                    actual_bodies,
                 },
             )?;
             match coordinate {

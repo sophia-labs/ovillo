@@ -15,6 +15,10 @@ const MAX_SAMPLE_RATE_HZ: f64 = 384_000.0;
 struct DelayCourse {
     data: Vec<f64>,
     index: usize,
+    /// Sum of squares of `data`, kept as cells are written and re-summed
+    /// exactly once per lap, so the ledger reads the space's stored energy in
+    /// O(1) instead of walking every delay cell twice per sample.
+    sum_sq: f64,
 }
 
 impl DelayCourse {
@@ -22,6 +26,7 @@ impl DelayCourse {
         Self {
             data: vec![0.0; length.max(1)],
             index: 0,
+            sum_sq: 0.0,
         }
     }
 
@@ -32,11 +37,19 @@ impl DelayCourse {
 
     #[inline]
     fn write_advance(&mut self, value: f64) {
+        let old = self.data[self.index];
         self.data[self.index] = value;
+        self.sum_sq += value * value - old * old;
         self.index += 1;
         if self.index == self.data.len() {
             self.index = 0;
+            self.sum_sq = self.data.iter().map(|value| value * value).sum();
         }
+    }
+
+    #[inline]
+    fn sum_sq(&self) -> f64 {
+        self.sum_sq.max(0.0)
     }
 }
 
@@ -105,6 +118,18 @@ impl SharedSpace {
 
     #[must_use]
     pub(crate) fn stored_energy(&self) -> f64 {
+        0.5 * self.dt * self.lines.iter().map(DelayCourse::sum_sq).sum::<f64>()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn longest_line(&self) -> usize {
+        self.lines.iter().map(|line| line.data.len()).max().unwrap_or(0)
+    }
+
+    /// The stored energy re-summed cell by cell, as it was computed before the
+    /// running sums; tests hold [`Self::stored_energy`] to it.
+    #[cfg(test)]
+    pub(crate) fn stored_energy_exact(&self) -> f64 {
         0.5 * self.dt
             * self
                 .lines

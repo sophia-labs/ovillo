@@ -512,6 +512,7 @@ pub enum ObservationRuntimeError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::observation::program::WorldObservationChannel;
     use mus_observation::{
         Aggregation, ChannelSpec, ClaimDomain, Interpolation, ScalarType,
     };
