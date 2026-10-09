@@ -48,7 +48,7 @@ pub fn list() -> Value {
         {
             "name": "get_state",
             "title": "Read the instrument",
-            "description": "Everything on Ovillo's screen as data: the current menu and its eight softkey labels (and which is lit), the active knob function; all twenty Ariadne parameters with id, label, value, range and display text; the guitar (pickup, tone, volume, hum); the input (source live or sim, the audio interface's name and channel count, channel auto or pinned and the one in use, input gain dB, input_starved and input_dropped sample counts); the transport (composition, key it is in, tempo, playing, the loaded score and where it is, every composition with a one-line description); the display (upper spectrum/scope, lower world/tab, square map/xy/chord, map Y, time/div, amp/div, modes, hold); the master output (dB, muted); recording state and take paths; meters (in/out peak and RMS dBFS, before the master); the World's readings (material, reservoir and space energy in dB, configuration, ledger); DSP load; the guitarist's truth (each string's fret, pitch, level, whether it sounds, and the chord they spell); annunciators; pid, sample rate, audio device, socket. Call it first, and after changes to confirm them.",
+            "description": "Everything on Ovillo's screen as data: the current menu and its eight softkey labels (and which is lit), the active knob function; all twenty Ariadne parameters with id, label, value, range and display text; the guitar (pickup, tone, volume, hum); the input (source live or sim, the audio interface's name and channel count, channel auto or pinned and the one in use, input gain dB, input_starved and input_dropped sample counts); the transport (composition, key it is in, tempo, playing, the loaded score and where it is, every composition with a one-line description); the display (upper spectrum/scope, lower world/tab, square map/xy/chord, map Y, time/div, amp/div, modes, hold); the master output (dB, muted); recording state and take paths; meters (in/out peak and RMS dBFS, before the master); the World's readings (material, reservoir and space energy in dB, configuration, ledger); DSP load; the guitarist's truth (each string's fret, pitch, level, whether it sounds, and the chord they spell); annunciators; pid, sample rate, audio device, socket; whether the window is visible (being drawn) and when it was last drawn. Call it first, and after changes to confirm them.",
             "inputSchema": {"type": "object", "properties": {}, "additionalProperties": false},
             "annotations": {"readOnlyHint": true}
         },
@@ -249,10 +249,10 @@ pub fn list() -> Value {
         {
             "name": "screenshot",
             "title": "Look at the screen",
-            "description": "A PNG of the Ovillo window, and only that window (found by the app's pid and its own window number; other windows are never captured). Downscaled to max_width pixels (default 1240). Optionally also saved to path. Wait a moment after changes for them to be drawn (this tool already waits 150 ms).",
+            "description": "A PNG of the Ovillo window, and only that window (found by the app's pid and its own window number; other windows are never captured). Downscaled to max_width pixels (default 1240). Optionally also saved to path. Wait a moment after changes for them to be drawn (this tool already waits 150 ms). macOS does not draw a window that is fully covered, minimized or on another Space: then this returns an error saying so (the picture would be stale) unless allow_stale is true; get_state still reads the live state.",
             "inputSchema": {
                 "type": "object",
-                "properties": {"max_width": {"type": "integer", "minimum": 320, "maximum": 4000}, "path": {"type": "string", "description": "Also save the PNG here."}},
+                "properties": {"max_width": {"type": "integer", "minimum": 320, "maximum": 4000}, "path": {"type": "string", "description": "Also save the PNG here."}, "allow_stale": {"type": "boolean", "description": "Capture even when the window is hidden (the last frame drawn)."}},
                 "additionalProperties": false
             },
             "annotations": {"readOnlyHint": true}

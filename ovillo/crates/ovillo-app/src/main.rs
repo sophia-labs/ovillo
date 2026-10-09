@@ -22,7 +22,7 @@
 //!
 //! ```text
 //! ovillo [--keys "<key> <key> …"] [--socket <path>|off] [--mute] [--no-activate]
-//!        [--input <device>] [--output <device>] [--input-gain <dB>]
+//!        [--input <device>] [--output <device>] [--input-gain <dB>] [--rate <Hz>]
 //! ```
 //! `--keys` presses keys through the same path as the keyboard, at startup
 //! (e.g. `--keys "5 5 6 6 escape"` opens the TAB and the CHORD BOX).
@@ -31,7 +31,8 @@
 //! (or `OVILLO_MUTE=1`) starts with the master muted, silent from the first
 //! sample. `--no-activate` opens the window without taking focus. `--input`
 //! plays a guitar from an audio interface (a substring of its name) instead
-//! of the simulated one; `--output` picks the output device.
+//! of the simulated one; `--output` picks the output device; `--rate` (or
+//! `OVILLO_RATE`) runs the devices and the rig at that sample rate.
 
 mod analysis;
 mod audio;
@@ -40,7 +41,7 @@ mod menu;
 mod patch;
 mod remote;
 
-use analysis::{trigger, History, Spectrum, WorldHistory, FFT_N, WORLD_SPAN_S};
+use analysis::{trigger, History, Spectrum, WorldHistory, WORLD_SPAN_S};
 use gpui::{
     canvas, div, point, prelude::*, px, quad, rems, rgb, size, App, BorderStyle, Bounds, ClickEvent, ContentMask,
     Context, FocusHandle, Hsla, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PathBuilder,
@@ -238,6 +239,8 @@ struct Cli {
     input: Option<String>,
     output: Option<String>,
     input_gain: Option<f64>,
+    /// Sample rate to run at (`--rate 96000`, or `OVILLO_RATE`).
+    rate: Option<u32>,
 }
 
 impl Cli {
@@ -253,6 +256,7 @@ impl Cli {
             input: value("--input"),
             output: value("--output"),
             input_gain: value("--input-gain").and_then(|g| g.parse().ok()),
+            rate: value("--rate").or_else(|| std::env::var("OVILLO_RATE").ok().filter(|r| !r.is_empty())).and_then(|r| r.parse().ok()),
         }
     }
 }
@@ -314,6 +318,10 @@ struct Ovillo {
     /// The dry signal is the audio interface (only if one was opened).
     live: bool,
     input_gain_db: f64,
+    /// Whether macOS is presenting the window (not fully covered, minimized
+    /// or on another Space), and when a frame was last drawn.
+    window_visible: bool,
+    last_drawn: Option<Instant>,
 }
 
 impl Ovillo {
@@ -328,11 +336,13 @@ impl Ovillo {
             }
         };
         let seed = SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(1, |d| d.subsec_nanos() ^ d.as_secs() as u32);
-        let opts = audio::Options { output: cli.output.clone(), input: cli.input.clone(), muted: cli.mute, seed };
+        let opts = audio::Options { output: cli.output.clone(), input: cli.input.clone(), muted: cli.mute, seed, rate: cli.rate };
         let (audio, error) = match audio::start(&opts) {
             Ok(a) => (Some(a), None),
             Err(e) => (None, Some(format!("NO AUDIO: {e}"))),
         };
+        // Everything the screens size in samples follows the rate the device runs at.
+        let rate = audio.as_ref().map_or(48_000.0, |a| a.sample_rate as f64);
         let mut s = Self {
             focus: cx.focus_handle(),
             focused: false,
@@ -343,9 +353,9 @@ impl Ovillo {
             pattern: Pattern::Wander,
             last_pattern: Pattern::Wander,
             bpm: 92.0,
-            history: History::new(),
-            frames: Vec::with_capacity(analysis::HISTORY),
-            spectrum: Spectrum::new(),
+            history: History::new(analysis::history_len(rate)),
+            frames: Vec::with_capacity(analysis::history_len(rate)),
+            spectrum: Spectrum::new(analysis::fft_len(rate)),
             world: WorldHistory::new(),
             tele: None,
             meters: Meters { dry_pk: 0.0, dry_rms: 0.0, wet_pk: 0.0, wet_rms: 0.0 },
@@ -382,6 +392,8 @@ impl Ovillo {
             score_ends_seen: 0,
             live: false,
             input_gain_db: cli.input_gain.unwrap_or(0.0).clamp(-24.0, 36.0),
+            window_visible: true,
+            last_drawn: None,
         };
         if let Some(p) = s.control.path.clone().filter(|_| s.control.status == control::Status::Listening) {
             let _ = OWNED_SOCKET.set(p);
@@ -1036,7 +1048,8 @@ fn paint_screen(bounds: Bounds<Pixels>, window: &mut Window, d: &ScreenData) {
 
 /// The spectrum as one point per column on the log axis.
 fn spectrum_trace(dbs: &[f32], sr: f64, cols: usize) -> Vec<(f32, f32)> {
-    let bin_hz = sr / FFT_N as f64;
+    // The FFT's length, from its bins.
+    let bin_hz = sr / (2 * (dbs.len() - 1)) as f64;
     let ratio = F_HI / F_LO;
     let n = dbs.len();
     (0..cols)
@@ -1147,6 +1160,7 @@ impl Render for Ovillo {
         let vs = window.viewport_size();
         let fitted = fit(f32::from(vs.width), f32::from(vs.height));
         window.set_rem_size(px(16.0 * fitted.scale));
+        self.last_drawn = Some(Instant::now());
         self.serve_control();
         self.drain();
         window.request_animation_frame();
@@ -1161,7 +1175,7 @@ impl Render for Ovillo {
         let x_labels;
         let upper_labels;
         if self.upper_spectrum {
-            self.history.latest(FFT_N, &mut self.frames);
+            self.history.latest(self.spectrum.n, &mut self.frames);
             self.spectrum.update(&self.frames);
             let cols = 900;
             if self.modes {
@@ -1199,7 +1213,7 @@ impl Render for Ovillo {
             x_labels = xl;
         } else {
             let len = ((TIME_DIVS_MS[self.time_div] * 10.0 / 1000.0) * sr) as usize;
-            self.history.latest((len * 3).max(sr as usize / 2).min(analysis::HISTORY), &mut self.frames);
+            self.history.latest((len * 3).max(sr as usize / 2).min(self.history.capacity()), &mut self.frames);
             let (start, ok) = trigger(&self.frames, len, sr);
             triggered = ok;
             let end = (start + len).min(self.frames.len());
@@ -1679,8 +1693,13 @@ fn main() {
                 inactive_frame_interval: None,
                 ..Default::default()
             },
-            |_, cx| {
+            |window, cx| {
+                let visible = window.is_visible();
                 cx.new(|cx: &mut Context<Ovillo>| {
+                    // macOS stops drawing a window that is fully covered,
+                    // minimized or on another Space; remember, so a screenshot
+                    // can say its picture is stale.
+                    cx.observe_window_visibility(window, |o: &mut Ovillo, v, _, _| o.window_visible = v.is_visible()).detach();
                     // Drain the taps, keep takes gapless, and follow the live
                     // patch even when no frame is being drawn.
                     cx.spawn(async move |this, cx| loop {
@@ -1698,7 +1717,9 @@ fn main() {
                         }
                     })
                     .detach();
-                    Ovillo::new(cx, &cli)
+                    let mut o = Ovillo::new(cx, &cli);
+                    o.window_visible = visible;
+                    o
                 })
             },
         )

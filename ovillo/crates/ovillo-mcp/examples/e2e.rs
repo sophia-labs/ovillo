@@ -230,12 +230,25 @@ fn main() {
     m.tool("set_display", json!({"upper": "spectrum", "lower": "tab", "square": "chord", "menu": "output", "active": "master", "hold": true}));
     m.tool("set_params", json!({"params": {"organization": 0.22, "active_drive": 0.7}}));
     pause(2500);
-    let r = m.request("tools/call", json!({"name": "screenshot", "arguments": {"path": out.join("ovillo-e2e.png").to_str().unwrap()}}));
+    let s = m.tool("get_state", json!({}));
+    let visible = s["window"]["visible"] == true;
+    m.check(s["window"]["visible"].is_boolean(), "the window says whether it is drawn");
+    if !visible {
+        // Covered by other windows: no fresh picture can exist; the tool must say so.
+        let e = m.tool_error("screenshot", json!({}));
+        m.check(e.contains("hidden") && e.contains("stale"), "screenshot refuses a hidden window's stale frame");
+        println!("  (the window is hidden: taking the stale picture on purpose)");
+    }
+    let r = m.request("tools/call", json!({"name": "screenshot", "arguments": {"path": out.join("ovillo-e2e.png").to_str().unwrap(), "allow_stale": !visible}}));
     let res = &r["result"];
     m.check(res["isError"] == false, &format!("screenshot: {res}"));
     m.check(res["content"][0]["type"] == "image" && res["content"][0]["mimeType"] == "image/png", "image content");
     let meta: Value = serde_json::from_str(res["content"][1]["text"].as_str().unwrap()).unwrap();
     m.check(meta["pid"] == pid, "the window of the instance on this socket");
+    m.check(meta["stale"] == !visible, "the picture says whether it is stale");
+    if visible {
+        m.check(meta["last_drawn_ms_ago"].as_u64().is_some_and(|ms| ms < 1000), "a fresh frame");
+    }
     let b64 = res["content"][0]["data"].as_str().unwrap();
     m.check(b64.starts_with("iVBORw0KGgo"), "PNG data");
     m.check(meta["width"].as_u64().unwrap() <= 1240, "downscaled");

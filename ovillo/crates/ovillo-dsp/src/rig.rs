@@ -22,7 +22,15 @@ use crate::score::Score;
 use mus_ariadne::MODE_COUNT;
 use std::time::Instant;
 
+/// Samples per telemetry block at 48 kHz; other rates keep the same time
+/// (5.3 ms), so meters and the World's strip chart move alike at any rate.
 pub const TELEMETRY_EVERY: usize = 256;
+
+/// Samples per telemetry block at `sr`.
+#[must_use]
+pub fn telemetry_every(sr: f64) -> usize {
+    ((TELEMETRY_EVERY as f64 * sr / 48_000.0).round() as usize).max(64)
+}
 const FAST_SMOOTHING_S: f64 = 0.007;
 const SLOW_SMOOTHING_S: f64 = 0.020;
 /// Time constant of the master gain (a 0 dB → mute change settles in ~0.15 s).
@@ -162,6 +170,7 @@ pub struct Rig {
     master_coef: f32,
     sample: u64,
     block: usize,
+    telemetry_every: usize,
     dry_peak: f32,
     dry_sq: f64,
     wet_peak: f32,
@@ -211,6 +220,7 @@ impl Rig {
             master_coef: (1.0 - (-1.0 / (MASTER_SMOOTHING_S * sr)).exp()) as f32,
             sample: 0,
             block: 0,
+            telemetry_every: telemetry_every(sr),
             dry_peak: 0.0,
             dry_sq: 0.0,
             wet_peak: 0.0,
@@ -370,7 +380,7 @@ impl Rig {
         }
         self.sample += 1;
         self.block += 1;
-        if self.block == TELEMETRY_EVERY {
+        if self.block == self.telemetry_every {
             self.publish();
         }
         (dry, out.left, out.right)
@@ -739,6 +749,48 @@ mod tests {
         }
         assert!(max_up <= step_bound, "gain jumped {max_up} on the way up");
         assert!((rig.master - master_gain(-12.0)).abs() < 1e-6, "{}", rig.master);
+    }
+
+    #[test]
+    fn the_rig_plays_at_96_khz_like_it_does_at_48() {
+        let mut peaks = Vec::new();
+        for sr in [48_000.0, 96_000.0] {
+            let (mut rig, mut ends) = Rig::new(sr).unwrap();
+            ends.commands.push(Command::Ariadne(ovillo_patch())).unwrap();
+            ends.commands.push(Command::Pattern(Pattern::Strum)).unwrap();
+            rig.poll();
+            let (mut dry, mut wet) = (0.0f32, 0.0f32);
+            let mut blocks = 0;
+            let mut last = None;
+            for i in 0..(sr as usize * 4) {
+                let (d, l, r) = rig.frame();
+                assert!(d.is_finite() && l.is_finite() && r.is_finite());
+                dry = dry.max(d.abs());
+                wet = wet.max(l.abs()).max(r.abs());
+                if i % 4096 == 0 {
+                    while ends.scope.pop().is_ok() {}
+                    while let Ok(t) = ends.telemetry.pop() {
+                        blocks += 1;
+                        last = Some(t);
+                    }
+                }
+            }
+            while let Ok(t) = ends.telemetry.pop() {
+                blocks += 1;
+                last = Some(t);
+            }
+            let t = last.unwrap();
+            assert_eq!(t.sample_rate, sr);
+            assert_eq!((t.world_errors, t.safety_limited_frames), (0, 0), "{sr}");
+            // Telemetry keeps its pace in time: ~187.5 blocks a second at any rate.
+            assert!((blocks as f64 / 4.0 - 187.5).abs() < 2.0, "{sr}: {blocks} blocks in 4 s");
+            peaks.push((dry, wet));
+        }
+        let db = |a: f32, b: f32| 20.0 * (b / a).log10();
+        let (dry_db, wet_db) = (db(peaks[0].0, peaks[1].0), db(peaks[0].1, peaks[1].1));
+        eprintln!("96 kHz vs 48 kHz: dry peak {dry_db:+.2} dB, wet peak {wet_db:+.2} dB");
+        assert!(dry_db.abs() < 1.5, "the guitar's level moved {dry_db:+.2} dB at 96 kHz");
+        assert!(wet_db.abs() < 4.0, "Ariadne's level moved {wet_db:+.2} dB at 96 kHz");
     }
 
     #[test]

@@ -9,8 +9,21 @@ use realfft::{RealFftPlanner, RealToComplex};
 use std::collections::VecDeque;
 use std::sync::Arc;
 
+/// Frames of history at 48 kHz (1.37 s: the scope's longest sweep, 1 s,
+/// plus room to find a trigger). Other rates keep the same time.
 pub const HISTORY: usize = 1 << 16;
+/// FFT length at 48 kHz (5.9 Hz bins). Other rates keep the bin width.
 pub const FFT_N: usize = 8192;
+
+/// History frames for `sr`: a power of two holding the same time as 48 kHz's.
+pub fn history_len(sr: f64) -> usize {
+    ((HISTORY as f64 * sr / 48_000.0).ceil() as usize).next_power_of_two()
+}
+
+/// FFT length for `sr`: a power of two with about the same bin width as 48 kHz's.
+pub fn fft_len(sr: f64) -> usize {
+    ((FFT_N as f64 * sr / 48_000.0).round() as usize).next_power_of_two()
+}
 /// Seconds of World readings kept for the strip chart.
 pub const WORLD_SPAN_S: f64 = 10.0;
 
@@ -21,28 +34,37 @@ pub struct History {
 }
 
 impl History {
-    pub fn new() -> Self {
-        Self { buf: vec![ScopeFrame::default(); HISTORY], w: 0, filled: 0 }
+    pub fn new(len: usize) -> Self {
+        Self { buf: vec![ScopeFrame::default(); len.max(1)], w: 0, filled: 0 }
+    }
+
+    /// How many frames it holds.
+    pub fn capacity(&self) -> usize {
+        self.buf.len()
     }
 
     pub fn push(&mut self, f: ScopeFrame) {
+        let n = self.buf.len();
         self.buf[self.w] = f;
-        self.w = (self.w + 1) % HISTORY;
-        self.filled = (self.filled + 1).min(HISTORY);
+        self.w = (self.w + 1) % n;
+        self.filled = (self.filled + 1).min(n);
     }
 
     /// The newest `n` frames, oldest first.
     pub fn latest(&self, n: usize, out: &mut Vec<ScopeFrame>) {
+        let cap = self.buf.len();
         let n = n.min(self.filled);
         out.clear();
-        let start = (self.w + HISTORY - n) % HISTORY;
+        let start = (self.w + cap - n) % cap;
         for i in 0..n {
-            out.push(self.buf[(start + i) % HISTORY]);
+            out.push(self.buf[(start + i) % cap]);
         }
     }
 }
 
 pub struct Spectrum {
+    /// FFT length.
+    pub n: usize,
     fft: Arc<dyn RealToComplex<f32>>,
     window: Vec<f32>,
     norm: f32,
@@ -57,17 +79,18 @@ pub struct Spectrum {
 }
 
 impl Spectrum {
-    pub fn new() -> Self {
+    pub fn new(n: usize) -> Self {
         let mut planner = RealFftPlanner::<f32>::new();
-        let fft = planner.plan_fft_forward(FFT_N);
-        let window: Vec<f32> = (0..FFT_N)
-            .map(|i| 0.5 - 0.5 * (std::f32::consts::TAU * i as f32 / FFT_N as f32).cos())
+        let fft = planner.plan_fft_forward(n);
+        let window: Vec<f32> = (0..n)
+            .map(|i| 0.5 - 0.5 * (std::f32::consts::TAU * i as f32 / n as f32).cos())
             .collect();
         // A full-scale sine at a bin centre reads 0 dBFS.
         let norm = 2.0 / window.iter().sum::<f32>();
-        let bins = FFT_N / 2 + 1;
+        let bins = n / 2 + 1;
         Self {
-            input: vec![0.0; FFT_N],
+            n,
+            input: vec![0.0; n],
             out: fft.make_output_vec(),
             scratch: fft.make_scratch_vec(),
             fft,
@@ -82,7 +105,7 @@ impl Spectrum {
     }
 
     fn power(&mut self, frames: &[ScopeFrame], wet: bool, avg: &mut [f32]) {
-        for (i, f) in frames.iter().enumerate().take(FFT_N) {
+        for (i, f) in frames.iter().enumerate().take(self.n) {
             let x = if wet { 0.5 * (f.left + f.right) } else { f.dry };
             self.input[i] = x * self.window[i];
         }
@@ -96,9 +119,9 @@ impl Spectrum {
         }
     }
 
-    /// Analyze the newest `FFT_N` frames (`frames.len()` must be `FFT_N`).
+    /// Analyze the newest `n` frames (`frames.len()` must be at least `n`).
     pub fn update(&mut self, frames: &[ScopeFrame]) {
-        if frames.len() < FFT_N {
+        if frames.len() < self.n {
             return;
         }
         let mut dry = std::mem::take(&mut self.dry_pow);
@@ -206,16 +229,38 @@ mod tests {
 
     #[test]
     fn a_full_scale_sine_reads_near_0_dbfs_at_its_bin() {
-        let sr = 48_000.0;
-        let k = 200;
-        let f = k as f32 * sr / FFT_N as f32;
-        let frames = sine(f, FFT_N, sr, 1.0);
-        let mut s = Spectrum::new();
-        for _ in 0..40 {
-            s.update(&frames);
+        for sr in [44_100.0f32, 48_000.0, 96_000.0, 192_000.0] {
+            let n = fft_len(sr as f64);
+            let k = 200;
+            let f = k as f32 * sr / n as f32;
+            let frames = sine(f, n, sr, 1.0);
+            let mut s = Spectrum::new(n);
+            for _ in 0..40 {
+                s.update(&frames);
+            }
+            assert!((s.dry_db[k]).abs() < 0.2, "{sr}: {}", s.dry_db[k]);
+            assert!(s.dry_db[k + 20] < -60.0);
+            // About 5.9 Hz a bin at any rate.
+            let bin = sr as f64 / n as f64;
+            assert!((5.3..6.0).contains(&bin), "{sr}: {bin} Hz bins");
         }
-        assert!((s.dry_db[k]).abs() < 0.2, "{}", s.dry_db[k]);
-        assert!(s.dry_db[k + 20] < -60.0);
+    }
+
+    #[test]
+    fn history_holds_the_scopes_longest_sweep_at_any_rate() {
+        for sr in [44_100.0, 48_000.0, 96_000.0, 192_000.0] {
+            let len = history_len(sr);
+            let seconds = len as f64 / sr;
+            assert!(seconds >= 1.3, "{sr}: {seconds} s of history");
+            assert!(len.is_power_of_two());
+            // The longest sweep (100 ms/div, 1 s) triggers inside it.
+            let frames = sine(110.0, len, sr as f32, 0.3);
+            let (_, ok) = trigger(&frames, sr as usize, sr);
+            assert!(ok, "{sr}: no trigger on a 1 s sweep");
+        }
+        assert_eq!(history_len(48_000.0), HISTORY);
+        assert_eq!(fft_len(48_000.0), FFT_N);
+        assert_eq!((history_len(96_000.0), fft_len(96_000.0)), (131_072, 16_384));
     }
 
     #[test]

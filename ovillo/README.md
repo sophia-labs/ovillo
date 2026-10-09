@@ -29,12 +29,21 @@ DSP crates are optimized even in dev builds.
 
 ```text
 ovillo [--keys "<key> <key> …"] [--socket <path>|off] [--mute] [--no-activate]
+       [--input <device>] [--output <device>] [--input-gain <dB>] [--rate <Hz>]
 ```
 
 `--keys` presses keys at startup; `--socket` moves the control socket (also
 `$OVILLO_SOCKET`; `off` disables it); `--mute` (or `OVILLO_MUTE=1`) starts with
 the master muted, silent from the first sample; `--no-activate` opens the
 window without taking keyboard focus (for a second, test instance).
+`--input Scarlett` plays a real guitar from an audio interface instead of the
+simulated one (SOURCE ▸ SOURCE, or `i`, switches); `--output` picks the output
+device. `--rate 96000` (or `OVILLO_RATE`) runs the devices and the rig at that
+rate (Ariadne's own World is native at 96 kHz). CoreAudio switches the
+device's nominal rate for every app using it, so do not change the rate of a
+device another live session is playing through. The guitar's per-sample
+coefficients and the screens' history and FFT are sized from the rate, so it
+sounds and reads the same; the rig costs about twice as much at 96 kHz.
 
 ## Playing it
 
@@ -154,9 +163,13 @@ claude mcp add ovillo-test -e OVILLO_SOCKET=/path/to/ovillo.sock -- "$PWD/target
 Tools: `get_state` (everything on screen as data), `press_keys` (any key
 sequence), `set_params`, `get_patch`, `load_patch`, `save_patch`,
 `default_patch`, `set_guitar`, `set_display`, `transport`, `pluck`, `strum`,
-`mute_strings`, `reset_world`, `set_output`, `record`, `play_score`, and
-`screenshot` (a PNG of only this instance's window, found by its pid and
-window number; the terminal that launched Claude needs Screen Recording).
+`mute_strings`, `reset_world`, `set_output`, `record`, `play_score`,
+`set_input` (live/sim, input gain, channel; an error on an instance without
+`--input`), and `screenshot` (a PNG of only this instance's window, found by
+its pid and window number; the terminal that launched Claude needs Screen
+Recording). macOS does not draw a window that is fully covered, minimized or
+on another Space, so `screenshot` refuses one (its picture would be stale)
+unless asked for `allow_stale`; `get_state` reports `window.visible`.
 `ovillo-mcp --shot out.png [--pid N]` takes one picture from the shell.
 `cargo run -p ovillo-mcp --example e2e -- --socket <path> --out <dir>` drives
 every tool through the real binary against a running instance.
@@ -185,7 +198,8 @@ listener and output gains so the wet signal sits near the dry level.
   space's stored energy became running sums (commit `3201293`); it was
   70–100 µs per sample (0.25× real time) before.
 - The whole rig (guitar + Ariadne + taps): ≈5.7× real time (≈3.9× in the
-  renders of the new pieces, run beside a live instance).
+  renders of the new pieces, run beside a live instance). At 96 kHz, ≈1.9×
+  (the same renders): DSP LOAD about 50 % instead of about 25 %.
 - The rig adds no allocation to the audio path (`tests/realtime.rs` counts);
   the Ariadne World itself still allocates and frees twice a sample, inside
   `mus-ariadne` (a body-id `String` clone in `set_body_configuration_index`

@@ -213,7 +213,7 @@ impl Ovillo {
 
     fn handle(&mut self, op: &str, args: &Value) -> Result<Value, String> {
         match op {
-            "ping" => Ok(json!({"pong": true, "pid": std::process::id()})),
+            "ping" => Ok(json!({"pong": true, "pid": std::process::id(), "window": self.window_json()})),
             "get_state" => {
                 args_obj(op, args, &[])?;
                 Ok(self.state_json())
@@ -585,6 +585,13 @@ impl Ovillo {
         Ok(self.input_json())
     }
 
+    fn window_json(&self) -> Value {
+        json!({
+            "visible": self.window_visible,
+            "last_drawn_ms_ago": self.last_drawn.map(|t| t.elapsed().as_millis() as u64),
+        })
+    }
+
     fn input_json(&self) -> Value {
         let t = self.tele;
         let input = self.audio.as_ref().and_then(|a| a.input.as_ref());
@@ -733,6 +740,7 @@ impl Ovillo {
         let audio = self.audio.as_ref();
         json!({
             "pid": std::process::id(),
+            "window": self.window_json(),
             "control": self.control.describe(),
             "audio": {
                 "device": audio.map(|a| a.device.clone()),

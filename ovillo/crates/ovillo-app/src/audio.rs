@@ -45,6 +45,10 @@ pub struct Options {
     pub muted: bool,
     /// Seed for the simulated guitarist.
     pub seed: u32,
+    /// Run the output (and so the input and the whole rig) at this rate, in
+    /// Hz; `None` keeps the device's current rate. CoreAudio switches the
+    /// device's nominal rate when the stream opens.
+    pub rate: Option<u32>,
 }
 
 fn name_of(device: &cpal::Device) -> String {
@@ -70,7 +74,26 @@ pub fn start(opts: &Options) -> Result<Audio, String> {
         None => host.default_output_device().ok_or("no output device")?,
     };
     let name = name_of(&device);
-    let supported = device.default_output_config().map_err(|e| format!("{name}: {e}"))?;
+    let supported = match opts.rate {
+        None => device.default_output_config().map_err(|e| format!("{name}: {e}"))?,
+        Some(rate) => {
+            let default_channels = device.default_output_config().ok().map(|c| c.channels());
+            let ranges: Vec<_> = device.supported_output_configs().map_err(|e| format!("{name}: {e}"))?.collect();
+            ranges
+                .iter()
+                .filter(|c| c.sample_format() == cpal::SampleFormat::F32 && c.min_sample_rate() <= rate && rate <= c.max_sample_rate())
+                // The device's usual channel count first, then the fewest channels.
+                .min_by_key(|c| (Some(c.channels()) != default_channels, c.channels()))
+                .map(|c| c.with_sample_rate(rate))
+                .ok_or_else(|| {
+                    let have: Vec<String> = ranges
+                        .iter()
+                        .map(|c| format!("{} ch {:?} {}-{} Hz", c.channels(), c.sample_format(), c.min_sample_rate(), c.max_sample_rate()))
+                        .collect();
+                    format!("{name} cannot play f32 at {rate} Hz (it offers: {})", have.join("; "))
+                })?
+        }
+    };
     if supported.sample_format() != cpal::SampleFormat::F32 {
         return Err(format!("{name}: output format {:?} (Ovillo plays f32)", supported.sample_format()));
     }

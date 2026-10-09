@@ -40,7 +40,8 @@ fn main() {
     };
     let patch: Option<AriadneControls> =
         args.get(5).map(|p| serde_json::from_str(&std::fs::read_to_string(p).expect("patch")).expect("patch json"));
-    let sr = 48_000.0;
+    // OVILLO_RATE=96000 renders at another rate.
+    let sr: f64 = std::env::var("OVILLO_RATE").ok().and_then(|r| r.parse().ok()).unwrap_or(48_000.0);
     let n = (seconds * sr) as usize;
     let settings = GuitarSettings { pickup, ..GuitarSettings::default() };
 

@@ -44,6 +44,51 @@ const DISPERSION_SECTIONS: usize = 4;
 const DISPERSION: [f64; STRINGS] = [-0.70, -0.68, -0.64, -0.72, -0.62, -0.52];
 const PALM_T60: f64 = 0.16;
 const PALM_POLE: f64 = 0.78;
+/// The rate the per-sample coefficients below were tuned at. At other rates
+/// each is converted so it means the same in time and frequency.
+const TUNED_RATE: f64 = 48_000.0;
+
+/// A one-pole coefficient tuned at 48 kHz (`y += c (x − y)`), at `sr`:
+/// the same time constant.
+fn per_sample(c: f64, sr: f64) -> f64 {
+    1.0 - (1.0 - c).powf(TUNED_RATE / sr)
+}
+
+/// A pole tuned at 48 kHz (`y = (1 − a) x + a y`), at `sr`: the same cutoff.
+fn pole_at(a: f64, sr: f64) -> f64 {
+    a.powf(TUNED_RATE / sr)
+}
+
+/// Every per-sample coefficient of a string, for one sample rate.
+#[derive(Debug, Clone, Copy)]
+struct Rates {
+    bend: f64,
+    vib: f64,
+    pole: f64,
+    t60: f64,
+    env_up: f64,
+    env_down: f64,
+    palm_pole: f64,
+    palm_exc: f64,
+    /// Samples at this rate per sample at 48 kHz.
+    scale: f64,
+}
+
+impl Rates {
+    fn at(sr: f64) -> Self {
+        Self {
+            bend: per_sample(0.0012, sr),
+            vib: per_sample(0.0002, sr),
+            pole: per_sample(0.002, sr),
+            t60: per_sample(0.004, sr),
+            env_up: per_sample(0.01, sr),
+            env_down: per_sample(0.0005, sr),
+            palm_pole: pole_at(PALM_POLE, sr),
+            palm_exc: per_sample(0.35, sr),
+            scale: sr / TUNED_RATE,
+        }
+    }
+}
 const MUTE_T60: f64 = 0.05;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -185,11 +230,15 @@ struct GString {
     semis: f64,
     env: f64,
     plucked: bool,
+    rates: Rates,
 }
 
 impl GString {
-    fn new(i: usize) -> Self {
+    fn new(i: usize, sr: f64) -> Self {
+        let rates = Rates::at(sr);
+        let loop_pole = pole_at(LOOP_POLE[i], sr);
         Self {
+            rates,
             open_hz: OPEN_HZ[i],
             buf: vec![0.0; BUF],
             exc: vec![0.0; BUF],
@@ -203,12 +252,12 @@ impl GString {
             vib_target: 0.0,
             vib_phase: 0.0,
             lp: 0.0,
-            pole: LOOP_POLE[i],
-            pole_target: LOOP_POLE[i],
+            pole: loop_pole,
+            pole_target: loop_pole,
             t60: T60_OPEN[i],
             t60_target: T60_OPEN[i],
             base_t60: T60_OPEN[i],
-            base_pole: LOOP_POLE[i],
+            base_pole: loop_pole,
             period: 0.0,
             open_period: 0.0,
             disp: DISPERSION[i],
@@ -247,7 +296,7 @@ impl GString {
         let fretted = 1.0 - 0.012 * fret.min(20.0);
         if palm {
             self.t60_target = PALM_T60;
-            self.pole_target = PALM_POLE;
+            self.pole_target = self.rates.palm_pole;
         } else {
             self.t60_target = self.base_t60 * fretted;
             self.pole_target = self.base_pole;
@@ -262,7 +311,7 @@ impl GString {
         let n = ((sr / f).round() as usize).clamp(8, BUF / 2);
         let v = velocity.clamp(0.0, 1.0);
         // A soft pick is dark, a hard one bright.
-        let bright = 0.18 + 0.6 * v * v;
+        let bright = per_sample(0.18 + 0.6 * v * v, sr);
         let mut y = 0.0;
         let mut mean = 0.0;
         for k in 0..n {
@@ -283,12 +332,13 @@ impl GString {
             rms += e * e;
         }
         rms = (rms / n as f64).sqrt().max(1e-9);
-        let level = (0.12 + 0.88 * v) * 0.5 / rms * (n as f64 / 300.0).powf(-0.25);
+        // Normalized by the period's length as heard at 48 kHz, so level does not move with the rate.
+        let level = (0.12 + 0.88 * v) * 0.5 / rms * (n as f64 / self.rates.scale / 300.0).powf(-0.25);
         if palm {
             // A palm on the strings also takes the edge off the attack.
             let mut z = 0.0;
             for k in 0..n {
-                z += 0.35 * (self.exc[k] as f64 - z);
+                z += self.rates.palm_exc * (self.exc[k] as f64 - z);
                 self.exc[k] = (z * level * 1.4) as f32;
             }
         } else {
@@ -310,11 +360,12 @@ impl GString {
     /// One sample. Returns what each pickup coil position hears.
     #[inline]
     fn tick(&mut self, sr: f64, positions: &[f64], out: &mut [f64; 2]) {
-        self.bend += (self.bend_target - self.bend) * 0.0012;
-        self.vib_depth += (self.vib_target - self.vib_depth) * 0.0002;
+        let r = self.rates;
+        self.bend += (self.bend_target - self.bend) * r.bend;
+        self.vib_depth += (self.vib_target - self.vib_depth) * r.vib;
         self.vib_phase = (self.vib_phase + 5.4 / sr).fract();
-        self.pole += (self.pole_target - self.pole) * 0.002;
-        self.t60 += (self.t60_target - self.t60) * 0.004;
+        self.pole += (self.pole_target - self.pole) * r.pole;
+        self.t60 += (self.t60_target - self.t60) * r.t60;
         let semis = self.fret + self.bend + self.vib_depth * (TAU * self.vib_phase).sin();
         self.semis = semis;
         let f = self.open_hz * 2f64.powf(semis / 12.0);
@@ -350,7 +401,7 @@ impl GString {
             *o = y - self.read(tap + 1.0);
         }
         let level = out[0].abs();
-        let k = if level > self.env { 0.01 } else { 0.0005 };
+        let k = if level > self.env { r.env_up } else { r.env_down };
         self.env += k * (level - self.env);
     }
 }
@@ -405,6 +456,8 @@ pub struct Guitar {
     hum_phase: f64,
     rng: Rng,
     volume: f64,
+    dc_pole: f64,
+    volume_rate: f64,
 }
 
 impl Guitar {
@@ -412,7 +465,7 @@ impl Guitar {
     pub fn new(sr: f64) -> Self {
         let mut g = Self {
             sr,
-            strings: (0..STRINGS).map(GString::new).collect(),
+            strings: (0..STRINGS).map(|i| GString::new(i, sr)).collect(),
             settings: GuitarSettings::default(),
             resonance: Biquad::default(),
             dc_x: 0.0,
@@ -420,6 +473,8 @@ impl Guitar {
             hum_phase: 0.0,
             rng: Rng::new(0x9e37_79b9),
             volume: 0.0,
+            dc_pole: pole_at(0.9995, sr),
+            volume_rate: per_sample(0.002, sr),
         };
         g.set(GuitarSettings::default());
         g.volume = g.settings.volume;
@@ -508,11 +563,11 @@ impl Guitar {
         }
         let mut y = self.resonance.tick(sum * 0.12);
         // Coupling cap: no DC reaches the jack.
-        let dc = y - self.dc_x + 0.9995 * self.dc_y;
+        let dc = y - self.dc_x + self.dc_pole * self.dc_y;
         self.dc_x = y;
         self.dc_y = dc;
         y = dc;
-        self.volume += (self.settings.volume - self.volume) * 0.002;
+        self.volume += (self.settings.volume - self.volume) * self.volume_rate;
         y *= self.volume * self.volume;
         if self.settings.hum {
             self.hum_phase = (self.hum_phase + 60.0 / self.sr).fract();
@@ -529,9 +584,12 @@ impl Guitar {
 mod tests {
     use super::*;
 
-    /// Zero crossings per second of a long open-string note, against its pitch.
+    /// The pitch of a long note, by autocorrelation over its second second.
     fn measured_hz(string: usize, fret: f64) -> f64 {
-        let sr = 48_000.0;
+        measured_hz_at(48_000.0, string, fret)
+    }
+
+    fn measured_hz_at(sr: f64, string: usize, fret: f64) -> f64 {
         let mut g = Guitar::new(sr);
         g.set(GuitarSettings { pickup: Pickup::Neck, tone: 0.0, volume: 1.0, hum: false });
         g.pluck(string, fret, 0.5, false);
@@ -555,6 +613,72 @@ mod tests {
             let got = measured_hz(s, f);
             let cents = 1200.0 * (got / want).log2();
             assert!(cents.abs() < 6.0, "string {s} fret {f}: {got:.2} Hz vs {want:.2} Hz ({cents:.1} cents)");
+        }
+    }
+
+    #[test]
+    fn strings_play_in_tune_at_96_khz() {
+        for (s, f) in [(0, 0.0), (2, 5.0), (5, 0.0), (5, 12.0)] {
+            let want = OPEN_HZ[s] * 2f64.powf(f / 12.0);
+            let got = measured_hz_at(96_000.0, s, f);
+            let cents = 1200.0 * (got / want).log2();
+            assert!(cents.abs() < 6.0, "96 kHz string {s} fret {f}: {got:.2} Hz vs {want:.2} Hz ({cents:.1} cents)");
+        }
+    }
+
+    /// Level (dB), brightness and decay (dB) of a pluck, rate-independent:
+    /// RMS over 20–300 ms, the RMS of the time derivative relative to it (a
+    /// brightness in Hz), and the level at 1.5–2 s against the early level.
+    /// `skip` earlier plucks vary the noise and the picking point.
+    fn pluck_profile(sr: f64, string: usize, fret: f64, palm: bool, skip: usize) -> [f64; 3] {
+        let mut g = Guitar::new(sr);
+        g.set(GuitarSettings { pickup: Pickup::Bridge, tone: 0.85, volume: 0.8, hum: false });
+        for _ in 0..skip {
+            g.pluck(string, fret, 0.8, palm);
+        }
+        g.mute_all();
+        for _ in 0..(sr as usize / 2) {
+            g.tick();
+        }
+        g.pluck(string, fret, 0.8, palm);
+        let x: Vec<f64> = (0..(sr as usize * 2)).map(|_| g.tick() as f64).collect();
+        let win = |a: f64, b: f64| &x[(a * sr) as usize..(b * sr) as usize];
+        let rms = |v: &[f64]| (v.iter().map(|y| y * y).sum::<f64>() / v.len() as f64).sqrt();
+        let early = win(0.02, 0.3);
+        let d: Vec<f64> = early.windows(2).map(|w| (w[1] - w[0]) * sr).collect();
+        [20.0 * rms(early).log10(), rms(&d) / rms(early) / std::f64::consts::TAU, 20.0 * (rms(win(1.5, 2.0)) / rms(early)).log10()]
+    }
+
+    /// Mean and spread (max − min) of the profile over eight plucks.
+    fn profile_stats(sr: f64, string: usize, fret: f64, palm: bool, first: usize) -> ([f64; 3], [f64; 3]) {
+        let runs: Vec<[f64; 3]> = (first..first + 8).map(|k| pluck_profile(sr, string, fret, palm, k)).collect();
+        let mut mean = [0.0; 3];
+        let mut spread = [0.0; 3];
+        for i in 0..3 {
+            let v: Vec<f64> = runs.iter().map(|r| r[i]).collect();
+            mean[i] = v.iter().sum::<f64>() / v.len() as f64;
+            spread[i] = v.iter().cloned().fold(f64::MIN, f64::max) - v.iter().cloned().fold(f64::MAX, f64::min);
+        }
+        (mean, spread)
+    }
+
+    #[test]
+    fn the_guitar_sounds_the_same_at_96_khz() {
+        for (s, f, palm) in [(0, 0.0, false), (3, 7.0, false), (5, 3.0, false), (0, 0.0, true)] {
+            let (a, spread) = profile_stats(48_000.0, s, f, palm, 0);
+            let (a2, _) = profile_stats(48_000.0, s, f, palm, 8);
+            let (b, _) = profile_stats(96_000.0, s, f, palm, 0);
+            eprintln!(
+                "string {s} fret {f} palm {palm}: level {:+.2} dB (48k vs 48k {:+.2}, spread {:.2}), brightness {:.0} -> {:.0} Hz (48k again {:.0}, spread {:.0}), decay {:+.2} dB (spread {:.2})",
+                b[0] - a[0], a2[0] - a[0], spread[0], a[1], b[1], a2[1], spread[1], b[2] - a[2], spread[2]
+            );
+            // Eight plucks a side; the bounds sit at the 48 kHz-vs-48 kHz variation.
+            assert!((b[0] - a[0]).abs() < 1.5, "string {s} fret {f} palm {palm}: level moved {:+.2} dB at 96 kHz", b[0] - a[0]);
+            assert!((b[1] / a[1] - 1.0).abs() < 0.12, "string {s} fret {f} palm {palm}: brightness {:.0} -> {:.0} Hz", a[1], b[1]);
+            if !palm {
+                // A palm-muted note is in the noise floor by 1.5 s: its decay ratio says nothing.
+                assert!((b[2] - a[2]).abs() < 3.0, "string {s} fret {f}: decay moved {:+.2} dB", b[2] - a[2]);
+            }
         }
     }
 

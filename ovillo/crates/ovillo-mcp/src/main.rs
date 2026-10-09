@@ -54,13 +54,27 @@ fn call_tool(link: &mut Link, name: &str, args: Value) -> Value {
 fn screenshot(link: &mut Link, args: &Value) -> Value {
     let max_width = args.get("max_width").and_then(Value::as_u64).unwrap_or(1240).clamp(320, 4000) as u32;
     let save = args.get("path").and_then(Value::as_str).map(PathBuf::from);
-    let pid = match link.call("ping", json!({})) {
-        Ok(v) => match v.get("pid").and_then(Value::as_u64) {
-            Some(p) => p as u32,
-            None => return text_result(&json!("the instrument did not say its pid"), true),
-        },
+    let allow_stale = args.get("allow_stale").and_then(Value::as_bool).unwrap_or(false);
+    let ping = match link.call("ping", json!({})) {
+        Ok(v) => v,
         Err(e @ (LinkError::NotRunning(_) | LinkError::Refused(_))) => return text_result(&json!(e.text()), true),
     };
+    let Some(pid) = ping.get("pid").and_then(Value::as_u64).map(|p| p as u32) else {
+        return text_result(&json!("the instrument did not say its pid"), true);
+    };
+    let visible = ping.pointer("/window/visible").and_then(Value::as_bool).unwrap_or(true);
+    let drawn_ms = ping.pointer("/window/last_drawn_ms_ago").and_then(Value::as_u64);
+    if !visible && !allow_stale {
+        return text_result(
+            &json!(format!(
+                "the Ovillo window is hidden (fully covered by other windows, minimized, or on another Space), so macOS is not drawing it: \
+                 a picture now would show the last frame drawn{}, not the current state. Bring the window into view and try again, \
+                 or pass allow_stale: true for the stale picture. get_state reads the current state either way.",
+                drawn_ms.map_or(String::new(), |ms| format!(" {:.1} s ago", ms as f64 / 1000.0))
+            )),
+            true,
+        );
+    }
     // Let the last changes reach the screen.
     std::thread::sleep(Duration::from_millis(150));
     match shot::capture(pid, max_width, save.as_deref()) {
@@ -70,6 +84,7 @@ fn screenshot(link: &mut Link, args: &Value) -> Value {
                 {"type": "text", "text": json!({
                     "pid": pid, "window_id": s.window.id, "width": s.width, "height": s.height,
                     "saved": s.saved.map(|p| p.display().to_string()),
+                    "window_visible": visible, "last_drawn_ms_ago": drawn_ms, "stale": !visible,
                 }).to_string()}
             ],
             "isError": false
