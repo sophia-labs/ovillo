@@ -5,7 +5,7 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use ovillo_dsp::rig::{Rig, RigEnds};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub struct Audio {
     _stream: cpal::Stream,
@@ -15,6 +15,8 @@ pub struct Audio {
     pub device: String,
     pub digest: String,
     pub stream_error: Arc<AtomicBool>,
+    /// The last error CoreAudio reported (set off the audio callback).
+    pub last_error: Arc<Mutex<Option<String>>>,
 }
 
 pub fn start() -> Result<Audio, String> {
@@ -32,14 +34,23 @@ pub fn start() -> Result<Audio, String> {
     let digest = rig.plan_digest().to_string();
     let flag = Arc::new(AtomicBool::new(false));
     let err_flag = flag.clone();
+    let last_error = Arc::new(Mutex::new(None));
+    let err_text = last_error.clone();
     let stream = device
         .build_output_stream(
             config,
             move |data: &mut [f32], _: &cpal::OutputCallbackInfo| rig.process(data, channels as usize),
-            move |_e: cpal::Error| err_flag.store(true, Ordering::Relaxed),
+            move |e: cpal::Error| {
+                // Runs on a CoreAudio thread, not the IO callback.
+                eprintln!("ovillo: audio stream error: {e}");
+                if let Ok(mut t) = err_text.lock() {
+                    *t = Some(e.to_string());
+                }
+                err_flag.store(true, Ordering::Relaxed);
+            },
             None,
         )
         .map_err(|e| format!("{name}: {e}"))?;
     stream.play().map_err(|e| format!("{name}: {e}"))?;
-    Ok(Audio { _stream: stream, ends, sample_rate, channels, device: name, digest, stream_error: flag })
+    Ok(Audio { _stream: stream, ends, sample_rate, channels, device: name, digest, stream_error: flag, last_error })
 }

@@ -8,7 +8,7 @@
 //! allocates or locks; a full tap drops frames and counts them.
 
 use crate::ariadne::{AriadneControls, AriadneEngine, WorldReadings, PARAMS};
-use crate::guitar::{Guitar, GuitarSettings, STRINGS};
+use crate::guitar::{Guitar, GuitarSettings, StringTruth, STRINGS};
 use crate::player::{Event, Pattern, Player};
 use mus_ariadne::MODE_COUNT;
 use std::time::Instant;
@@ -49,6 +49,8 @@ pub struct Telemetry {
     pub modes: [f32; MODE_COUNT],
     pub mode_hz: [f32; MODE_COUNT],
     pub string_hz: [f32; STRINGS],
+    /// What each string is doing, from inside the simulated guitar.
+    pub strings: [StringTruth; STRINGS],
     pub world_errors: u64,
     pub safety_limited_frames: u64,
     pub dropped_scope: u64,
@@ -60,6 +62,8 @@ pub struct RigEnds {
     pub commands: rtrb::Producer<Command>,
     pub scope: rtrb::Consumer<ScopeFrame>,
     pub telemetry: rtrb::Consumer<Telemetry>,
+    /// Every event the guitarist applied, with its sample index.
+    pub events: rtrb::Consumer<(u64, Event)>,
 }
 
 pub struct Rig {
@@ -73,6 +77,7 @@ pub struct Rig {
     commands: rtrb::Consumer<Command>,
     scope: rtrb::Producer<ScopeFrame>,
     telemetry: rtrb::Producer<Telemetry>,
+    events: rtrb::Producer<(u64, Event)>,
     sample: u64,
     block: usize,
     dry_peak: f32,
@@ -92,6 +97,7 @@ impl Rig {
         let (cmd_tx, cmd_rx) = rtrb::RingBuffer::new(1024);
         let (scope_tx, scope_rx) = rtrb::RingBuffer::new((sr * 2.0) as usize);
         let (tele_tx, tele_rx) = rtrb::RingBuffer::new(4096);
+        let (ev_tx, ev_rx) = rtrb::RingBuffer::new(4096);
         let target = AriadneControls::default();
         let coef = std::array::from_fn(|i| {
             let tau = if PARAMS[i].slow { SLOW_SMOOTHING_S } else { FAST_SMOOTHING_S };
@@ -108,6 +114,7 @@ impl Rig {
             commands: cmd_rx,
             scope: scope_tx,
             telemetry: tele_tx,
+            events: ev_tx,
             sample: 0,
             block: 0,
             dry_peak: 0.0,
@@ -120,7 +127,7 @@ impl Rig {
             dropped_scope: 0,
             load: 0.0,
         };
-        Ok((rig, RigEnds { commands: cmd_tx, scope: scope_rx, telemetry: tele_rx }))
+        Ok((rig, RigEnds { commands: cmd_tx, scope: scope_rx, telemetry: tele_rx, events: ev_rx }))
     }
 
     #[must_use]
@@ -152,7 +159,10 @@ impl Rig {
     /// One sample: (dry DI, wet left, wet right).
     #[inline]
     pub fn frame(&mut self) -> (f32, f32, f32) {
-        self.player.tick(&mut self.guitar);
+        let events = &mut self.events;
+        self.player.tick_with(&mut self.guitar, |t, e| {
+            let _ = events.push((t, e));
+        });
         let dry = self.guitar.tick();
         let target = self.target.as_array();
         for i in 0..20 {
@@ -192,6 +202,8 @@ impl Rig {
         self.ariadne.mode_energies(&mut modes, &mut mode_hz);
         let mut hz = [0.0; STRINGS];
         self.guitar.frequencies(&mut hz);
+        let mut strings = [StringTruth::default(); STRINGS];
+        self.guitar.truth(&mut strings);
         let t = Telemetry {
             sample: self.sample,
             sample_rate: self.sr,
@@ -203,6 +215,7 @@ impl Rig {
             modes,
             mode_hz,
             string_hz: hz.map(|x| x as f32),
+            strings,
             world_errors: self.ariadne.world_errors,
             safety_limited_frames: self.ariadne.safety_limited_frames,
             dropped_scope: self.dropped_scope,

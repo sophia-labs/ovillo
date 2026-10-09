@@ -17,6 +17,12 @@
 //! The guitar is simulated for now (`ovillo_dsp::guitar`); keys Z X C V B N
 //! pluck the open strings over whatever the pattern plays. The live patch is
 //! `patches/live.json`, written as you play and re-read when edited on disk.
+//!
+//! ```text
+//! ovillo [--keys "<key> <key> …"]
+//! ```
+//! `--keys` presses keys through the same path as the keyboard, at startup
+//! (e.g. `--keys "5 5 6 6 escape"` opens the TAB and the CHORD BOX).
 
 mod analysis;
 mod audio;
@@ -34,7 +40,7 @@ use gpui_platform::application;
 use menu::{Action, Active, Menu, Softkey, View, AMP_DIVS, MAP_Y, TIME_DIVS_MS};
 use ovillo_dsp::ariadne::{AriadneControls, PARAMS};
 use ovillo_dsp::guitar::{GuitarSettings, Pickup, STRINGS, STRING_NAMES};
-use ovillo_dsp::player::Pattern;
+use ovillo_dsp::player::{Event, Pattern};
 use ovillo_dsp::rig::{Command, ScopeFrame, Telemetry};
 use std::cell::Cell;
 use std::collections::VecDeque;
@@ -125,6 +131,90 @@ struct Meters {
     wet_rms: f32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SquareMode {
+    Map,
+    Xy,
+    Chord,
+}
+
+impl SquareMode {
+    fn label(self) -> &'static str {
+        match self {
+            SquareMode::Map => "MAP",
+            SquareMode::Xy => "XY L/R",
+            SquareMode::Chord => "CHORD BOX",
+        }
+    }
+    fn next(self) -> Self {
+        match self {
+            SquareMode::Map => SquareMode::Xy,
+            SquareMode::Xy => SquareMode::Chord,
+            SquareMode::Chord => SquareMode::Map,
+        }
+    }
+}
+
+/// A note on the scrolling tab: when, where, and whose (the simulated
+/// guitarist's truth, or what the string analyzer heard).
+#[derive(Debug, Clone, Copy)]
+struct TabNote {
+    t: f64,
+    string: u8,
+    fret: u8,
+    truth: bool,
+}
+
+/// What the string analyzer currently hears: a fret per string and a chord.
+#[derive(Debug, Clone, Default)]
+struct Heard {
+    strings: [Option<u8>; STRINGS],
+    chord: Option<(String, f32)>,
+}
+
+/// MIDI note of each open string, low E to high e.
+const OPEN_MIDI: [u8; STRINGS] = [40, 45, 50, 55, 59, 64];
+const PITCH_NAMES: [&str; 12] = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+
+/// Name the chord a set of sounding MIDI notes spells, by template; the bass
+/// note breaks ties. `None` under three notes.
+fn name_chord(notes: &[u8]) -> Option<String> {
+    if notes.len() < 3 {
+        return None;
+    }
+    let mut pcs = [false; 12];
+    for n in notes {
+        pcs[(n % 12) as usize] = true;
+    }
+    let bass = notes.iter().min().map(|n| n % 12)?;
+    const TEMPLATES: [(&str, &[u8]); 10] = [
+        ("", &[0, 4, 7]),
+        ("m", &[0, 3, 7]),
+        ("7", &[0, 4, 7, 10]),
+        ("maj7", &[0, 4, 7, 11]),
+        ("m7", &[0, 3, 7, 10]),
+        ("sus2", &[0, 2, 7]),
+        ("sus4", &[0, 5, 7]),
+        ("5", &[0, 7]),
+        ("dim", &[0, 3, 6]),
+        ("aug", &[0, 4, 8]),
+    ];
+    let mut best: Option<(i32, String)> = None;
+    for root in 0..12u8 {
+        for (q, iv) in TEMPLATES {
+            let tpl: Vec<usize> = iv.iter().map(|i| ((root + i) % 12) as usize).collect();
+            let hit = tpl.iter().filter(|&&p| pcs[p]).count() as i32;
+            let miss = tpl.len() as i32 - hit;
+            let extra = (0..12).filter(|p| pcs[*p] && !tpl.contains(p)).count() as i32;
+            let score = 4 * hit - 5 * miss - 3 * extra + if root == bass { 2 } else { 0 } - iv.len() as i32 / 4;
+            if best.as_ref().is_none_or(|(b, _)| score > *b) {
+                best = Some((score, format!("{}{}", PITCH_NAMES[root as usize], q)));
+            }
+        }
+    }
+    best.map(|(_, n)| n)
+}
+
 struct Ovillo {
     focus: FocusHandle,
     focused: bool,
@@ -148,7 +238,14 @@ struct Ovillo {
     upper_spectrum: bool,
     modes: bool,
     hold: bool,
-    square_xy: bool,
+    lower_tab: bool,
+    square: SquareMode,
+    tab: VecDeque<TabNote>,
+    heard: Heard,
+    truth_chord: Option<String>,
+    /// A chord name seen but not yet held long enough to count (strums roll).
+    truth_pending: Option<(String, f64)>,
+    chord_marks: VecDeque<(f64, String, bool)>,
     map_y: usize,
     time_div: usize,
     amp_div: usize,
@@ -200,7 +297,13 @@ impl Ovillo {
             upper_spectrum: true,
             modes: true,
             hold: false,
-            square_xy: false,
+            lower_tab: false,
+            square: SquareMode::Map,
+            tab: VecDeque::new(),
+            heard: Heard::default(),
+            truth_chord: None,
+            truth_pending: None,
+            chord_marks: VecDeque::new(),
             map_y: 0,
             time_div: 3,
             amp_div: 4,
@@ -218,6 +321,12 @@ impl Ovillo {
         s.send(Command::Pattern(s.pattern));
         s.send(Command::Tempo(s.bpm));
         s.mark_trail();
+        let args: Vec<String> = std::env::args().collect();
+        if let Some(i) = args.iter().position(|a| a == "--keys") {
+            for k in args.get(i + 1).map(String::as_str).unwrap_or("").split_whitespace() {
+                s.key(k, false);
+            }
+        }
         s
     }
 
@@ -278,6 +387,12 @@ impl Ovillo {
                 t.push(f.dry, f.left, f.right);
             }
         }
+        let sr = a.sample_rate as f64;
+        while let Ok((at, e)) = a.ends.events.pop() {
+            if let Event::Pluck { string, fret, .. } = e {
+                self.tab.push_back(TabNote { t: at as f64 / sr, string, fret, truth: true });
+            }
+        }
         let mut latest = None;
         while let Ok(t) = a.ends.telemetry.pop() {
             self.world.push(&t);
@@ -294,6 +409,36 @@ impl Ovillo {
                 self.last_limited = t.safety_limited_frames;
             }
             self.tele = Some(t);
+            let now = t.sample as f64 / t.sample_rate;
+            let sounding: Vec<u8> = t
+                .strings
+                .iter()
+                .enumerate()
+                .filter(|(_, s)| s.sounding)
+                .map(|(i, s)| OPEN_MIDI[i] + s.semitones.round().max(0.0) as u8)
+                .collect();
+            if let Some(name) = name_chord(&sounding) {
+                if self.truth_chord.as_deref() == Some(name.as_str()) {
+                    self.truth_pending = None;
+                } else {
+                    match &self.truth_pending {
+                        Some((p, since)) if *p == name => {
+                            if now - since >= 0.12 {
+                                self.chord_marks.push_back((*since, name.clone(), true));
+                                self.truth_chord = Some(name);
+                                self.truth_pending = None;
+                            }
+                        }
+                        _ => self.truth_pending = Some((name, now)),
+                    }
+                }
+            }
+            while self.tab.front().is_some_and(|n| n.t < now - WORLD_SPAN_S - 1.0) {
+                self.tab.pop_front();
+            }
+            while self.chord_marks.front().is_some_and(|c| c.0 < now - WORLD_SPAN_S - 1.0) {
+                self.chord_marks.pop_front();
+            }
         }
     }
 
@@ -338,8 +483,8 @@ impl Ovillo {
             hum: self.guitar.hum,
             upper_spectrum: self.upper_spectrum,
             modes: self.modes,
-            hold: self.hold,
-            square_xy: self.square_xy,
+            lower_tab: self.lower_tab,
+            square: self.square.label(),
             map_y: MAP_Y[self.map_y],
             time_div_ms: TIME_DIVS_MS[self.time_div],
             amp_div: AMP_DIVS[self.amp_div],
@@ -386,7 +531,8 @@ impl Ovillo {
                 self.hold = !self.hold;
                 self.spectrum.clear_hold();
             }
-            Action::ToggleSquare => self.square_xy = !self.square_xy,
+            Action::ToggleLower => self.lower_tab = !self.lower_tab,
+            Action::CycleSquare => self.square = self.square.next(),
             Action::CycleMapY => {
                 self.map_y = (self.map_y + 1) % MAP_Y.len();
                 self.trail.clear();
@@ -467,7 +613,7 @@ impl Ovillo {
     }
 
     fn map_event(&mut self, pos: Point<Pixels>) -> bool {
-        if self.square_xy {
+        if self.square != SquareMode::Map {
             return false;
         }
         let Some(b) = self.square_bounds.get() else { return false };
@@ -530,7 +676,7 @@ impl Ovillo {
             "up" | "right" => self.knob(1, shift),
             "down" | "left" => self.knob(-1, shift),
             "tab" => self.press(Action::ToggleUpper),
-            "h" => self.spectrum.clear_hold(),
+            "h" => self.press(Action::ToggleHold),
             "m" => self.press(Action::MuteStrings),
             "r" => self.toggle_record(),
             "0" => self.press(Action::ResetWorld),
@@ -559,6 +705,10 @@ enum Mark {
     TopTick { x: f32, color: Hsla },
     /// A cross.
     Cross { x: f32, y: f32, color: Hsla },
+    /// A hollow circle of radius `r` design px.
+    Ring { x: f32, y: f32, r: f32, color: Hsla },
+    /// An ×, for a string not played.
+    XMark { x: f32, y: f32, color: Hsla },
 }
 
 struct ScreenData {
@@ -596,22 +746,23 @@ fn paint_screen(bounds: Bounds<Pixels>, window: &mut Window, d: &ScreenData) {
     let w = f32::from(bounds.size.width);
     let h = f32::from(bounds.size.height);
     let r = |x: f32, y: f32, ww: f32, hh: f32| Bounds { origin: point(o.x + px(x), o.y + px(y)), size: size(px(ww), px(hh)) };
-    for i in 0..=d.xdivs {
+    let grid = d.xdivs > 0 && d.ydivs > 0;
+    for i in (0..=d.xdivs).filter(|_| grid) {
         let x = (w - 1.0) * i as f32 / d.xdivs as f32;
         let c = if i == 0 || i == d.xdivs || i * 2 == d.xdivs { GRAT_AXIS } else { GRAT };
         rect(window, r(x, 0.0, z, h), rgb(c).into());
     }
-    for j in 0..=d.ydivs {
+    for j in (0..=d.ydivs).filter(|_| grid) {
         let y = (h - 1.0) * j as f32 / d.ydivs as f32;
         let c = if j == 0 || j == d.ydivs || j * 2 == d.ydivs { GRAT_AXIS } else { GRAT };
         rect(window, r(0.0, y, w, z), rgb(c).into());
     }
     let (cx0, cy0) = ((w - 1.0) / 2.0, (h - 1.0) / 2.0);
-    for i in 0..(d.xdivs * 5) {
+    for i in (0..(d.xdivs * 5)).filter(|_| grid) {
         let x = (w - 1.0) * i as f32 / (d.xdivs * 5) as f32;
         rect(window, r(x, cy0 - 3.0 * z, z, 7.0 * z), rgb(GRAT_AXIS).into());
     }
-    for j in 0..(d.ydivs * 5) {
+    for j in (0..(d.ydivs * 5)).filter(|_| grid) {
         let y = (h - 1.0) * j as f32 / (d.ydivs * 5) as f32;
         rect(window, r(cx0 - 3.0 * z, y, 7.0 * z, z), rgb(GRAT_AXIS).into());
     }
@@ -636,6 +787,22 @@ fn paint_screen(bounds: Bounds<Pixels>, window: &mut Window, d: &ScreenData) {
                     let k = px(7.0 * z);
                     polyline(window, &[point(p.x - k, p.y), point(p.x + k, p.y)], 1.5 * z, color, None);
                     polyline(window, &[point(p.x, p.y - k), point(p.x, p.y + k)], 1.5 * z, color, None);
+                }
+                Mark::Ring { x, y, r, color } => {
+                    let p = at(x, y);
+                    let pts: Vec<Point<Pixels>> = (0..=24)
+                        .map(|i| {
+                            let a = std::f32::consts::TAU * i as f32 / 24.0;
+                            point(p.x + px(r * z * a.cos()), p.y + px(r * z * a.sin()))
+                        })
+                        .collect();
+                    polyline(window, &pts, 1.2 * z, color, None);
+                }
+                Mark::XMark { x, y, color } => {
+                    let p = at(x, y);
+                    let k = px(4.0 * z);
+                    polyline(window, &[point(p.x - k, p.y - k), point(p.x + k, p.y + k)], 1.2 * z, color, None);
+                    polyline(window, &[point(p.x - k, p.y + k), point(p.x + k, p.y - k)], 1.2 * z, color, None);
                 }
             }
         }
@@ -849,17 +1016,130 @@ impl Render for Ovillo {
         world.traces.push(Trace { pts: pts.iter().map(|p| (wx(p.t), wy(p.space))).collect(), color: col(SPACE, 1.0), width: 1.0, dash: None });
         world.traces.push(Trace { pts: pts.iter().map(|p| (wx(p.t), wy(p.reservoir))).collect(), color: col(RESERVOIR, 1.0), width: 1.0, dash: Some([5.0, 3.0]) });
         world.traces.push(Trace { pts: pts.iter().map(|p| (wx(p.t), wy(p.material))).collect(), color: col(BODY, 1.0), width: 1.5, dash: None });
-        let world_screen = div()
-            .relative()
-            .flex_1()
-            .h(u(LOWER_H))
-            .child(canvas(|_, _, _| (), move |b, _, window, _| paint_screen(b, window, &world)).absolute().size_full());
-        let world_labels = y_labels(LOWER_H, 8, |j| format!("{:.0}", W_TOP - j as f32 * W_SPAN / 8.0));
+        let (world_screen, world_labels, lower_caption) = if self.lower_tab {
+            // Scrolling tablature: high e on top, as written; the guitarist's
+            // frets above each line (truth), the analyzer's below (heard).
+            let mut tab = ScreenData { z, xdivs: 0, ydivs: 0, traces: Vec::new(), marks: Vec::new() };
+            // Two header rows for chord names (truth, heard), then the six strings.
+            let sy = |st: u8| 0.18 + 0.76 * (5 - st) as f32 / 5.0;
+            for sec in 0..=(WORLD_SPAN_S as i64) {
+                let x = wx(now.floor() - sec as f64);
+                tab.traces.push(Trace { pts: vec![(x, 0.0), (x, 1.0)], color: col(GRAT, 1.0), width: 1.0, dash: None });
+            }
+            for st in 0..STRINGS as u8 {
+                tab.traces.push(Trace { pts: vec![(0.0, sy(st)), (1.0, sy(st))], color: col(GRAT_AXIS, 1.0), width: 1.0, dash: None });
+            }
+            let mut glyphs: Vec<gpui::Div> = Vec::new();
+            for n in self.tab.iter().filter(|n| n.t >= now - WORLD_SPAN_S) {
+                let x = wx(n.t);
+                let y = sy(n.string) * LOWER_H + if n.truth { -13.0 } else { 1.0 };
+                glyphs.push(
+                    div()
+                        .absolute()
+                        .left(gpui::relative(x))
+                        .top(u(y))
+                        .text_size(u(SMALL_PX))
+                        .text_color(rgb(if n.truth { DRY } else { BRIGHT }))
+                        .child(format!("{}", n.fret)),
+                );
+            }
+            for (ct, name, truth) in self.chord_marks.iter().filter(|c| c.0 >= now - WORLD_SPAN_S) {
+                glyphs.push(
+                    div()
+                        .absolute()
+                        .left(gpui::relative(wx(*ct)))
+                        .top(u(if *truth { -1.0 } else { 11.0 }))
+                        .text_size(u(SMALL_PX))
+                        .text_color(rgb(if *truth { DRY } else { BRIGHT }))
+                        .child(name.clone()),
+                );
+            }
+            let screen = div()
+                .relative()
+                .flex_1()
+                .h(u(LOWER_H))
+                .child(canvas(|_, _, _| (), move |b, _, window, _| paint_screen(b, window, &tab)).absolute().size_full())
+                .children(glyphs);
+            let mut labels = div().relative().w(u(LABEL_W)).h(u(LOWER_H)).flex_none().text_size(u(SMALL_PX));
+            for st in 0..STRINGS as u8 {
+                labels = labels.child(
+                    div().absolute().top(u(sy(st) * LOWER_H - 7.0)).right(u(6.0)).text_color(rgb(TEXT)).child(STRING_NAMES[st as usize]),
+                );
+            }
+            (screen, labels, "TAB  TRUTH ABOVE (BLUE)  HEARD BELOW (WHITE)")
+        } else {
+            let screen = div()
+                .relative()
+                .flex_1()
+                .h(u(LOWER_H))
+                .child(canvas(|_, _, _| (), move |b, _, window, _| paint_screen(b, window, &world)).absolute().size_full());
+            (screen, y_labels(LOWER_H, 8, |j| format!("{:.0}", W_TOP - j as f32 * W_SPAN / 8.0)), "WORLD ENERGY dB (10 LOG10 E)")
+        };
 
         // ---- the square: configuration map or XY ----
         let mut sq = ScreenData { z, xdivs: 8, ydivs: 8, traces: Vec::new(), marks: Vec::new() };
         let map_y = MAP_Y[self.map_y];
-        if self.square_xy {
+        let mut square_overlay: Vec<gpui::Div> = Vec::new();
+        if self.square == SquareMode::Chord {
+            // A chord diagram: strings vertical (low E left), frets down from the nut.
+            sq.xdivs = 0;
+            let sx = |s: usize| 0.14 + 0.72 * s as f32 / 5.0;
+            let fy = |k: f32| 0.22 + 0.70 * k / 5.0;
+            let truth = tele.map(|t| t.strings);
+            let fretted = truth
+                .iter()
+                .flat_map(|ts| ts.iter().filter(|x| x.sounding && x.fret > 0).map(|x| x.fret))
+                .chain(self.heard.strings.iter().flatten().copied().filter(|f| *f > 0));
+            let (lo, hi) = fretted.fold((u8::MAX, 0u8), |(l, h), f| (l.min(f), h.max(f)));
+            let base = if hi <= 5 { 1 } else { lo };
+            let line = col(GRAT_AXIS, 1.0);
+            for st in 0..STRINGS {
+                sq.traces.push(Trace { pts: vec![(sx(st), fy(0.0)), (sx(st), fy(5.0))], color: line, width: 1.0, dash: None });
+            }
+            for k in 0..=5 {
+                sq.traces.push(Trace { pts: vec![(sx(0), fy(k as f32)), (sx(5), fy(k as f32))], color: line, width: 1.0, dash: None });
+            }
+            if base == 1 {
+                sq.traces.push(Trace { pts: vec![(sx(0), fy(0.0) - 0.012), (sx(5), fy(0.0) - 0.012)], color: col(TEXT, 1.0), width: 1.5, dash: None });
+            } else {
+                square_overlay.push(div().absolute().left(u(4.0)).top(u(fy(0.5) * LOWER_H - 7.0)).text_color(rgb(TEXT)).child(format!("{base}FR")));
+            }
+            let slot = |f: u8| fy((f - base) as f32 + 0.5);
+            if let Some(ts) = truth {
+                for (st, x) in ts.iter().enumerate() {
+                    if !x.sounding {
+                        sq.marks.push(Mark::XMark { x: sx(st), y: 0.11, color: col(DIM, 1.0) });
+                    } else if x.fret == 0 {
+                        sq.marks.push(Mark::Ring { x: sx(st), y: 0.11, r: 4.0, color: col(DRY, 1.0) });
+                    } else if x.fret >= base && x.fret < base + 5 {
+                        sq.marks.push(Mark::Ring { x: sx(st), y: slot(x.fret), r: 7.0, color: col(DRY, 1.0) });
+                    }
+                }
+            }
+            for (st, f) in self.heard.strings.iter().enumerate() {
+                match *f {
+                    Some(0) => sq.marks.push(Mark::Cross { x: sx(st), y: 0.11, color: col(BRIGHT, 1.0) }),
+                    Some(f) if f >= base && f < base + 5 => sq.marks.push(Mark::Cross { x: sx(st), y: slot(f), color: col(BRIGHT, 1.0) }),
+                    _ => {}
+                }
+            }
+            square_overlay.push(
+                div()
+                    .absolute()
+                    .left(u(6.0))
+                    .top(u(4.0))
+                    .text_color(rgb(DRY))
+                    .child(self.truth_chord.clone().unwrap_or_else(|| "--".into())),
+            );
+            square_overlay.push(
+                div()
+                    .absolute()
+                    .right(u(6.0))
+                    .top(u(4.0))
+                    .text_color(rgb(BRIGHT))
+                    .child(self.heard.chord.as_ref().map_or("--".to_string(), |c| c.0.clone())),
+            );
+        } else if self.square == SquareMode::Xy {
             self.history.latest(2048, &mut self.frames);
             let range = 4.0 * amp_div;
             let pts = self
@@ -897,11 +1177,12 @@ impl Render for Ovillo {
             .w(u(LOWER_H))
             .h(u(LOWER_H))
             .flex_none()
-            .child(canvas(move |b, _, _| cell.set(Some(b)), move |b, _, window, _| paint_screen(b, window, &sq)).absolute().size_full());
-        let square_caption = if self.square_xy {
-            format!("XY  M/S  {:.2} FS/DIV", amp_div)
-        } else {
-            format!("MAP  X ORGANIZ  Y {}", PARAMS[map_y].label)
+            .child(canvas(move |b, _, _| cell.set(Some(b)), move |b, _, window, _| paint_screen(b, window, &sq)).absolute().size_full())
+            .children(square_overlay);
+        let square_caption = match self.square {
+            SquareMode::Xy => format!("XY  M/S  {:.2} FS/DIV", amp_div),
+            SquareMode::Map => format!("MAP  X ORGANIZ  Y {}", PARAMS[map_y].label),
+            SquareMode::Chord => "CHORD  O TRUTH  + HEARD".to_string(),
         };
 
         // ---- annotation ----
@@ -941,11 +1222,16 @@ impl Render for Ovillo {
         } else {
             "SCOPE FS / ms  AUTO"
         };
+        let chord_txt = format!(
+            "CHORD  TRUTH {:6}  HEARD {}",
+            self.truth_chord.clone().unwrap_or_else(|| "--".into()),
+            self.heard.chord.as_ref().map_or("--".to_string(), |(c, conf)| format!("{c} {conf:.2}"))
+        );
         let second = div()
             .flex()
             .justify_between()
             .h(u(16.0))
-            .child(t(active_txt, BRIGHT))
+            .child(div().flex().gap(u(24.0)).child(t(active_txt, BRIGHT)).child(t(chord_txt, MARKER)))
             .child(
                 div()
                     .flex()
@@ -998,8 +1284,10 @@ impl Render for Ovillo {
             .child(annunciator("HOLD", self.hold, WET))
             .child(annunciator("MODES", self.modes, BODY));
 
+        let audio_error = self.audio.as_ref().and_then(|a| a.last_error.lock().ok().and_then(|t| t.clone()));
         let (msg, msg_c) = match (&self.error, &self.message) {
             (Some(e), _) => (e.clone(), WARN),
+            (None, None) if audio_error.is_some() => (format!("AUDIO: {}", audio_error.unwrap_or_default()).to_uppercase(), WARN),
             (None, Some((m, at, warn))) if at.elapsed().as_secs_f32() < 6.0 => (m.clone(), if *warn { WARN } else { TEXT }),
             _ => (String::new(), TEXT),
         };
@@ -1038,7 +1326,7 @@ impl Render for Ovillo {
                 .child("SPACE PLAY/STOP")
                 .child("TAB SCOPE/SPECT")
                 .child("R REC  M MUTE")
-                .child("H CLR HOLD")
+                .child("H MAX HOLD")
                 .child("0 RESET WORLD")
                 .child("ESC MAIN"),
         );
@@ -1060,7 +1348,7 @@ impl Render for Ovillo {
                             .text_size(u(SMALL_PX))
                             .text_color(rgb(TEXT))
                             .child(format!("-{WORLD_SPAN_S:.0} s"))
-                            .child(t("WORLD ENERGY dB (10 LOG10 E)", DIM))
+                            .child(t(lower_caption, DIM))
                             .child("NOW"),
                     ),
             )
