@@ -1,4 +1,5 @@
 target/
 takes/
+renders/
 patches/live.json
 patches/*.tmp
