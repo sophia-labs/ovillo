@@ -6,3 +6,4 @@ pub mod ariadne;
 pub mod guitar;
 pub mod player;
 pub mod rig;
+pub mod trombone;

@@ -41,7 +41,7 @@ use menu::{Action, Active, Menu, Softkey, View, AMP_DIVS, MAP_Y, TIME_DIVS_MS};
 use ovillo_dsp::ariadne::{AriadneControls, PARAMS};
 use ovillo_dsp::guitar::{GuitarSettings, Pickup, STRINGS, STRING_NAMES};
 use ovillo_dsp::player::{Event, Pattern};
-use ovillo_dsp::rig::{Command, ScopeFrame, Telemetry};
+use ovillo_dsp::rig::{Command, ScopeFrame, Source, Telemetry};
 use std::cell::Cell;
 use std::collections::VecDeque;
 use std::rc::Rc;
@@ -257,6 +257,9 @@ struct Ovillo {
     patch_dirty: Option<Instant>,
     patch_seen: Option<SystemTime>,
     take: Option<patch::Take>,
+    /// The dry signal is the audio interface (only if one was opened).
+    live: bool,
+    input_gain_db: f64,
 }
 
 impl Ovillo {
@@ -270,7 +273,10 @@ impl Ovillo {
                 (c, "DEFAULT PATCH".to_string())
             }
         };
-        let (audio, error) = match audio::start() {
+        let args: Vec<String> = std::env::args().collect();
+        let flag = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
+        let opts = audio::Options { output: flag("--output"), input: flag("--input") };
+        let (audio, error) = match audio::start(&opts) {
             Ok(a) => (Some(a), None),
             Err(e) => (None, Some(format!("NO AUDIO: {e}"))),
         };
@@ -315,13 +321,19 @@ impl Ovillo {
             patch_dirty: None,
             patch_seen: patch::mtime(&live),
             take: None,
+            live: false,
+            input_gain_db: flag("--input-gain").and_then(|g| g.parse().ok()).unwrap_or(0.0),
         };
+        if let Some(i) = s.audio.as_ref().and_then(|a| a.input.as_ref()) {
+            s.live = true;
+            s.message = Some((format!("LIVE INPUT: {} ({} CH)", i.device.to_uppercase(), i.channels), Instant::now(), false));
+        }
+        s.send(Command::InputGain(10f64.powf(s.input_gain_db / 20.0) as f32));
         s.send(Command::Ariadne(s.controls));
         s.send(Command::Guitar(s.guitar));
         s.send(Command::Pattern(s.pattern));
         s.send(Command::Tempo(s.bpm));
         s.mark_trail();
-        let args: Vec<String> = std::env::args().collect();
         if let Some(i) = args.iter().position(|a| a == "--keys") {
             for k in args.get(i + 1).map(String::as_str).unwrap_or("").split_whitespace() {
                 s.key(k, false);
@@ -489,7 +501,14 @@ impl Ovillo {
             time_div_ms: TIME_DIVS_MS[self.time_div],
             amp_div: AMP_DIVS[self.amp_div],
             active: self.active,
+            input: self.audio.as_ref().and_then(|a| a.input.as_ref()).map(|i| (self.live, self.input_gain_db, self.input_channel_label(i))),
         }
+    }
+
+    fn input_channel_label(&self, i: &audio::Input) -> String {
+        let pinned = i.pinned.load(std::sync::atomic::Ordering::Relaxed);
+        let ch = i.channel.load(std::sync::atomic::Ordering::Relaxed);
+        if pinned < i.channels as usize { format!("{}", pinned + 1) } else { format!("AUTO {}", ch + 1) }
     }
 
     fn press(&mut self, a: Action) {
@@ -556,6 +575,23 @@ impl Ovillo {
                 self.set_controls(patch::default_patch());
                 self.say("DEFAULT PATCH", false);
             }
+            Action::ToggleSource => {
+                if self.audio.as_ref().is_some_and(|a| a.input.is_some()) {
+                    self.live = !self.live;
+                    self.send(Command::Source(if self.live { Source::Live } else { Source::Sim }));
+                    self.say(if self.live { "SOURCE: LIVE INPUT" } else { "SOURCE: SIMULATED GUITAR" }, false);
+                } else {
+                    self.say("NO LIVE INPUT: START WITH --input <DEVICE>", true);
+                }
+            }
+            Action::CycleInputChannel => {
+                if let Some(i) = self.audio.as_ref().and_then(|a| a.input.as_ref()) {
+                    let n = i.channels as usize;
+                    let p = i.pinned.load(std::sync::atomic::Ordering::Relaxed);
+                    let next = if p >= n { 0 } else if p + 1 < n { p + 1 } else { usize::MAX };
+                    i.pinned.store(next, std::sync::atomic::Ordering::Relaxed);
+                }
+            }
             Action::Nothing => {}
         }
     }
@@ -598,6 +634,10 @@ impl Ovillo {
             }
             Active::AmpDiv => {
                 self.amp_div = (self.amp_div as i64 + n.signum() as i64).clamp(0, AMP_DIVS.len() as i64 - 1) as usize
+            }
+            Active::InputGain => {
+                self.input_gain_db = (self.input_gain_db + n * if fine { 0.1 } else { 0.5 }).clamp(-24.0, 36.0);
+                self.send(Command::InputGain(10f64.powf(self.input_gain_db / 20.0) as f32));
             }
         }
     }
@@ -679,6 +719,7 @@ impl Ovillo {
             "h" => self.press(Action::ToggleHold),
             "m" => self.press(Action::MuteStrings),
             "r" => self.toggle_record(),
+            "i" => self.press(Action::ToggleSource),
             "0" => self.press(Action::ResetWorld),
             _ => {}
         }
@@ -1195,14 +1236,24 @@ impl Render for Ovillo {
             .flex()
             .justify_between()
             .child(t(
-                format!(
-                    "SIM GUITAR  {}  {}  {:.0} BPM   ->   ARIADNE WORLD {}   {:.1} kHz",
-                    self.guitar.pickup.label(),
-                    self.pattern.label(),
-                    self.bpm,
-                    digest,
-                    sr / 1000.0
-                ),
+                match self.audio.as_ref().and_then(|a| a.input.as_ref()).filter(|_| self.live) {
+                    Some(i) => format!(
+                        "LIVE IN  {}  CH {}  {:+.1} dB   ->   ARIADNE WORLD {}   {:.1} kHz",
+                        i.device.to_uppercase(),
+                        self.input_channel_label(i),
+                        self.input_gain_db,
+                        digest,
+                        sr / 1000.0
+                    ),
+                    None => format!(
+                        "SIM GUITAR  {}  {}  {:.0} BPM   ->   ARIADNE WORLD {}   {:.1} kHz",
+                        self.guitar.pickup.label(),
+                        self.pattern.label(),
+                        self.bpm,
+                        digest,
+                        sr / 1000.0
+                    ),
+                },
                 TEXT,
             ))
             .child(t(format!("T {:8.2} s", now), TEXT));
@@ -1213,6 +1264,7 @@ impl Render for Ovillo {
             Some(Active::Volume) => format!("VOLUME  {:.3}", self.guitar.volume),
             Some(Active::TimeDiv) => format!("TIME/DIV  {} ms", TIME_DIVS_MS[self.time_div]),
             Some(Active::AmpDiv) => format!("AMPL/DIV  {} FS", AMP_DIVS[self.amp_div]),
+            Some(Active::InputGain) => format!("INPUT GAIN  {:+.1} dB", self.input_gain_db),
             None => String::new(),
         };
         let upper_title = if self.upper_spectrum {

@@ -223,7 +223,12 @@ pub struct AriadneEngine {
 
 impl AriadneEngine {
     pub fn new(sample_rate_hz: f64) -> Result<Self, String> {
-        let plan = WorldPlan::string_brass_v1(sample_rate_hz);
+        Self::from_plan(WorldPlan::string_brass_v1(sample_rate_hz))
+    }
+
+    /// An engine over any one-body plan (e.g. one whose configuration path
+    /// runs between two bore lengths, so Material Organization is a slide).
+    pub fn from_plan(plan: WorldPlan) -> Result<Self, String> {
         let listener_spec =
             StereoListenerSpec::all_bodies(&plan, 1.0).map_err(|error| error.to_string())?;
         let listener =
