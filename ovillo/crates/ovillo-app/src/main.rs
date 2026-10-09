@@ -17,17 +17,25 @@
 //! The guitar is simulated for now (`ovillo_dsp::guitar`); keys Z X C V B N
 //! pluck the open strings over whatever the pattern plays. The live patch is
 //! `patches/live.json`, written as you play and re-read when edited on disk.
+//! A control socket ([`control`]) lets a Claude session drive all of it
+//! through the `ovillo-mcp` server.
 //!
 //! ```text
-//! ovillo [--keys "<key> <key> …"]
+//! ovillo [--keys "<key> <key> …"] [--socket <path>|off] [--mute] [--no-activate]
 //! ```
 //! `--keys` presses keys through the same path as the keyboard, at startup
 //! (e.g. `--keys "5 5 6 6 escape"` opens the TAB and the CHORD BOX).
+//! `--socket` puts the control socket somewhere other than the per-user
+//! default (`$OVILLO_SOCKET` does the same; `off` disables it). `--mute`
+//! (or `OVILLO_MUTE=1`) starts with the master muted, silent from the first
+//! sample. `--no-activate` opens the window without taking focus.
 
 mod analysis;
 mod audio;
+mod control;
 mod menu;
 mod patch;
+mod remote;
 
 use analysis::{trigger, History, Spectrum, WorldHistory, FFT_N, WORLD_SPAN_S};
 use gpui::{
@@ -41,7 +49,8 @@ use menu::{Action, Active, Menu, Softkey, View, AMP_DIVS, MAP_Y, TIME_DIVS_MS};
 use ovillo_dsp::ariadne::{AriadneControls, PARAMS};
 use ovillo_dsp::guitar::{GuitarSettings, Pickup, STRINGS, STRING_NAMES};
 use ovillo_dsp::player::{Event, Pattern};
-use ovillo_dsp::rig::{Command, ScopeFrame, Telemetry};
+use ovillo_dsp::rig::{master_gain, Command, ScopeFrame, Telemetry, MASTER_MAX_DB, MASTER_MIN_DB};
+use ovillo_dsp::score::Score;
 use std::cell::Cell;
 use std::collections::VecDeque;
 use std::rc::Rc;
@@ -215,6 +224,34 @@ fn name_chord(notes: &[u8]) -> Option<String> {
     best.map(|(_, n)| n)
 }
 
+/// The command line.
+#[derive(Debug, Clone, Default)]
+struct Cli {
+    keys: Option<String>,
+    socket: Option<String>,
+    mute: bool,
+    no_activate: bool,
+}
+
+impl Cli {
+    fn parse() -> Self {
+        let args: Vec<String> = std::env::args().collect();
+        let value = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned();
+        let env_on = |k: &str| std::env::var(k).is_ok_and(|v| !v.is_empty() && v != "0");
+        Self {
+            keys: value("--keys"),
+            socket: value("--socket"),
+            mute: args.iter().any(|a| a == "--mute") || env_on("OVILLO_MUTE"),
+            no_activate: args.iter().any(|a| a == "--no-activate"),
+        }
+    }
+}
+
+/// The score the guitarist was last given, as the UI remembers it.
+struct ScoreInfo {
+    summary: serde_json::Value,
+}
+
 struct Ovillo {
     focus: FocusHandle,
     focused: bool,
@@ -257,10 +294,17 @@ struct Ovillo {
     patch_dirty: Option<Instant>,
     patch_seen: Option<SystemTime>,
     take: Option<patch::Take>,
+    last_take: Option<std::path::PathBuf>,
+    /// The master (monitor) stage: level in dB, and mute.
+    master_db: f64,
+    muted: bool,
+    control: control::Control,
+    score: Option<ScoreInfo>,
+    score_ends_seen: u32,
 }
 
 impl Ovillo {
-    fn new(cx: &mut Context<Self>) -> Self {
+    fn new(cx: &mut Context<Self>, cli: &Cli) -> Self {
         let live = patch::live_path();
         let (controls, msg) = match patch::read(&live) {
             Ok(c) => (c, format!("LIVE PATCH {}", live.display())),
@@ -270,7 +314,8 @@ impl Ovillo {
                 (c, "DEFAULT PATCH".to_string())
             }
         };
-        let (audio, error) = match audio::start() {
+        let seed = SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(1, |d| d.subsec_nanos() ^ d.as_secs() as u32);
+        let (audio, error) = match audio::start(cli.mute, seed) {
             Ok(a) => (Some(a), None),
             Err(e) => (None, Some(format!("NO AUDIO: {e}"))),
         };
@@ -281,8 +326,8 @@ impl Ovillo {
             error,
             controls,
             guitar: GuitarSettings::default(),
-            pattern: Pattern::Strum,
-            last_pattern: Pattern::Strum,
+            pattern: Pattern::Wander,
+            last_pattern: Pattern::Wander,
             bpm: 92.0,
             history: History::new(),
             frames: Vec::with_capacity(analysis::HISTORY),
@@ -315,19 +360,88 @@ impl Ovillo {
             patch_dirty: None,
             patch_seen: patch::mtime(&live),
             take: None,
+            last_take: None,
+            master_db: 0.0,
+            muted: cli.mute,
+            control: control::Control::start(control::socket_path(cli.socket.as_deref())),
+            score: None,
+            score_ends_seen: 0,
         };
+        if let Some(p) = s.control.path.clone().filter(|_| s.control.status == control::Status::Listening) {
+            let _ = OWNED_SOCKET.set(p);
+        }
         s.send(Command::Ariadne(s.controls));
         s.send(Command::Guitar(s.guitar));
         s.send(Command::Pattern(s.pattern));
         s.send(Command::Tempo(s.bpm));
         s.mark_trail();
-        let args: Vec<String> = std::env::args().collect();
-        if let Some(i) = args.iter().position(|a| a == "--keys") {
-            for k in args.get(i + 1).map(String::as_str).unwrap_or("").split_whitespace() {
-                s.key(k, false);
-            }
+        if cli.mute {
+            s.say("STARTED MUTED: OUTPUT ▸ MUTE OR \\ TO HEAR IT", false);
+        }
+        for k in cli.keys.as_deref().unwrap_or("").split_whitespace() {
+            s.key(k, false);
         }
         s
+    }
+
+    /// The master stage: level in dB (−60…0) and mute. Not part of any patch.
+    fn set_master(&mut self, db: f64, mute: bool) {
+        self.master_db = db.clamp(MASTER_MIN_DB, MASTER_MAX_DB);
+        self.muted = mute;
+        self.send(Command::Master { gain: master_gain(self.master_db), mute });
+    }
+
+    /// Hand a checked score to the guitarist.
+    fn play_score(&mut self, sc: Score) {
+        self.bpm = sc.tempo;
+        let name = sc.name.clone();
+        let secs = sc.seconds();
+        self.score = Some(ScoreInfo { summary: sc.summary() });
+        if self.pattern != Pattern::Score && self.pattern != Pattern::Off {
+            self.last_pattern = self.pattern;
+        }
+        self.pattern = Pattern::Score;
+        self.send(Command::Score(Box::new(sc)));
+        let named = if name == "score" { String::new() } else { format!(" {}", name.to_uppercase()) };
+        self.say(format!("PLAYING SCORE{named} ({secs:.1} S A PASS)"), false);
+    }
+
+    fn active_text(&self) -> String {
+        match self.active {
+            Some(Active::Param(i)) => format!("{}  {}", PARAMS[i].name.to_uppercase(), menu::fmt_param(i, self.controls.get(i))),
+            Some(Active::Tempo) => format!("TEMPO  {:.1} BPM", self.bpm),
+            Some(Active::Tone) => format!("TONE  {:.3}", self.guitar.tone),
+            Some(Active::Volume) => format!("VOLUME  {:.3}", self.guitar.volume),
+            Some(Active::TimeDiv) => format!("TIME/DIV  {} ms", TIME_DIVS_MS[self.time_div]),
+            Some(Active::AmpDiv) => format!("AMPL/DIV  {} FS", AMP_DIVS[self.amp_div]),
+            Some(Active::Master) => format!("MASTER  {:+.1} dB{}", self.master_db, if self.muted { "  MUTED" } else { "" }),
+            None => String::new(),
+        }
+    }
+
+    /// The annunciator row: label, lit, colour when lit.
+    fn annunciators(&self) -> Vec<(&'static str, bool, u32)> {
+        let tele = self.tele;
+        let clip = self.clip_at.is_some_and(|c| c.elapsed().as_secs_f32() < 2.0);
+        let werr = tele.is_some_and(|t| t.world_errors > 0);
+        let drop = tele.is_some_and(|t| t.dropped_scope > 0);
+        let aerr = self.audio.as_ref().is_some_and(|a| a.stream_error.load(Ordering::Relaxed));
+        let ctl = match self.control.status {
+            control::Status::Listening => ("CTL", self.control.active(), BRIGHT),
+            _ => ("CTL OFF", true, WARN),
+        };
+        vec![
+            ("PLAY", self.pattern != Pattern::Off, BRIGHT),
+            ("REC", self.take.is_some(), WARN),
+            ("MUTE", self.muted, WARN),
+            ("CLIP", clip, WARN),
+            ("WORLD ERR", werr, WARN),
+            ("DROP", drop, WARN),
+            ("AUDIO ERR", aerr || self.audio.is_none(), WARN),
+            ("HOLD", self.hold, WET),
+            ("MODES", self.modes, BODY),
+            ctl,
+        ]
     }
 
     fn send(&mut self, c: Command) {
@@ -371,6 +485,10 @@ impl Ovillo {
     }
 
     fn set_pattern(&mut self, p: Pattern) {
+        if p == Pattern::Score && self.score.is_none() {
+            self.say("NO SCORE LOADED: SEND ONE OVER THE CONTROL SOCKET", true);
+            return;
+        }
         if p != Pattern::Off {
             self.last_pattern = p;
         }
@@ -381,6 +499,10 @@ impl Ovillo {
     /// Pull everything the audio thread has published.
     fn drain(&mut self) {
         let Some(a) = &mut self.audio else { return };
+        // Scores the rig has finished with are freed here, off the audio thread.
+        while let Ok(old) = a.ends.garbage.pop() {
+            drop(old);
+        }
         while let Ok(f) = a.ends.scope.pop() {
             self.history.push(f);
             if let Some(t) = &mut self.take {
@@ -409,6 +531,14 @@ impl Ovillo {
                 self.last_limited = t.safety_limited_frames;
             }
             self.tele = Some(t);
+            if t.score_ends != self.score_ends_seen {
+                // A one-shot score finished: follow the guitarist to what it plays next.
+                self.score_ends_seen = t.score_ends;
+                if self.pattern == Pattern::Score {
+                    self.pattern = t.pattern;
+                    self.say(format!("SCORE ENDED: {}", t.pattern.label()), false);
+                }
+            }
             let now = t.sample as f64 / t.sample_rate;
             let sounding: Vec<u8> = t
                 .strings
@@ -489,6 +619,9 @@ impl Ovillo {
             time_div_ms: TIME_DIVS_MS[self.time_div],
             amp_div: AMP_DIVS[self.amp_div],
             active: self.active,
+            master_db: self.master_db,
+            muted: self.muted,
+            recording: self.take.is_some(),
         }
     }
 
@@ -504,8 +637,8 @@ impl Ovillo {
             }
             Action::Activate(x) => self.active = Some(x),
             Action::CyclePattern => {
-                let i = Pattern::ALL.iter().position(|p| *p == self.pattern).unwrap_or(0);
-                self.set_pattern(Pattern::ALL[(i + 1) % Pattern::ALL.len()]);
+                let next = Pattern::CYCLE.iter().position(|p| *p == self.pattern).map_or(0, |i| (i + 1) % Pattern::CYCLE.len());
+                self.set_pattern(Pattern::CYCLE[next]);
             }
             Action::CyclePickup => {
                 let i = Pickup::ALL.iter().position(|p| *p == self.guitar.pickup).unwrap_or(0);
@@ -556,6 +689,11 @@ impl Ovillo {
                 self.set_controls(patch::default_patch());
                 self.say("DEFAULT PATCH", false);
             }
+            Action::ToggleMute => {
+                self.set_master(self.master_db, !self.muted);
+                self.say(if self.muted { "MASTER MUTED" } else { "MASTER ON" }, false);
+            }
+            Action::Record => self.toggle_record(),
             Action::Nothing => {}
         }
     }
@@ -599,6 +737,7 @@ impl Ovillo {
             Active::AmpDiv => {
                 self.amp_div = (self.amp_div as i64 + n.signum() as i64).clamp(0, AMP_DIVS.len() as i64 - 1) as usize
             }
+            Active::Master => self.set_master(self.master_db + n * if fine { 0.1 } else { 1.0 }, self.muted),
         }
     }
 
@@ -632,7 +771,10 @@ impl Ovillo {
         if let Some(t) = self.take.take() {
             let secs = t.frames as f64 / self.sr();
             match t.finish() {
-                Ok(dir) => self.say(format!("TAKE SAVED ({secs:.1} s) {}", dir.display()), false),
+                Ok(dir) => {
+                    self.say(format!("TAKE SAVED ({secs:.1} s) {}", dir.display()), false);
+                    self.last_take = Some(dir);
+                }
                 Err(e) => self.say(format!("TAKE FAILED: {e}"), true),
             }
         } else {
@@ -647,7 +789,8 @@ impl Ovillo {
         }
     }
 
-    fn key(&mut self, key: &str, shift: bool) {
+    /// A key press. True if the instrument knows the key.
+    fn key(&mut self, key: &str, shift: bool) -> bool {
         let softkey = match key {
             "1" | "f1" => Some(0),
             "2" | "f2" => Some(1),
@@ -664,11 +807,11 @@ impl Ovillo {
             if let Some(k) = keys.get(i) {
                 self.press(k.action);
             }
-            return;
+            return true;
         }
         if let Some(s) = ["z", "x", "c", "v", "b", "n"].iter().position(|k| *k == key) {
             self.send(Command::Pluck { string: s as u8, fret: 0, velocity: if shift { 1.0 } else { 0.75 } });
-            return;
+            return true;
         }
         match key {
             "escape" | "backspace" => self.press(Action::Return),
@@ -678,10 +821,15 @@ impl Ovillo {
             "tab" => self.press(Action::ToggleUpper),
             "h" => self.press(Action::ToggleHold),
             "m" => self.press(Action::MuteStrings),
-            "r" => self.toggle_record(),
+            "r" => self.press(Action::Record),
             "0" => self.press(Action::ResetWorld),
-            _ => {}
+            // The master: − and = step it a dB (Shift: a tenth); \ or ` mutes.
+            "-" | "_" => self.set_master(self.master_db - if shift { 0.1 } else { 1.0 }, self.muted),
+            "=" | "+" => self.set_master(self.master_db + if shift { 0.1 } else { 1.0 }, self.muted),
+            "\\" | "`" => self.press(Action::ToggleMute),
+            _ => return false,
         }
+        true
     }
 }
 
@@ -927,6 +1075,7 @@ impl Render for Ovillo {
         let vs = window.viewport_size();
         let fitted = fit(f32::from(vs.width), f32::from(vs.height));
         window.set_rem_size(px(16.0 * fitted.scale));
+        self.serve_control();
         self.drain();
         window.request_animation_frame();
         let z = fitted.scale;
@@ -1191,6 +1340,11 @@ impl Render for Ovillo {
             .audio
             .as_ref()
             .map_or("NO OUTPUT".to_string(), |a| format!("{}  {} CH", a.device.to_uppercase(), a.channels));
+        let piece = match (self.pattern, tele) {
+            (Pattern::Score, Some(t)) if t.score_length > 0.0 => format!("SCORE {:.1}/{:.0}", t.score_beat, t.score_length),
+            (p, Some(t)) if !t.key.is_empty() && t.pattern == p => format!("{} {}", p.label(), t.key),
+            (p, _) => p.label().to_string(),
+        };
         let top = div()
             .flex()
             .justify_between()
@@ -1198,7 +1352,7 @@ impl Render for Ovillo {
                 format!(
                     "SIM GUITAR  {}  {}  {:.0} BPM   ->   ARIADNE WORLD {}   {:.1} kHz",
                     self.guitar.pickup.label(),
-                    self.pattern.label(),
+                    piece,
                     self.bpm,
                     digest,
                     sr / 1000.0
@@ -1206,15 +1360,7 @@ impl Render for Ovillo {
                 TEXT,
             ))
             .child(t(format!("T {:8.2} s", now), TEXT));
-        let active_txt = match self.active {
-            Some(Active::Param(i)) => format!("{}  {}", PARAMS[i].name.to_uppercase(), menu::fmt_param(i, self.controls.get(i))),
-            Some(Active::Tempo) => format!("TEMPO  {:.1} BPM", self.bpm),
-            Some(Active::Tone) => format!("TONE  {:.3}", self.guitar.tone),
-            Some(Active::Volume) => format!("VOLUME  {:.3}", self.guitar.volume),
-            Some(Active::TimeDiv) => format!("TIME/DIV  {} ms", TIME_DIVS_MS[self.time_div]),
-            Some(Active::AmpDiv) => format!("AMPL/DIV  {} FS", AMP_DIVS[self.amp_div]),
-            None => String::new(),
-        };
+        let active_txt = self.active_text();
         let upper_title = if self.upper_spectrum {
             "SPECTRUM dBFS / Hz  (MODES REL 60 dB)"
         } else if triggered {
@@ -1265,24 +1411,12 @@ impl Render for Ovillo {
             .gap(u(14.0))
             .child(t(format!("IN PK {:6.1} RMS {:6.1} dBFS", db(m.dry_pk), db(m.dry_rms)), DRY))
             .child(t(format!("OUT PK {:6.1} RMS {:6.1} dBFS", db(m.wet_pk), db(m.wet_rms)), WET))
+            .child(t(format!("MASTER {}", menu::fmt_master(self.master_db, self.muted)), if self.muted { WARN } else { TEXT }))
             .child(t(format!("DSP LOAD {:4.0} %", load * 100.0), if load > 0.7 { WARN } else { TEXT }))
             .child(t(format!("{}", device), DIM));
 
-        let clip = self.clip_at.is_some_and(|c| c.elapsed().as_secs_f32() < 2.0);
-        let werr = tele.is_some_and(|t| t.world_errors > 0);
-        let drop = tele.is_some_and(|t| t.dropped_scope > 0);
-        let aerr = self.audio.as_ref().is_some_and(|a| a.stream_error.load(Ordering::Relaxed));
-        let annunciators = div()
-            .flex()
-            .gap(u(8.0))
-            .child(annunciator("PLAY", self.pattern != Pattern::Off, BRIGHT))
-            .child(annunciator("REC", self.take.is_some(), WARN))
-            .child(annunciator("CLIP", clip, WARN))
-            .child(annunciator("WORLD ERR", werr, WARN))
-            .child(annunciator("DROP", drop, WARN))
-            .child(annunciator("AUDIO ERR", aerr || self.audio.is_none(), WARN))
-            .child(annunciator("HOLD", self.hold, WET))
-            .child(annunciator("MODES", self.modes, BODY));
+        let annunciators =
+            div().flex().gap(u(8.0)).children(self.annunciators().into_iter().map(|(label, lit, c)| annunciator(label, lit, c)));
 
         let audio_error = self.audio.as_ref().and_then(|a| a.last_error.lock().ok().and_then(|t| t.clone()));
         let (msg, msg_c) = match (&self.error, &self.message) {
@@ -1328,6 +1462,8 @@ impl Render for Ovillo {
                 .child("R REC  M MUTE")
                 .child("H MAX HOLD")
                 .child("0 RESET WORLD")
+                .child("- = MASTER")
+                .child("\\ MASTER MUTE")
                 .child("ESC MAIN"),
         );
 
@@ -1444,7 +1580,12 @@ impl Render for Ovillo {
     }
 }
 
+/// The control socket this instance made, removed when the window closes.
+static OWNED_SOCKET: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+
 fn main() {
+    let cli = Cli::parse();
+    let activate = !cli.no_activate;
     application().run(move |cx: &mut App| {
         let bounds = Bounds::centered(None, size(px(DESIGN_W), px(DESIGN_H)), cx);
         cx.open_window(
@@ -1452,7 +1593,7 @@ fn main() {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
                 titlebar: Some(TitlebarOptions { title: Some("Ovillo".into()), ..Default::default() }),
                 app_id: Some(BUNDLE_ID.into()),
-                focus: true,
+                focus: activate,
                 inactive_frame_interval: None,
                 ..Default::default()
             },
@@ -1464,6 +1605,7 @@ fn main() {
                         cx.background_executor().timer(std::time::Duration::from_millis(50)).await;
                         if this
                             .update(cx, |o: &mut Ovillo, cx| {
+                                o.serve_control();
                                 o.drain();
                                 o.tick_files();
                                 cx.notify();
@@ -1474,17 +1616,22 @@ fn main() {
                         }
                     })
                     .detach();
-                    Ovillo::new(cx)
+                    Ovillo::new(cx, &cli)
                 })
             },
         )
         .expect("open window");
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {
+                if let Some(p) = OWNED_SOCKET.get() {
+                    control::remove_if_socket(p);
+                }
                 cx.quit();
             }
         })
         .detach();
-        cx.activate(true);
+        if activate {
+            cx.activate(true);
+        }
     });
 }

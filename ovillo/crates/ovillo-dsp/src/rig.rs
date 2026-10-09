@@ -95,6 +95,8 @@ pub struct Telemetry {
     pub master_muted: bool,
     /// What the guitarist is playing, and where a score is.
     pub pattern: Pattern,
+    /// The key the piece is in now (it may modulate).
+    pub key: &'static str,
     pub bpm: f32,
     pub score_beat: f32,
     pub score_length: f32,
@@ -349,6 +351,7 @@ impl Rig {
             master: self.master,
             master_muted: self.master_mute,
             pattern: self.player.pattern(),
+            key: self.player.key_name(),
             bpm: self.player.bpm() as f32,
             score_beat: score_beat as f32,
             score_length: score_length as f32,

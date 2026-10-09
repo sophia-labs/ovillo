@@ -19,7 +19,9 @@ pub struct Audio {
     pub last_error: Arc<Mutex<Option<String>>>,
 }
 
-pub fn start() -> Result<Audio, String> {
+/// Open the default output and start the rig. `muted` starts the master
+/// stage at silence from the first sample; `seed` seeds the guitarist.
+pub fn start(muted: bool, seed: u32) -> Result<Audio, String> {
     let host = cpal::default_host();
     let device = host.default_output_device().ok_or("no output device")?;
     let name = device.description().map(|d| d.name().to_string()).unwrap_or_else(|_| device.to_string());
@@ -31,6 +33,8 @@ pub fn start() -> Result<Audio, String> {
     let channels = supported.channels();
     let config = cpal::StreamConfig { channels, sample_rate, buffer_size: cpal::BufferSize::Default };
     let (mut rig, ends) = Rig::new(sample_rate as f64)?;
+    rig.set_master_now(1.0, muted);
+    rig.seed(seed);
     let digest = rig.plan_digest().to_string();
     let flag = Arc::new(AtomicBool::new(false));
     let err_flag = flag.clone();

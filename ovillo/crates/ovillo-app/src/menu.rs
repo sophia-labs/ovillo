@@ -12,6 +12,26 @@ pub enum Menu {
     Ariadne(usize),
     Display,
     Patch,
+    /// The monitor: master level and mute, takes, the World's reset.
+    Output,
+}
+
+impl Menu {
+    /// Every menu, with the name the control socket uses for it.
+    pub const NAMED: [(&'static str, Menu); 8] = [
+        ("main", Menu::Root),
+        ("source", Menu::Source),
+        ("material", Menu::Ariadne(0)),
+        ("metabolism", Menu::Ariadne(1)),
+        ("space", Menu::Ariadne(2)),
+        ("display", Menu::Display),
+        ("patch", Menu::Patch),
+        ("output", Menu::Output),
+    ];
+
+    pub fn id(self) -> &'static str {
+        Menu::NAMED.iter().find(|(_, m)| *m == self).map_or("main", |(n, _)| n)
+    }
 }
 
 /// What the knob turns.
@@ -23,6 +43,8 @@ pub enum Active {
     Volume,
     TimeDiv,
     AmpDiv,
+    /// The master (monitor) level, in dB.
+    Master,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,6 +67,8 @@ pub enum Action {
     Save(u8),
     Load(u8),
     DefaultPatch,
+    ToggleMute,
+    Record,
     Nothing,
 }
 
@@ -96,6 +120,17 @@ pub struct View<'a> {
     pub time_div_ms: f64,
     pub amp_div: f64,
     pub active: Option<Active>,
+    pub master_db: f64,
+    pub muted: bool,
+    pub recording: bool,
+}
+
+pub fn fmt_master(db: f64, muted: bool) -> String {
+    if muted {
+        "MUTED".into()
+    } else {
+        format!("{db:+.1} dB")
+    }
 }
 
 fn key(a: &str, b: impl Into<String>, action: Action) -> Softkey {
@@ -118,6 +153,7 @@ pub fn title(m: Menu) -> String {
         Menu::Ariadne(p) => format!("ARIADNE {}", PAGES[p].0),
         Menu::Display => "DISPLAY".into(),
         Menu::Patch => "PATCH".into(),
+        Menu::Output => "OUTPUT".into(),
     }
 }
 
@@ -131,7 +167,7 @@ pub fn softkeys(m: Menu, v: &View) -> Vec<Softkey> {
             key("DISPLAY", "▸", Action::Open(Menu::Display)),
             key("PATCH", "▸", Action::Open(Menu::Patch)),
             Softkey { lit: v.playing, ..key("PLAY", if v.playing { "STOP" } else { "START" }, Action::PlayStop) },
-            key("RESET", "WORLD", Action::ResetWorld),
+            key("OUTPUT", format!("{} ▸", fmt_master(v.master_db, v.muted)), Action::Open(Menu::Output)),
         ],
         Menu::Source => vec![
             key("PATTERN", v.pattern, Action::CyclePattern),
@@ -173,6 +209,16 @@ pub fn softkeys(m: Menu, v: &View) -> Vec<Softkey> {
             key("LOAD", "B", Action::Load(1)),
             key("LOAD", "C", Action::Load(2)),
             key("DEFAULT", "PATCH", Action::DefaultPatch),
+            key("RETURN", "", Action::Return),
+        ],
+        Menu::Output => vec![
+            key("MASTER", format!("{:+.1} dB", v.master_db), Action::Activate(Active::Master)),
+            Softkey { lit: v.muted, ..key("MUTE", if v.muted { "ON" } else { "OFF" }, Action::ToggleMute) },
+            Softkey { lit: v.recording, ..key("REC", if v.recording { "STOP" } else { "TAKE" }, Action::Record) },
+            key("RESET", "WORLD", Action::ResetWorld),
+            Softkey::blank(),
+            Softkey::blank(),
+            Softkey::blank(),
             key("RETURN", "", Action::Return),
         ],
     };

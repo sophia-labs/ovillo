@@ -425,6 +425,12 @@ impl Player {
         self.queue.overflow
     }
 
+    /// The key the current piece is in (empty for the fixed loops).
+    #[must_use]
+    pub fn key_name(&self) -> &'static str {
+        compose::key_label(&self.wander, &self.travis, &self.blues, &self.ambient, &self.melody, self.pattern)
+    }
+
     /// Start a composition from its first bar. Selecting `Score` with no score
     /// loaded does nothing.
     pub fn set_pattern(&mut self, p: Pattern) {
