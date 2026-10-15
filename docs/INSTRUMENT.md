@@ -48,7 +48,7 @@ modes refuse them.
 | `mus-rs/SPECS/garganta/`, `mus_analysis/garganta_anatomy.py` | throat and anatomy program |
 | `mus-rs/experiments/threader_poc/` | hierarchical inverse-instrument POC |
 | `formal/` | Lean refinement experiments |
-| `.string-research/` | research-team briefs, returns, receipts, and state maps |
+| `.string-research/` | the lab's research notes (briefs, returns, receipts, state maps), kept in the private lab repository; code comments that cite `.string-research/...` point there |
 
 ## MUS — the score language
 
