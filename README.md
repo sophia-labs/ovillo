@@ -12,7 +12,7 @@ Nothing in Ovillo synthesizes a note. You write a score in MUS, a plain-text not
    ```bash
    git clone https://github.com/sophia-labs/ovillo.git && cd ovillo/mus-rs && cargo build --release -p mus-cli
    ```
-2. Write a score, or ask your agent for one. Two to start from: [`examples/tab/steel_string_tour.mus`](examples/tab/steel_string_tour.mus) (a short tour of the steel-string's techniques) and [`examples/tab/wayfaring-stranger-doc.mus`](examples/tab/wayfaring-stranger-doc.mus) (a full annotated tab).
+2. Write a score, or ask your agent for one. Two to start from: [`examples/tab/steel_string_tour.mus`](examples/tab/steel_string_tour.mus) (nine bars, the acceptance score for the steel-string: open strings, hammer-on, pull-off, slide, palm-muted thumb) and [`examples/tab/wayfaring-stranger-doc.mus`](examples/tab/wayfaring-stranger-doc.mus) (a full annotated tab).
 3. Render it, still in `mus-rs`:
    ```bash
    ./target/release/mus render ../examples/tab/steel_string_tour.mus -o tour.wav
@@ -36,6 +36,7 @@ The repository is a set of plateaus. Each one stands on its own, and you can ent
 | [`SPEC-ARIADNE-STEEL-STRING.md`](SPEC-ARIADNE-STEEL-STRING.md) | the steel-string assemblage: strings, hands, top, air, room, receipts |
 | [`blender/README.md`](blender/README.md) | seeing the world play |
 | [`aigua/README.md`](aigua/README.md) | the Aigua studies |
+| [`ovillo/README.md`](ovillo/README.md) | the bench: a native app for playing a guitar through the world and watching inside it |
 | [`docs/INSTRUMENT.md`](docs/INSTRUMENT.md) | the long map of the whole instrument and its repository |
 
 Agents: start at [`AGENTS.md`](AGENTS.md).
