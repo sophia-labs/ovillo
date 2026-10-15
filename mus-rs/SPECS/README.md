@@ -1,7 +1,7 @@
 # mus-rs implementation specs — the MO-native line
 
 You are implementing one workstream of the MO-native MUS engine in
-`/Users/vera/dev/sophia/mus` on branch `agent/aigua-analysis-foundation`.
+the repository root on branch `agent/aigua-analysis-foundation`.
 Read first, in order: `../../plans/mus-mo-language-20260809.md` (the ratified
 design — R1..R8 are law), then the keystone crates `mus-rs/crates/mus-oplog`
 and `mus-rs/crates/mus-graph` (their doc headers state the laws your work

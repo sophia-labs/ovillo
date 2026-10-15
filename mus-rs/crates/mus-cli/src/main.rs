@@ -360,5 +360,5 @@ fn head_selection_of(graph: &mus_graph::ScoreGraph) -> serde_json::Value {
 }
 
 fn usage() -> String {
-    "usage:\n  mus check <score.mus> [--base DIR] [--json]\n  mus render <score.mus> [--base DIR] [-o <out.wav>] [--stems DIR] [--energy <trace.json>] [--json]\n  mus scene-render <scene.json> --root <dir> [-o <out.wav>] [--foa] [--json]\n\nAtril swap:\n  MUS_CHECK_CMD=\"/Users/vera/dev/sophia/mus/mus-rs/target/release/mus check\"".into()
+    "usage:\n  mus check <score.mus> [--base DIR] [--json]\n  mus render <score.mus> [--base DIR] [-o <out.wav>] [--stems DIR] [--energy <trace.json>] [--json]\n  mus scene-render <scene.json> --root <dir> [-o <out.wav>] [--foa] [--json]\n\nAtril swap:\n  MUS_CHECK_CMD=\"<repo>/mus-rs/target/release/mus check\"".into()
 }

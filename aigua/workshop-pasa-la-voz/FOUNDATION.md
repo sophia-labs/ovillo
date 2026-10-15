@@ -68,4 +68,4 @@ musician:
   it).
 - Gates: `mus check` clean (real exit code), full render receipt
   (badTokens must be []), self-measurement reported. The engine is at
-  mus-rs/target/release/mus; render with --base /Users/vera/dev/sophia/mus/aigua.
+  mus-rs/target/release/mus; render with --base aigua.

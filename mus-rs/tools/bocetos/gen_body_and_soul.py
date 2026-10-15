@@ -21,7 +21,7 @@ import numpy as np
 import soundfile as sf
 from scipy.signal import fftconvolve
 
-ROOT = Path("/Users/vera/dev/sophia/mus")
+ROOT = Path(__file__).resolve().parents[3]
 MUS = ROOT / "mus-rs/target/release/mus"
 OUT = Path.home() / "Desktop" / "mus-listening" / "bocetos-vst"
 SR = 48000

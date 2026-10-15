@@ -32,5 +32,5 @@ ALSO: `hyperfine`-free timing note in the PR text: `mus check` on bolero
 should be well under 200ms.
 
 SEAM: document (in the CLI's --help and a README section) the Atril swap:
-`MUS_CHECK_CMD="/Users/vera/dev/sophia/mus/mus-rs/target/release/mus check"`
+`MUS_CHECK_CMD="<repo>/mus-rs/target/release/mus check"`
 — do not modify the shrubbery repo (a concurrent line owns it).

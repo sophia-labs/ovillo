@@ -1,9 +1,9 @@
 {
  "schema": "mus.audio.parity-report.v1",
  "generatedAt": "2026-08-10T16:26:11.516686+00:00",
- "pythonInterpreter": "/Users/vera/dev/sophia/mus/.venv/bin/python",
+ "pythonInterpreter": "<repo>/.venv/bin/python",
  "pythonRendererVersion": "mus_audio/0.2.0",
- "rustBinary": "/Users/vera/dev/sophia/mus-audio-wt/WF9/mus-rs/target/release/mus",
+ "rustBinary": "<repo>/mus-rs/target/release/mus",
  "engineVersion": "mus-engine/0.2.0-wf8",
  "bounds": {
   "strict_rel_rms": 0.001,

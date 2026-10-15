@@ -36,7 +36,7 @@ fn check_verb_emits_report_and_documents_atril_swap() {
         .unwrap();
     let help = String::from_utf8(help.stdout).unwrap();
     assert!(help
-        .contains("MUS_CHECK_CMD=\"/Users/vera/dev/sophia/mus/mus-rs/target/release/mus check\""));
+        .contains("MUS_CHECK_CMD=\"<repo>/mus-rs/target/release/mus check\""));
 }
 
 #[test]
