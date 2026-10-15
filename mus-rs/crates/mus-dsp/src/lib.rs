@@ -2,16 +2,7 @@
 //!
 //! Canonical Ariadne anatomy, laws, persistent bodies, spaces, trajectories,
 //! execution, and receipts now live in `mus-ariadne`. This crate retains the
-//! older renderer kernels and one temporary import shim for saved plug-in and
-//! test code; it must not grow a second Ariadne implementation.
-
-/// Temporary source-compatibility seam for the currently shipped terminal.
-/// The implementation is owned once, under `mus_ariadne::compat`.
-#[cfg(feature = "ariadne-live")]
-#[deprecated(note = "import mus_ariadne::compat::terminal directly")]
-pub mod ariadne_terminal {
-    pub use mus_ariadne::compat::terminal::*;
-}
+//! older renderer kernels; it must not grow a second Ariadne implementation.
 
 #[cfg(feature = "full")]
 pub mod backbone;

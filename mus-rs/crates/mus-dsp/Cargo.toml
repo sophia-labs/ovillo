@@ -30,7 +30,7 @@ full = [
 hound = { version = "3.5", optional = true }
 libc = { version = "0.2", optional = true }
 libsoxr = { version = "0.2.9", optional = true }
-mus-ariadne = { path = "../mus-ariadne", optional = true, features = ["compat-terminal"] }
+mus-ariadne = { path = "../mus-ariadne", optional = true }
 mus-trajectory = { path = "../mus-trajectory", optional = true }
 mus-watsn = { path = "../mus-watsn", optional = true }
 np-rand = { path = "../np-rand", optional = true }
