@@ -269,7 +269,7 @@ That's 16 bars of 5-instrument writing in ~40 lines. Same content as MusicXML wo
 - **Voicings vs. abstract harmony** — `<C4 E4 G4>` and `<E4 G4 C5>` mean different things sonically (root position vs. first inversion) but encode the same chord. Format treats them as different — that's correct.
 - **Chord symbols** — separate from realized voicings. Should there be an optional `chord:` annotation per bar showing the abstract harmony? Probably yes for analytical purposes.
 - **Drum kit notation** — `K`, `S`, `H` (kick/snare/hat) as shorthand vs. full pitch. Convention TBD: maybe `d` track defaults to drum-kit shorthand and pitch-based notation falls through to general MIDI percussion mappings.
-- **Tablature / fret notation** — for guitar parts. Could append `[fret=N,string=M]` to a note, or have a separate `g1.tab` view.
+- **Tablature / fret notation** — answered in [`SPEC-TAB.md`](SPEC-TAB.md): an `@string:fret` suffix after the duration (`A3e@3:2`), hands as dot-voices, and technique flags; first played by the Ariadne steel-string.
 
 These don't block the current spec — they're design pressure points to iterate on with real songs.
 

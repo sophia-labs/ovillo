@@ -25,6 +25,17 @@ pub struct Note {
     #[serde(rename = "dyn")]
     pub dyn_value: Option<String>,
     pub gliss_midi: Option<f64>,
+    /// Where each pitch is played on a fretted instrument (`SPEC-TAB.md`): one
+    /// entry per `midis` entry, or empty when the token carries no position.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tab: Vec<TabPosition>,
+}
+
+/// A `@string:fret` position: strings count from the highest course (1), frets from the nut (0).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TabPosition {
+    pub string: u8,
+    pub fret: u8,
 }
 
 fn note(kind: &str) -> Note {
@@ -36,7 +47,22 @@ fn note(kind: &str) -> Note {
         flags: Vec::new(),
         dyn_value: None,
         gliss_midi: None,
+        tab: Vec::new(),
     }
+}
+
+/// Split a trailing `@string:fret` off a token: `A3e@3:2` -> (`A3e`, 3/2).
+pub fn split_tab(token: &str) -> (&str, Option<TabPosition>) {
+    if let Some(at) = token.rfind('@') {
+        if let Some((string, fret)) = token[at + 1..].split_once(':') {
+            if let (Ok(string), Ok(fret)) = (string.parse::<u8>(), fret.parse::<u8>()) {
+                if string > 0 {
+                    return (&token[..at], Some(TabPosition { string, fret }));
+                }
+            }
+        }
+    }
+    (token, None)
 }
 
 /// Whitespace splitting that preserves angle-bracket chords, brace groups,
@@ -425,12 +451,16 @@ pub fn parse_token(raw: &str) -> Option<Note> {
 
     if token.starts_with('<') {
         let close = token.find('>')?;
-        let pitches = token[1..close]
+        let members: Vec<(f64, Option<TabPosition>)> = token[1..close]
             .split_whitespace()
-            .filter_map(parse_pitch)
+            .map(split_tab)
+            .filter_map(|(pitch, at)| parse_pitch(pitch).map(|midi| (midi, at)))
             .collect();
         let mut out = note("chord");
-        out.midis = pitches;
+        out.midis = members.iter().map(|(midi, _)| *midi).collect();
+        if !members.is_empty() && members.iter().all(|(_, at)| at.is_some()) {
+            out.tab = members.iter().filter_map(|(_, at)| *at).collect();
+        }
         out.ql = duration_ql(&token[close + 1..]);
         out.params = params;
         out.flags = flags;
@@ -460,9 +490,11 @@ pub fn parse_token(raw: &str) -> Option<Note> {
         out.gliss_midi = gliss;
         return Some(out);
     }
-    let (pitch, durations) = pitch_prefix(&token)?;
+    let (token, at) = split_tab(&token);
+    let (pitch, durations) = pitch_prefix(token)?;
     let mut out = note("note");
     out.midis.push(parse_pitch(pitch)?);
+    out.tab.extend(at);
     out.ql = duration_ql(durations);
     if out.ql == 0.0 {
         out.ql = 1.0;
@@ -476,6 +508,23 @@ pub fn parse_token(raw: &str) -> Option<Note> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tab_positions_ride_after_the_duration() {
+        let n = parse_token("A3e@3:2[ho]").unwrap();
+        assert_eq!((n.midis.clone(), n.ql), (vec![57.0], 0.5));
+        assert_eq!(n.tab, vec![TabPosition { string: 3, fret: 2 }]);
+        assert_eq!(n.flags, vec!["ho".to_string()]);
+        let tied = parse_token("E4h~e@1:0").unwrap();
+        assert_eq!((tied.ql, tied.tab[0].fret), (2.5, 0));
+        let chord = parse_token("<A3@3:2 C4@2:1 E4@1:0>q[acc]").unwrap();
+        assert_eq!(chord.midis, vec![57.0, 60.0, 64.0]);
+        assert_eq!(chord.tab.iter().map(|t| t.string).collect::<Vec<_>>(), vec![3, 2, 1]);
+        let partial = parse_token("<A3@3:2 C4>q").unwrap();
+        assert!(partial.tab.is_empty(), "a chord is positioned whole or not at all");
+        assert!(parse_token("A3e").unwrap().tab.is_empty());
+        assert_eq!(serde_json::to_string(&parse_token("A3e").unwrap()).unwrap().contains("tab"), false);
+    }
     use serde::Deserialize;
 
     #[derive(Deserialize)]

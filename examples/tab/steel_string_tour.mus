@@ -1,0 +1,32 @@
+# score: Steel-string tour
+# summary: 9 bars / 1 guitar, 2 hands / ~0.4 min — acceptance score for the Ariadne steel-string
+# tempo: 96    time: 4/4    key: Am    bars: 9
+# swing: 8 60
+# master: rms=-16
+# tab: standard
+
+# text @b1: the open strings, low to high, left to ring: the box answers each one
+# text @b4: one fretted line: hammer-on, pull-off, slide (the stopped length moves under a ringing string)
+# text @b5: the thumb alone, palm resting on the bass strings
+
+# instruments:
+#   gt   = steel-string guitar (treble, -12, anatomy=steel-string-v0, tuning=E2 A2 D3 G3 B3 E4, capo=0)
+#   gt.p = thumb, thumbpick (treble, pos=0.10, pick=0.85, pm=0.45)
+#   gt.v = fingers (treble, pos=0.20, pick=0.45)
+
+# section: open strings [1-3]
+bar 1 [chord=Em]: gt.p=E2q@6:0 A2q@5:0 D3q@4:0 Rq  gt.v=Rh. G3q@3:0
+bar 2 [chord=Em]: gt.p=-  gt.v=B3q@2:0 E4h.@1:0
+bar 3 [chord=Em]: gt.p=E2h@6:0 Rh  gt.v=<G3@3:0 B3@2:0 E4@1:0>h Rh
+
+# section: the left hand [4]
+bar 4 [chord=Am]: gt.p=A2q@5:0 E3q@4:2 A2q@5:0 E3q@4:2  gt.v=A3e@3:2 B3e@3:4[ho] C4e@2:1 D4e@2:3[ho] C4e@2:1[po] B3e@2:0[po] A3e@3:2 B3e@3:4[sl]
+
+# section: the thumb [5-6]
+bar 5 [chord=Em]: gt.p=E2e@6:0 E2e@6:0 G2e@6:3 A2e@5:0 B2q@5:2 D3q@4:0  gt.v=-
+bar 6 [chord=Am|E7]: gt.p=A2q@5:0 E3q@4:2 E2q@6:0 D3q@4:0  gt.v=E4q.@1:0 D4e@2:3 C4q@2:1 A3q@3:2
+
+# section: touch [7-9]
+bar 7 [chord=Am]: gt.p=A2h@5:0 A2h@5:0  gt.v={p} E4e@1:0 E4e@1:0 {f} E4e@1:0 E4e@1:0 {mf} <A3@3:2 C4@2:1>h
+bar 8 [chord=Am]: gt.p=A2w@5:0  gt.v=<A3@3:2 C4@2:1 E4@1:0>w
+bar 9: gt.p=-  gt.v=-

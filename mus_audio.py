@@ -592,9 +592,17 @@ class Note:
     flags: set = field(default_factory=set)
     dyn: str = None
     gliss_midi: float = None
+    tab: list = field(default_factory=list)   # [(string, fret)] per pitch; SPEC-TAB.md
 
 
 RE_ART = re.compile(r"\[([^\]]*)\]")
+RE_TAB = re.compile(r"@(\d+):(\d+)$")          # SPEC-TAB.md position suffix, string:fret
+
+
+def split_tab(tok):
+    """'A3e@3:2' -> ('A3e', (3, 2)); a token without a position comes back unchanged with None."""
+    m = RE_TAB.search(tok)
+    return (tok[:m.start()], (int(m.group(1)), int(m.group(2)))) if m else (tok, None)
 
 
 def duration_ql(codes):
@@ -649,10 +657,11 @@ def parse_token(tok: str):
 
     if tok.startswith("<"):
         close = tok.find(">")
-        pitches = [note_to_midi(p) for p in tok[1:close].split()]
-        pitches = [p for p in pitches if p is not None]
+        members = [split_tab(p) for p in tok[1:close].split()]
+        keep = [(note_to_midi(p), pos) for p, pos in members if note_to_midi(p) is not None]
+        tab = [pos for _, pos in keep] if keep and all(pos for _, pos in keep) else []
         ql = duration_ql(tok[close + 1:].split("~"))
-        return Note("chord", pitches, ql, params, flags, gliss_midi=gliss)
+        return Note("chord", [m for m, _ in keep], ql, params, flags, gliss_midi=gliss, tab=tab)
 
     if tok.startswith("R"):
         return Note("rest", [], duration_ql(tok[1:].split("~")) if tok[1:] else 0.0,
@@ -662,6 +671,7 @@ def parse_token(tok: str):
         return Note("unpitched", [], duration_ql(tok[1:].split("~")) if tok[1:] else 1.0,
                     params, flags, gliss_midi=gliss)
 
+    tok, pos = split_tab(tok)
     pm = re.match(rf"^({RE_PITCH_HEAD})(.*)$", tok)
     if not pm:
         return None
@@ -669,7 +679,7 @@ def parse_token(tok: str):
     if midi is None:
         return None
     ql = duration_ql(pm.group(2).split("~")) or 1.0
-    return Note("note", [midi], ql, params, flags, gliss_midi=gliss)
+    return Note("note", [midi], ql, params, flags, gliss_midi=gliss, tab=[pos] if pos else [])
 
 
 RE_TRAILING_DYN = re.compile(r"\{([^}]*)\}$")

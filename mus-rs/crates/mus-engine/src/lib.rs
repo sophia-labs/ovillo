@@ -11,6 +11,7 @@
 //! superseded here — this stage's whole point is to stop refusing those
 //! constructs and render them instead.
 
+pub mod ariadne_tab;
 mod events;
 mod gestures;
 mod layout;
@@ -133,6 +134,10 @@ pub struct RenderStats {
     pub voices: usize,
     pub total_seconds: f64,
     pub tuning_a: f64,
+    /// One receipt per annotated-tab instrument played on an Ariadne world.
+    pub ariadne_worlds: Vec<ariadne_tab::AriadneWorldReceipt>,
+    /// Per-body stored energy through each such render (for visualizers).
+    pub ariadne_energy: Vec<ariadne_tab::EnergyTrace>,
 }
 
 #[derive(Debug, Clone)]
@@ -178,8 +183,17 @@ pub fn render(source: &str, score_dir: &Path) -> Result<RenderOutcome, RenderErr
     };
 
     // ---- voices (lines 745-774)
+    // Instruments that declare an `anatomy=` are played on an Ariadne world,
+    // with their dot-voices as hands (SPEC-TAB.md); everything else is a voice.
+    let (tab_instruments, tab_owned) = ariadne_tab::collect(&proposal.instruments, score_dir)?;
+    let voice_instruments: Vec<_> = proposal
+        .instruments
+        .iter()
+        .filter(|i| !tab_owned.contains(&i.abbrev))
+        .cloned()
+        .collect();
     let (voices, warnings) =
-        pack::build_voices(&proposal.instruments, pack.as_ref(), score_dir, a4)?;
+        pack::build_voices(&voice_instruments, pack.as_ref(), score_dir, a4)?;
 
     // ---- bar map (lines 798-826). The inline tempo/time overrides come
     // from a fresh raw-text bar scan, not `proposal.bar_changes` — see
@@ -245,6 +259,20 @@ pub fn render(source: &str, score_dir: &Path) -> Result<RenderOutcome, RenderErr
             &mut stats,
         )?;
     }
+
+    // ---- annotated-tab instruments: one persistent world each
+    ariadne_tab::render(
+        &tab_instruments,
+        &bar_map,
+        &raw.bar_content,
+        n_bars,
+        swing_unit_ql,
+        swing_r,
+        mus_dsp::SR_F64,
+        &mut buffers,
+        &mut stats,
+    )?;
+    stats.voices += tab_instruments.len();
 
     // ---- deferred mixdown + sidechain (lines 1140-1148)
     let sidechain_hits = mixbus::deferred_mixdown(
@@ -314,8 +342,16 @@ pub fn render_stems(
         Some(rel) => Some((*cache.load(&score_dir.join(rel))?).clone()),
         None => None,
     };
+    // Tab instruments are played on Ariadne worlds, not voiced; they have no stem yet.
+    let (_, tab_owned) = ariadne_tab::collect(&proposal.instruments, score_dir)?;
+    let voice_instruments: Vec<_> = proposal
+        .instruments
+        .iter()
+        .filter(|i| !tab_owned.contains(&i.abbrev))
+        .cloned()
+        .collect();
     let (voices, warnings) =
-        pack::build_voices(&proposal.instruments, pack.as_ref(), score_dir, a4)?;
+        pack::build_voices(&voice_instruments, pack.as_ref(), score_dir, a4)?;
     let abbrevs: Vec<String> = proposal
         .instruments
         .iter()

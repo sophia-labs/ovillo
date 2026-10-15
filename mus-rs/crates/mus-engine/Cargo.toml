@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 hound = "3.5"
+mus-ariadne = { path = "../mus-ariadne" }
 mus-dsp = { path = "../mus-dsp" }
 mus-notation = { path = "../mus-notation" }
 mus-text = { path = "../mus-text" }

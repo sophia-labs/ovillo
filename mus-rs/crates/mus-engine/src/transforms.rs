@@ -188,6 +188,7 @@ mod tests {
             flags: flags.iter().map(|s| s.to_string()).collect(),
             dyn_value: None,
             gliss_midi: None,
+            tab: Vec::new(),
         }
     }
 

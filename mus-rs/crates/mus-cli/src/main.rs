@@ -61,6 +61,9 @@ struct Receipt {
     /// pre-send, no reverb/master — the spatial scene's raw material).
     #[serde(rename = "stems", skip_serializing_if = "Option::is_none")]
     stems: Option<BTreeMap<String, String>>,
+    /// Annotated-tab instruments played on Ariadne worlds: plan, hands, ledger.
+    #[serde(rename = "ariadneWorlds", skip_serializing_if = "Vec::is_empty")]
+    ariadne_worlds: Vec<mus_engine::ariadne_tab::AriadneWorldReceipt>,
 }
 
 impl Receipt {
@@ -94,6 +97,7 @@ impl Receipt {
             warnings: stats.warnings.clone(),
             trajectory_receipts: stats.trajectory_receipts.clone(),
             stems: None,
+            ariadne_worlds: stats.ariadne_worlds.clone(),
         }
     }
 }
@@ -206,11 +210,13 @@ fn run() -> Result<(), String> {
     let mut base = None;
     let mut compact = false;
     let mut stems_dir = None;
+    let mut energy_path = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-o" => output = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
             "--base" => base = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
             "--stems" => stems_dir = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
+            "--energy" => energy_path = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
             "--json" => compact = true,
             "--help" | "-h" => {
                 println!("{}", usage());
@@ -220,7 +226,7 @@ fn run() -> Result<(), String> {
         }
     }
     let output = output.unwrap_or_else(|| score.with_extension("wav"));
-    match run_render(&score, &output, base.as_deref(), stems_dir.as_deref()) {
+    match run_render(&score, &output, base.as_deref(), stems_dir.as_deref(), energy_path.as_deref()) {
         Ok(receipt) => {
             let text = if compact {
                 serde_json::to_string(&receipt)
@@ -252,6 +258,7 @@ fn run_render(
     output: &std::path::Path,
     base: Option<&std::path::Path>,
     stems_dir: Option<&std::path::Path>,
+    energy_path: Option<&std::path::Path>,
 ) -> Result<Receipt, String> {
     let started = Instant::now();
     let source = fs::read_to_string(score).map_err(|e| format!("{}: {e}", score.display()))?;
@@ -270,6 +277,12 @@ fn run_render(
 
     let outcome = render(&source, score_dir).map_err(|e| e.to_string())?;
     write_wav(&outcome.audio, output).map_err(|e| e.to_string())?;
+    if let Some(path) = energy_path {
+        let trace = serde_json::json!({"schema": "mus.ariadne.energy-trace.v1", "worlds": outcome.stats.ariadne_energy});
+        let partial = path.with_extension("json.partial");
+        fs::write(&partial, serde_json::to_vec(&trace).map_err(|e| e.to_string())?).map_err(|e| format!("{}: {e}", partial.display()))?;
+        fs::rename(&partial, path).map_err(|e| format!("{}: {e}", path.display()))?;
+    }
 
     let stems = match stems_dir {
         Some(dir) => {
@@ -347,5 +360,5 @@ fn head_selection_of(graph: &mus_graph::ScoreGraph) -> serde_json::Value {
 }
 
 fn usage() -> String {
-    "usage:\n  mus check <score.mus> [--base DIR] [--json]\n  mus render <score.mus> [--base DIR] [-o <out.wav>] [--stems DIR] [--json]\n  mus scene-render <scene.json> --root <dir> [-o <out.wav>] [--foa] [--json]\n\nAtril swap:\n  MUS_CHECK_CMD=\"/Users/vera/dev/sophia/mus/mus-rs/target/release/mus check\"".into()
+    "usage:\n  mus check <score.mus> [--base DIR] [--json]\n  mus render <score.mus> [--base DIR] [-o <out.wav>] [--stems DIR] [--energy <trace.json>] [--json]\n  mus scene-render <scene.json> --root <dir> [-o <out.wav>] [--foa] [--json]\n\nAtril swap:\n  MUS_CHECK_CMD=\"/Users/vera/dev/sophia/mus/mus-rs/target/release/mus check\"".into()
 }
