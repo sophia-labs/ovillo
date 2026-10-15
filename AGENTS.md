@@ -31,7 +31,7 @@ With `--json`, `mus render` prints a receipt. Look for:
 
 - `badTokens`: should be empty. Anything there was not understood.
 - `ariadneWorlds[]`: one entry per world. It has `planDigest`, `listenerDigest`, `bodies`, counts of touches (plucks, hammer-ons, pull-offs, slides), `strings[]` (hand, pos, pick, palm), and the ledger.
-- The ledger: `sourceWork` (what the hands put in), `controlWork` (what the fretting hand paid), `internalLoss`, `radiation`, and the closure residuals. Closed books mean the residuals are near zero (the first full Wayfaring Stranger render reports 9e-16). Report residuals as numbers, never as "looks balanced".
+- The ledger, flat fields of the same entry: `sourceWork` (what the hands put in), `controlWork` (what the fretting hand paid), `internalLoss`, `radiation`, and the closure residuals (`cumulativeClosureResidual`, `maximumFrameResidual`). Closed books mean the residuals are near zero (the first full Wayfaring Stranger render reports 9e-16). Report residuals as numbers, never as "looks balanced".
 
 `--energy <file>` writes an energy trace (schema `mus.ariadne.energy-trace.*`, check the `schema` field in the file) with `worlds`: stored energy per body, plus the room, sampled every 10 ms. Use it to say where energy is at a given moment (string, bridge, top, air, room), to compare notes, or to feed `blender/`. Do not infer anything the trace does not contain.
 
