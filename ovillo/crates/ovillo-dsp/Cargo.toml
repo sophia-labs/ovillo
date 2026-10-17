@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 mus-ariadne = { workspace = true }
+mus-dsp = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 rtrb = { workspace = true }
