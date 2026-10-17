@@ -3,7 +3,8 @@ mod service;
 mod vocab_dump;
 
 use mus_engine::{
-    render, sha256_bytes, write_wav, EventTrajectoryReceipt, RenderStats, ENGINE_VERSION,
+    render, render_bars, sha256_bytes, write_wav, EventTrajectoryReceipt, RenderStats,
+    ENGINE_VERSION,
 };
 use mus_text::{adopt, parse_score};
 use serde::Serialize;
@@ -129,7 +130,12 @@ fn run() -> Result<(), String> {
         return Ok(());
     }
     if command == "check" {
-        let score = PathBuf::from(args.next().ok_or_else(usage)?);
+        let first = args.next().ok_or_else(usage)?;
+        if first == "--help" || first == "-h" {
+            println!("{}", usage());
+            return Ok(());
+        }
+        let score = PathBuf::from(first);
         let mut base = None;
         let mut json_output = false;
         while let Some(arg) = args.next() {
@@ -158,7 +164,12 @@ fn run() -> Result<(), String> {
         return Ok(());
     }
     if command == "scene-render" {
-        let scene_path = PathBuf::from(args.next().ok_or_else(usage)?);
+        let first = args.next().ok_or_else(usage)?;
+        if first == "--help" || first == "-h" {
+            println!("{}", usage());
+            return Ok(());
+        }
+        let scene_path = PathBuf::from(first);
         let mut root: Option<PathBuf> = None;
         let mut output: Option<PathBuf> = None;
         let mut foa = false;
@@ -205,18 +216,25 @@ fn run() -> Result<(), String> {
     if command != "render" {
         return Err(usage());
     }
-    let score = PathBuf::from(args.next().ok_or_else(usage)?);
+    let first = args.next().ok_or_else(usage)?;
+    if first == "--help" || first == "-h" {
+        println!("{}", usage());
+        return Ok(());
+    }
+    let score = PathBuf::from(first);
     let mut output = None;
     let mut base = None;
     let mut compact = false;
     let mut stems_dir = None;
     let mut energy_path = None;
+    let mut bars = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-o" => output = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
             "--base" => base = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
             "--stems" => stems_dir = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
             "--energy" => energy_path = Some(PathBuf::from(args.next().ok_or_else(usage)?)),
+            "--bars" => bars = Some(parse_bars_range(&args.next().ok_or_else(usage)?)?),
             "--json" => compact = true,
             "--help" | "-h" => {
                 println!("{}", usage());
@@ -226,7 +244,14 @@ fn run() -> Result<(), String> {
         }
     }
     let output = output.unwrap_or_else(|| score.with_extension("wav"));
-    match run_render(&score, &output, base.as_deref(), stems_dir.as_deref(), energy_path.as_deref()) {
+    match run_render(
+        &score,
+        &output,
+        base.as_deref(),
+        stems_dir.as_deref(),
+        energy_path.as_deref(),
+        bars,
+    ) {
         Ok(receipt) => {
             let text = if compact {
                 serde_json::to_string(&receipt)
@@ -259,6 +284,7 @@ fn run_render(
     base: Option<&std::path::Path>,
     stems_dir: Option<&std::path::Path>,
     energy_path: Option<&std::path::Path>,
+    bars: Option<(u32, u32)>,
 ) -> Result<Receipt, String> {
     let started = Instant::now();
     let source = fs::read_to_string(score).map_err(|e| format!("{}: {e}", score.display()))?;
@@ -275,7 +301,10 @@ fn run_render(
         .map(|proposal| head_selection_of(&adopt(&proposal)))
         .unwrap_or(serde_json::Value::String("sole".into()));
 
-    let outcome = render(&source, score_dir).map_err(|e| e.to_string())?;
+    let outcome = match bars {
+        Some((from, to)) => render_bars(&source, score_dir, from, to).map_err(|e| e.to_string())?,
+        None => render(&source, score_dir).map_err(|e| e.to_string())?,
+    };
     write_wav(&outcome.audio, output).map_err(|e| e.to_string())?;
     if let Some(path) = energy_path {
         let trace = serde_json::json!({"schema": "mus.ariadne.energy-trace.v1", "worlds": outcome.stats.ariadne_energy});
@@ -359,6 +388,30 @@ fn head_selection_of(graph: &mus_graph::ScoreGraph) -> serde_json::Value {
     serde_json::Value::Object(selected)
 }
 
+fn parse_bars_range(s: &str) -> Result<(u32, u32), String> {
+    let (from, to) = if let Some((a, b)) = s.split_once("..") {
+        (a, b)
+    } else if let Some((a, b)) = s.split_once('-') {
+        (a, b)
+    } else {
+        (s, s)
+    };
+    let from: u32 = from
+        .trim()
+        .parse()
+        .map_err(|_| format!("--bars: not a bar number: {from:?}"))?;
+    let to: u32 = to
+        .trim()
+        .parse()
+        .map_err(|_| format!("--bars: not a bar number: {to:?}"))?;
+    if from == 0 || to < from {
+        return Err(format!(
+            "--bars: expected FROM..TO (or FROM-TO) with 1 <= FROM <= TO, got {from}..{to}"
+        ));
+    }
+    Ok((from, to))
+}
+
 fn usage() -> String {
-    "usage:\n  mus check <score.mus> [--base DIR] [--json]\n  mus render <score.mus> [--base DIR] [-o <out.wav>] [--stems DIR] [--energy <trace.json>] [--json]\n  mus scene-render <scene.json> --root <dir> [-o <out.wav>] [--foa] [--json]\n\nAtril swap:\n  MUS_CHECK_CMD=\"<repo>/mus-rs/target/release/mus check\"".into()
+    "usage:\n  mus check <score.mus> [--base DIR] [--json]\n  mus render <score.mus> [--base DIR] [-o <out.wav>] [--stems DIR] [--energy <trace.json>] [--bars FROM..TO] [--json]\n  mus scene-render <scene.json> --root <dir> [-o <out.wav>] [--foa] [--json]\n\nAtril swap:\n  MUS_CHECK_CMD=\"<repo>/mus-rs/target/release/mus check\"".into()
 }

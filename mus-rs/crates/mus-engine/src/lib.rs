@@ -152,11 +152,74 @@ pub fn sha256_bytes(bytes: &[u8]) -> String {
     format!("{:x}", hasher.finalize())
 }
 
+/// Re-time bars `from..=to` to start at zero, keeping the full score's
+/// per-bar durations and the standard 4 s render tail. Bars are renumbered
+/// `1..=(to-from+1)` so the walk (which iterates `1..=n_bars`) sees them at
+/// their original relative positions. The full range reproduces the input
+/// map/content unchanged (start of bar 1 is already zero).
+fn slice_bars(
+    full: layout::BarMap,
+    content: &BTreeMap<u32, BTreeMap<String, String>>,
+    from: u32,
+    to: u32,
+) -> Result<(layout::BarMap, BTreeMap<u32, BTreeMap<String, String>>, u32), RenderError> {
+    let n = full.bars.len() as u32;
+    if from == 0 || to < from || to > n {
+        return Err(RenderError::Invalid(format!(
+            "bar range {from}..{to} is outside 1..={n}"
+        )));
+    }
+    let start = full.bars[&from].start_s;
+    let mut bars = BTreeMap::new();
+    for b in from..=to {
+        let t = &full.bars[&b];
+        bars.insert(
+            b - from + 1,
+            layout::BarTiming {
+                start_s: t.start_s - start,
+                qlen: t.qlen,
+                spq: t.spq,
+            },
+        );
+    }
+    let last = &full.bars[&to];
+    let total_s = (last.start_s + last.qlen * last.spq) - start + 4.0;
+    let bar_map = layout::BarMap { bars, total_s };
+
+    let mut bar_content = BTreeMap::new();
+    for (&b, tracks) in content {
+        if (from..=to).contains(&b) {
+            bar_content.insert(b - from + 1, tracks.clone());
+        }
+    }
+    Ok((bar_map, bar_content, to - from + 1))
+}
+
 /// Render a score to full sample parity with `mus_audio.render()`
 /// (`mus_audio.py` lines 717-1181). `source` is the score text; assets
 /// (`pack`, `gestures`, `tape`, `sample=`) resolve relative to
 /// `score_dir`.
 pub fn render(source: &str, score_dir: &Path) -> Result<RenderOutcome, RenderError> {
+    render_inner(source, score_dir, None)
+}
+
+/// Render only bars `from..=to` (1-based, inclusive), re-timed to start at
+/// zero and given the same 4 s tail as a full render (`mus render --bars`).
+/// The full range (`1..=n_bars`) is bit-identical to [`render`].
+pub fn render_bars(
+    source: &str,
+    score_dir: &Path,
+    from: u32,
+    to: u32,
+) -> Result<RenderOutcome, RenderError> {
+    render_inner(source, score_dir, Some((from, to)))
+}
+
+fn render_inner(
+    source: &str,
+    score_dir: &Path,
+    bar_range: Option<(u32, u32)>,
+) -> Result<RenderOutcome, RenderError> {
     let (proposal, _diags) = mus_text::parse_score_lossy(source);
     let headers = &proposal.headers;
 
@@ -220,6 +283,10 @@ pub fn render(source: &str, score_dir: &Path) -> Result<RenderOutcome, RenderErr
         &raw.inline_time,
         n_bars,
     )?;
+    let (bar_map, bar_content, n_bars) = match bar_range {
+        Some((from, to)) => slice_bars(bar_map, &raw.bar_content, from, to)?,
+        None => (bar_map, raw.bar_content, n_bars),
+    };
     let n_total = (bar_map.total_s * mus_dsp::SR_F64) as usize;
 
     // ---- the event walk, track by track (lines 862-1138)
@@ -238,7 +305,7 @@ pub fn render(source: &str, score_dir: &Path) -> Result<RenderOutcome, RenderErr
     for voice in &voices {
         let ctx = events::WalkContext {
             bar_map: &bar_map,
-            bar_content: &raw.bar_content,
+            bar_content: &bar_content,
             n_bars,
             swing_unit_ql,
             swing_r,
@@ -264,7 +331,7 @@ pub fn render(source: &str, score_dir: &Path) -> Result<RenderOutcome, RenderErr
     ariadne_tab::render(
         &tab_instruments,
         &bar_map,
-        &raw.bar_content,
+        &bar_content,
         n_bars,
         swing_unit_ql,
         swing_r,
@@ -748,5 +815,37 @@ mod tests {
             panic!("expected RenderError::Invalid, got {err:?}");
         };
         assert!(msg.contains("not finite and positive"), "{msg}");
+    }
+
+    /// `render_bars` over the whole score is bit-identical to `render`;
+    /// a mid-range slice is re-timed to start at zero with the same 4 s
+    /// tail, and a range outside the score is refused.
+    #[test]
+    fn render_bars_matches_full_render_and_slices_to_zero() {
+        // 120 bpm, 2/4: each bar is exactly 1 s.
+        let text = "# score: bars\n# tempo: 120\n# time: 2/4\n# bars: 4\n\
+                     # instruments:\n#   s = synth (treble, synth=sine)\n\
+                     bar 1: s=C4q D4q\n\
+                     bar 2: s=E4q F4q\n\
+                     bar 3: s=G4q A4q\n\
+                     bar 4: s=B4q C5q\n";
+
+        let full = render(text, Path::new(".")).unwrap();
+        let full_bars = render_bars(text, Path::new("."), 1, 4).unwrap();
+        assert_eq!(full.audio.samples, full_bars.audio.samples);
+        assert_eq!(full.stats.notes, 8);
+
+        // bars 2..=3: 2 bars (2 s) + the 4 s tail = 6 s of audio, 4 notes.
+        let slice = render_bars(text, Path::new("."), 2, 3).unwrap();
+        assert_eq!(slice.audio.samples.len(), (6.0 * SAMPLE_RATE as f64) as usize * 2);
+        assert_eq!(slice.stats.notes, 4);
+        assert!(slice.audio.peak() > 0.0);
+
+        // Out of range is a structured refusal, not a panic or empty render.
+        let err = render_bars(text, Path::new("."), 2, 5).unwrap_err();
+        let RenderError::Invalid(msg) = err else {
+            panic!("expected RenderError::Invalid, got {err:?}");
+        };
+        assert!(msg.contains("2..5"), "{msg}");
     }
 }
