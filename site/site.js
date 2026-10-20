@@ -3,7 +3,7 @@ import { mountBench } from "./bench/bench.js";
 
 const benchEl = document.getElementById("bench-mount");
 try {
-  mountBench(benchEl);
+  window.ovilloBench = mountBench(benchEl);
 } catch (err) {
   benchEl.textContent = `THE BENCH COULD NOT START: ${err && err.message ? err.message : err}`;
   benchEl.className = "warn";
@@ -108,8 +108,9 @@ function piece(p) {
   el.querySelector(".play").addEventListener("click", () => {
     if (current && current.el === el) { stopCurrent(); return; }
     stopCurrent();
-    audio.play();
     current = { audio, el };
+    // A STOP before the mp3 has buffered rejects play(); that is not an error.
+    audio.play().catch(() => {});
     el.classList.add("playing");
     el.querySelector(".play").textContent = "STOP";
   });
