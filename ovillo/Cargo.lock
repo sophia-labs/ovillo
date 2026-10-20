@@ -3924,6 +3924,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ovillo-web"
+version = "0.1.0"
+dependencies = [
+ "mus-ariadne",
+ "ovillo-dsp",
+ "rtrb",
+ "serde_json",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

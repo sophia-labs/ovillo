@@ -1,0 +1,91 @@
+/* Ovillo bench: the instrument-CRT doctrine. A black field, fixed graticules,
+   1–2 px strokes, colour as meaning, one monospace face, square boxes, no
+   fills beyond the screen itself, no gradients, shadows, rounded corners or
+   sliders. */
+.ovb {
+  --ovb-bg: #000;
+  --ovb-bezel: #0b0d0f;
+  --ovb-line: #2c343c;
+  --ovb-text: #c9d1c9;
+  --ovb-dim: #6d776f;
+  --ovb-on: #62d26f;
+  --ovb-warn: #ffb000;
+  --ovb-bad: #ff4040;
+  --ovb-font: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
+  background: var(--ovb-bezel);
+  color: var(--ovb-text);
+  font: 12px/1.3 var(--ovb-font);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--ovb-line);
+  padding: 10px;
+  box-sizing: border-box;
+  max-width: 100%;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ovb *, .ovb *::before, .ovb *::after { box-sizing: border-box; }
+.ovb:focus-visible { border-color: var(--ovb-dim); }
+.ovb-head { display: flex; justify-content: space-between; gap: 12px; padding: 0 2px 8px; color: var(--ovb-dim); }
+.ovb-title { color: var(--ovb-text); }
+.ovb-body { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 10px; }
+.ovb-screens { display: grid; gap: 8px; min-width: 0; }
+.ovb-screen { background: var(--ovb-bg); border: 1px solid var(--ovb-line); position: relative; min-width: 0; }
+.ovb-screen canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.ovb-upper { height: 240px; }
+.ovb-mid { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 8px; min-width: 0; }
+.ovb-world { height: 220px; }
+.ovb-square { height: 220px; cursor: crosshair; }
+.ovb-strings { height: 150px; cursor: pointer; }
+.ovb-keys { display: grid; grid-template-rows: repeat(8, 1fr); gap: 6px; }
+.ovb-key {
+  appearance: none;
+  background: var(--ovb-bg);
+  color: var(--ovb-text);
+  border: 1px solid var(--ovb-line);
+  border-radius: 0;
+  font: inherit;
+  text-transform: inherit;
+  text-align: left;
+  padding: 6px 8px;
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  touch-action: none;
+}
+.ovb-key-n { grid-row: 1 / span 2; color: var(--ovb-dim); }
+.ovb-key-l { color: var(--ovb-text); }
+.ovb-key-v { color: var(--ovb-dim); font-size: 11px; min-height: 1.3em; }
+.ovb-key:hover { border-color: var(--ovb-dim); }
+.ovb-key:focus-visible { outline: 1px solid var(--ovb-text); outline-offset: -3px; }
+.ovb-key.lit { border-color: var(--ovb-on); }
+.ovb-key.lit .ovb-key-l, .ovb-key.lit .ovb-key-v { color: var(--ovb-on); }
+.ovb-ann { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 10px; }
+.ovb-a { border: 1px solid var(--ovb-line); color: var(--ovb-dim); padding: 2px 6px; white-space: pre; font-variant-numeric: tabular-nums; }
+.ovb-a[data-state="on"] { color: var(--ovb-on); border-color: var(--ovb-on); }
+.ovb-a[data-state="warn"] { color: var(--ovb-warn); border-color: var(--ovb-warn); }
+.ovb-a[data-state="bad"] { color: var(--ovb-bad); border-color: var(--ovb-bad); }
+.ovb-msg { padding-top: 8px; color: var(--ovb-dim); min-height: 1.3em; overflow-wrap: anywhere; }
+.ovb-msg.bad { color: var(--ovb-bad); }
+
+@media (max-width: 760px) {
+  .ovb { padding: 8px; }
+  .ovb-body { grid-template-columns: minmax(0, 1fr); }
+  .ovb-keys { grid-template-rows: none; grid-template-columns: repeat(4, minmax(0, 1fr)); order: 0; }
+  .ovb-screens { order: 1; }
+  .ovb-upper { height: 190px; }
+  .ovb-mid { grid-template-columns: minmax(0, 1fr); }
+  .ovb-world { height: 170px; }
+  .ovb-square { height: 260px; }
+  .ovb-strings { height: 170px; }
+  .ovb-key { grid-template-columns: 1fr; padding: 5px 6px; min-height: 52px; }
+  .ovb-key-n { grid-row: auto; font-size: 10px; }
+  .ovb-key-l { font-size: 11px; overflow-wrap: anywhere; }
+  .ovb-key-v { font-size: 10px; overflow-wrap: anywhere; }
+  .ovb-head { flex-direction: column; gap: 2px; }
+}

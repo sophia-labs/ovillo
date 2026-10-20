@@ -1,0 +1,33 @@
+{
+  "name": "first light",
+  "tempo": 76,
+  "loop": false,
+  "then": "resume",
+  "humanize": 0.4,
+  "events": [
+    {"type": "strum", "beat": 0, "chord": "Em9", "spread_ms": 140, "velocity": 0.55},
+    {"type": "pluck", "beat": 1.5, "string": "e", "fret": 7, "velocity": 0.6},
+    {"type": "vibrato", "beat": 2.5, "string": "e", "depth": 0.15},
+    {"type": "pluck", "beat": 3, "string": "B", "fret": 8, "velocity": 0.5},
+    {"type": "strum", "beat": 4, "chord": "Cmaj7", "spread_ms": 120, "velocity": 0.55},
+    {"type": "pluck", "beat": 5.5, "string": "e", "fret": 3, "velocity": 0.55},
+    {"type": "pluck", "beat": 6, "string": "e", "fret": 5, "velocity": 0.65},
+    {"type": "bend", "beat": 6.25, "string": "e", "semitones": 2},
+    {"type": "vibrato", "beat": 7, "string": "e", "depth": 0.18},
+    {"type": "strum", "beat": 8, "chord": "G", "spread_ms": 60, "velocity": 0.7},
+    {"type": "strum", "beat": 9.5, "chord": "G", "dir": "up", "strings": [3, 4, 5], "velocity": 0.45},
+    {"type": "pluck", "beat": 10, "string": "B", "fret": 3, "velocity": 0.6},
+    {"type": "pluck", "beat": 10.5, "string": "e", "fret": 2, "velocity": 0.55},
+    {"type": "pluck", "beat": 11, "string": "e", "fret": 3, "velocity": 0.7},
+    {"type": "strum", "beat": 12, "chord": "Dsus2", "spread_ms": 90, "velocity": 0.6},
+    {"type": "pluck", "beat": 13.5, "string": "G", "fret": 2, "velocity": 0.5},
+    {"type": "strum", "beat": 14, "chord": "D", "spread_ms": 50, "velocity": 0.5, "strings": [2, 3, 4, 5]},
+    {"type": "vibrato", "beat": 14.5, "string": 5, "depth": 0.12},
+    {"type": "pluck", "beat": 16, "string": "E", "fret": 0, "velocity": 0.6},
+    {"type": "strum", "beat": 16.5, "chord": "Em9", "dir": "up", "spread_ms": 300, "velocity": 0.45},
+    {"type": "pluck", "beat": 18, "string": "e", "fret": 12, "velocity": 0.5},
+    {"type": "pluck", "beat": 19, "string": "B", "fret": 12, "velocity": 0.45},
+    {"type": "vibrato", "beat": 20, "string": "e", "depth": 0.1},
+    {"type": "rest", "beat": 20, "beats": 4}
+  ]
+}

@@ -10,4 +10,5 @@ pub mod player;
 pub mod rig;
 pub mod score;
 pub mod trombone;
+#[cfg(feature = "weave")]
 pub mod weave;
