@@ -461,7 +461,7 @@ impl Default for AriadneClap {
 impl Plugin for AriadneClap {
     const NAME: &'static str = "Ariadne World";
     const VENDOR: &'static str = "Sophia Labs";
-    const URL: &'static str = "https://github.com/sophia-labs/instrument";
+    const URL: &'static str = "https://github.com/sophia-labs/ovillo";
     const EMAIL: &'static str = "noreply@sophia-labs.com";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 

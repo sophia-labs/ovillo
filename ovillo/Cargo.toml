@@ -6,7 +6,7 @@ members = ["crates/*"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/sophia-labs/instrument"
+repository = "https://github.com/sophia-labs/ovillo"
 
 [workspace.dependencies]
 # The canonical Ariadne World, from this checkout's mus-rs workspace.

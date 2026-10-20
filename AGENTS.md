@@ -37,4 +37,4 @@ With `--json`, `mus render` prints a receipt. Look for:
 
 ## Working with the musician
 
-Ask for what she wants to hear, then write MUS. Run `mus check` before rendering. When something sounds wrong, look at the limits in the steel-string spec first; it is probably listed.
+Ask what they want to hear, then write MUS. Run `mus check` before rendering, and read `badTokens` in the render receipt too: today `mus check` does not verify tab positions (pitch against `@string:fret`), and `mus render` reports a disagreement there. When something sounds wrong, look at the limits in the steel-string spec first; it is probably listed.
