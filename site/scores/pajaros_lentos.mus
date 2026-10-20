@@ -1,0 +1,31 @@
+# score: Pájaros lentos
+# summary: 10 bars / 4 voices / ~0.9 min — the birds of an Aiguá morning dropped two to four octaves and slowed until they are a choir
+# tempo: 46
+# time: 4/4
+# key: Am
+# bars: 10
+# tuning: A=445.6
+# pack: instrument.json
+# reverb: 2.4
+# master: rms=-17
+
+# text @b1: the signature call, two octaves down; varispeed, so it is slower as well as lower
+# text @b3: the glide, three octaves down, becomes a slow sung line
+# text @b5: the buzz, four octaves down: a bird as the bass
+
+# instruments:
+#   cl = call (treble, voice=call, mode=varispeed, send=0.35, gain=-2)
+#   gl = glide (treble, voice=glide, mode=varispeed, send=0.45, gain=-4)
+#   md = mid (treble, voice=mid, mode=varispeed, send=0.3, gain=-4)
+#   sb = sub (bass, voice=buzz, mode=varispeed, send=0.2, gain=2)
+
+bar 1: cl={mp} A4h[str=fit,pan=-0.3] E4h[str=fit,pan=0.3]  gl=-  md=-  sb=-
+bar 2: cl=C5h[str=fit] B4h[str=fit]  gl=-  md=-  sb=-
+bar 3: cl=A4w[str=fit,pan=-0.2]  gl={p} E4h[str=fit,pan=0.4] G4q[str=fit] A4q[str=fit]  md=-  sb=-
+bar 4: cl=F4w[str=fit]  gl=C5h[str=fit] B4h[str=fit]  md={p} A3w[str=fit,pan=-0.5]  sb=-
+bar 5: cl=E4w[str=fit]  gl=A4w[str=fit]  md=C4w[str=fit]  sb={mf} A1w[str=fit,lpf=80->600]
+bar 6: cl=D4h[str=fit] E4h[str=fit]  gl=F4w[str=fit]  md=A3w[str=fit]  sb=F1w[str=fit,lpf=600->80]
+bar 7: cl=C4w[str=fit]  gl=E4w[str=fit]  md=G3w[str=fit]  sb=C2w[str=fit]
+bar 8: cl=B3w[str=fit]  gl=E4h[str=fit] D4h[str=fit]  md=G#3w[str=fit]  sb=E1w[str=fit]
+bar 9: cl=A3w[str=fit]  gl=C4w[str=fit]  md=E3w[str=fit]  sb=A1w[str=fit,lpf=400->60]
+bar 10: cl=-  gl=-  md=-  sb=-

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ovillo</title>
+<meta name="description" content="A ball of thread for making sounds with your agent. Write a score; a physical world plays it; the energy books balance. Play the bench live in your browser.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="bench/bench.css">
+<link rel="stylesheet" href="site.css">
+<link rel="alternate" type="text/plain" href="llms.txt" title="for agents">
+</head>
+<body>
+<header class="top">
+  <a class="mark" href="./">OVILLO</a>
+  <nav>
+    <a href="#bench">BENCH</a>
+    <a href="#listen">LISTEN</a>
+    <a href="tract/" id="nav-tract" hidden>TRACT</a>
+    <a href="#get">GET IT</a>
+    <a href="https://github.com/sophia-labs/ovillo">SOURCE</a>
+  </nav>
+</header>
+
+<main>
+  <section class="intro">
+    <h1>A ball of thread for making sounds with your agent.</h1>
+    <p>You write a score in MUS, a plain-text notation, or ask your agent to write one with you. The score does not call an oscillator. It touches a persistent physical world (strings, a wooden top, the air inside the box, a room) called Ariadne, and the world does the sounding. A pluck puts energy in; the energy travels from string to bridge to top to air to room, and some of it is lost on the way.</p>
+    <p>Every render prints a receipt with an energy ledger: what the hands put in, what the fretting hand paid, what was lost inside, what was radiated, and what is left over when you add it up. On this page the books close to about one part in 10<sup>16</sup>, and the page shows the number.</p>
+  </section>
+
+  <section id="bench" class="block">
+    <div class="head"><h2>THE BENCH</h2><span class="dim">LIVE · YOUR BROWSER · WEBASSEMBLY</span></div>
+    <p class="lede">A simulated electric guitar, and a guitarist who never repeats, played into one Ariadne World. Tap a string, pick what the guitarist plays, and drag across the configuration map from the six-course string body to the B♭ brass bore. The residual readout is the World's own ledger, live. Starts quiet; nothing sounds until you press start.</p>
+    <div id="bench-mount"></div>
+    <p class="keys">KEYS (CLICK THE BENCH FIRST): Z X C V B N PLUCK THE OPEN STRINGS (SHIFT HARDER) · 1–8 SOFTKEYS · SPACE START/STOP · ↑ ↓ OR WHEEL TURN THE LIT KNOB · 0 RESET WORLD · − = MASTER · \ MUTE · ESC BACK</p>
+    <noscript><p class="warn">THE BENCH NEEDS JAVASCRIPT, WEBASSEMBLY AND AUDIOWORKLET.</p></noscript>
+  </section>
+
+  <section id="tract-card" class="block" hidden>
+    <div class="head"><h2>THE TRACT</h2><span class="dim">A VOCAL TRACT MADE OF THE WORLD</span></div>
+    <p class="lede"><a href="tract/">A throat you can play</a>: a tongue, lips, a velum and a glottis, after Neil Thapen's Pink Trombone (2017).</p>
+  </section>
+
+  <section id="listen" class="block">
+    <div class="head"><h2>LISTENING ROOM</h2><span class="dim" id="listen-count"></span></div>
+    <p class="lede">Rendered on 2026-10-20 from a fresh clone of the repository, on an Intel i9 laptop: pieces written for this page, pieces that ship with the repository, and the bench's guitarist recorded offline. Each one has its score, its receipt, a waterfall of its spectrum and, for the guitar-shaped worlds, where the energy was (strings, box, room) every 10 ms. Levels are matched after the World for listening; the numbers are the World's, before that.</p>
+    <div class="filters" role="group" aria-label="filter">
+      <button data-f="all" class="on">ALL</button>
+      <button data-f="pretty">PRETTY</button>
+      <button data-f="weird">WEIRD</button>
+      <button data-f="world">ARIADNE WORLDS</button>
+    </div>
+    <div id="groups"></div>
+  </section>
+
+  <section id="get" class="block">
+    <div class="head"><h2>GET IT</h2><span class="dim">RUST STABLE · MACOS / LINUX</span></div>
+<pre class="cmd">git clone https://github.com/sophia-labs/ovillo.git
+cd ovillo/mus-rs && cargo build --release -p mus-cli
+./target/release/mus render ../examples/tab/steel_string_tour.mus -o tour.wav --json</pre>
+    <p>The receipt is JSON on stdout: look at <code>badTokens</code> (should be empty) and at <code>ariadneWorlds[]</code> for the ledger. <code>--energy trace.json</code> keeps every body's energy every 10 ms. The bench is a native app in <code>ovillo/</code> (<code>cargo run -p ovillo-app --release</code>), with an MCP server so an agent can play it.</p>
+    <p>Agents: start at <a href="https://github.com/sophia-labs/ovillo/blob/main/AGENTS.md">AGENTS.md</a>, or read this site's <a href="llms.txt">llms.txt</a>. The rule there is the rule here: every claim about how something sounds cites a spec section or a receipt field.</p>
+  </section>
+
+  <section id="limits" class="block">
+    <div class="head"><h2>SAID PLAINLY</h2><span class="dim">RESEARCH · PRE-ALPHA</span></div>
+    <ul class="limits">
+      <li>The steel-string is young: no damping at note-off yet, so staccato, lifted fingers and dead notes are heard as ordinary rings and plucks.</li>
+      <li>24 partials per string, a linear model (no tension modulation, no fret buzz); the back, ribs and neck are rigid; radiation has no directivity, so these renders are close to mono.</li>
+      <li>High frequencies cross the bridge weakly; the band-rising bridge rate is a fit, not a law. The guitar is warm.</li>
+      <li>Harmonics are checked against pitch but played as ordinary plucks.</li>
+      <li>Not everything here is an Ariadne World: the weave voice, the bird pack (samples of a field recording) and one subtractive synth are labelled where they appear.</li>
+      <li>A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <span>OVILLO · MIT · SOPHIA LABS</span>
+  <span><a href="https://github.com/sophia-labs/ovillo">SOURCE</a> · <a href="llms.txt">LLMS.TXT</a></span>
+</footer>
+
+<template id="piece">
+  <article class="piece">
+    <div class="row">
+      <button class="play" aria-label="play">PLAY</button>
+      <div class="ident">
+        <h3 class="title"></h3>
+        <div class="engine dim"></div>
+      </div>
+      <div class="tags"></div>
+      <div class="time dim"></div>
+    </div>
+    <div class="track" aria-hidden="true"><div class="pos"></div></div>
+    <p class="note"></p>
+    <div class="figs"></div>
+    <div class="facts"></div>
+    <div class="links"></div>
+  </article>
+</template>
+
+<script type="module" src="site.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+# score: Hilo de luz
+# summary: 18 bars / 1 guitar, 3 hands / ~0.8 min — a lullaby in DADGAD; open strings left to ring, then harmonics
+# tempo: 66    time: 3/4    key: D    bars: 18
+# reverb: 1.4
+# master: rms=-17
+# tab: DADGAD
+
+# text @b1: the open strings of DADGAD rolled under a ringing low D; every note rings until its string is touched again
+# text @b5: a melody on the first string: hammer-on, then up to the 7th fret
+# text @b9: a third hand adds harmonics at the 12th and 7th frets
+# text @b13: only harmonics now, played as plucks at the harmonic's pitch (a v0 limit)
+
+# instruments:
+#   gt   = steel-string guitar (treble, -12, anatomy=steel-string-v0, tuning=D2 A2 D3 G3 A3 D4, capo=0)
+#   gt.p = thumb (treble, pos=0.12, pick=0.55, gain=-2)
+#   gt.v = melody, fingers (treble, pos=0.22, pick=0.35)
+#   gt.r = harmonics, fingers (treble, pos=0.30, pick=0.3, gain=-3)
+
+bar 1 [chord=D5]: gt.p=D2h.@6:0  gt.v={mp} A3e@2:0 D4e@1:0 G3e@3:0 A3e@2:0 D4e@1:0 A3e@2:0  gt.r=-
+bar 2 [chord=G/D]: gt.p=D2h.@6:0  gt.v=B3e@2:2 D4e@1:0 G3e@3:0 B3e@2:2 D4e@1:0 B3e@2:2  gt.r=-
+bar 3 [chord=Bm7]: gt.p=B2h.@5:2  gt.v=A3e@2:0 D4e@1:0 F#3e@4:4 A3e@2:0 D4e@1:0 G3e@3:0  gt.r=-
+bar 4 [chord=A]: gt.p=A2h.@5:0  gt.v=A3e@2:0 E4e@1:2 A3e@3:2 C#4e@2:4 E4e@1:2 C#4e@2:4  gt.r=-
+bar 5 [chord=D]: gt.p=D2q@6:0 A2q@5:0 D3q@4:0  gt.v={mf} F#4q@1:4 E4e@1:2 F#4e@1:4[ho] A4q@1:7  gt.r=-
+bar 6 [chord=G/D]: gt.p=D2q@6:0 A2q@5:0 D3q@4:0  gt.v=G4q.@1:5 F#4e@1:4 E4q@1:2  gt.r=-
+bar 7 [chord=Bm]: gt.p=B2q@5:2 F#3q@4:4 B2q@5:2  gt.v=D4q@1:0 F#4q@1:4 B3q@2:2  gt.r=-
+bar 8 [chord=A]: gt.p=A2h.@5:0  gt.v=<A3@3:2 C#4@2:4 E4@1:2>h.  gt.r=-
+bar 9 [chord=D]: gt.p=D2q@6:0 A2q@5:0 D3q@4:0  gt.v=F#4q@1:4 E4e@1:2 F#4e@1:4[ho] B4q@1:9  gt.r={p} Rh A4q@2:12[harm]
+bar 10 [chord=G/D]: gt.p=D2q@6:0 A2q@5:0 D3q@4:0  gt.v=A4q.@1:7 G4e@1:5 F#4q@1:4  gt.r=Rq G4q@3:12[harm] Rq
+bar 11 [chord=Em7]: gt.p=E3q@4:2 A2q@5:0 E3q@4:2  gt.v=E4q@1:2 A3q@2:0 D4q@1:0  gt.r=Rh E5q@2:7[harm]
+bar 12 [chord=A7sus4]: gt.p=A2h.@5:0  gt.v=D4h.@1:0  gt.r=G3q@3:0 A3q@2:0 Rq
+bar 13 [chord=D]: gt.p=D3h.@6:12[harm]  gt.v={p} D4q@4:12[harm] A4q@2:12[harm] D5q@1:12[harm]  gt.r=-
+bar 14 [chord=G]: gt.p=A3h.@5:12[harm]  gt.v=G4q@3:12[harm] E5q@2:7[harm] A5q@1:7[harm]  gt.r=-
+bar 15 [chord=D5]: gt.p=D2h.@6:0  gt.v={mp} A3e@2:0 D4e@1:0 G3e@3:0 A3e@2:0 D4e@1:0 A3e@2:0  gt.r=-
+bar 16 [chord=Dsus4]: gt.p=D2h.@6:0  gt.v={pp} <G3@3:0 A3@2:0 D4@1:0>h.  gt.r=-
+bar 17: gt.p=-  gt.v=-  gt.r=-
+bar 18: gt.p=-  gt.v=-  gt.r=-

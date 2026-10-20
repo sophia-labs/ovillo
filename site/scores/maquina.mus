@@ -1,0 +1,27 @@
+# score: Máquina de coser
+# summary: 9 bars / 3 voices / ~0.3 min — a sewing machine in A minor: plucked string arpeggios, a saw bass whose filter closes on every note, a square-wave tune
+# tempo: 128
+# time: 4/4
+# key: Am
+# bars: 9
+# reverb: 0.8
+# master: rms=-15
+
+# text @b1: the needle: a two-course plucked string, sixteenths
+# text @b3: the treadle: a saw bass, its filter sweeping down from bright to dark each note
+# text @b5: the thread: a square lead, detuned unison
+
+# instruments:
+#   ag = aguja (treble, synth=pluck, courses=2, pos=0.12, pick=0.9, sus=0.6, damp=0.5, pan=-0.3, send=0.2, gain=-6)
+#   pd = pedal (bass, synth=saw, cutoff=180, famt=2400, satk=0.002, sdec=0.12, ssus=0.4, srel=0.06, sub=0.4, gain=-4)
+#   hl = hilo (treble, synth=square, osc2=saw, mix2=0.3, detune=9, cutoff=2600, satk=0.01, ssus=0.7, srel=0.2, pan=0.25, send=0.3, gain=-12)
+
+bar 1: ag={mf} A4s C5s E5s A5s E5s C5s A4s C5s E5s A5s E5s C5s A4s C5s E5s C5s  pd=-  hl=-
+bar 2: ag=F4s A4s C5s F5s C5s A4s F4s A4s C5s F5s C5s A4s F4s A4s C5s A4s  pd=-  hl=-
+bar 3: ag=A4s C5s E5s A5s E5s C5s A4s C5s E5s A5s E5s C5s A4s C5s E5s C5s  pd={f} A1e A1e Re A2e A1e Re G1e G2e  hl=-
+bar 4: ag=F4s A4s C5s F5s C5s A4s F4s A4s G4s B4s D5s G5s D5s B4s G4s B4s  pd=F1e F1e Re F2e F1e Re G1e G2e  hl=-
+bar 5: ag=A4s C5s E5s A5s E5s C5s A4s C5s E5s A5s E5s C5s A4s C5s E5s C5s  pd=A1e A1e Re A2e A1e Re G1e G2e  hl={mf} E5q. D5e C5q B4q
+bar 6: ag=F4s A4s C5s F5s C5s A4s F4s A4s G4s B4s D5s G5s D5s B4s G4s B4s  pd=F1e F1e Re F2e F1e Re G1e G2e  hl=A4h. Rq
+bar 7: ag=A4s C5s E5s A5s E5s C5s A4s C5s E5s A5s E5s C5s A4s C5s E5s C5s  pd=A1e A1e Re A2e A1e Re G1e G2e  hl=E5q. G5e A5q G5e E5e
+bar 8: ag=F4s A4s C5s F5s C5s A4s F4s A4s E4s G#4s B4s E5s B4s G#4s E4s G#4s  pd=F1e F1e Re F2e E1e E1e E2e E2e  hl=F5q E5q D5q B4q
+bar 9: ag=<A4 C5 E5 A5>w  pd=A1w  hl=A5w

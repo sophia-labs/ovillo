@@ -1,0 +1,58 @@
+import json, re, sys
+S = "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad"
+F = S + "/fresh/ovillo"; SO = S + "/sounds/"; SC = S + "/scores/"; BE = S + "/bench/"
+def mus(slug, num, title, group, tags, engine, note, score):
+    return dict(slug=slug, title=title, group=group, tags=tags, engine=engine, note=note,
+                wav=f"{SO}{num}.wav", score=score, receipt=f"{SO}{num}.json", energy=f"{SO}{num}.energy.json")
+def bench(slug, title, group, tags, note, d, wav, score=None, patch=None):
+    log = open(BE + d + "/log").read() if d else open(BE + "trombone.log").read()
+    m = re.search(r"closure residual (\S+)", log); lim = re.search(r"safety-limited frames (\d+)", log)
+    rt = re.search(r"whole rig:\s+\S+ s\s+->\s+(\S+)x", log)
+    b = {"closureResidual": m.group(1) if m else None, "safetyLimitedFrames": int(lim.group(1)) if lim else None,
+         "patch": patch}
+    return dict(slug=slug, title=title, group=group, tags=tags, engine="bench: simulated guitar → Ariadne World",
+                note=note, wav=wav, score=score, bench=b)
+P = [
+ mus("hilo-de-luz", "10-hilo-de-luz", "Hilo de luz", "today", ["pretty"], "steel-string world · DADGAD",
+     "A lullaby in 3/4 for three hands. The open strings of DADGAD rolled over a ringing low D, a melody with a hammer-on, then harmonics at the 12th and 7th frets (played as plucks at the harmonic's pitch, a v0 limit).", SC + "hilo_de_luz.mus"),
+ mus("enjambre", "11-enjambre", "Enjambre", "today", ["weird"], "steel-string world · tuned to six adjacent semitones",
+     "The guitar retuned D3 D♯3 E3 F3 F♯3 G3, a cluster, picked hard at the bridge by two offset plectrums. One fretting shape slides up nine frets and the swarm lands on C add9, then the top string slides home fret by fret with no new pluck.", SC + "enjambre.mus"),
+ mus("pulgar-de-tierra", "12-pulgar", "Pulgar de tierra", "today", ["rhythmic"], "steel-string world · drop C",
+     "A palm-muted thumb thumping near the bridge, chucks and a pentatonic lick with hammer-ons and pull-offs. The [x] dead notes are written but v0 plays them as ordinary plucks; the palm mute is real loss on every partial.", SC + "pulgar.mus"),
+ mus("bajo-la-casa", "13-bajo", "Bajo la casa", "today", ["pretty", "dark"], "steel-string world · baritone tuning",
+     "i–VI–iv–V in B minor on the same body tuned a fourth low, plucked with the soft of the finger. The low string slides under a held chord; a slide carries the string's energy along and the receipt bills the work.", SC + "bajo.mus"),
+ mus("gigante-y-juguete", "17-gigante", "Gigante y juguete", "today", ["playful", "weird"], "two steel-string worlds",
+     "One tune in canon on two guitar-shaped worlds: a giant tuned an octave down and a toy tuned a fourth up. A toy tuned a full octave up was refused by the engine: its 24th partial at the 12th fret would sit at 23 kHz, past the band.", SC + "gigante.mus"),
+ mus("telar-que-respira", "14-telar-respira", "Telar que respira", "today", ["weird", "drone"], "weave voice (bowed string network)",
+     "A nine-course string bowed slowly through a /u/ body, with breath in the bow; three strummed courses above it whose twist (chirality) and bend (curvature) sweep across each note. Not an Ariadne World: the older weave voice.", SC + "telar_respira.mus"),
+ mus("pajaros-lentos", "16-pajaros-lentos", "Pájaros lentos", "today", ["weird", "pretty"], "the Aiguá bird pack, varispeed",
+     "The birds of a 56-second field recording made in Aiguá, Uruguay, dropped two to four octaves and slowed with them, until they are a choir. Samples, not physics.", SC + "pajaros_lentos.mus"),
+ mus("maquina-de-coser", "15-maquina", "Máquina de coser", "today", ["light"], "pluck voice + subtractive synth",
+     "A sewing machine in A minor: plucked-string sixteenths, a saw bass whose filter closes on every note, a detuned square tune. The one piece here with an ordinary oscillator in it.", SC + "maquina.mus"),
+ bench("agua-mansa", "Agua mansa", "today", ["pretty"], "A written score for the bench's simulated guitarist (bends, vibrato, slow strums from Em9 to Bm7), played into the World with a patch of long sustain and a persistent shared space.", "agua", BE + "agua/agua-mansa-wet.wav", SC + "agua-mansa.json", "glass"),
+ bench("toward-the-bore", "Toward the brass bore", "today", ["weird", "loud"], "The AMBIENT guitarist with the configuration map pushed all the way from the six-course string body to the B♭ brass bore. The World goes hot: 22,863 safety-limited frames, and the runaway guard fades it to rest and back in. Turn it down.", "brass", BE + "brass/ambient-wet.wav", None, "material_organization = 1.0"),
+ bench("hungry-world", "Hungry world", "today", ["weird"], "The RIFF pattern into a World with hunger, metabolism, reciprocity and a shared space all turned up.", "hungry", BE + "hungry/riff-wet.wav", None, "hunger 1.0, metabolism 1.0, reciprocity 0.5, shared space 0.7"),
+ bench("halfway", "Halfway", "today", ["pretty", "weird"], "ARPEGGIO with the map halfway between string body and brass bore, and more sustain.", "midway", BE + "midway/arpeggio-wet.wav", None, "material_organization = 0.5, sustain 0.6"),
+ mus("steel-string-tour", "00-tour", "Steel-string tour", "repo", ["acceptance"], "steel-string world",
+     "The repository's acceptance score for the steel-string: open strings left to ring, a hammer-on, a pull-off, a slide, the palm-muted thumb.", F + "/examples/tab/steel_string_tour.mus"),
+ mus("wayfaring-stranger", "01-wayfaring", "Wayfaring Stranger", "repo", ["pretty"], "steel-string world · after Doc Watson",
+     "The traditional hymn (first printed 1858) as a full annotated tab for thumb, melody and fills.", F + "/examples/tab/wayfaring-stranger-doc.mus"),
+ mus("las-vocales", "04-las-vocales", "Las vocales del telar", "repo", ["weird", "voice"], "weave voice wearing vowel bodies",
+     "Garganta rung 1: bowed strings wearing /a e i o u/ bodies, the instrument's first syllables. Design profiles, not measurements, as the spec says.", F + "/mus-rs/SPECS/garganta/las-vocales-demo.mus"),
+ mus("aigua", "02-aigua", "Aigua", "repo", ["birds"], "the Aiguá bird pack",
+     "The field recording analysed into seven call families and scored for nine voices; everything at the pitch it was recorded at, until the ground opens.", F + "/aigua/aigua.mus"),
+ mus("cadiz", "03-cadiz", "Marcha de Cádiz", "repo", ["birds"], "the Aiguá bird pack",
+     "Chueca and Valverde's march (1886), played by the birds.", F + "/aigua/cadiz.mus"),
+ bench("trombone", "Trombone solo", "repo", ["pretty"], "A slow trombone solo in F minor played by an Ariadne World whose configuration path is a slide, driven by a lip reed.", None, BE + "trombone-solo.wav"),
+ bench("ambient", "AMBIENT", "bench", ["pretty"], "The bench guitarist's ambient piece: drones, slowly rolled colour chords, high plucks with late vibrato, bars of silence for hearing the World ring. Neck pickup.", "ambient", BE + "ambient/ambient-wet.wav"),
+ bench("travis", "TRAVIS", "bench", ["pretty"], "Alternating-bass fingerpicking in C and G. Middle pickup.", "travis", BE + "travis/travis-wet.wav"),
+ bench("blues", "BLUES", "bench", ["rhythmic"], "A 12-bar shuffle in E or A, licks with curls and bends. Bridge pickup.", "blues", BE + "blues/blues-wet.wav"),
+ bench("wander", "WANDER", "bench", ["pretty"], "A Markov chord progression that modulates now and then through the new key's V7.", "wander", BE + "wander/wander-wet.wav"),
+ bench("melody", "MELODY", "bench", ["pretty"], "A slow single line in A or D minor, antecedent and consequent, over a soft bass.", "melody", BE + "melody/melody-wet.wav"),
+ bench("first-light", "first light", "bench", ["pretty"], "The bench's example score: Em9, a high pluck with vibrato, a bend, a partial up-strum.", "score", BE + "score/first-light-wet.wav", F + "/ovillo/scores/first-light.json"),
+]
+for p in P:
+    if p.get("bench") and p["bench"]["patch"] is None and p["group"] == "bench":
+        p["bench"]["patch"] = "ovillo-default"
+json.dump(P, open(SC + "pieces.json", "w"), indent=1, ensure_ascii=False)
+print(len(P), "pieces")
