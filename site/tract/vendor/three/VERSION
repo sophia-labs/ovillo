@@ -1,0 +1,5 @@
+three@0.170.0 (r170), from https://registry.npmjs.org/three/-/three-0.170.0.tgz
+tarball sha256 4a608a355dcaba72e0e5383cdc814303f5b6060b43c238cdf6932dceb699238d
+three.module.min.js = package/build/three.module.min.js, unmodified
+  sha256 08fd7545d13d2c7fb65ab691530a802dafefd638596501854f267d0fb13c39e7
+LICENSE = package/LICENSE (MIT)

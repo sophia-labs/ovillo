@@ -1,0 +1,74 @@
+{
+  "anatomy": "tract-v0 (TractAnatomy::adult_v0)",
+  "label": "fit",
+  "method": "grid 11x11x10 then 9x9x9 refinements at 0.025 and 0.01; objective sum over F1..F3 of ln(measured/target)^2; measured = peaks of the rigid-glottis impulse response of the tract World itself (spectrum_peaks_n, 2^15 FFT at 96 kHz)",
+  "schema": "ovillo.tract.preset-fit.v0",
+  "vowels": [
+    {
+      "evaluations": 2668,
+      "fitted": {
+        "lips": 0.5599999999999999,
+        "tongue_diameter": 0.73,
+        "tongue_index": 0.060000000000000005
+      },
+      "rms_log_error": 0.012764438298424967,
+      "target_hz": [
+        710.0,
+        1150.0,
+        2500.0
+      ],
+      "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs (GARGANTA rung-1 design profiles, not measurements)",
+      "tube_resonances_hz": [
+        717.7734375,
+        1157.2265625,
+        2545.8984375,
+        3999.0234375
+      ],
+      "vowel": "a"
+    },
+    {
+      "evaluations": 2668,
+      "fitted": {
+        "lips": 0.41000000000000003,
+        "tongue_diameter": 0.74,
+        "tongue_index": 0.91
+      },
+      "rms_log_error": 0.007400469094570674,
+      "target_hz": [
+        290.0,
+        2250.0,
+        2950.0
+      ],
+      "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs (GARGANTA rung-1 design profiles, not measurements)",
+      "tube_resonances_hz": [
+        292.96875,
+        2267.578125,
+        2950.1953125,
+        3750.0
+      ],
+      "vowel": "i"
+    },
+    {
+      "evaluations": 2668,
+      "fitted": {
+        "lips": 0.024999999999999994,
+        "tongue_diameter": 0.975,
+        "tongue_index": 0.47500000000000003
+      },
+      "rms_log_error": 0.015300373445831579,
+      "target_hz": [
+        310.0,
+        700.0,
+        2350.0
+      ],
+      "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs (GARGANTA rung-1 design profiles, not measurements)",
+      "tube_resonances_hz": [
+        304.6875,
+        703.125,
+        2396.484375,
+        3228.515625
+      ],
+      "vowel": "u"
+    }
+  ]
+}

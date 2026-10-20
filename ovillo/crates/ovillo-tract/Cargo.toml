@@ -1,0 +1,14 @@
+[package]
+name = "ovillo-tract"
+description = "A vocal tract made as an Ariadne-constitution World: a Kelly-Lochbaum waveguide whose area function is a configuration moved with work receipts, voiced by a lung-driven self-oscillating fold valve."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+mus-watsn = { workspace = true }
+
+[dev-dependencies]
+hound = { workspace = true }
+serde_json = { workspace = true }
