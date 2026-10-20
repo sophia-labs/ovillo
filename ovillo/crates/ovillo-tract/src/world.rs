@@ -8,9 +8,13 @@
 //!   -> glottal jet: viscous + Bernoulli slit flow between lung pressure and the tract's
 //!      own pressure at the glottis (source-tract interaction is not added,
 //!      it is the boundary condition)
-//!   -> oral tube: Kelly-Lochbaum sections in pressure waves, lossless
-//!      admittance-weighted scattering, uniform plane-wave loss
-//!   -> velum: a lossless three-port junction into the nasal tube
+//!   -> oral tube: Kelly-Lochbaum sections in pressure waves, admittance-
+//!      weighted scattering; at a narrowing the junction is a series flow
+//!      element (Borda-Carnot expansion + viscous slit) with an aperture that
+//!      can go to exactly zero, and a Reynolds-gated turbulence source paid
+//!      by that jet's own loss; uniform plane-wave loss
+//!   -> velum: a three-port junction whose nasal branch passes through the
+//!      velopharyngeal aperture (exactly closed at velum 0)
 //!   -> lips and nostrils: radiating air plugs (stored end mass + a
 //!      radiation port that removes what it emits, once)
 //!   -> listener: reads the emitted radiation pressure, never loads it
@@ -20,9 +24,10 @@
 //! admittance `Y = A / (rho c)` holds `Y w² dt`; each air plug holds `Y_m s² dt`;
 //! the folds hold `½ m v² + ½ k (y - y_rest)² + ½ k_c min(y, 0)²`; the lungs
 //! hold their reservoir. The configuration (areas, fold tension, adduction) is
-//! moved with the state held fixed and the change of stored energy is booked
-//! as control work, the connection Ariadne uses for frets and slides
-//! (`mus_ariadne::Body::set_configuration_amount`).
+//! moved with the state held fixed (each section's excess air volume and
+//! volume flow; the folds' displacement and momentum) and the change of
+//! stored energy is booked as control work, the connection Ariadne uses for
+//! frets and slides (`mus_ariadne::Body::set_configuration_amount`).
 
 use crate::anatomy::{Articulation, TractAnatomy, AIR_DENSITY_KG_M3, AIR_VISCOSITY_PA_S, MAX_NASAL_SECTIONS, MAX_ORAL_SECTIONS, SPEED_OF_SOUND_M_S};
 use crate::presets::Gesture;
@@ -46,6 +51,48 @@ const DENT_WIDTH: f64 = 0.06;
 const DENT_PER_SQRT_MJ: f64 = 0.55;
 const DENT_MAX: f64 = 1.4;
 const NEWTON_STEPS: usize = 8;
+/// Constriction slots: slot 0 belongs to gestures, the rest to touches.
+pub const MAX_CONSTRICTIONS: usize = 5;
+/// Below this aperture (m²) a junction carries no flow at all.
+const CLOSED_M2: f64 = 1.0e-14;
+/// Junctions narrower than this (m²) carry viscous slit resistance.
+const VISCOUS_AREA_M2: f64 = 0.25e-4;
+/// Kinematic viscosity of air (mu / rho).
+const NU: f64 = crate::anatomy::AIR_VISCOSITY_PA_S / AIR_DENSITY_KG_M3;
+/// Corner of the turbulence source spectrum (design hypothesis).
+const TURBULENCE_CORNER_HZ: f64 = 4_000.0;
+/// Turbulent jets paid out per step, at most.
+const MAX_NOISE: usize = 8;
+
+/// A constriction placed anywhere along the oral tract: `position` 0 glottis
+/// .. 1 lips, `degree` 0 none .. 1 closed (aperture exactly zero).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Constriction {
+    pub position: f64,
+    pub degree: f64,
+}
+
+/// Fold-tension modulation: vibrato (rate, depth in semitones) and a slow
+/// irregular wobble (0..1, at most 0.35 semitone).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Vibrato {
+    pub rate_hz: f64,
+    pub depth_semitones: f64,
+    pub wobble: f64,
+}
+
+impl Default for Vibrato {
+    fn default() -> Self {
+        Self { rate_hz: 5.5, depth_semitones: 0.0, wobble: 0.0 }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+struct Slot {
+    target: Constriction,
+    current: Constriction,
+    active: bool,
+}
 
 /// What the player asks for. The World moves toward it at articulator speed.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -112,6 +159,16 @@ pub struct Flows {
     pub radiation_nose: f64,
     /// Aerodynamic work done on the folds (internal, booked to the lungs).
     pub fold_aero_work: f64,
+    /// Net loss at supraglottal jets (constrictions, lip exit, velum port),
+    /// after the turbulence they paid for.
+    pub constriction_loss: f64,
+    /// Gross dissipation of those jets (before turbulence is paid out).
+    pub constriction_dissipation: f64,
+    /// Turbulent pressure work the constriction jets put back into the air
+    /// (signed: a noise pair can also take a little energy).
+    pub turbulence_work: f64,
+    /// The positive part of `turbulence_work`, for the second-law check.
+    pub turbulence_positive: f64,
 }
 
 /// A snapshot for presentation. Read-only: nothing here feeds back.
@@ -141,6 +198,13 @@ pub struct TractReadings {
     pub global_residual_j: f64,
     pub non_finite_events: u64,
     pub safety_limited_frames: u64,
+    /// Largest constriction Reynolds number since the last snapshot.
+    pub max_reynolds: f64,
+    /// Smallest oral aperture now (m²) and where (0..1).
+    pub min_aperture_m2: f64,
+    pub min_aperture_position: f64,
+    /// Constriction slots as the articulators have them now.
+    pub constrictions: [Constriction; MAX_CONSTRICTIONS],
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -233,6 +297,42 @@ pub struct TractWorld {
     nwr: [f64; MAX_NASAL_SECTIONS],
     goal_scratch: [f64; MAX_ORAL_SECTIONS],
     ngoal_scratch: [f64; MAX_NASAL_SECTIONS],
+    unclipped_scratch: [f64; MAX_ORAL_SECTIONS],
+    // Junction apertures (m²): junction j joins sections j and j+1. They are
+    // flow geometry with no storage, so moving them does no work.
+    aperture: [f64; MAX_ORAL_SECTIONS],
+    inv_area: [f64; MAX_ORAL_SECTIONS],
+    inv_narea: [f64; MAX_NASAL_SECTIONS],
+    aperture_goal: [f64; MAX_ORAL_SECTIONS],
+    aperture_step: [f64; MAX_ORAL_SECTIONS],
+    jet: [bool; MAX_ORAL_SECTIONS],
+    k_fwd: [f64; MAX_ORAL_SECTIONS],
+    k_back: [f64; MAX_ORAL_SECTIONS],
+    r_visc: [f64; MAX_ORAL_SECTIONS],
+    lip_aperture: f64,
+    lip_aperture_goal: f64,
+    lip_aperture_step: f64,
+    lip_k_out: f64,
+    lip_k_in: f64,
+    lip_r_visc: f64,
+    port_aperture: f64,
+    port_aperture_goal: f64,
+    port_aperture_step: f64,
+    port_k: f64,
+    port_r_visc: f64,
+    slots: [Slot; MAX_CONSTRICTIONS],
+    vibrato: Vibrato,
+    vibrato_phase: f64,
+    clock_s: f64,
+    max_re: f64,
+    noise_queue: [(usize, f64, f64); MAX_NOISE],
+    pending_noise: usize,
+    /// Sections where a constriction slot presses (an articulator in contact).
+    slot_press: [bool; MAX_ORAL_SECTIONS],
+    turb_lp: f64,
+    turb_lp2: f64,
+    turb_k: f64,
+    turb_norm: f64,
     lips: AirPlug,
     nose: AirPlug,
     g_oral: f64,
@@ -256,6 +356,8 @@ pub struct TractWorld {
     area_moving: usize,
     fold_moving: bool,
     smooth_articulation: f64,
+    /// Constriction closing, releasing and moving coefficients.
+    smooth_slots: (f64, f64, f64),
     smooth_pitch: f64,
     smooth_tense: f64,
     smooth_breath: f64,
@@ -270,6 +372,9 @@ pub struct TractWorld {
     ring: [f32; CYCLE_RING],
     ring_pos: usize,
     last_cycle_start: usize,
+    last_voiced: usize,
+    cycle_min: f64,
+    cycle_max: f64,
     prev_v: f64,
     cycle: [f64; CYCLE_POINTS],
     measured_f0: f64,
@@ -323,6 +428,39 @@ impl TractWorld {
             nwr: [0.0; MAX_NASAL_SECTIONS],
             goal_scratch: [0.0; MAX_ORAL_SECTIONS],
             ngoal_scratch: [0.0; MAX_NASAL_SECTIONS],
+            unclipped_scratch: [0.0; MAX_ORAL_SECTIONS],
+            aperture: [0.0; MAX_ORAL_SECTIONS],
+            inv_area: [0.0; MAX_ORAL_SECTIONS],
+            inv_narea: [0.0; MAX_NASAL_SECTIONS],
+            aperture_goal: [0.0; MAX_ORAL_SECTIONS],
+            aperture_step: [0.0; MAX_ORAL_SECTIONS],
+            jet: [false; MAX_ORAL_SECTIONS],
+            k_fwd: [0.0; MAX_ORAL_SECTIONS],
+            k_back: [0.0; MAX_ORAL_SECTIONS],
+            r_visc: [0.0; MAX_ORAL_SECTIONS],
+            lip_aperture: 0.0,
+            lip_aperture_goal: 0.0,
+            lip_aperture_step: 0.0,
+            lip_k_out: 0.0,
+            lip_k_in: 0.0,
+            lip_r_visc: 0.0,
+            port_aperture: 0.0,
+            port_aperture_goal: 0.0,
+            port_aperture_step: 0.0,
+            port_k: 0.0,
+            port_r_visc: 0.0,
+            slots: [Slot::default(); MAX_CONSTRICTIONS],
+            vibrato: Vibrato::default(),
+            vibrato_phase: 0.0,
+            clock_s: 0.0,
+            max_re: 0.0,
+            noise_queue: [(0, 0.0, 0.0); MAX_NOISE],
+            pending_noise: 0,
+            slot_press: [false; MAX_ORAL_SECTIONS],
+            turb_lp: 0.0,
+            turb_lp2: 0.0,
+            turb_k: 1.0 - (-TAU * TURBULENCE_CORNER_HZ * dt).exp(),
+            turb_norm: two_pole_norm(1.0 - (-TAU * TURBULENCE_CORNER_HZ * dt).exp()),
             lips: AirPlug::default(),
             nose: AirPlug::default(),
             g_oral: (-anatomy.oral_attenuation_np_per_m * dx).exp(),
@@ -344,6 +482,11 @@ impl TractWorld {
             area_moving: 0,
             fold_moving: false,
             smooth_articulation: one_pole(0.025, sample_rate_hz),
+            smooth_slots: (
+                one_pole(anatomy.constriction_close_s, sample_rate_hz),
+                one_pole(anatomy.constriction_release_s, sample_rate_hz),
+                one_pole(0.015, sample_rate_hz),
+            ),
             smooth_pitch: one_pole(0.030, sample_rate_hz),
             smooth_tense: one_pole(0.050, sample_rate_hz),
             smooth_breath: one_pole(0.040, sample_rate_hz),
@@ -355,6 +498,9 @@ impl TractWorld {
             ring: [0.0; CYCLE_RING],
             ring_pos: 0,
             last_cycle_start: 0,
+            last_voiced: 0,
+            cycle_min: 0.0,
+            cycle_max: 0.0,
             prev_v: 0.0,
             cycle: [0.0; CYCLE_POINTS],
             measured_f0: 0.0,
@@ -435,10 +581,13 @@ impl TractWorld {
         self.current = self.target;
         self.compute_goal_areas();
         let mut work = 0.0;
+        let dt = self.dt;
         for i in 0..self.n {
             let a = self.goal_scratch[i] * 1.0e-4;
             let y_new = a / self.rho_c;
-            work += (y_new - self.y[i]) * (self.f[i] * self.f[i] + self.b[i] * self.b[i]) * self.dt;
+            if self.y[i] > 0.0 {
+                work += transport_section(&mut self.f[i], &mut self.b[i], self.y[i], y_new, dt);
+            }
             self.area[i] = a;
             self.y[i] = y_new;
             self.area_step[i] = 0.0;
@@ -446,33 +595,72 @@ impl TractWorld {
         for k in 0..self.m {
             let a = self.ngoal_scratch[k] * 1.0e-4;
             let y_new = a / self.rho_c;
-            work += (y_new - self.ny[k]) * (self.nfw[k] * self.nfw[k] + self.nbw[k] * self.nbw[k]) * self.dt;
+            if self.ny[k] > 0.0 {
+                work += transport_section(&mut self.nfw[k], &mut self.nbw[k], self.ny[k], y_new, dt);
+            }
             self.narea[k] = a;
             self.ny[k] = y_new;
             self.narea_step[k] = 0.0;
         }
+        for slot in self.slots.iter_mut() {
+            slot.current = slot.target;
+        }
+        self.compute_goal_areas();
+        self.aperture = self.aperture_goal;
+        self.aperture_step = [0.0; MAX_ORAL_SECTIONS];
+        self.lip_aperture = self.lip_aperture_goal;
+        self.lip_aperture_step = 0.0;
+        self.port_aperture = self.port_aperture_goal;
+        self.port_aperture_step = 0.0;
         work += self.refresh_junctions();
         work += self.retune_fold();
         self.flows.tract_control_work += work;
     }
 
     fn compute_goal_areas(&mut self) {
+        use crate::anatomy::{gaussian, AREA_CEIL_CM2, AREA_FLOOR_CM2};
         let n = self.n;
         let m = self.m;
         let art = self.current.articulation;
-        self.anatomy.oral_areas_cm2(&art, &mut self.goal_scratch[..n]);
+        self.anatomy.oral_areas_unclipped_cm2(&art, &mut self.unclipped_scratch[..n]);
         // Orb dents: log-area pushed in at the hit, wobbling back.
         let mut velum_flap = 0.0;
         for imp in self.impacts.iter().filter(|i| i.active) {
             let w = imp.dent * wobble(imp.age_s);
-            velum_flap += w.abs() * crate::anatomy::gaussian(imp.center, self.anatomy.velum_position, 0.08);
-            for (i, a) in self.goal_scratch[..n].iter_mut().enumerate() {
+            velum_flap += w.abs() * gaussian(imp.center, self.anatomy.velum_position, 0.08);
+            for (i, a) in self.unclipped_scratch[..n].iter_mut().enumerate() {
                 let x = (i as f64 + 0.5) / n as f64;
-                let g = crate::anatomy::gaussian(x, imp.center, DENT_WIDTH);
-                *a = (*a * (-w * g).exp()).clamp(crate::anatomy::AREA_FLOOR_CM2, crate::anatomy::AREA_CEIL_CM2);
+                *a = (*a * (-w * gaussian(x, imp.center, DENT_WIDTH)).exp()).min(AREA_CEIL_CM2);
             }
         }
-        self.anatomy.nasal_areas_cm2((art.velum + velum_flap).min(1.0), &mut self.ngoal_scratch[..m]);
+        // The tongue body, lips and dents stay inside GARGANTA's cone. Only
+        // constrictions (and the lip seal) take an aperture below its floor:
+        // the wall pressed in by (1 - degree * bump), with a flat top wide
+        // enough to hold a section centre, so degree 1 closes exactly.
+        let half = 0.6 / n as f64;
+        let width = self.anatomy.constriction_width;
+        for i in 0..n {
+            let x = (i as f64 + 0.5) / n as f64;
+            let mut factor = 1.0;
+            for slot in self.slots.iter().filter(|s| s.active && s.current.degree > 0.0) {
+                let dist = (x - slot.current.position).abs();
+                let bump = if dist <= half { 1.0 } else { (-0.5 * ((dist - half) / width).powi(2)).exp() };
+                factor *= (1.0 - slot.current.degree * bump).max(0.0);
+            }
+            // unclipped_scratch now holds the flow area of each section.
+            self.slot_press[i] = factor < 0.5;
+            let a = self.unclipped_scratch[i].clamp(AREA_FLOOR_CM2, AREA_CEIL_CM2) * factor;
+            self.goal_scratch[i] = a.max(AREA_FLOOR_CM2);
+            self.unclipped_scratch[i] = a;
+        }
+        for j in 0..n - 1 {
+            self.aperture_goal[j] = self.unclipped_scratch[j].min(self.unclipped_scratch[j + 1]) * 1.0e-4;
+        }
+        let seal = (art.lips / self.anatomy.lip_seal).clamp(0.0, 1.0);
+        self.lip_aperture_goal = self.unclipped_scratch[n - 1] * seal * 1.0e-4;
+        let velum = (art.velum + velum_flap).min(1.0);
+        self.port_aperture_goal = velum * self.anatomy.velum_port_max_cm2 * 1.0e-4;
+        self.anatomy.nasal_areas_cm2(velum, &mut self.ngoal_scratch[..m]);
     }
 
     /// An orb hits the tract at `position` (0 glottis .. 1 lips) carrying
@@ -561,21 +749,92 @@ impl TractWorld {
         let anatomy = self.anatomy;
         let mut work = self.lips.configure(self.area[n - 1], self.y[n - 1], self.dt, &anatomy);
         work += self.nose.configure(self.narea[self.m - 1], self.ny[self.m - 1], self.dt, &anatomy);
+        self.refresh_jets();
         work
+    }
+
+    /// Flow resistance at each junction from its aperture: Borda-Carnot
+    /// expansion loss `(rho/2)(1/A_c - 1/A_down)²` (ramped in as the aperture
+    /// falls from 0.8 to 0.5 of the wider side, so a smooth tube stays
+    /// lossless) and a viscous slit term `12 mu dx w² / A_c³` below 0.25 cm².
+    fn refresh_jets(&mut self) {
+        let half_rho = 0.5 * AIR_DENSITY_KG_M3;
+        let dx = SPEED_OF_SOUND_M_S * self.dt;
+        let w2 = self.anatomy.constriction_slit_width_m.powi(2);
+        let visc = |ac: f64| if ac < VISCOUS_AREA_M2 { 12.0 * crate::anatomy::AIR_VISCOSITY_PA_S * dx * w2 / (ac * ac * ac) } else { 0.0 };
+        let bc = |ac: f64, down: f64| if ac < down { half_rho * (1.0 / ac - 1.0 / down).powi(2) } else { 0.0 };
+        for j in 0..self.n - 1 {
+            if j + 1 == self.jv {
+                self.jet[j] = false;
+                continue;
+            }
+            let ac = self.aperture[j];
+            if ac <= CLOSED_M2 {
+                self.jet[j] = true;
+                self.k_fwd[j] = f64::INFINITY;
+                self.k_back[j] = f64::INFINITY;
+                self.r_visc[j] = f64::INFINITY;
+                continue;
+            }
+            let (al, ar) = (self.area[j], self.area[j + 1]);
+            // A smooth, open junction (the common case) is lossless: rule it
+            // out with a compare before any division.
+            if ac >= 0.8 * al.max(ar) && ac >= VISCOUS_AREA_M2 {
+                self.jet[j] = false;
+                continue;
+            }
+            let ratio = ac / al.max(ar);
+            let ramp = smoothstep((0.8 - ratio) / 0.3);
+            self.k_fwd[j] = ramp * bc(ac, ar);
+            self.k_back[j] = ramp * bc(ac, al);
+            self.r_visc[j] = visc(ac);
+            self.jet[j] = self.k_fwd[j] > 0.0 || self.k_back[j] > 0.0 || self.r_visc[j] > 0.0;
+        }
+        let la = self.lip_aperture;
+        if la <= CLOSED_M2 {
+            self.lip_k_out = f64::INFINITY;
+            self.lip_k_in = f64::INFINITY;
+            self.lip_r_visc = f64::INFINITY;
+        } else {
+            self.lip_k_out = half_rho / (la * la);
+            self.lip_k_in = bc(la, self.area[self.n - 1]);
+            self.lip_r_visc = visc(la);
+        }
+        let pa = self.port_aperture;
+        if pa <= CLOSED_M2 {
+            self.port_k = f64::INFINITY;
+            self.port_r_visc = f64::INFINITY;
+        } else {
+            self.port_k = bc(pa, self.area[self.jv - 1].max(self.area[self.jv]));
+            self.port_r_visc = visc(pa);
+        }
     }
 
     /// Fold tension (pitch) and adduction (tenseness) at fixed fold state.
     fn retune_fold(&mut self) -> f64 {
         let fa = self.anatomy.fold;
         let before = self.fold.energy(fa.mass_kg);
-        let omega = TAU * self.current.pitch_hz * (1.0 + self.larynx_jiggle());
+        let omega = TAU * self.current.pitch_hz * (1.0 + self.larynx_jiggle()) * self.tension_modulation();
         self.fold.stiffness = fa.mass_kg * omega * omega;
         self.fold.contact_stiffness = fa.contact_stiffness_ratio * self.fold.stiffness;
         self.fold.damping = 2.0 * fa.damping_ratio * fa.mass_kg * omega;
         self.fold.contact_damping = 2.0 * fa.contact_damping_ratio * fa.mass_kg * omega;
         let t = self.current.tenseness;
-        self.fold.rest = fa.rest_half_gap_breathy_m * (fa.rest_half_gap_pressed_m / fa.rest_half_gap_breathy_m).powf(t);
+        let abduct = 1.0 + fa.abduction_boost * ((0.3 - t) / 0.3).max(0.0);
+        self.fold.rest = abduct * fa.rest_half_gap_breathy_m * (fa.rest_half_gap_pressed_m / fa.rest_half_gap_breathy_m).powf(t);
         self.fold.energy(fa.mass_kg) - before
+    }
+
+    /// Vibrato and wobble as a frequency ratio of the fold tuning.
+    fn tension_modulation(&self) -> f64 {
+        let v = self.vibrato;
+        if v.depth_semitones == 0.0 && v.wobble == 0.0 {
+            return 1.0;
+        }
+        let t = self.clock_s;
+        let wob = 0.55 * (TAU * 0.43 * t).sin() + 0.3 * (TAU * 0.79 * t + 1.3).sin() + 0.15 * (TAU * 1.31 * t + 2.1).sin();
+        let semis = v.depth_semitones * (TAU * self.vibrato_phase).sin() + 0.35 * v.wobble * wob;
+        (semis * (std::f64::consts::LN_2 / 12.0)).exp()
     }
 
     #[must_use]
@@ -609,13 +868,33 @@ impl TractWorld {
     /// Control path: gesture, articulator smoothing, area transport.
     fn control_tick(&mut self) {
         let audio_dt = 2.0 * self.dt;
+        self.clock_s += audio_dt;
+        self.vibrato_phase = (self.vibrato_phase + self.vibrato.rate_hz * audio_dt).fract();
         if let Some(g) = self.gesture {
             if let Some(c) = g.controls_at(self.gesture_time) {
                 self.target = sanitize(c, &self.anatomy);
+                let k = g.constriction_at(self.gesture_time);
+                if k.degree > 0.0 || self.slots[0].active {
+                    self.set_constriction(0, Some(k));
+                }
             } else {
                 self.gesture = None;
+                self.set_constriction(0, None);
             }
             self.gesture_time += audio_dt;
+        }
+        // Constrictions close and release at their own speeds.
+        let mut moving_slots = false;
+        let (kc, kr, kp) = self.smooth_slots;
+        for slot in self.slots.iter_mut().filter(|s| s.active) {
+            let k = if slot.target.degree > slot.current.degree { kc } else { kr };
+            moving_slots |= approach(&mut slot.current.degree, slot.target.degree, k);
+            moving_slots |= approach(&mut slot.current.position, slot.target.position, kp);
+            if slot.target.degree == 0.0 && slot.current.degree < 1.0e-6 {
+                slot.current.degree = 0.0;
+                slot.active = false;
+                moving_slots = true;
+            }
         }
         // Articulators and laryngeal settings move at finite speed.
         let (t, c) = (self.target, &mut self.current);
@@ -633,7 +912,7 @@ impl TractWorld {
         self.advance_impacts(audio_dt);
         // The area function moves while the articulators do, while a dent
         // wobbles, and for one stride after (to land exactly on the goal).
-        if moving_art || impacts {
+        if moving_art || impacts || moving_slots {
             self.area_moving = AREA_STRIDE + 1;
         }
         if self.area_moving > 0 {
@@ -646,25 +925,65 @@ impl TractWorld {
                 for k in 0..self.m {
                     self.narea_step[k] = (self.ngoal_scratch[k] * 1.0e-4 - self.narea[k]) * inv;
                 }
+                for j in 0..self.n - 1 {
+                    self.aperture_step[j] = (self.aperture_goal[j] - self.aperture[j]) * inv;
+                }
+                for i in 0..self.n {
+                    self.inv_area[i] = 1.0 / self.area[i];
+                }
+                for k in 0..self.m {
+                    self.inv_narea[k] = 1.0 / self.narea[k];
+                }
+                self.lip_aperture_step = (self.lip_aperture_goal - self.lip_aperture) * inv;
+                self.port_aperture_step = (self.port_aperture_goal - self.port_aperture) * inv;
             }
+            // Apertures are flow geometry without storage: no work to move.
+            // The last step of a stride lands exactly on the goal, so a
+            // closure reaches exactly zero.
+            let last = self.stride_phase == AREA_STRIDE - 1;
+            for j in 0..self.n - 1 {
+                self.aperture[j] = if last { self.aperture_goal[j] } else { (self.aperture[j] + self.aperture_step[j]).max(0.0) };
+            }
+            self.lip_aperture = if last { self.lip_aperture_goal } else { (self.lip_aperture + self.lip_aperture_step).max(0.0) };
+            self.port_aperture = if last { self.port_aperture_goal } else { (self.port_aperture + self.port_aperture_step).max(0.0) };
             self.stride_phase = (self.stride_phase + 1) % AREA_STRIDE;
             self.area_moving -= 1;
 
-            // Transport: the area function moves under fixed waves; the change
-            // of stored energy is the work the articulators did.
+            // Transport: the area function moves holding each section's air
+            // volume excess and momentum; the change of stored energy is the
+            // work the articulators did.
+            // r = A_old / A_new, to first order with 1/A taken at the stride's
+            // start (no division per sample); the work booked is the exact
+            // energy change for whatever r is used.
             let mut work = 0.0;
             let inv_rc = 1.0 / self.rho_c;
             for i in 0..self.n {
-                let a = self.area[i] + self.area_step[i];
+                let step = self.area_step[i];
+                if step == 0.0 {
+                    continue;
+                }
+                let a = self.area[i] + step;
                 let y_new = a * inv_rc;
-                work += (y_new - self.y[i]) * (self.f[i] * self.f[i] + self.b[i] * self.b[i]);
+                let r = 1.0 - step * self.inv_area[i];
+                let e = self.f[i] * self.f[i] + self.b[i] * self.b[i];
+                work += (y_new * r * r - self.y[i]) * e;
+                self.f[i] *= r;
+                self.b[i] *= r;
                 self.area[i] = a;
                 self.y[i] = y_new;
             }
             for k in 0..self.m {
-                let a = self.narea[k] + self.narea_step[k];
+                let step = self.narea_step[k];
+                if step == 0.0 {
+                    continue;
+                }
+                let a = self.narea[k] + step;
                 let y_new = a * inv_rc;
-                work += (y_new - self.ny[k]) * (self.nfw[k] * self.nfw[k] + self.nbw[k] * self.nbw[k]);
+                let r = 1.0 - step * self.inv_narea[k];
+                let e = self.nfw[k] * self.nfw[k] + self.nbw[k] * self.nbw[k];
+                work += (y_new * r * r - self.ny[k]) * e;
+                self.nfw[k] *= r;
+                self.nbw[k] *= r;
                 self.narea[k] = a;
                 self.ny[k] = y_new;
             }
@@ -674,9 +993,10 @@ impl TractWorld {
         } else {
             self.stride_phase = 0;
         }
-        if moving_fold || impacts || self.fold_moving {
+        let modulated = self.vibrato.depth_semitones > 0.0 || self.vibrato.wobble > 0.0;
+        if moving_fold || impacts || modulated || self.fold_moving {
             self.flows.fold_control_work += self.retune_fold();
-            self.fold_moving = moving_fold || impacts;
+            self.fold_moving = moving_fold || impacts || modulated;
         }
 
         // Lungs: muscles refill the finite reservoir; deliverable pressure
@@ -823,24 +1143,43 @@ impl TractWorld {
             if j + 1 == jv {
                 continue;
             }
-            let p = self.wl[j] * self.f[j] + self.wr[j] * self.b[j + 1];
-            self.nb[j] = p - self.f[j];
-            self.nf[j + 1] = p - self.b[j + 1];
+            if !self.jet[j] {
+                let p = self.wl[j] * self.f[j] + self.wr[j] * self.b[j + 1];
+                self.nb[j] = p - self.f[j];
+                self.nf[j + 1] = p - self.b[j + 1];
+            } else {
+                self.jet_junction(j);
+            }
         }
+        // Velum: oral two-port with the nasal branch through the port aperture.
         {
             let j = jv - 1;
-            let p = self.w3[0] * self.f[j] + self.w3[1] * self.b[jv] + self.w3[2] * self.nbw[0];
-            self.nb[j] = p - self.f[j];
-            self.nf[jv] = p - self.b[jv];
-            self.nnf[0] = p - self.nbw[0];
+            let (y1, y2) = (self.y[j], self.y[jv]);
+            let (a1, a2, a3) = (self.f[j], self.b[jv], self.nbw[0]);
+            let y12 = y1 + y2;
+            let z3 = 1.0 / self.ny[0];
+            let mean = 2.0 * (y1 * a1 + y2 * a2);
+            let un = if self.port_aperture <= CLOSED_M2 {
+                0.0
+            } else {
+                let rhs = mean / y12 - 2.0 * a3;
+                jet_flow(rhs, 1.0 / y12 + z3 + self.port_r_visc, self.port_k)
+            };
+            let p = (mean - un) / y12;
+            self.nb[j] = p - a1;
+            self.nf[jv] = p - a2;
+            self.nnf[0] = a3 + un * z3;
+            let loss = (p - (2.0 * a3 + un * z3)) * un * dt;
+            self.flows.constriction_loss += loss;
+            self.flows.constriction_dissipation += loss;
         }
         for k in 0..m - 1 {
             let p = self.nwl[k] * self.nfw[k] + self.nwr[k] * self.nbw[k + 1];
             self.nnb[k] = p - self.nfw[k];
             self.nnf[k + 1] = p - self.nbw[k + 1];
         }
-        let (refl, p_lip) = self.lips.scatter(self.f[n - 1]);
-        self.nb[n - 1] = refl;
+        let p_lip = self.lip_exit();
+        let p_lip = p_lip + self.apply_turbulence(p_lip);
         let (nrefl, p_nose) = self.nose.scatter(self.nfw[m - 1]);
         self.nnb[m - 1] = nrefl;
         self.flows.radiation_lips += self.lips.y_rad * p_lip * p_lip * dt;
@@ -865,6 +1204,181 @@ impl TractWorld {
         }
         self.flows.wall_loss += ((1.0 - g * g) * e_oral + (1.0 - gn * gn) * e_nasal) * dt;
         p_lip + p_nose
+    }
+
+    /// Reynolds-gated turbulence for a jet of flow `u` through aperture `ac`
+    /// that dissipated `gross` joules this step: queue a noise injection of
+    /// up to `frication_efficiency` of that loss where the jet lands.
+    /// Turbulence source spectrum: white noise through two one-pole lowpasses at
+    /// `TURBULENCE_CORNER_HZ` (a design hypothesis), scaled to unit variance.
+    #[inline]
+    fn turbulent_noise(&mut self) -> f64 {
+        let x = 1.732_050_8 * self.noise();
+        self.turb_lp += (x - self.turb_lp) * self.turb_k;
+        self.turb_lp2 += (self.turb_lp - self.turb_lp2) * self.turb_k;
+        self.turb_lp2 * self.turb_norm
+    }
+
+    #[inline]
+    fn queue_turbulence(&mut self, u: f64, ac: f64, gross: f64, from: usize, downstream: bool, contact: bool) {
+        let re = 2.0 * u.abs() / (NU * (PI * ac).sqrt());
+        self.max_re = self.max_re.max(re);
+        let rc = self.anatomy.frication_reynolds;
+        let onset = ((re - rc) / rc).clamp(0.0, 1.0);
+        if onset <= 0.0 || gross <= 0.0 || self.pending_noise >= MAX_NOISE {
+            return;
+        }
+        // Where the jet lands: the first section that has widened back to
+        // 2.5x the aperture, within five sections; past the lips, the air.
+        let n = self.n;
+        let mut target = usize::MAX;
+        for k in 1..=5 {
+            let i = if downstream { from + k } else { from.wrapping_sub(k - 1) };
+            if i >= n {
+                break;
+            }
+            if self.area[i] >= 2.5 * ac || k == 5 {
+                target = i;
+                break;
+            }
+        }
+        if target == usize::MAX && !downstream {
+            return;
+        }
+        // A jet on an articulator in contact at the very mouth (/f/, /v/)
+        // makes its noise in the last section, behind the lips' radiation
+        // load, not straight into the air.
+        if target == usize::MAX && contact {
+            target = n - 1;
+        }
+        // Noise power is a share of the jet's own loss. A jet that lands on a
+        // wall, or on an articulator in contact (teeth, lip), is an obstacle
+        // (dipole) source: 0.4% at Mach 0.1, growing as Mach³. A jet that leaves
+        // an open mouth into free air is a quadrupole, Lighthill's 1e-4 M⁵
+        // (silent at speech speeds). Capped at `frication_efficiency`.
+        let mach = u.abs() / ac / SPEED_OF_SOUND_M_S;
+        let free = target == usize::MAX;
+        let eff = if free { 1.0e-4 * mach.powi(5) } else { 0.004 * (mach / 0.1).powi(3) }
+            .min(self.anatomy.frication_efficiency);
+        self.noise_queue[self.pending_noise] = (target, onset * eff * gross, gross);
+        self.pending_noise += 1;
+    }
+
+    /// Junction j as a series flow element: continuity of volume flow U,
+    /// pressure drop `R_v U + kappa U|U|`. With zero resistance it is exactly
+    /// the lossless junction; at zero aperture it carries no flow (each side
+    /// sees a rigid wall).
+    #[inline]
+    fn jet_junction(&mut self, j: usize) {
+        let dt = self.dt;
+        let (a, b) = (self.f[j], self.b[j + 1]);
+        let ac = self.aperture[j];
+        if ac <= CLOSED_M2 {
+            self.nb[j] = a;
+            self.nf[j + 1] = b;
+            return;
+        }
+        let (zl, zr) = (1.0 / self.y[j], 1.0 / self.y[j + 1]);
+        let zw = zl + zr;
+        let rhs = 2.0 * (a - b);
+        let kappa = if rhs >= 0.0 { self.k_fwd[j] } else { self.k_back[j] };
+        let u = jet_flow(rhs, zw + self.r_visc[j], kappa);
+        let loss = (rhs - u * zw) * u * dt;
+        self.nb[j] = a - u * zl;
+        self.nf[j + 1] = b + u * zr;
+        self.flows.constriction_loss += loss;
+        self.flows.constriction_dissipation += loss;
+        let contact = self.slot_press[j] || self.slot_press[j + 1];
+        self.queue_turbulence(u, ac, loss, if u >= 0.0 { j } else { j + 1 }, u >= 0.0, contact);
+    }
+
+    /// The lip exit: tube end -> aperture (jet into free air) -> radiating air
+    /// plug (mass port + radiation port). Returns emitted pressure.
+    #[inline]
+    fn lip_exit(&mut self) -> f64 {
+        let dt = self.dt;
+        let n = self.n;
+        let a = self.f[n - 1];
+        let (ym, yr) = (self.lips.y_mass, self.lips.y_rad);
+        let yl = ym + yr;
+        let s = self.lips.s;
+        let zt = 1.0 / self.y[n - 1];
+        let zw = zt + 1.0 / yl;
+        let rhs = 2.0 * a + 2.0 * ym * s / yl;
+        let la = self.lip_aperture;
+        let u = if la > CLOSED_M2 {
+            let kappa = if rhs >= 0.0 { self.lip_k_out } else { self.lip_k_in };
+            jet_flow(rhs, zw + self.lip_r_visc, kappa)
+        } else {
+            0.0
+        };
+        let loss = (rhs - u * zw) * u * dt;
+        self.nb[n - 1] = a - u * zt;
+        let p = (u - 2.0 * ym * s) / yl;
+        self.lips.s = s + p;
+        self.flows.constriction_loss += loss;
+        self.flows.constriction_dissipation += loss;
+        if la > CLOSED_M2 && u > 0.0 {
+            let contact = self.slot_press[n - 1];
+            self.queue_turbulence(u, la, loss, n, true, contact);
+        }
+        p
+    }
+
+    /// Pay out queued turbulence: a pressure pair into the landing section
+    /// (or straight into the lip radiation), its work taken from the jet that
+    /// queued it and never more than that jet's loss this step.
+    /// Returns the extra emitted pressure at the lips.
+    #[inline]
+    fn apply_turbulence(&mut self, p_lip: f64) -> f64 {
+        let dt = self.dt;
+        let mut extra = 0.0;
+        for q in 0..self.pending_noise {
+            let (target, want, cap) = self.noise_queue[q];
+            let xi = self.turbulent_noise();
+            let mut w;
+            if target >= self.n {
+                let yr = self.lips.y_rad;
+                let p = p_lip + extra;
+                let mut nz = (want / (yr * dt)).sqrt() * xi;
+                w = yr * nz * (2.0 * p + nz) * dt;
+                for _ in 0..4 {
+                    if w <= cap {
+                        break;
+                    }
+                    nz *= 0.5;
+                    w = yr * nz * (2.0 * p + nz) * dt;
+                }
+                if w > cap {
+                    continue;
+                }
+                extra += nz;
+            } else {
+                let y = self.y[target];
+                let (f, b) = (self.nf[target], self.nb[target]);
+                let mut nz = (want / (2.0 * y * dt)).sqrt() * xi;
+                w = y * (2.0 * nz * (f + b) + 2.0 * nz * nz) * dt;
+                for _ in 0..4 {
+                    if w <= cap {
+                        break;
+                    }
+                    nz *= 0.5;
+                    w = y * (2.0 * nz * (f + b) + 2.0 * nz * nz) * dt;
+                }
+                if w > cap {
+                    continue;
+                }
+                self.nf[target] = f + nz;
+                self.nb[target] = b + nz;
+            }
+            self.flows.constriction_loss -= w;
+            self.flows.turbulence_work += w;
+            if w > 0.0 {
+                self.flows.turbulence_positive += w;
+            }
+        }
+        self.pending_noise = 0;
+        extra
     }
 
     /// Render `out.len()` samples and close one ledger frame.
@@ -899,7 +1413,8 @@ impl TractWorld {
                 + (after.fold_control_work - before.fold_control_work),
             internal_loss: (after.wall_loss - before.wall_loss)
                 + (after.jet_loss - before.jet_loss)
-                + (after.fold_loss - before.fold_loss),
+                + (after.fold_loss - before.fold_loss)
+                + (after.constriction_loss - before.constriction_loss),
             radiation_loss: (after.radiation_lips - before.radiation_lips)
                 + (after.radiation_nose - before.radiation_nose),
             output_work: 0.0,
@@ -931,23 +1446,31 @@ impl TractWorld {
         self.gap_min = self.gap_min.min(y);
         self.gap_max = self.gap_max.max(y);
         self.ring[self.ring_pos % CYCLE_RING] = y as f32;
-        // A cycle starts when the fold turns from closing to opening.
+        // A cycle starts when the fold turns from closing to opening; it counts
+        // only if the fold actually swung (more than 0.02 mm), so an abducted
+        // fold jiggling in a turbulent stream is not mistaken for voicing.
+        self.cycle_min = self.cycle_min.min(y);
+        self.cycle_max = self.cycle_max.max(y);
         let v = self.fold.v;
         if self.prev_v <= 0.0 && v > 0.0 {
             let period = self.ring_pos.wrapping_sub(self.last_cycle_start);
             let hz = self.sample_rate_hz / period as f64;
-            if (20.0..=1_500.0).contains(&hz) && period < CYCLE_RING {
+            let swung = self.cycle_max - self.cycle_min > 2.0e-5;
+            if swung && (20.0..=1_000.0).contains(&hz) && period < CYCLE_RING {
                 self.measured_f0 = if self.measured_f0 > 0.0 { 0.7 * self.measured_f0 + 0.3 * hz } else { hz };
                 for (k, point) in self.cycle.iter_mut().enumerate() {
                     let idx = self.last_cycle_start + k * period / CYCLE_POINTS;
                     *point = f64::from(self.ring[idx % CYCLE_RING]);
                 }
+                self.last_voiced = self.ring_pos;
             }
             self.last_cycle_start = self.ring_pos;
+            self.cycle_min = y;
+            self.cycle_max = y;
         }
-        if self.ring_pos.wrapping_sub(self.last_cycle_start) > CYCLE_RING {
+        if self.ring_pos.wrapping_sub(self.last_voiced) > CYCLE_RING {
             self.measured_f0 = 0.0;
-            self.last_cycle_start = self.ring_pos;
+            self.last_voiced = self.ring_pos;
         }
         self.prev_v = v;
         self.ring_pos = self.ring_pos.wrapping_add(1);
@@ -982,6 +1505,10 @@ impl TractWorld {
             global_residual_j: 0.0,
             non_finite_events: 0,
             safety_limited_frames: 0,
+            max_reynolds: 0.0,
+            min_aperture_m2: 0.0,
+            min_aperture_position: 0.0,
+            constrictions: [Constriction::default(); MAX_CONSTRICTIONS],
         };
         self.readings_into(&mut r);
         r
@@ -1018,6 +1545,83 @@ impl TractWorld {
         r.global_residual_j = self.ledger.global_residual();
         r.non_finite_events = self.non_finite_events;
         r.safety_limited_frames = self.safety_limited_frames;
+        r.max_reynolds = self.max_re;
+        self.max_re = 0.0;
+        let mut best = (f64::MAX, 0usize);
+        for j in 0..self.n - 1 {
+            if self.aperture[j] < best.0 {
+                best = (self.aperture[j], j);
+            }
+        }
+        if self.lip_aperture < best.0 {
+            best = (self.lip_aperture, self.n - 1);
+        }
+        r.min_aperture_m2 = best.0;
+        r.min_aperture_position = (best.1 as f64 + 1.0) / self.n as f64;
+        for k in 0..MAX_CONSTRICTIONS {
+            r.constrictions[k] = if self.slots[k].active { self.slots[k].current } else { Constriction::default() };
+        }
+    }
+
+    /// Acoustic pressure in one oral section (Pa): both travelling waves.
+    #[must_use]
+    pub fn oral_pressure(&self, i: usize) -> f64 {
+        if i >= self.n {
+            return 0.0;
+        }
+        self.f[i] + self.b[i]
+    }
+
+    /// Acoustic energy stored in one oral section (J).
+    #[must_use]
+    pub fn oral_section_energy(&self, i: usize) -> f64 {
+        if i >= self.n {
+            return 0.0;
+        }
+        self.y[i] * (self.f[i] * self.f[i] + self.b[i] * self.b[i]) * self.dt
+    }
+
+    /// Place (`Some`) or release (`None`) constriction `slot`. Releasing lets
+    /// the wall return at the release time constant; slot 0 is driven by
+    /// gestures while one runs.
+    pub fn set_constriction(&mut self, slot: usize, constriction: Option<Constriction>) {
+        if slot >= MAX_CONSTRICTIONS {
+            return;
+        }
+        let s = &mut self.slots[slot];
+        match constriction {
+            Some(c) => {
+                let c = Constriction {
+                    position: finite_or(c.position, 0.9).clamp(0.0, 1.0),
+                    degree: finite_or(c.degree, 0.0).clamp(0.0, 1.0),
+                };
+                if !s.active {
+                    s.current = Constriction { position: c.position, degree: 0.0 };
+                    s.active = true;
+                }
+                s.target = c;
+            }
+            None => s.target.degree = 0.0,
+        }
+    }
+
+    #[must_use]
+    pub fn constriction(&self, slot: usize) -> Option<Constriction> {
+        self.slots.get(slot).filter(|s| s.active).map(|s| s.current)
+    }
+
+    /// Fold-tension modulation (booked as fold control work like any retune).
+    pub fn set_vibrato(&mut self, v: Vibrato) {
+        self.vibrato = Vibrato {
+            rate_hz: finite_or(v.rate_hz, 5.5).clamp(0.1, 12.0),
+            depth_semitones: finite_or(v.depth_semitones, 0.0).clamp(0.0, 2.0),
+            wobble: finite_or(v.wobble, 0.0).clamp(0.0, 1.0),
+        };
+    }
+
+    #[must_use]
+    pub fn vibrato(&self) -> Vibrato {
+        self.vibrato
     }
 
     /// The tube's own response: glottis rigid, one volume-velocity impulse
@@ -1045,6 +1649,56 @@ impl TractWorld {
         self.glottis_mode = mode;
         out
     }
+}
+
+/// Move one section's admittance from `y_old` to `y_new` holding its excess
+/// air volume `q = C p` (the air does not appear or vanish when a wall moves)
+/// and its volume flow `U` (continuity): pressure and flow both scale by
+/// `A_old / A_new`, so both travelling waves do. Returns the change of stored
+/// energy, which the articulators paid: squeezing a pressurised or flowing
+/// section costs work, opening it gets work back.
+#[inline]
+fn transport_section(f: &mut f64, b: &mut f64, y_old: f64, y_new: f64, dt: f64) -> f64 {
+    if y_new == y_old {
+        return 0.0;
+    }
+    let before = y_old * (*f * *f + *b * *b);
+    let r = y_old / y_new;
+    *f *= r;
+    *b *= r;
+    (y_new * (*f * *f + *b * *b) - before) * dt
+}
+
+/// Solve `kappa U|U| + z U = rhs` for U (U has the sign of rhs); the
+/// cancellation-free root. `kappa = inf` means a closed aperture.
+#[inline]
+fn jet_flow(rhs: f64, z: f64, kappa: f64) -> f64 {
+    if !kappa.is_finite() || !z.is_finite() {
+        return 0.0;
+    }
+    let lin = rhs / z;
+    // Negligible quadratic term: the linear element (still passive; the loss
+    // booked is always computed from the flow actually used).
+    if kappa <= 0.0 || kappa * lin.abs() < 1.0e-4 * z {
+        return lin;
+    }
+    let root = (z * z + 4.0 * kappa * rhs.abs()).sqrt();
+    2.0 * rhs / (z + root)
+}
+
+/// Unit-variance gain for two cascaded one-pole lowpasses `y += k (x - y)`
+/// on unit-variance white noise (sum of the squared impulse response).
+fn two_pole_norm(k: f64) -> f64 {
+    let a = 1.0 - k;
+    // h[n] = k² (n + 1) aⁿ; sum h² = k⁴ (1 + a²) / (1 - a²)³.
+    let sum = k.powi(4) * (1.0 + a * a) / (1.0 - a * a).powi(3);
+    1.0 / sum.sqrt()
+}
+
+#[inline]
+fn smoothstep(t: f64) -> f64 {
+    let t = t.clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
 }
 
 /// One-pole approach; snaps when within 1e-9 so a settled World stops moving.

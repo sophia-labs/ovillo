@@ -66,6 +66,9 @@ pub struct FoldAnatomy {
     pub rest_half_gap_breathy_m: f64,
     /// Resting half-gap at tenseness 1 (pressed, adducted).
     pub rest_half_gap_pressed_m: f64,
+    /// Extra abduction below tenseness 0.3, for voiceless consonants: the
+    /// rest gap grows by up to this fraction at tenseness 0.
+    pub abduction_boost: f64,
     /// Fold tuning range (the pitch control sets the tension stiffness so the
     /// unloaded fold rings here; the World decides the actual F0).
     pub min_tuning_hz: f64,
@@ -128,6 +131,21 @@ pub struct TractAnatomy {
     /// Largest fraction of the glottal jet's dissipated power that comes back
     /// as turbulent pressure at aspiration = 1.
     pub turbulence_efficiency: f64,
+    /// Supraglottal jets: largest fraction of a constriction jet's dissipated
+    /// power returned as turbulent pressure (fully turbulent jet).
+    pub frication_efficiency: f64,
+    /// Reynolds number (hydraulic diameter of the aperture) where constriction
+    /// noise starts; it reaches full strength at twice this.
+    pub frication_reynolds: f64,
+    /// Lateral width of a constriction slit, for its viscous resistance.
+    pub constriction_slit_width_m: f64,
+    /// Gaussian shoulder width of a touch constriction (normalized position).
+    pub constriction_width: f64,
+    /// Constriction closing and releasing time constants.
+    pub constriction_close_s: f64,
+    pub constriction_release_s: f64,
+    /// Below this lips value the lip aperture closes linearly to exactly zero.
+    pub lip_seal: f64,
     pub fold: FoldAnatomy,
     pub lung: LungAnatomy,
 }
@@ -164,6 +182,13 @@ impl TractAnatomy {
             end_correction_ratio: 0.61,
             radiation_impedance_ratio: 1.4884,
             turbulence_efficiency: 0.02,
+            frication_efficiency: 0.06,
+            frication_reynolds: 3_000.0,
+            constriction_slit_width_m: 0.015,
+            constriction_width: 0.022,
+            constriction_close_s: 0.008,
+            constriction_release_s: 0.005,
+            lip_seal: 0.02,
             fold: FoldAnatomy {
                 length_m: 0.014,
                 thickness_m: 0.003,
@@ -173,6 +198,7 @@ impl TractAnatomy {
                 contact_stiffness_ratio: 3.0,
                 contact_damping_ratio: 1.0,
                 rest_half_gap_breathy_m: 8.0e-4,
+                abduction_boost: 1.0,
                 rest_half_gap_pressed_m: 5.0e-5,
                 min_tuning_hz: 60.0,
                 max_tuning_hz: 420.0,
@@ -220,6 +246,13 @@ impl TractAnatomy {
             Provenance { name: "end_correction_ratio", value: self.end_correction_ratio, unit: "-", label: "spec", source: "garganta_anatomy.py _radiation_impedance low-ka reactance 0.61 ka" },
             Provenance { name: "radiation_impedance_ratio", value: self.radiation_impedance_ratio, unit: "-", label: "law", source: "0.61^2/0.25: makes a parallel air-plug mass + radiation load match the oracle's low-ka limits (0.25 (ka)^2 resistance, 0.61 ka reactance); diverges above ka~1" },
             Provenance { name: "turbulence_efficiency", value: self.turbulence_efficiency, unit: "-", label: DH, source: "stochastic supply paid by the jet (ANATOMY-EVOLUTION.md section 4 StochasticSupplySpec)" },
+            Provenance { name: "frication_efficiency", value: self.frication_efficiency, unit: "-", label: DH, source: "cap; below it the share is 0.004 (M/0.1)^3 of each constriction jet's own dissipation (dipole Mach-cubed scaling, coefficient a design hypothesis)" },
+            Provenance { name: "frication_reynolds", value: self.frication_reynolds, unit: "-", label: DH, source: "onset Re = 2|U| / (nu sqrt(pi A_c)), full at 2x; value not from this repository" },
+            Provenance { name: "constriction_slit_width", value: self.constriction_slit_width_m, unit: "m", label: DH, source: "viscous slit resistance 12 mu dx w^2 / A_c^3 at narrow junctions" },
+            Provenance { name: "constriction_width", value: self.constriction_width, unit: "-", label: DH, source: "flat top of 1.2 sections plus this Gaussian shoulder" },
+            Provenance { name: "constriction_close", value: self.constriction_close_s, unit: "s", label: DH, source: "" },
+            Provenance { name: "constriction_release", value: self.constriction_release_s, unit: "s", label: DH, source: "" },
+            Provenance { name: "lip_seal", value: self.lip_seal, unit: "-", label: DH, source: "lip aperture goes to exactly zero below this lips value" },
             Provenance { name: "fold_length", value: f.length_m, unit: "m", label: DH, source: "" },
             Provenance { name: "fold_thickness", value: f.thickness_m, unit: "m", label: DH, source: "" },
             Provenance { name: "fold_mass", value: f.mass_kg, unit: "kg", label: DH, source: "" },
@@ -228,6 +261,7 @@ impl TractAnatomy {
             Provenance { name: "contact_stiffness_ratio", value: f.contact_stiffness_ratio, unit: "-", label: DH, source: "" },
             Provenance { name: "contact_damping_ratio", value: f.contact_damping_ratio, unit: "-", label: DH, source: "" },
             Provenance { name: "rest_half_gap_breathy", value: f.rest_half_gap_breathy_m, unit: "m", label: DH, source: "" },
+            Provenance { name: "abduction_boost", value: f.abduction_boost, unit: "-", label: DH, source: "voiceless consonants: rest gap x(1 + boost (0.3 - t)/0.3) below tenseness 0.3" },
             Provenance { name: "rest_half_gap_pressed", value: f.rest_half_gap_pressed_m, unit: "m", label: DH, source: "" },
             Provenance { name: "fold_tuning_min", value: f.min_tuning_hz, unit: "Hz", label: DH, source: "" },
             Provenance { name: "fold_tuning_max", value: f.max_tuning_hz, unit: "Hz", label: DH, source: "" },
@@ -261,8 +295,17 @@ impl TractAnatomy {
     }
 
     /// Oral area function (cm²) for an articulation, written into `out`
-    /// (section centres `(i + 0.5) / n`).
+    /// (section centres `(i + 0.5) / n`), inside GARGANTA's area cone.
     pub fn oral_areas_cm2(&self, a: &Articulation, out: &mut [f64]) {
+        self.oral_areas_unclipped_cm2(a, out);
+        for v in out.iter_mut() {
+            *v = v.clamp(AREA_FLOOR_CM2, AREA_CEIL_CM2);
+        }
+    }
+
+    /// As [`TractAnatomy::oral_areas_cm2`] but without the lower edge of the
+    /// cone (the ceiling still applies): what a constriction's aperture sees.
+    pub fn oral_areas_unclipped_cm2(&self, a: &Articulation, out: &mut [f64]) {
         let n = out.len();
         let center = lerp(self.tongue_back_center, self.tongue_front_center, a.tongue_index.clamp(0.0, 1.0));
         let depth = lerp(self.tongue_depth_low, self.tongue_depth_high, a.tongue_diameter.clamp(0.0, 1.0));
@@ -276,7 +319,7 @@ impl TractAnatomy {
             log_area -= depth * gaussian(x, center, self.tongue_width);
             log_area += self.tongue_compensation * depth * gaussian(x, comp_center, self.tongue_compensation_width);
             log_area += lip_log * gaussian(x, self.lip_center, self.lip_width);
-            *value = log_area.exp().clamp(AREA_FLOOR_CM2, AREA_CEIL_CM2);
+            *value = log_area.exp().min(AREA_CEIL_CM2);
         }
     }
 

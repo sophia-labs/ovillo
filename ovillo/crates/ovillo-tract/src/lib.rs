@@ -31,4 +31,4 @@ pub mod world;
 
 pub use anatomy::{Articulation, Provenance, TractAnatomy};
 pub use presets::{Gesture, Preset};
-pub use world::{Flows, GlottisMode, TractControls, TractReadings, TractWorld};
+pub use world::{Constriction, Flows, GlottisMode, TractControls, TractReadings, TractWorld, Vibrato};
