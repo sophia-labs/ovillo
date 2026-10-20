@@ -32,6 +32,17 @@
 //! | `mus_render_reset()` | drop the render and its audio |
 //!
 //! A call that returns a length or pointer may grow memory: take views after it.
+//!
+//! **Native and browser renders.** Compiled natively, this path is `mus render` to the byte (`mus-cli`'s
+//! `wasm_parity` test). Compiled to wasm32, the transcendental functions (`sin`, `powf`, `log2`, `exp`) are Rust's
+//! own libm instead of the platform's, which rounds a few results differently in the last bit. Measured on the
+//! steel-string tour and its first four bars (node, 2026-10-20): every ledger figure agrees with the native receipt to
+//! within 2e-12 relative (the closure residual, itself ~1e-16, to 3e-3 of itself); `planDigest` and `listenerDigest`
+//! differ, because the anatomy's retuning (`apply_hands`) runs through those functions before the plan is hashed;
+//! the PCM_24 WAV was bit-identical for the full tour and not for the four bars. A browser receipt is a true
+//! receipt of the browser's render, not a copy of a native one.
+//!
+//! Build: `crates/mus-wasm/build.sh [out.wasm]` (simd128 on); measure: `node crates/mus-wasm/rtf.mjs <wasm> <score> [native receipt]`.
 
 use std::cell::RefCell;
 use std::path::Path;
