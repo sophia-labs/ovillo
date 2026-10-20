@@ -25,7 +25,7 @@ resolver = "2"
 [workspace.package]
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/sophia-labs/instrument"
+repository = "https://github.com/sophia-labs/ovillo"
 
 [patch.crates-io]
 # nice-plug 0.2.3 trusts the untrusted length prefix in a CLAP state stream and

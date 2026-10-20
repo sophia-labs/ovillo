@@ -21,7 +21,7 @@ Nothing in Ovillo synthesizes a note. You write a score in MUS, a plain-text not
 
 ## Watch / listen
 
-[First plateau: *Wayfaring Stranger*, after Doc Watson](https://github.com/sophia-labs/ovillo/releases/tag/v0.1.0), rendered by the steel-string, with the world's own energies on screen.
+[ovillo.sophia-labs.com](https://ovillo.sophia-labs.com): play the bench live in your browser (the simulated guitar and the Ariadne World, compiled to WebAssembly), and a listening room of renders with their scores, receipts and where the energy was. *Wayfaring Stranger*, after Doc Watson, is there, rendered by the steel-string.
 
 ## Plateaus
 
