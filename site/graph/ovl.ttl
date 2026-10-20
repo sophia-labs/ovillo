@@ -45,11 +45,11 @@ ovl:Ledger a owl:Class ;
 
 ovl:BenchRun a owl:Class ;
     rdfs:label "Bench run" ;
-    rdfs:comment "The log of a run of the Ovillo bench (a simulated guitarist into an Ariadne World) or of the trombone example: pattern, pickup, patch, closure residual and safety-limited frames, as the engine logged them. It has no per-body energy trace." .
+    rdfs:comment "The log of a run of the Ovillo bench (a simulated guitarist into an Ariadne World): pattern, pickup, patch, closure residual and safety-limited frames, as the engine logged them. It has no per-body energy trace." .
 
 ovl:Instrument a owl:Class ;
     rdfs:label "Instrument" ;
-    rdfs:comment "The kind of World a piece sounds out of: a steel-string anatomy with a tuning, the bench rig, the trombone." .
+    rdfs:comment "The kind of World a piece sounds out of: a steel-string anatomy with a tuning, the bench rig." .
 
 ovl:Playlist a owl:Class ;
     rdfs:label "Playlist" ;
@@ -164,7 +164,7 @@ ovl:safetyLimitedFrames a owl:DatatypeProperty ; rdfs:label "safety-limited fram
 # ---- Instrument ----
 
 ovl:kind a owl:DatatypeProperty ; rdfs:label "kind" ; rdfs:domain ovl:Instrument ; rdfs:range xsd:string ;
-    rdfs:comment "\"steel-string\", \"bench\", \"trombone\" or \"tract\"." .
+    rdfs:comment "\"steel-string\", \"bench\"." .
 ovl:tuning a owl:DatatypeProperty ; rdfs:label "tuning" ; rdfs:domain ovl:Instrument ; rdfs:range xsd:string ;
     rdfs:comment "Open strings, lowest first, as note names: \"D2 A2 D3 G3 A3 D4\"." .
 

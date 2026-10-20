@@ -5,7 +5,7 @@ def mus(slug, num, title, group, tags, engine, note, score):
     return dict(slug=slug, title=title, group=group, tags=tags, engine=engine, note=note,
                 wav=f"{SO}{num}.wav", score=score, receipt=f"{SO}{num}.json", energy=f"{SO}{num}.energy.json")
 def bench(slug, title, group, tags, note, d, wav, score=None, patch=None):
-    log = open(BE + d + "/log").read() if d else open(BE + "trombone.log").read()
+    log = open(BE + d + "/log").read()
     m = re.search(r"closure residual (\S+)", log); lim = re.search(r"safety-limited frames (\d+)", log)
     rt = re.search(r"whole rig:\s+\S+ s\s+->\s+(\S+)x", log)
     b = {"closureResidual": m.group(1) if m else None, "safetyLimitedFrames": int(lim.group(1)) if lim else None,
@@ -31,7 +31,6 @@ P = [
      "The repository's acceptance score for the steel-string: open strings left to ring, a hammer-on, a pull-off, a slide, the palm-muted thumb.", F + "/examples/tab/steel_string_tour.mus"),
  mus("wayfaring-stranger", "01-wayfaring", "Wayfaring Stranger", "repo", ["pretty"], "steel-string world · after Doc Watson",
      "The traditional hymn (first printed 1858) as a full annotated tab for thumb, melody and fills.", F + "/examples/tab/wayfaring-stranger-doc.mus"),
- bench("trombone", "Trombone solo", "repo", ["pretty"], "A slow trombone solo in F minor played by an Ariadne World whose configuration path is a slide, driven by a lip reed.", None, BE + "trombone-solo.wav"),
  bench("ambient", "AMBIENT", "bench", ["pretty"], "The bench guitarist's ambient piece: drones, slowly rolled colour chords, high plucks with late vibrato, bars of silence for hearing the World ring. Neck pickup.", "ambient", BE + "ambient/ambient-wet.wav"),
  bench("travis", "TRAVIS", "bench", ["pretty"], "Alternating-bass fingerpicking in C and G. Middle pickup.", "travis", BE + "travis/travis-wet.wav"),
  bench("blues", "BLUES", "bench", ["rhythmic"], "A 12-bar shuffle in E or A, licks with curls and bends. Bridge pickup.", "blues", BE + "blues/blues-wet.wav"),

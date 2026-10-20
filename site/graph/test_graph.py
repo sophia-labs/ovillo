@@ -12,7 +12,7 @@ OUT = HERE / "out"
 OVL = Namespace("http://sophia.ai/ovillo#")
 SCRATCH = "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad"
 PIECES = json.loads(Path(f"{SCRATCH}/scores/pieces.json").read_text())
-BANNED = ("weave", "aiguá", "aigua", "bird", "subtractive", "oscillator", "sample", "pluck voice", "telar", "pájaros")
+BANNED = ("trombone", "lip reed", "buzz", "synth", "weave", "aiguá", "aigua", "bird", "subtractive", "oscillator", "sample", "pluck voice", "telar", "pájaros")
 G = Graph().parse(OUT / "ovillo.nt", format="nt")
 
 
@@ -83,7 +83,7 @@ class GraphTests(unittest.TestCase):
             for w in BANNED:
                 self.assertNotIn(w, text, (p, w))
             for ins in G.objects(p, OVL.instrument):
-                self.assertIn(str(one(ins, OVL.kind)), ("steel-string", "bench", "trombone", "tract"))
+                self.assertIn(str(one(ins, OVL.kind)), ("steel-string", "bench"))
         for src in PIECES:
             if src.get("receipt"):
                 rec = json.loads(Path(src["receipt"]).read_text())
@@ -94,6 +94,23 @@ class GraphTests(unittest.TestCase):
                 self.assertNotIn(w, f.name.lower())
         for s in G.objects(None, OVL.text):
             self.assertNotIn("weave", str(s).lower())
+
+    def test_no_piece_with_a_synthesized_source(self):
+        """The trombone (additive buzz into a passive mouthpiece, bell band filtered outside the World) is out, and so is
+        anything like it: a piece is a steel-string World (a receipt whose Worlds are all steel-string-v0, played by plucks,
+        hammer-ons, pull-offs and slides) or a bench run of the simulated guitarist into the World."""
+        self.assertNotIn("trombone", {str(s) for s in G.objects(None, OVL.slug)})
+        self.assertFalse((OUT / "site" / "media" / "trombone.mp3").exists())
+        for p in G.subjects(RDF.type, OVL.Piece):
+            kinds = {str(one(i, OVL.kind)) for i in G.objects(p, OVL.instrument)}
+            self.assertTrue(kinds and kinds <= {"steel-string", "bench"}, (p, kinds))
+            r = one(p, OVL.render)
+            if list(G.objects(r, OVL.bench)):
+                self.assertEqual(kinds, {"bench"})
+                self.assertEqual(len(list(G.objects(one(r, OVL.bench), OVL.pattern))), 1)  # a simulated guitarist, nothing else
+            else:
+                self.assertEqual(kinds, {"steel-string"})
+        self.assertEqual(len(PIECES), 17)
 
     def test_energy_traces_are_the_worlds(self):
         for src in PIECES:
@@ -121,7 +138,7 @@ class GraphTests(unittest.TestCase):
           ?p a ovl:Piece ; dcterms:title ?title ; ovl:render ?r . ?r ovl:audio ?audio .
           OPTIONAL { ?r ovl:ledger ?l . ?l ovl:radiation ?rad } } GROUP BY ?title ?audio"""
         rows = list(G.query(q))
-        self.assertEqual(len(rows), 18)
+        self.assertEqual(len(rows), len(PIECES))
         with_rad = [r for r in rows if r.radiation is not None and float(r.radiation) > 0]
         self.assertEqual(len(with_rad), 7)
 

@@ -63,7 +63,7 @@ SELECT ?slug ?world ?plucks ?sourceWork ?controlWork ?internalLoss ?radiation ?c
      ovl:internalLoss ?internalLoss ; ovl:radiation ?radiation ; ovl:closureResidual ?closureResidual ; ovl:maxFrameResidual ?maxFrameResidual } } ORDER BY ?slug ?world
 ```
 
-### 3. The bench and trombone runs (engine log numbers; no ledger)
+### 3. The bench runs (engine log numbers; no ledger)
 
 ```sparql
 PREFIX ovl: <http://sophia.ai/ovillo#>

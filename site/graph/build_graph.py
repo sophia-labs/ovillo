@@ -188,7 +188,7 @@ def main():
             (site / "media" / f"{slug}.energy.json").write_text(jdump(compact_energy(tr)))
             g.add((rs, OVL.energyTrace, url(f"media/{slug}.energy.json")))
 
-        # --- bench / trombone run: the engine's log; no receipt, no ledger, no trace, by omission
+        # --- bench run: the engine's log; no receipt, no ledger, no trace, by omission
         if p.get("bench"):
             b = p["bench"]; bs = iri("bench", slug)
             g.add((rs, OVL.bench, bs)); g.add((bs, RDF.type, OVL.BenchRun))
@@ -197,15 +197,13 @@ def main():
             if b.get("closureResidual") is not None:
                 g.add((bs, OVL.closureResidual, L(float(b["closureResidual"]), XSD.double)))
             logdir = Path(p['wav']).parent
-            if slug != "trombone":
+            if True:
                 m = re.search(r"pattern (\S+)\s+pickup (\S+)", (logdir / "log").read_text())
                 g.add((bs, OVL.pattern, L(m.group(1)))); g.add((bs, OVL.pickup, L(m.group(2))))
                 pf = Path(SCRATCH) / "patches" / f"{PATCH_FILES.get(slug, 'none')}.json"
                 patch = json.loads(pf.read_text()) if pf.exists() else {"preset": "ovillo-default"}
                 g.add((bs, OVL.patch, L(jdump(patch))))
                 add = add_instrument("bench", "The Ovillo bench: a simulated guitarist into an Ariadne World")
-            else:
-                add = add_instrument("trombone", "Trombone: an Ariadne World whose configuration path is a slide, driven by a lip reed")
             g.add((ps, OVL.instrument, add))
 
     for grp, items in groups.items():
