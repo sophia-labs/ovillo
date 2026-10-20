@@ -54,18 +54,28 @@ pub struct TabInstrument {
     pub hands: Vec<Hand>,
     plan: WorldPlan,
     /// Open pitch of each string, string 1 (highest) first.
-    open: Vec<f64>,
-    capo: f64,
+    pub(crate) open: Vec<f64>,
+    pub(crate) capo: f64,
     gain_db: f64,
     send: f64,
 }
 
 pub struct Hand {
     pub abbrev: String,
-    pos: f64,
-    pick: f64,
-    pm: f64,
+    pub(crate) pos: f64,
+    pub(crate) pick: f64,
+    pub(crate) pm: f64,
     gain_db: f64,
+}
+
+impl TabInstrument {
+    /// The pitch (MIDI, fractional for cents) that `@string:fret` sounds on this
+    /// instrument (SPEC-TAB §1): open course + capo + fret, or for a natural
+    /// harmonic the harmonic's interval above the open course.
+    pub(crate) fn expected_midi(&self, string: usize, fret: u8, harmonic: bool) -> f64 {
+        let harmonic = if harmonic { harmonic_offset(fret) } else { None };
+        self.open[string - 1] + self.capo + harmonic.unwrap_or(fret as f64)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -221,7 +231,7 @@ pub fn collect(
 
 /// SPEC-TAB §5: swing as a piecewise-linear warp of each beat pair. It agrees
 /// with `layout::swung` on the grid and carries 16ths proportionally.
-fn warp(q: f64, unit: f64, ratio: f64) -> f64 {
+pub(crate) fn warp(q: f64, unit: f64, ratio: f64) -> f64 {
     if unit <= 0.0 || ratio <= 0.5 {
         return q;
     }
@@ -303,8 +313,7 @@ fn performance(
                         stats.bad.push(format!("b{b} {abbr}: {tk} (no string {string})"));
                         continue;
                     }
-                    let harmonic = if flag("harm") { harmonic_offset(at.fret) } else { None };
-                    let expected = inst.open[string - 1] + inst.capo + harmonic.unwrap_or(at.fret as f64);
+                    let expected = inst.expected_midi(string, at.fret, flag("harm"));
                     if (midi - expected).abs() > 0.01 {
                         stats.bad.push(format!(
                             "b{b} {abbr}: {tk} (string {string} fret {} sounds midi {expected}, not {midi})",
@@ -330,7 +339,7 @@ fn performance(
     touches
 }
 
-fn midi_name(midi: f64) -> String {
+pub(crate) fn midi_name(midi: f64) -> String {
     const NAMES: [&str; 12] = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
     let m = midi.round() as i64;
     format!("{}{}", NAMES[m.rem_euclid(12) as usize], m.div_euclid(12) - 1)
@@ -403,9 +412,51 @@ fn apply_hands(plan: &mut WorldPlan, inst: &TabInstrument, touches: &[Touch]) ->
     receipts
 }
 
-/// Play every tab instrument and mix what the listener hears into the dry/wet buses.
+/// One tab instrument's world, set up and ready to be stepped a block of
+/// samples at a time (`mus-wasm` renders in chunks so a page can show
+/// progress). [`render`] steps every run to the end in one call; a run
+/// stepped in blocks of any size produces the same samples, receipt and trace.
+pub struct WorldRun {
+    abbrev: String,
+    anatomy: String,
+    capo: f64,
+    send: f64,
+    gain_db: f64,
+    sample_rate: f64,
+    world: World,
+    listener: StereoListener,
+    bodies: Vec<String>,
+    string_body: BTreeMap<usize, usize>,
+    controls: Vec<BodyControls>,
+    strings: Vec<StringHandReceipt>,
+    stops: Vec<(usize, usize, f64, usize)>,
+    pulses: Vec<(usize, usize, f64, usize)>,
+    counts: [usize; 4],
+    start: usize,
+    n_total: usize,
+    k: usize,
+    hop: usize,
+    box_bodies: Vec<usize>,
+    omega: Vec<Vec<f64>>,
+    trace: EnergyTrace,
+    dt: f64,
+    source_acc: Vec<f64>,
+    radiation_acc: Vec<f64>,
+    loss_acc: Vec<f64>,
+    bridge_acc: Vec<f64>,
+    left: Vec<f32>,
+    right: Vec<f32>,
+    current: BTreeMap<usize, f64>,
+    ramps: BTreeMap<usize, (f64, f64, usize, usize)>,
+    next_stop: usize,
+    next_pulse: usize,
+    active: Vec<(usize, usize, f64, usize)>,
+}
+
+/// Compile every tab instrument's performance and build its world. Instruments
+/// whose hands play nothing get no world (and no receipt), as before.
 #[allow(clippy::too_many_arguments)]
-pub fn render(
+pub fn prepare(
     instruments: &[TabInstrument],
     bar_map: &BarMap,
     bar_content: &BTreeMap<u32, BTreeMap<String, String>>,
@@ -413,10 +464,10 @@ pub fn render(
     swing_unit_ql: f64,
     swing_r: f64,
     sample_rate: f64,
-    buffers: &mut MixBuffers,
+    n_total: usize,
     stats: &mut RenderStats,
-) -> Result<(), RenderError> {
-    let n_total = buffers.dry[0].len();
+) -> Result<Vec<WorldRun>, RenderError> {
+    let mut runs = Vec::new();
     for inst in instruments {
         let world_err = |e: String| RenderError::Invalid(format!("{} world: {e}", inst.abbrev));
         let touches = performance(inst, bar_map, bar_content, n_bars, swing_unit_ql, swing_r, stats);
@@ -433,14 +484,14 @@ pub fn render(
         let strings = apply_hands(&mut plan, inst, &touches);
         let listener_spec = StereoListenerSpec::all_bodies(&plan, 1.0).map_err(|e| world_err(e.to_string()))?;
         let listener = StereoListener::bind(&listener_spec, &plan).map_err(|e| world_err(e.to_string()))?;
-        let mut world = World::from_plan(plan).map_err(|e| world_err(e.to_string()))?;
+        let world = World::from_plan(plan).map_err(|e| world_err(e.to_string()))?;
         let bodies: Vec<String> = (0..world.body_count()).map(|i| world.body_id(i).unwrap_or("?").to_owned()).collect();
         let string_body: BTreeMap<usize, usize> = bodies
             .iter()
             .enumerate()
             .filter_map(|(i, id)| id.strip_prefix("string/").and_then(|n| n.parse().ok()).map(|n| (n, i)))
             .collect();
-        let mut controls: Vec<BodyControls> = bodies
+        let controls: Vec<BodyControls> = bodies
             .iter()
             .enumerate()
             .map(|(i, id)| BodyControls {
@@ -502,7 +553,7 @@ pub fn render(
             .map(|&i| inst.plan.bodies[i].body.configuration_path.left.metric.frequency_hz.iter().map(|f| 2.0 * PI * f).collect())
             .collect();
         let edges = world.coupling_count();
-        let mut trace = EnergyTrace {
+        let trace = EnergyTrace {
             instrument: inst.abbrev.clone(),
             hop_seconds: ENERGY_HOP_SECONDS,
             start_seconds: start as f64 / sample_rate,
@@ -534,46 +585,106 @@ pub fn render(
                 })
                 .collect(),
         };
-        let dt = 1.0 / sample_rate;
-        let (mut source_acc, mut radiation_acc, mut loss_acc) =
-            (vec![0.0_f64; bodies.len()], vec![0.0_f64; bodies.len()], vec![0.0_f64; bodies.len()]);
-        let mut bridge_acc = vec![0.0_f64; edges];
-        let mut left = vec![0.0_f32; n_total.saturating_sub(start)];
-        let mut right = vec![0.0_f32; left.len()];
-        let mut current: BTreeMap<usize, f64> = BTreeMap::new();
-        let mut ramps: BTreeMap<usize, (f64, f64, usize, usize)> = BTreeMap::new(); // string -> (from, to, start, len)
-        let (mut next_stop, mut next_pulse) = (0, 0);
-        let mut active: Vec<(usize, usize, f64, usize)> = Vec::new();
-        for k in start..n_total {
-            while next_stop < stops.len() && stops[next_stop].0 <= k {
-                let (_, string, to, len) = stops[next_stop];
-                let from = *current.get(&string).unwrap_or(&inst.capo);
-                ramps.insert(string, (from, to, k, len.max(1)));
-                next_stop += 1;
+        let n = bodies.len();
+        let samples = n_total.saturating_sub(start);
+        runs.push(WorldRun {
+            abbrev: inst.abbrev.clone(),
+            anatomy: inst.anatomy.clone(),
+            capo: inst.capo,
+            send: inst.send,
+            gain_db: inst.gain_db,
+            sample_rate,
+            world,
+            listener,
+            bodies,
+            string_body,
+            controls,
+            strings,
+            stops,
+            pulses,
+            counts,
+            start,
+            n_total,
+            k: start,
+            hop,
+            box_bodies,
+            omega,
+            trace,
+            dt: 1.0 / sample_rate,
+            source_acc: vec![0.0_f64; n],
+            radiation_acc: vec![0.0_f64; n],
+            loss_acc: vec![0.0_f64; n],
+            bridge_acc: vec![0.0_f64; edges],
+            left: vec![0.0_f32; samples],
+            right: vec![0.0_f32; samples],
+            current: BTreeMap::new(),
+            ramps: BTreeMap::new(),
+            next_stop: 0,
+            next_pulse: 0,
+            active: Vec::new(),
+        });
+    }
+    Ok(runs)
+}
+
+impl WorldRun {
+    /// The instrument this world plays.
+    pub fn instrument(&self) -> &str {
+        &self.abbrev
+    }
+
+    /// Samples this world simulates in all (from just before its first touch to the end of the render).
+    pub fn samples(&self) -> usize {
+        self.n_total.saturating_sub(self.start)
+    }
+
+    /// Samples simulated so far.
+    pub fn done(&self) -> usize {
+        self.k - self.start.min(self.k)
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.k >= self.n_total
+    }
+
+    /// Simulate up to `max` more samples; returns how many were simulated.
+    pub fn step(&mut self, max: usize) -> Result<usize, RenderError> {
+        let abbrev = self.abbrev.clone();
+        let world_err = move |e: String| RenderError::Invalid(format!("{abbrev} world: {e}"));
+        let end = self.n_total.min(self.k.saturating_add(max));
+        let from = self.k;
+        let start = self.start;
+        for k in from..end {
+            while self.next_stop < self.stops.len() && self.stops[self.next_stop].0 <= k {
+                let (_, string, to, len) = self.stops[self.next_stop];
+                let from = *self.current.get(&string).unwrap_or(&self.capo);
+                self.ramps.insert(string, (from, to, k, len.max(1)));
+                self.next_stop += 1;
             }
             let mut done = Vec::new();
-            for (&string, &(from, to, s0, len)) in &ramps {
+            for (&string, &(from, to, s0, len)) in &self.ramps {
                 let x = ((k - s0 + 1) as f64 / len as f64).min(1.0);
                 let frets = from + (to - from) * x;
-                if let Some(&body) = string_body.get(&string) {
-                    world.set_body_configuration_index(body, (frets / 12.0).clamp(0.0, 1.0)).map_err(|e| world_err(e.to_string()))?;
+                if let Some(&body) = self.string_body.get(&string) {
+                    self.world.set_body_configuration_index(body, (frets / 12.0).clamp(0.0, 1.0)).map_err(|e| world_err(e.to_string()))?;
                 }
-                current.insert(string, frets);
+                self.current.insert(string, frets);
                 if x >= 1.0 {
                     done.push(string);
                 }
             }
             for s in done {
-                ramps.remove(&s);
+                self.ramps.remove(&s);
             }
-            while next_pulse < pulses.len() && pulses[next_pulse].0 <= k {
-                active.push(pulses[next_pulse]);
-                next_pulse += 1;
+            while self.next_pulse < self.pulses.len() && self.pulses[self.next_pulse].0 <= k {
+                self.active.push(self.pulses[self.next_pulse]);
+                self.next_pulse += 1;
             }
-            for c in controls.iter_mut() {
+            for c in self.controls.iter_mut() {
                 c.source_wave = 0.0;
             }
-            active.retain(|&(s0, string, amp, width)| {
+            let (string_body, controls) = (&self.string_body, &mut self.controls);
+            self.active.retain(|&(s0, string, amp, width)| {
                 let i = k - s0;
                 if i >= width {
                     return false;
@@ -583,54 +694,66 @@ pub fn render(
                 }
                 true
             });
-            let frame = world.process_sample(&controls, WorldControls::default()).map_err(|e| world_err(e.to_string()))?;
-            let heard = listener.observe(&world, &frame).map_err(|e| world_err(e.to_string()))?;
-            left[k - start] = heard.left as f32;
-            right[k - start] = heard.right as f32;
-            for i in 0..bodies.len() {
-                source_acc[i] += world.body_last_source_work(i).unwrap_or(0.0);
-                loss_acc[i] += world.body_last_internal_loss(i).unwrap_or(0.0);
-                let e = world.body_emission(i).unwrap_or(0.0);
-                radiation_acc[i] += 0.5 * dt * e * e;
+            let frame = self.world.process_sample(&self.controls, WorldControls::default()).map_err(|e| world_err(e.to_string()))?;
+            let heard = self.listener.observe(&self.world, &frame).map_err(|e| world_err(e.to_string()))?;
+            self.left[k - start] = heard.left as f32;
+            self.right[k - start] = heard.right as f32;
+            let dt = self.dt;
+            for i in 0..self.bodies.len() {
+                self.source_acc[i] += self.world.body_last_source_work(i).unwrap_or(0.0);
+                self.loss_acc[i] += self.world.body_last_internal_loss(i).unwrap_or(0.0);
+                let e = self.world.body_emission(i).unwrap_or(0.0);
+                self.radiation_acc[i] += 0.5 * dt * e * e;
             }
-            for (e, acc) in bridge_acc.iter_mut().enumerate() {
-                *acc += world.coupling_last_exchange_into_left(e).unwrap_or(0.0);
+            for (e, acc) in self.bridge_acc.iter_mut().enumerate() {
+                *acc += self.world.coupling_last_exchange_into_left(e).unwrap_or(0.0);
             }
-            if (k - start) % hop == 0 {
-                let mut row: Vec<f32> = (0..bodies.len()).map(|i| world.body_material_energy(i).unwrap_or(0.0) as f32).collect();
+            if (k - start) % self.hop == 0 {
+                let world = &self.world;
+                let mut row: Vec<f32> = (0..self.bodies.len()).map(|i| world.body_material_energy(i).unwrap_or(0.0) as f32).collect();
                 row.push(world.space_stored_energy() as f32);
-                trace.frames.push(row);
-                let mut modes = Vec::with_capacity(24 * box_bodies.len());
-                for (b, &i) in box_bodies.iter().enumerate() {
+                self.trace.frames.push(row);
+                let mut modes = Vec::with_capacity(24 * self.box_bodies.len());
+                for (b, &i) in self.box_bodies.iter().enumerate() {
                     if let Some(state) = world.body_state(i) {
                         for m in 0..MODE_COUNT {
-                            let (p, x) = (state.momentum[m], omega[b][m] * state.displacement[m]);
+                            let (p, x) = (state.momentum[m], self.omega[b][m] * state.displacement[m]);
                             modes.push((0.5 * dt * (p * p + x * x)) as f32);
                         }
                     }
                 }
-                trace.mode_frames.push(modes);
+                self.trace.mode_frames.push(modes);
                 let take = |acc: &mut Vec<f64>| -> Vec<f32> { acc.iter_mut().map(|v| std::mem::take(v) as f32).collect() };
-                trace.source_frames.push(take(&mut source_acc));
-                trace.radiation_frames.push(take(&mut radiation_acc));
-                trace.loss_frames.push(take(&mut loss_acc));
-                trace.bridge_frames.push(take(&mut bridge_acc));
+                self.trace.source_frames.push(take(&mut self.source_acc));
+                self.trace.radiation_frames.push(take(&mut self.radiation_acc));
+                self.trace.loss_frames.push(take(&mut self.loss_acc));
+                self.trace.bridge_frames.push(take(&mut self.bridge_acc));
             }
         }
-        buffers.mix_one(start, &left, &right, inst.send, OBSERVATION_GAIN * db_to_gain(inst.gain_db), None);
-        let r = world.receipt();
+        self.k = end.max(self.k);
+        Ok(end.saturating_sub(from))
+    }
+
+    /// Mix what the listener heard into the buses and file the world's receipt and energy trace.
+    /// Steps whatever is left first.
+    pub fn finish(mut self, buffers: &mut MixBuffers, stats: &mut RenderStats) -> Result<(), RenderError> {
+        while !self.is_finished() {
+            self.step(usize::MAX)?;
+        }
+        buffers.mix_one(self.start, &self.left, &self.right, self.send, OBSERVATION_GAIN * db_to_gain(self.gain_db), None);
+        let r = self.world.receipt();
         stats.ariadne_worlds.push(AriadneWorldReceipt {
-            instrument: inst.abbrev.clone(),
-            anatomy: inst.anatomy.clone(),
-            plan_digest: world.plan_digest().to_owned(),
-            listener_digest: listener.listener_digest().to_owned(),
-            bodies,
-            plucks: counts[0],
-            hammer_ons: counts[1],
-            pull_offs: counts[2],
-            slides: counts[3],
-            simulated_seconds: (n_total - start) as f64 / sample_rate,
-            strings,
+            instrument: self.abbrev.clone(),
+            anatomy: self.anatomy.clone(),
+            plan_digest: self.world.plan_digest().to_owned(),
+            listener_digest: self.listener.listener_digest().to_owned(),
+            bodies: self.bodies,
+            plucks: self.counts[0],
+            hammer_ons: self.counts[1],
+            pull_offs: self.counts[2],
+            slides: self.counts[3],
+            simulated_seconds: (self.n_total - self.start) as f64 / self.sample_rate,
+            strings: self.strings,
             source_work: r.source_work,
             control_work: r.control_work,
             internal_loss: r.internal_loss,
@@ -638,7 +761,28 @@ pub fn render(
             cumulative_closure_residual: r.cumulative_closure_residual,
             maximum_frame_residual: r.maximum_frame_residual,
         });
-        stats.ariadne_energy.push(trace);
+        stats.ariadne_energy.push(self.trace);
+        Ok(())
+    }
+}
+
+/// Play every tab instrument and mix what the listener hears into the dry/wet buses.
+#[allow(clippy::too_many_arguments)]
+pub fn render(
+    instruments: &[TabInstrument],
+    bar_map: &BarMap,
+    bar_content: &BTreeMap<u32, BTreeMap<String, String>>,
+    n_bars: u32,
+    swing_unit_ql: f64,
+    swing_r: f64,
+    sample_rate: f64,
+    buffers: &mut MixBuffers,
+    stats: &mut RenderStats,
+) -> Result<(), RenderError> {
+    let n_total = buffers.dry[0].len();
+    let runs = prepare(instruments, bar_map, bar_content, n_bars, swing_unit_ql, swing_r, sample_rate, n_total, stats)?;
+    for run in runs {
+        run.finish(buffers, stats)?;
     }
     Ok(())
 }

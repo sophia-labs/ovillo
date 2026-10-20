@@ -133,7 +133,27 @@ fn build_report(
         }));
     }
 
-    let instruments = instrument_report(&proposal.instruments, &pack_voices, &mut diagnostics);
+    // Annotated-tab instruments (`anatomy=`) are played on an Ariadne World by
+    // their hands; they are not voices and need no samples.
+    let tab_owned = tab_owned_instruments(&proposal.instruments);
+    let instruments = instrument_report(&proposal.instruments, &pack_voices, &tab_owned, &mut diagnostics);
+    // SPEC-TAB §6: what a checker verifies on those instruments, read exactly
+    // as `mus render` plays them (`mus_engine::tab_check`).
+    if !tab_owned.is_empty() {
+        match mus_engine::tab_check::check(source, base) {
+            Ok(report) => {
+                // `event_report` already reports tokens nobody can parse.
+                for d in report.diagnostics.into_iter().filter(|d| d.code != "unparseable-token") {
+                    diagnostics.push(serde_json::to_value(&d).map_err(|e| e.to_string())?);
+                }
+            }
+            Err(e) => diagnostics.push(json!({
+                "severity":"error", "code":"tab-instrument",
+                "anchor":{"kind":"score"},
+                "message": e.to_string(),
+            })),
+        }
+    }
     let bar_content = source_bars(source, &proposal.instruments);
     let events = event_report(
         proposal,
@@ -503,14 +523,36 @@ fn lookup_gesture<'a>(gestures: &'a BTreeMap<String, Gesture>, key: &str) -> Opt
     }
 }
 
+/// Every abbrev an annotated-tab instrument owns: the instrument (it declares
+/// `anatomy=`) and its dot-voice hands (`gt.p`, `gt.v`, ...).
+fn tab_owned_instruments(instruments: &[ProposalInstrument]) -> Vec<String> {
+    let bases: Vec<&str> = instruments
+        .iter()
+        .filter(|i| i.params.contains_key("anatomy"))
+        .map(|i| i.abbrev.as_str())
+        .collect();
+    instruments
+        .iter()
+        .filter(|i| {
+            bases.iter().any(|b| i.abbrev == *b || i.abbrev.strip_prefix(b).is_some_and(|rest| rest.starts_with('.')))
+        })
+        .map(|i| i.abbrev.clone())
+        .collect()
+}
+
 fn instrument_report(
     instruments: &[ProposalInstrument],
     voices: &BTreeMap<String, Vec<f64>>,
+    tab_owned: &[String],
     diagnostics: &mut Vec<Value>,
 ) -> Vec<Value> {
     instruments.iter().map(|inst| {
         let p = &inst.params;
-        let source = if SYNTH_KEYS.iter().any(|key| p.contains_key(*key)) {
+        let source = if let Some(anatomy) = p.get("anatomy") {
+            json!({"kind":"ariadne","anatomy":anatomy.trim()})
+        } else if tab_owned.contains(&inst.abbrev) {
+            json!({"kind":"ariadne-hand","instrument":inst.abbrev.split('.').next().unwrap_or_default()})
+        } else if SYNTH_KEYS.iter().any(|key| p.contains_key(*key)) {
             let patch: Map<String, Value> = SYNTH_KEYS.iter().filter_map(|key| p.get(*key).map(|v| ((*key).into(), json!(v)))).collect();
             json!({"kind":"synth","patch":patch})
         } else if let Some(sample) = p.get("sample") {

@@ -8,7 +8,7 @@ repository.workspace = true
 
 [features]
 # Preserve the historical all-kernels crate for the renderer and test suite.
-default = ["full"]
+default = ["full", "soxr"]
 # Compatibility-only Ariadne surface. All implementation ownership lives in
 # `mus-ariadne`; this feature keeps old imports compiling during migration.
 ariadne-live = ["dep:mus-ariadne"]
@@ -16,7 +16,6 @@ full = [
     "ariadne-live",
     "dep:hound",
     "dep:libc",
-    "dep:libsoxr",
     "dep:mus-trajectory",
     "dep:mus-watsn",
     "dep:np-rand",
@@ -25,6 +24,10 @@ full = [
     "dep:serde_json",
     "dep:sha2",
 ]
+# libsoxr (C, found through pkg-config): resampling sample files and the
+# varispeed/vocoder pitch path. Off in wasm32 builds (`mus-wasm`), which
+# render Ariadne Worlds only and refuse every track that would resample.
+soxr = ["full", "dep:libsoxr"]
 
 [dependencies]
 hound = { version = "3.5", optional = true }

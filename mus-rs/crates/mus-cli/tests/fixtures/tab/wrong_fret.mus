@@ -1,0 +1,11 @@
+# score: a wrong fret
+# summary: C4 written at string 2 fret 3, which sounds D4 on standard tuning
+# tempo: 96    time: 4/4    bars: 1
+# tab: standard
+
+# instruments:
+#   gt   = steel-string guitar (treble, -12, anatomy=steel-string-v0, tuning=E2 A2 D3 G3 B3 E4, capo=0)
+#   gt.p = thumb, thumbpick (treble, pos=0.10, pick=0.85)
+#   gt.v = fingers (treble, pos=0.20, pick=0.45)
+
+bar 1: gt.p=A2h@5:0 E3h@4:2  gt.v=C4e@2:3 Re Rh.

@@ -12,6 +12,8 @@
 //! constructs and render them instead.
 
 pub mod ariadne_tab;
+pub mod receipt;
+pub mod tab_check;
 mod events;
 mod gestures;
 mod layout;
@@ -220,154 +222,252 @@ fn render_inner(
     score_dir: &Path,
     bar_range: Option<(u32, u32)>,
 ) -> Result<RenderOutcome, RenderError> {
-    let (proposal, _diags) = mus_text::parse_score_lossy(source);
-    let headers = &proposal.headers;
+    StagedRender::begin_inner(source, score_dir, bar_range)?.finish()
+}
 
-    // ---- headers (lines 721-733, 776-788, 844-860, 1153-1166)
-    let a4 = layout::parse_tuning_a4(headers.get("tuning"))?;
-    let (swing_unit_ql, swing_r) = layout::parse_swing(headers.get("swing"));
-    let sidechain = layout::parse_sidechain(headers.get("sidechain"));
-    let reverb_s = layout::parse_reverb_seconds(headers.get("reverb"))?;
-    let master_rms_db = layout::parse_master_rms(headers.get("master"))?;
+/// A render taken in stages: [`StagedRender::begin`] reads the score, walks
+/// the voices and builds every Ariadne world; [`StagedRender::step`] simulates
+/// the worlds a block of samples at a time; [`StagedRender::finish`] mixes,
+/// runs the bus and returns what [`render`] returns. [`render`] is exactly
+/// `begin` then `finish`, so a staged render is the same render, sample for
+/// sample, whatever the block sizes (`mus-wasm` steps it to report progress).
+pub struct StagedRender {
+    buffers: mixbus::MixBuffers,
+    placed: Vec<mixbus::PlacedNote>,
+    sc_onsets: Vec<f64>,
+    sidechain: Option<layout::Sidechain>,
+    reverb_s: f64,
+    master_rms_db: f64,
+    n_total: usize,
+    stats: RenderStats,
+    worlds: Vec<ariadne_tab::WorldRun>,
+    tab_instruments: usize,
+}
 
-    // ---- pack / gestures / tape (lines 727-743)
-    let pack = match headers.get("pack") {
-        Some(rel) => Some(pack::Pack::load(&score_dir.join(rel))?),
-        None => None,
-    };
-    let gestures = match headers.get("gestures") {
-        Some(rel) => gestures::load_gestures(&score_dir.join(rel))?,
-        None => BTreeMap::new(),
-    };
-    let cache = pack::SampleCache::new();
-    let tape_audio: Option<Vec<f32>> = match headers.get("tape") {
-        Some(rel) => Some((*cache.load(&score_dir.join(rel))?).clone()),
-        None => None,
-    };
+impl StagedRender {
+    pub fn begin(source: &str, score_dir: &Path) -> Result<Self, RenderError> {
+        Self::begin_inner(source, score_dir, None)
+    }
 
-    // ---- voices (lines 745-774)
-    // Instruments that declare an `anatomy=` are played on an Ariadne world,
-    // with their dot-voices as hands (SPEC-TAB.md); everything else is a voice.
-    let (tab_instruments, tab_owned) = ariadne_tab::collect(&proposal.instruments, score_dir)?;
-    let voice_instruments: Vec<_> = proposal
-        .instruments
-        .iter()
-        .filter(|i| !tab_owned.contains(&i.abbrev))
-        .cloned()
-        .collect();
-    let (voices, warnings) =
-        pack::build_voices(&voice_instruments, pack.as_ref(), score_dir, a4)?;
+    pub fn begin_bars(source: &str, score_dir: &Path, from: u32, to: u32) -> Result<Self, RenderError> {
+        Self::begin_inner(source, score_dir, Some((from, to)))
+    }
 
-    // ---- bar map (lines 798-826). The inline tempo/time overrides come
-    // from a fresh raw-text bar scan, not `proposal.bar_changes` — see
-    // `rawbars`'s module doc for why.
-    let abbrevs: Vec<String> = proposal
-        .instruments
-        .iter()
-        .map(|i| i.abbrev.clone())
-        .collect();
-    let raw = rawbars::scan(source, &abbrevs);
-    // `if not bar_count and bars: bar_count = max(...)` (mus.py line
-    // 1326-1327): Python's `not bar_count` is also true for an explicit
-    // `# bars: 0`, so a literal `0` header falls through to the bar-lines
-    // count exactly like a missing/unparseable header does.
-    let n_bars = headers
-        .get("bars")
-        .and_then(|v| v.trim().parse::<u32>().ok())
-        .filter(|&n| n != 0)
-        .unwrap_or(raw.max_bar);
-    let bar_map = layout::build_bar_map(
-        headers.get("tempo"),
-        headers.get("time"),
-        &raw.inline_tempo,
-        &raw.inline_time,
-        n_bars,
-    )?;
-    let (bar_map, bar_content, n_bars) = match bar_range {
-        Some((from, to)) => slice_bars(bar_map, &raw.bar_content, from, to)?,
-        None => (bar_map, raw.bar_content, n_bars),
-    };
-    let n_total = (bar_map.total_s * mus_dsp::SR_F64) as usize;
+    fn begin_inner(
+        source: &str,
+        score_dir: &Path,
+        bar_range: Option<(u32, u32)>,
+    ) -> Result<Self, RenderError> {
+        let (proposal, _diags) = mus_text::parse_score_lossy(source);
+        let headers = &proposal.headers;
 
-    // ---- the event walk, track by track (lines 862-1138)
-    let eager = sidechain.is_none();
-    let mut buffers = mixbus::MixBuffers::new(n_total);
-    let mut placed = Vec::new();
-    let mut sc_onsets = Vec::new();
-    let mut stats = RenderStats {
-        voices: voices.len(),
-        total_seconds: bar_map.total_s,
-        tuning_a: a4,
-        warnings,
-        ..Default::default()
-    };
+        // ---- headers (lines 721-733, 776-788, 844-860, 1153-1166)
+        let a4 = layout::parse_tuning_a4(headers.get("tuning"))?;
+        let (swing_unit_ql, swing_r) = layout::parse_swing(headers.get("swing"));
+        let sidechain = layout::parse_sidechain(headers.get("sidechain"));
+        let reverb_s = layout::parse_reverb_seconds(headers.get("reverb"))?;
+        let master_rms_db = layout::parse_master_rms(headers.get("master"))?;
 
-    for voice in &voices {
-        let ctx = events::WalkContext {
-            bar_map: &bar_map,
-            bar_content: &bar_content,
+        // ---- pack / gestures / tape (lines 727-743)
+        let pack = match headers.get("pack") {
+            Some(rel) => Some(pack::Pack::load(&score_dir.join(rel))?),
+            None => None,
+        };
+        let gestures = match headers.get("gestures") {
+            Some(rel) => gestures::load_gestures(&score_dir.join(rel))?,
+            None => BTreeMap::new(),
+        };
+        let cache = pack::SampleCache::new();
+        let tape_audio: Option<Vec<f32>> = match headers.get("tape") {
+            Some(rel) => Some((*cache.load(&score_dir.join(rel))?).clone()),
+            None => None,
+        };
+
+        // ---- voices (lines 745-774)
+        // Instruments that declare an `anatomy=` are played on an Ariadne world,
+        // with their dot-voices as hands (SPEC-TAB.md); everything else is a voice.
+        let (tab_instruments, tab_owned) = ariadne_tab::collect(&proposal.instruments, score_dir)?;
+        let voice_instruments: Vec<_> = proposal
+            .instruments
+            .iter()
+            .filter(|i| !tab_owned.contains(&i.abbrev))
+            .cloned()
+            .collect();
+        let (voices, warnings) =
+            pack::build_voices(&voice_instruments, pack.as_ref(), score_dir, a4)?;
+
+        // ---- bar map (lines 798-826). The inline tempo/time overrides come
+        // from a fresh raw-text bar scan, not `proposal.bar_changes` — see
+        // `rawbars`'s module doc for why.
+        let abbrevs: Vec<String> = proposal
+            .instruments
+            .iter()
+            .map(|i| i.abbrev.clone())
+            .collect();
+        let raw = rawbars::scan(source, &abbrevs);
+        // `if not bar_count and bars: bar_count = max(...)` (mus.py line
+        // 1326-1327): Python's `not bar_count` is also true for an explicit
+        // `# bars: 0`, so a literal `0` header falls through to the bar-lines
+        // count exactly like a missing/unparseable header does.
+        let n_bars = headers
+            .get("bars")
+            .and_then(|v| v.trim().parse::<u32>().ok())
+            .filter(|&n| n != 0)
+            .unwrap_or(raw.max_bar);
+        let bar_map = layout::build_bar_map(
+            headers.get("tempo"),
+            headers.get("time"),
+            &raw.inline_tempo,
+            &raw.inline_time,
+            n_bars,
+        )?;
+        let (bar_map, bar_content, n_bars) = match bar_range {
+            Some((from, to)) => slice_bars(bar_map, &raw.bar_content, from, to)?,
+            None => (bar_map, raw.bar_content, n_bars),
+        };
+        let n_total = (bar_map.total_s * mus_dsp::SR_F64) as usize;
+
+        // ---- the event walk, track by track (lines 862-1138)
+        let eager = sidechain.is_none();
+        let mut buffers = mixbus::MixBuffers::new(n_total);
+        let mut placed = Vec::new();
+        let mut sc_onsets = Vec::new();
+        let mut stats = RenderStats {
+            voices: voices.len(),
+            total_seconds: bar_map.total_s,
+            tuning_a: a4,
+            warnings,
+            ..Default::default()
+        };
+
+        for voice in &voices {
+            let ctx = events::WalkContext {
+                bar_map: &bar_map,
+                bar_content: &bar_content,
+                n_bars,
+                swing_unit_ql,
+                swing_r,
+                a4,
+                gestures: &gestures,
+                tape_audio: tape_audio.as_deref(),
+                cache: &cache,
+                n_total,
+                eager,
+                sc_track: sidechain.as_ref().map(|s| s.track.as_str()),
+            };
+            events::walk_track(
+                &ctx,
+                voice,
+                &mut buffers,
+                &mut placed,
+                &mut sc_onsets,
+                &mut stats,
+            )?;
+        }
+
+        // ---- annotated-tab instruments: one persistent world each
+        let worlds = ariadne_tab::prepare(
+            &tab_instruments,
+            &bar_map,
+            &bar_content,
             n_bars,
             swing_unit_ql,
             swing_r,
-            a4,
-            gestures: &gestures,
-            tape_audio: tape_audio.as_deref(),
-            cache: &cache,
+            mus_dsp::SR_F64,
             n_total,
-            eager,
-            sc_track: sidechain.as_ref().map(|s| s.track.as_str()),
-        };
-        events::walk_track(
-            &ctx,
-            voice,
-            &mut buffers,
-            &mut placed,
-            &mut sc_onsets,
             &mut stats,
         )?;
+        Ok(Self {
+            buffers,
+            placed,
+            sc_onsets,
+            sidechain,
+            reverb_s,
+            master_rms_db,
+            n_total,
+            stats,
+            worlds,
+            tab_instruments: tab_instruments.len(),
+        })
     }
 
-    // ---- annotated-tab instruments: one persistent world each
-    ariadne_tab::render(
-        &tab_instruments,
-        &bar_map,
-        &bar_content,
-        n_bars,
-        swing_unit_ql,
-        swing_r,
-        mus_dsp::SR_F64,
-        &mut buffers,
-        &mut stats,
-    )?;
-    stats.voices += tab_instruments.len();
-
-    // ---- deferred mixdown + sidechain (lines 1140-1148)
-    let sidechain_hits = mixbus::deferred_mixdown(
-        &mut buffers,
-        &placed,
-        sidechain.as_ref().map(|s| s.track.as_str()),
-        &sc_onsets,
-        sidechain.as_ref().map(|s| s.depth).unwrap_or(0.75),
-        sidechain.as_ref().map(|s| s.rel).unwrap_or(0.16),
-        n_total,
-    );
-    stats.sidechain_hits = sidechain_hits;
-
-    // ---- reverb + highpass + master (lines 1150-1167)
-    let out = mixbus::finish_bus(buffers, reverb_s, master_rms_db, n_total);
-
-    let mut samples = Vec::with_capacity(n_total * 2);
-    for (&l, &r) in out[0].iter().zip(out[1].iter()) {
-        samples.push(l);
-        samples.push(r);
+    /// What the score walk has counted so far (events, bad tokens, warnings);
+    /// the worlds' receipts join it at [`StagedRender::finish`].
+    pub fn stats(&self) -> &RenderStats {
+        &self.stats
     }
-    Ok(RenderOutcome {
-        audio: RenderedAudio {
-            samples,
-            sample_rate: SAMPLE_RATE,
-        },
-        stats,
-    })
+
+    /// Length of the render, in sample frames.
+    pub fn frames(&self) -> usize {
+        self.n_total
+    }
+
+    /// World samples to simulate, all worlds together.
+    pub fn world_samples(&self) -> usize {
+        self.worlds.iter().map(|w| w.samples()).sum()
+    }
+
+    /// World samples simulated so far.
+    pub fn world_samples_done(&self) -> usize {
+        self.worlds.iter().map(|w| w.done()).sum()
+    }
+
+    /// The tab instruments played on worlds, in render order.
+    pub fn world_instruments(&self) -> Vec<String> {
+        self.worlds.iter().map(|w| w.instrument().to_owned()).collect()
+    }
+
+    /// Simulate up to `max` more world samples (worlds run one after another);
+    /// returns true once every world has run to the end.
+    pub fn step(&mut self, mut max: usize) -> Result<bool, RenderError> {
+        for world in self.worlds.iter_mut() {
+            if max == 0 {
+                break;
+            }
+            if !world.is_finished() {
+                max -= world.step(max)?;
+            }
+        }
+        Ok(self.worlds.iter().all(|w| w.is_finished()))
+    }
+
+    /// Run whatever is left, mix, and finish the bus (reverb, high-pass, master).
+    pub fn finish(mut self) -> Result<RenderOutcome, RenderError> {
+        for world in std::mem::take(&mut self.worlds) {
+            world.finish(&mut self.buffers, &mut self.stats)?;
+        }
+        let mut stats = self.stats;
+        stats.voices += self.tab_instruments;
+
+        // ---- deferred mixdown + sidechain (lines 1140-1148)
+        let sidechain = self.sidechain.as_ref();
+        let sidechain_hits = mixbus::deferred_mixdown(
+            &mut self.buffers,
+            &self.placed,
+            sidechain.map(|s| s.track.as_str()),
+            &self.sc_onsets,
+            sidechain.map(|s| s.depth).unwrap_or(0.75),
+            sidechain.map(|s| s.rel).unwrap_or(0.16),
+            self.n_total,
+        );
+        stats.sidechain_hits = sidechain_hits;
+
+        // ---- reverb + highpass + master (lines 1150-1167)
+        let out = mixbus::finish_bus(self.buffers, self.reverb_s, self.master_rms_db, self.n_total);
+
+        let mut samples = Vec::with_capacity(self.n_total * 2);
+        for (&l, &r) in out[0].iter().zip(out[1].iter()) {
+            samples.push(l);
+            samples.push(r);
+        }
+        Ok(RenderOutcome {
+            audio: RenderedAudio {
+                samples,
+                sample_rate: SAMPLE_RATE,
+            },
+            stats,
+        })
+    }
 }
 
 /// One voice's dry contribution rendered alone: post-voice, post-event
@@ -561,14 +661,33 @@ fn f32_to_pcm24(sample: f32) -> i32 {
 /// `sf.write(str(out_path), out.T, SR, subtype="PCM_24")` (`mus_audio.py`
 /// line 1169).
 pub fn write_wav(audio: &RenderedAudio, path: &Path) -> Result<(), RenderError> {
-    let spec = hound::WavSpec {
+    let writer = hound::WavWriter::create(path, pcm24_spec(audio))
+        .map_err(|e| RenderError::Wav(format!("{}: {e}", path.display())))?;
+    write_pcm24(audio, writer)
+}
+
+/// The same PCM_24 WAV [`write_wav`] writes, as bytes: what `renderDigest`
+/// digests when there is no file system (the browser).
+pub fn wav_bytes(audio: &RenderedAudio) -> Result<Vec<u8>, RenderError> {
+    let mut cursor = std::io::Cursor::new(Vec::with_capacity(44 + audio.samples.len() * 3));
+    let writer = hound::WavWriter::new(&mut cursor, pcm24_spec(audio)).map_err(|e| RenderError::Wav(e.to_string()))?;
+    write_pcm24(audio, writer)?;
+    Ok(cursor.into_inner())
+}
+
+fn pcm24_spec(audio: &RenderedAudio) -> hound::WavSpec {
+    hound::WavSpec {
         channels: 2,
         sample_rate: audio.sample_rate,
         bits_per_sample: 24,
         sample_format: hound::SampleFormat::Int,
-    };
-    let mut writer = hound::WavWriter::create(path, spec)
-        .map_err(|e| RenderError::Wav(format!("{}: {e}", path.display())))?;
+    }
+}
+
+fn write_pcm24<W: std::io::Write + std::io::Seek>(
+    audio: &RenderedAudio,
+    mut writer: hound::WavWriter<W>,
+) -> Result<(), RenderError> {
     for &value in &audio.samples {
         writer
             .write_sample(f32_to_pcm24(value))

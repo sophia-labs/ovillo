@@ -2,106 +2,13 @@ mod check;
 mod service;
 mod vocab_dump;
 
-use mus_engine::{
-    render, render_bars, sha256_bytes, write_wav, EventTrajectoryReceipt, RenderStats,
-    ENGINE_VERSION,
-};
-use mus_text::{adopt, parse_score};
-use serde::Serialize;
+use mus_engine::receipt::{energy_trace_json, head_selection, RenderReceipt as Receipt};
+use mus_engine::{render, render_bars, sha256_bytes, write_wav};
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
-
-/// `mus.audio.render-receipt.v1`: peak/RMS/digests (the original WF1
-/// surface, kept for `mus-cli/tests/render_receipt.rs`) extended per the
-/// WF8 spec with the fields `mus-rs/tools/parity_render.py` (WF9) diffs
-/// first — event/skip counts, per-track counts, the bad-token list, and
-/// the sidechain hit count.
-#[derive(Debug, Serialize)]
-struct Receipt {
-    schema: &'static str,
-    #[serde(rename = "renderDigest")]
-    render_digest: String,
-    #[serde(rename = "sourceDigest")]
-    source_digest: String,
-    #[serde(rename = "logDigest")]
-    log_digest: Option<String>,
-    #[serde(rename = "headSelection")]
-    head_selection: serde_json::Value,
-    #[serde(rename = "engineVersion")]
-    engine_version: &'static str,
-    #[serde(rename = "peakDbfs")]
-    peak_dbfs: f32,
-    #[serde(rename = "rmsDbfs")]
-    rms_dbfs: f32,
-    #[serde(rename = "wallSeconds")]
-    wall_seconds: f64,
-    #[serde(rename = "eventCount")]
-    event_count: u32,
-    #[serde(rename = "skippedCount")]
-    skipped_count: u32,
-    #[serde(rename = "voiceCount")]
-    voice_count: usize,
-    #[serde(rename = "durationSeconds")]
-    duration_seconds: f64,
-    #[serde(rename = "tuningA")]
-    tuning_a: f64,
-    #[serde(rename = "sidechainHits")]
-    sidechain_hits: usize,
-    #[serde(rename = "perTrackEvents")]
-    per_track_events: BTreeMap<String, u32>,
-    #[serde(rename = "badTokens")]
-    bad_tokens: Vec<String>,
-    #[serde(rename = "warnings")]
-    warnings: Vec<String>,
-    #[serde(rename = "trajectoryReceipts", skip_serializing_if = "Vec::is_empty")]
-    trajectory_receipts: Vec<EventTrajectoryReceipt>,
-    /// `--stems DIR` only: abbrev → written mono stem path (dry,
-    /// pre-send, no reverb/master — the spatial scene's raw material).
-    #[serde(rename = "stems", skip_serializing_if = "Option::is_none")]
-    stems: Option<BTreeMap<String, String>>,
-    /// Annotated-tab instruments played on Ariadne worlds: plan, hands, ledger.
-    #[serde(rename = "ariadneWorlds", skip_serializing_if = "Vec::is_empty")]
-    ariadne_worlds: Vec<mus_engine::ariadne_tab::AriadneWorldReceipt>,
-}
-
-impl Receipt {
-    fn from_stats(
-        stats: &RenderStats,
-        render_digest: String,
-        source_digest: String,
-        head_selection: serde_json::Value,
-        peak_dbfs: f32,
-        rms_dbfs: f32,
-        wall_seconds: f64,
-    ) -> Self {
-        Receipt {
-            schema: "mus.audio.render-receipt.v1",
-            render_digest,
-            source_digest,
-            log_digest: None,
-            head_selection,
-            engine_version: ENGINE_VERSION,
-            peak_dbfs,
-            rms_dbfs,
-            wall_seconds,
-            event_count: stats.notes,
-            skipped_count: stats.skipped,
-            voice_count: stats.voices,
-            duration_seconds: stats.total_seconds,
-            tuning_a: stats.tuning_a,
-            sidechain_hits: stats.sidechain_hits,
-            per_track_events: stats.per_track_events.clone(),
-            bad_tokens: stats.bad.clone(),
-            warnings: stats.warnings.clone(),
-            trajectory_receipts: stats.trajectory_receipts.clone(),
-            stems: None,
-            ariadne_worlds: stats.ariadne_worlds.clone(),
-        }
-    }
-}
 
 fn main() {
     if let Err(error) = run() {
@@ -292,14 +199,9 @@ fn run_render(
         .or_else(|| score.parent())
         .unwrap_or_else(|| std::path::Path::new("."));
 
-    // Parsed a second time, independently of `mus_engine::render`'s own
-    // internal parse: this is the graph-shaped view `head_selection` needs
-    // (a CRDT concept the render orchestrator itself has no reason to
-    // carry). A freshly-parsed single-source score is never contested, so
-    // this is cheap and always resolves to `"sole"` in practice.
-    let head_selection = parse_score(&source)
-        .map(|proposal| head_selection_of(&adopt(&proposal)))
-        .unwrap_or(serde_json::Value::String("sole".into()));
+    // `headSelection` is the graph-shaped view of the score (see
+    // `mus_engine::receipt::head_selection`).
+    let head_selection = head_selection(&source);
 
     let outcome = match bars {
         Some((from, to)) => render_bars(&source, score_dir, from, to).map_err(|e| e.to_string())?,
@@ -307,7 +209,7 @@ fn run_render(
     };
     write_wav(&outcome.audio, output).map_err(|e| e.to_string())?;
     if let Some(path) = energy_path {
-        let trace = serde_json::json!({"schema": "mus.ariadne.energy-trace.v1", "worlds": outcome.stats.ariadne_energy});
+        let trace = energy_trace_json(&outcome.stats);
         let partial = path.with_extension("json.partial");
         fs::write(&partial, serde_json::to_vec(&trace).map_err(|e| e.to_string())?).map_err(|e| format!("{}: {e}", partial.display()))?;
         fs::rename(&partial, path).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -368,24 +270,6 @@ fn run_scene_render(
     mus_dsp::scene::write_wav_f32(&interleaved, channels, scene.sample_rate, output)
         .map_err(|e| e.to_string())?;
     Ok(receipt)
-}
-
-fn head_selection_of(graph: &mus_graph::ScoreGraph) -> serde_json::Value {
-    if graph.contested_lineages().is_empty() {
-        return serde_json::Value::String("sole".into());
-    }
-    let mut selected = serde_json::Map::new();
-    for (lineage, state) in &graph.lineages {
-        if state.contested {
-            if let Some(head) = state.chosen_head() {
-                selected.insert(
-                    lineage.0.clone(),
-                    serde_json::Value::String(head.version.0.clone()),
-                );
-            }
-        }
-    }
-    serde_json::Value::Object(selected)
 }
 
 fn parse_bars_range(s: &str) -> Result<(u32, u32), String> {
