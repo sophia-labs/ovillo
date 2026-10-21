@@ -347,6 +347,7 @@ fn voiced(supply: f64) -> [ConstitutiveBodyControls; 1] {
         body: BodyControls { work_input: 0.3, ..Default::default() },
         valve: FlowValveControls { supply },
         radiation_scale: 1.0,
+        node_source: None,
     })]
 }
 
