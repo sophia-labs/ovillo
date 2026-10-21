@@ -20,8 +20,11 @@ const variant = opt('--variant', '4x5');
 const dpr = Number(opt('--dpr', '2'));
 const jobs = Number(opt('--jobs', '1'));
 const out = path.resolve(here, opt('--out', `frames/${variant}`));
-const manifest = JSON.parse(fs.readFileSync(path.join(here, 'manifest.json'), 'utf8'));
-const timeline = JSON.parse(fs.readFileSync(path.join(here, 'build/timeline.json'), 'utf8'));
+// --manifest / --build: another manifest and prep output (a preview; the defaults are the video's)
+const manifestPath = path.resolve(here, opt('--manifest', 'manifest.json'));
+const buildDir = path.resolve(here, opt('--build', 'build'));
+const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+const timeline = JSON.parse(fs.readFileSync(path.join(buildDir, 'timeline.json'), 'utf8'));
 const { width, height } = manifest.variants[variant];
 
 let frames;
@@ -35,8 +38,8 @@ fs.mkdirSync(out, { recursive: true });
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.wasm': 'application/wasm' };
 function fileFor(url) {
   const p = decodeURIComponent(new URL(url).pathname);
-  if (p === '/manifest.json') return path.join(here, 'manifest.json');
-  if (p.startsWith('/build/')) return path.join(here, p);
+  if (p === '/manifest.json') return manifestPath;
+  if (p.startsWith('/build/')) return path.join(buildDir, p.slice('/build/'.length));
   if (p.startsWith('/vendor/three/')) return path.join(here, 'node_modules/three', p.slice('/vendor/three/'.length));
   return path.join(here, 'page', p);
 }
@@ -54,7 +57,7 @@ async function job(mine, progress) {
   try {
     await context.route('http://video.local/**', async (route) => {
       const f = fileFor(route.request().url());
-      if (!f.startsWith(here) || !fs.existsSync(f)) return route.fulfill({ status: 404, body: 'not found' });
+      if (!(f.startsWith(here) || f.startsWith(buildDir) || f === manifestPath) || !fs.existsSync(f)) return route.fulfill({ status: 404, body: 'not found' });
       return route.fulfill({ status: 200, path: f, headers: { 'content-type': TYPES[path.extname(f)] ?? 'application/octet-stream' } });
     });
     const page = context.pages()[0] ?? await context.newPage();

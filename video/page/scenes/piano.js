@@ -186,16 +186,19 @@ function energyAdapter(e, receipt, window) {
           { k: 'RADIATED', v: fmtJ(c('radiation')), c: 'b' }, { k: 'RESIDUAL', v: fmtJ(c('cumulativeClosureResidual')), c: 'g' },
         ];
       }
+      // No books in the trace: the hammer throws are booked outside the per-hop source flows,
+      // so the trace cannot rebuild the running ledger; show the receipt's, for the whole render.
+      if (!receipt) return null;
       return [
-        { k: 'IN (HAMMERS)', v: fmtJ(e.inJ[i]), c: 'a' }, { k: 'LOST INSIDE', v: fmtJ(e.lostJ[i]), c: 'w' },
-        { k: 'RADIATED', v: fmtJ(e.radiatedJ[i]), c: 'b' },
-        { k: 'RESIDUAL (RECEIPT)', v: receipt ? fmtJ(receipt.cumulativeClosureResidual) : '–', c: 'g' },
+        { k: 'IN (HAMMERS)', v: fmtJ(receipt.sourceWork), c: 'a' }, { k: 'LOST INSIDE', v: fmtJ(receipt.internalLoss), c: 'w' },
+        { k: 'RADIATED', v: fmtJ(receipt.radiation), c: 'b' }, { k: 'RESIDUAL', v: fmtJ(receipt.cumulativeClosureResidual), c: 'g' },
       ];
     },
     foot: (t) => {
       const last = [...e.strikes].reverse().find((s) => s.seconds <= t + 1e-6);
       const felt = last && !last.refused ? `last strike ${last.name}: hammer ${last.hammerVelocity.toFixed(2)} m/s, felt ${last.contactMs.toFixed(1)} ms` : 'no strike yet';
-      return `${felt} · worst frame ${receipt ? fmtJ(receipt.maximumFrameResidual, 2) : '–'} (receipt)`;
+      const books = e.ledger ? '' : ' · books: the receipt, whole render';
+      return `${felt} · worst frame ${receipt ? fmtJ(receipt.maximumFrameResidual, 2) : '–'}${books}`;
     },
   };
 }
