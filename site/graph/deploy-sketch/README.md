@@ -1,6 +1,6 @@
 # Deploy sketch: ovillo.sophia-labs.com as a public gardend (NOT applied)
 
-Mirrors `platform-next/deploy/two-box/cow-tools/` (`~/dev/sirin-integration`). Nothing here has been installed or run; no Sirin write.
+Mirrors the cow-tools deployment (`deploy/two-box/cow-tools/`) in Sophia's platform repository, which is not public. Nothing here has been installed or run, and nothing was written to the server.
 
 | file | from cow-tools | change |
 |---|---|---|

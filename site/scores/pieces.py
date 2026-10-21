@@ -1,6 +1,9 @@
-import json, re, sys
-S = "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad"
-F = S + "/fresh/ovillo"; SO = S + "/sounds/"; SC = S + "/scores/"; BE = S + "/bench/"
+import json, os, re, sys
+# OVILLO_RENDERS: the directory the renders were written to (sounds/, scores/, bench/; site/README.md says how).
+# OVILLO_CLONE: the checkout the repository pieces were rendered from (default $OVILLO_RENDERS/fresh/ovillo; on
+# 2026-10-20 that was a fresh clone of e48d8f8). Writes $OVILLO_RENDERS/scores/pieces.json.
+S = os.environ.get("OVILLO_RENDERS") or sys.exit("pieces.py: set OVILLO_RENDERS to the renders directory (site/README.md)")
+F = os.environ.get("OVILLO_CLONE", S + "/fresh/ovillo"); SO = S + "/sounds/"; SC = S + "/scores/"; BE = S + "/bench/"
 def mus(slug, num, title, group, tags, engine, note, score):
     return dict(slug=slug, title=title, group=group, tags=tags, engine=engine, note=note,
                 wav=f"{SO}{num}.wav", score=score, receipt=f"{SO}{num}.json", energy=f"{SO}{num}.energy.json")

@@ -1,5 +1,8 @@
 """Build the listening room: site/sounds/<slug>.{mp3,wave.svg,energy.svg,mus|json,receipt.json} + manifest.json.
 
+The listening room was the first, static draft of ovillo.sophia-labs.com (2026-10-20); its pages were replaced by the
+Sophia app, which reads the graph that site/graph/build_graph.py builds from the same catalogue.
+
     uv run --with numpy --with scipy --with soundfile python site/tools/build_sounds.py <pieces.json> <out-dir>
 
 pieces.json lists every piece: slug, title, group, tags, engine, note, wav, score, receipt, energy.

@@ -1,15 +1,17 @@
 # The Ovillo graph
 
-Every sound comes out of an Ariadne World. This directory builds the small graph behind ovillo.sophia-labs.com: `ovl.ttl` (the vocabulary), `build_graph.py` (catalogue + renders -> triples + files), `test_graph.py` (real data, no mocks), `deploy-sketch/` (the box, not applied). The binding contract is in hub `plans/2026-10-20-ovillo-sophia-app.md`, "The contract between the builders" (with a dated extension note).
+Every sound comes out of an Ariadne World. This directory builds the small graph behind ovillo.sophia-labs.com: `ovl.ttl` (the vocabulary), `build_graph.py` (catalogue + renders -> triples + files), `test_graph.py` (real data, no mocks), `deploy-sketch/` (a server deployment, sketched and not applied). The app that reads the graph is Shrubbery's `apps/ovillo` ([sophia-labs/shrubbery](https://github.com/sophia-labs/shrubbery)); the contract between the two is the vocabulary in `ovl.ttl` and the queries below (it was agreed in Sophia's planning notes, which are not in this repository).
 
 ## Build and test
 
 ```sh
-uv run --with numpy --with soundfile --with rdflib python site/graph/build_graph.py --pieces site/graph/pieces-r2.json   # -> out/ovillo.nt, out/site/, out/pieces.json
+uv run --with numpy --with soundfile --with rdflib python site/graph/build_graph.py --pieces <pieces.json>   # -> out/ovillo.nt, out/site/, out/pieces.json
 uv run --with numpy --with soundfile --with rdflib python site/graph/test_graph.py    # 13 checks, 20 s to 2.5 min (one is a second full build compared byte for byte)
 ```
 
-`--pieces` names the catalogue (default: the 2026-10-20 session's `scores/pieces.json`, the 17 pieces `site/scores/pieces.py` wrote); `pieces-r2.json` (release r2, 2026-10-21) is those 17 unchanged plus the trombone. The builder copies the catalogue it used to `out/pieces.json`, and the tests read that one. `--out` is the output directory. `out/` is not committed (about 12 MB of mp3s and 175 KB of triples; `out/pieces.json` names local paths and is not part of the site); the same inputs give the same bytes.
+Needs `ffmpeg`/`ffprobe` on the path. `--pieces` names the catalogue (default `$OVILLO_RENDERS/scores/pieces.json`, the 17 pieces `site/scores/pieces.py` writes; see "The renders" below). With `OVILLO_RENDERS` set, the test also checks that the catalogue's first 17 entries are that file's.
+
+**`pieces-r2.json` is a record, not a portable input.** It is the catalogue release r2 (2026-10-21) was built from: the 17 pieces of 2026-10-20 unchanged, plus the trombone. Its paths are absolute paths on the machine that built it (a session scratch directory under `/private/tmp/...` and a worktree under `/Users/...`), so on any other machine `--pieces site/graph/pieces-r2.json` fails until you render the pieces yourself and write your own catalogue in the same shape. The builder copies the catalogue it used to `out/pieces.json`, and the tests read that one. `--out` is the output directory. `out/` is not committed (about 12 MB of mp3s and 175 KB of triples; `out/pieces.json` names local paths and is not part of the site); the same inputs give the same bytes.
 
 ### Pieces a Rust example plays (2026-10-21: the trombone v1)
 
@@ -28,12 +30,25 @@ The receipt must carry `planDigest`, `seconds`, `notes`, `renderWallSeconds`, `p
 
 Bench pieces have no receipt and no energy trace: the graph has no `ovl:receipt`, `ovl:ledger`, `ovl:energyTrace` or `ovl:renderDigest` for them (omitted, not faked); their `ovl:BenchRun` holds the engine log's numbers. An example-World piece (the trombone) has a receipt and a ledger but no `ovl:renderDigest`, `ovl:engineVersion`, `ovl:listenerDigest` or touch counts: its receipt does not state them.
 
+## The renders (inputs the builder reads)
+
+Nothing the builder reads as audio is committed. To make a catalogue, render every piece into one directory `$OVILLO_RENDERS` and let `site/scores/pieces.py` write `$OVILLO_RENDERS/scores/pieces.json` (it names each file below and reads each bench log's numbers):
+
+| piece | how it was rendered | files |
+|---|---|---|
+| a MUS piece (`site/scores/<name>.mus`; the `.py` beside it writes the `.mus`) | `mus render site/scores/<name>.mus -o $OVILLO_RENDERS/sounds/<num>-<name>.wav --json --energy $OVILLO_RENDERS/sounds/<num>-<name>.energy.json > $OVILLO_RENDERS/sounds/<num>-<name>.json`, after copying the score to `$OVILLO_RENDERS/scores/` | `sounds/NN-*.wav`, `.json` (the receipt), `.energy.json` |
+| the two repository pieces (tour, Wayfaring Stranger) | the same, from `examples/tab/` of a clone at the commit you render (`OVILLO_CLONE`, default `$OVILLO_RENDERS/fresh/ovillo`) | `sounds/00-tour.*`, `sounds/01-wayfaring.*` |
+| a bench piece | `mkdir -p $OVILLO_RENDERS/bench/<dir>`, then from `ovillo/`: `cargo run --release -p ovillo-dsp --example render -- <seconds> <pattern or score.json> $OVILLO_RENDERS/bench/<dir> <pickup> [../site/patches/<patch>.json] > $OVILLO_RENDERS/bench/<dir>/log` | `bench/<dir>/<name>-wet.wav`, `log` |
+| the trombone v1 | from `ovillo/`: `cargo run --release -p ovillo-dsp --example trombone_nd_solo -- <out-dir> solo` (`TROMBONE-WORLD.md`); the optional analysis is `python -m mus_analysis.trombone_world_analyse` (as `video/build.sh` runs it); its catalogue entry is written by hand (shape above) | `trombone-nd-solo.wav`, `-notes.tsv`, `-receipt.json`, `.energy.json`, `-analysis.json` |
+
+The numbers `pieces.py` uses (`NN`, the bench `<dir>`, pattern, seconds, pickup, patch) are in its source; the bench logs of 2026-10-20 began with, for example, `pattern Ambient  pickup Neck  45 s at 48000 Hz`. Re-rendered at another commit, a piece's bytes and digests can differ from release r2's; the builder and the test check a catalogue against its own renders, not against r2.
+
 ## The local public gardend (port 7792)
 
-Binary: gardend 0.1.4 (storage format 1), the v0.1.4 release archive's, copied to `/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/ovillo-gardend/bin/` with its `ui/`; no services. The profile is `/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/ovillo-gardend/profile` (its own key, its own graph; Vera's Sophia.app and its profile on 7674 are untouched).
+How the graph was served locally on 2026-10-20: gardend 0.1.4 (storage format 1) from the [v0.1.4 release](https://github.com/sophia-labs/gardend/releases/tag/v0.1.4), unpacked with its `ui/` into a directory `$D` of your choosing; no services; a profile of its own (its own key, its own graph), separate from any other gardend on the machine.
 
 ```sh
-D=/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/ovillo-gardend
+D=<a directory holding bin/gardend and profile/>
 # start (foreground in a terminal, or detached as here)
 cd $D && (nohup bin/gardend serve --profile $D/profile --port 7792 > serve.log 2>&1 & echo $! > gardend.pid)
 curl -s localhost:7792/health

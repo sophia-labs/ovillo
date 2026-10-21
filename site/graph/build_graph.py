@@ -20,7 +20,7 @@ Three kinds of piece (2026-10-21):
        "world": {"kind", "title", "plan": <path of the plan JSON>}}
 The catalogue used is copied to out/pieces.json (not part of the site: it names local paths).
 """
-import argparse, hashlib, json, re, shutil, subprocess
+import argparse, hashlib, json, os, re, shutil, subprocess
 from pathlib import Path
 
 import numpy as np
@@ -28,7 +28,8 @@ import soundfile as sf
 from rdflib import Graph, Literal, Namespace, URIRef, RDF, XSD
 
 HERE = Path(__file__).resolve().parent
-SCRATCH = "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad"
+# The directory the renders were written to (site/README.md); only the default --pieces reads it.
+RENDERS = os.environ.get("OVILLO_RENDERS")
 BASE = "https://ovillo.sophia-labs.com"
 OVL = Namespace("http://sophia.ai/ovillo#")
 DCT = Namespace("http://purl.org/dc/terms/")
@@ -133,7 +134,8 @@ def plan_world(plan):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pieces", default=f"{SCRATCH}/scores/pieces.json")
+    ap.add_argument("--pieces", default=f"{RENDERS}/scores/pieces.json" if RENDERS else None, required=not RENDERS,
+                    help="the catalogue (default $OVILLO_RENDERS/scores/pieces.json)")
     ap.add_argument("--out", default=str(HERE / "out"))
     a = ap.parse_args()
     catalogue = Path(a.pieces).read_bytes()  # read before out/ is cleared: the catalogue may live there
@@ -205,6 +207,8 @@ def main():
             if "scoreRepoPath" in p:  # stated; null = the score is not in the repository (an example wrote it)
                 rel = p["scoreRepoPath"]
             else:
+                # a score under a clone of the repository (pieces.py's OVILLO_CLONE, by default <renders>/fresh/ovillo) names its
+                # repository path; any other is one of site/scores/
                 rel = p["score"].split("/fresh/ovillo/")[-1] if "/fresh/ovillo/" in p["score"] else f"site/scores/{sp.name}"
             if rel:
                 g.add((ss, OVL.repoPath, L(rel)))
@@ -276,7 +280,7 @@ def main():
             if True:
                 m = re.search(r"pattern (\S+)\s+pickup (\S+)", (logdir / "log").read_text())
                 g.add((bs, OVL.pattern, L(m.group(1)))); g.add((bs, OVL.pickup, L(m.group(2))))
-                pf = Path(SCRATCH) / "patches" / f"{PATCH_FILES.get(slug, 'none')}.json"
+                pf = HERE.parent / "patches" / f"{PATCH_FILES.get(slug, 'none')}.json"  # site/patches
                 patch = json.loads(pf.read_text()) if pf.exists() else {"preset": "ovillo-default"}
                 g.add((bs, OVL.patch, L(jdump(patch))))
                 add = add_instrument("bench", "The Ovillo bench: a simulated guitarist into an Ariadne World")

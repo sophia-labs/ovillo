@@ -4,7 +4,7 @@
 
 The catalogue is the one the build used (out/pieces.json, the builder's copy of --pieces).
 """
-import hashlib, json, math, re, subprocess, sys, tempfile, unittest
+import hashlib, json, math, os, re, subprocess, sys, tempfile, unittest
 from pathlib import Path
 
 import numpy as np
@@ -14,9 +14,10 @@ from rdflib import Graph, Namespace, RDF, URIRef
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "out"
 OVL = Namespace("http://sophia.ai/ovillo#")
-SCRATCH = "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad"
 PIECES = json.loads((OUT / "pieces.json").read_text())
-ORIGINAL = Path(f"{SCRATCH}/scores/pieces.json")  # the 17 pieces of 2026-10-20, reviewed then
+# The 17 pieces of 2026-10-20, reviewed then: compared when the renders directory that holds their catalogue is given.
+RENDERS = os.environ.get("OVILLO_RENDERS")
+ORIGINAL = Path(RENDERS) / "scores" / "pieces.json" if RENDERS else None
 MUS = [p for p in PIECES if p.get("receipt") and not p.get("world")]
 EXAMPLES = [p for p in PIECES if p.get("world")]
 # Never in a piece's text: the names of what is not an Ariadne World. ("trombone" was here until 2026-10-21: the
@@ -317,7 +318,7 @@ class GraphTests(unittest.TestCase):
                 self.assertEqual(kinds, {examples[slug]})
             else:
                 self.assertEqual(kinds, {"steel-string"})
-        if ORIGINAL.exists():
+        if ORIGINAL and ORIGINAL.exists():
             self.assertEqual(PIECES[:17], json.loads(ORIGINAL.read_text()))
         self.assertEqual(len(PIECES[:17]), 17)
         self.assertTrue(all(p.get("world") for p in PIECES[17:]), [p["slug"] for p in PIECES[17:]])

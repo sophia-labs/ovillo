@@ -10,8 +10,8 @@
 set -euo pipefail
 NAME=$1; GD=$2; APP=$3; SWITCH=${4:-}
 HERE=$(cd "$(dirname "$0")/.." && pwd)            # site/graph
-HOST=${SIRIN_INSTANCE_ID:-i-0a4f0aa9384ab45bd}
-export AWS_PROFILE=${AWS_PROFILE:-terraform-user} AWS_REGION=${AWS_REGION:-us-west-1}
+HOST=${SIRIN_INSTANCE_ID:?set SIRIN_INSTANCE_ID to the server's EC2 instance id (reached over SSM)}
+: "${AWS_PROFILE:?set AWS_PROFILE}" "${AWS_REGION:?set AWS_REGION}"
 SSH=(ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=25 -o "ProxyCommand=aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p" -i "$HOME/.ssh/id_ed25519" "operator@$HOST")
 file "$GD" | grep -q 'ELF 64-bit LSB pie executable, x86-64' || { echo "REFUSED: $GD is not a linux x86_64 executable" >&2; exit 1; }
 [[ -f $APP/index.html ]] || { echo "REFUSED: $APP has no index.html" >&2; exit 1; }
