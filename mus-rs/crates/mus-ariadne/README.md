@@ -89,6 +89,7 @@ for each body:
   -> passive loss
 
 all bodies:
+  -> stateful contact laws (hammers on wires)
   -> direct reciprocal body/body coupling
   -> body/shared-field exchange
   -> shared-field scattering, loss, and propagation
@@ -98,7 +99,26 @@ all bodies:
 ```
 
 Changing this order changes the physical model and requires a runtime-version
-change plus new law, compatibility, listening, and performance evidence.
+change plus new law, compatibility, listening, and performance evidence. The
+contact stage is empty in every world whose plan declares no hammer, so those
+worlds run exactly the order above without it.
+
+## Struck wires
+
+A piano enters as these pieces (`SPEC-ARIADNE-PIANO.md` at the repository root):
+
+- `ConfigurationMapSpec::StiffWire`: a body whose partials are computed from a
+  pinned wire's length, core diameter, linear density, Young's modulus and
+  tension (the tuning pin is its coordinate), with its mass-normalized mode
+  shapes and its kinetic coupling to a moving bridge end;
+- `SpaceBodyLaws::Passive`: the field, its loss and projection radiation, and
+  an optional felt damper (`law::damper`, a viscous pad whose engagement is
+  set by `World::set_body_damper`; it only dissipates);
+- `BodyConstitutionSpec::Hammer`: a mass whose power-law felt contact with up
+  to four wires is a stateful coupling law (`law::hammer`), thrown by
+  `World::strike_hammer` (its kinetic energy is source work) and caught by
+  its backcheck (the rebound energy is internal loss). Its stored energy is
+  `1/2 M v^2` plus the felt's potential, so `H_world` includes it.
 
 ## Typed shared trajectories
 

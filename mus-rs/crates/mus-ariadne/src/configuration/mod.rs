@@ -16,6 +16,9 @@
 //!   from that network at every point (a constitutive law: the discretized
 //!   lossless Webster horn equation; the area family itself is whatever the
 //!   anatomy declares).
+//! - [`ConfigurationMapSpec::StiffString`] and [`ConfigurationMapSpec::StiffWire`]:
+//!   the partials of a pinned stiff string, from its fundamental and
+//!   inharmonicity or from its material and geometry (constitutive laws).
 //!
 //! A move from `x` to `x'` is a reconfiguration at fixed physical state under a
 //! declared connection ([`ConnectionPolicy`]); its work receipt is the exact
@@ -33,5 +36,5 @@ pub use network::{
 };
 pub use space::{
     ConfigurationCoordinate, ConfigurationMapSpec, ConfigurationSpaceSpec, ConnectionPolicy,
-    DisposalPolicy, StiffStringSpec, MAX_CONFIGURATION_DIMENSIONS,
+    DisposalPolicy, StiffStringSpec, StiffWireSpec, MAX_CONFIGURATION_DIMENSIONS,
 };

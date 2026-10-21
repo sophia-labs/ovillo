@@ -352,6 +352,26 @@ impl<const N: usize> ModalMetricWaveField<N> {
         &mut self.state.displacement
     }
 
+    /// `(omega, cos(omega dt), sin(omega dt))` per mode, as `propagate` uses them.
+    pub(crate) fn rotation(&self) -> (&[f64; N], &[f64; N], &[f64; N]) {
+        (&self.omega, &self.cosine, &self.sine)
+    }
+
+    /// The uniform per-mode loss of `damp`, booking the energy removed in the
+    /// same pass instead of measuring the whole field twice.
+    pub(crate) fn damp_lean(&mut self) -> f64 {
+        let mut loss = 0.0;
+        for index in 0..N {
+            let r = self.retain[index];
+            let q = self.state.displacement[index];
+            let m = self.state.momentum[index];
+            loss += 0.5 * self.dt * (m * m + (self.omega[index] * q).powi(2)) * (1.0 - r * r);
+            self.state.displacement[index] = q * r;
+            self.state.momentum[index] = m * r;
+        }
+        loss
+    }
+
     fn rebuild(&mut self) {
         for index in 0..N {
             self.omega[index] = TAU * self.configuration.frequency_hz[index];

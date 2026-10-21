@@ -1,6 +1,7 @@
 //! Canonical multi-body Ariadne physical runtime.
 
 mod build;
+mod hammer;
 mod observe;
 mod process;
 mod space;
@@ -51,8 +52,14 @@ pub struct World {
     pub(super) pending_disposal_internal: f64,
     pub(super) pending_disposal_radiation: f64,
     pub(super) disposal_total: f64,
-    /// Per body: an N-D body whose shared-space port weights are all zero.
+    /// Per body: an N-D body (or a hammer) whose shared-space port weights are all zero.
     pub(super) space_port_inert: Vec<bool>,
+    /// Hammers and the wires each strikes (empty unless the plan declares hammers).
+    pub(super) hammers: Vec<hammer::HammerBinding>,
+    /// Source work and contact loss booked between frames by `strike_hammer`
+    /// (zero for every world without hammers).
+    pub(super) pending_source_work: f64,
+    pub(super) pending_contact_loss: f64,
 }
 
 #[cfg(test)]

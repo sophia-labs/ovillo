@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::configuration::{ConfigurationMapSpec, ConfigurationSpaceSpec};
 use crate::ir::{ReservoirSpec, TransportSpec, ACTIVE_RANKS, MODE_COUNT, TRANSPORT_PAIRS};
 use crate::law::aero::AeroSpec;
+use crate::law::damper::DamperSpec;
 use crate::law::valve::FlowValveSpec;
 
 use super::helpers::{validate_direction, validate_independent};
@@ -38,6 +39,14 @@ pub enum SpaceBodyLaws {
         valve: FlowValveSpec,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         aero: Option<AeroSpec>,
+    },
+    /// A passive body: the modal field, its loss, and projection radiation,
+    /// with nothing that injects work; an optional felt damper can rest on it
+    /// (`law::damper`, stiff-wire maps only). Excited only through couplings
+    /// (a hammer, a bridge). Needs a multilinear, stiff-string or stiff-wire map.
+    Passive {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        damper: Option<DamperSpec>,
     },
 }
 
@@ -96,10 +105,28 @@ impl SpaceBodySpec {
                     ));
                 }
             }
+            (
+                SpaceBodyLaws::Passive { damper },
+                map @ (ConfigurationMapSpec::Multilinear { .. }
+                | ConfigurationMapSpec::StiffString { .. }
+                | ConfigurationMapSpec::StiffWire { .. }),
+            ) => match (damper, map) {
+                (None, _) => {}
+                (Some(damper), ConfigurationMapSpec::StiffWire { wire }) => damper
+                    .validate(wire.speaking_length_m)
+                    .map_err(|message| PlanError::new("invalid-damper", message))?,
+                (Some(_), _) => {
+                    return Err(PlanError::new(
+                        "damper-needs-a-wire",
+                        "a damper pad is placed along a stiff wire",
+                    ))
+                }
+            },
             _ => {
                 return Err(PlanError::new(
                     "space-body-law-map-mismatch",
-                    "modal laws need a multilinear or stiff-string map; tube-network laws need a tube-network map",
+                    "modal laws need a multilinear or stiff-string map; tube-network laws need a tube-network map; \
+                     passive laws need a multilinear, stiff-string or stiff-wire map",
                 ))
             }
         }

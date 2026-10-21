@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::plan::{PlanError, WorldPlan};
+use crate::plan::{ConstitutiveWorldPlan, PlanError, WorldPlan};
 use crate::shared_world::{World, WorldFrame};
 
 pub const STEREO_LISTENER_VERSION: &str = "ariadne-stereo-listener-v1";
@@ -56,12 +56,41 @@ impl StereoListenerSpec {
 
     pub fn validate(&self, plan: &WorldPlan) -> Result<(), ListenerError> {
         plan.validate()?;
+        let ids: Vec<&str> = plan.bodies.iter().map(|body| body.id.as_str()).collect();
+        self.validate_parts(plan.digest()?, &ids)
+    }
+
+    /// A listener over a typed (plan-v3) world: the given taps, the shared
+    /// space heard at unit projection on both sides.
+    pub fn for_constitutive(
+        plan: &ConstitutiveWorldPlan,
+        body_taps: Vec<StereoBodyTap>,
+        output_scale: f64,
+    ) -> Result<Self, ListenerError> {
+        let result = Self {
+            schema_version: STEREO_LISTENER_VERSION.to_owned(),
+            physical_world_digest: plan.digest()?,
+            body_taps,
+            space_left_projection: 1.0,
+            space_right_projection: 1.0,
+            output_scale,
+        };
+        result.validate_constitutive(plan)?;
+        Ok(result)
+    }
+
+    pub fn validate_constitutive(&self, plan: &ConstitutiveWorldPlan) -> Result<(), ListenerError> {
+        plan.validate()?;
+        let ids: Vec<&str> = plan.bodies.iter().map(|body| body.id.as_str()).collect();
+        self.validate_parts(plan.digest()?, &ids)
+    }
+
+    fn validate_parts(&self, expected: String, body_ids: &[&str]) -> Result<(), ListenerError> {
         if self.schema_version != STEREO_LISTENER_VERSION {
             return Err(ListenerError::UnsupportedVersion(
                 self.schema_version.clone(),
             ));
         }
-        let expected = plan.digest()?;
         if self.physical_world_digest != expected {
             return Err(ListenerError::WorldDigestMismatch {
                 expected,
@@ -79,7 +108,7 @@ impl StereoListenerSpec {
         let mut nonzero = self.space_left_projection != 0.0
             || self.space_right_projection != 0.0;
         for tap in &self.body_taps {
-            if !plan.bodies.iter().any(|body| body.id == tap.body_id) {
+            if !body_ids.contains(&tap.body_id.as_str()) {
                 return Err(ListenerError::UnknownBody(tap.body_id.clone()));
             }
             if !tap.left_projection.is_finite() || !tap.right_projection.is_finite() {
@@ -126,14 +155,25 @@ pub struct StereoListener {
 impl StereoListener {
     pub fn bind(spec: &StereoListenerSpec, plan: &WorldPlan) -> Result<Self, ListenerError> {
         spec.validate(plan)?;
+        let ids: Vec<&str> = plan.bodies.iter().map(|body| body.id.as_str()).collect();
+        Self::bind_parts(spec, &ids)
+    }
+
+    /// Bind to a typed (plan-v3) world.
+    pub fn bind_constitutive(spec: &StereoListenerSpec, plan: &ConstitutiveWorldPlan) -> Result<Self, ListenerError> {
+        spec.validate_constitutive(plan)?;
+        let ids: Vec<&str> = plan.bodies.iter().map(|body| body.id.as_str()).collect();
+        Self::bind_parts(spec, &ids)
+    }
+
+    fn bind_parts(spec: &StereoListenerSpec, body_ids: &[&str]) -> Result<Self, ListenerError> {
         let taps = spec
             .body_taps
             .iter()
             .map(|tap| {
-                let body = plan
-                    .bodies
+                let body = body_ids
                     .iter()
-                    .position(|body| body.id == tap.body_id)
+                    .position(|id| *id == tap.body_id)
                     .ok_or_else(|| ListenerError::UnknownBody(tap.body_id.clone()))?;
                 Ok(BoundStereoTap {
                     body,

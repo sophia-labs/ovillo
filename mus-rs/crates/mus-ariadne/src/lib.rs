@@ -69,10 +69,12 @@ pub use shared_world::{World, WorldControls, WorldError, WorldFrame, WorldReceip
 pub use configuration::{
     AffineSpec, AreaTermSpec, ConfigurationCoordinate, ContactSpec, ConfigurationMapSpec,
     ConfigurationSpaceSpec, ConnectionPolicy, DisposalPolicy, RadiatingEndSpec, StiffStringSpec,
-    TubeBranchSpec,
+    StiffWireSpec, TubeBranchSpec,
     TubeNetworkSpec, TubeSpec,
 };
 pub use law::aero::{AeroFrame, AeroSpec, AeroTotals};
+pub use law::damper::DamperSpec;
+pub use law::hammer::{HammerContactSpec, HammerFrame, HammerSpec, HammerTotals};
 pub use law::valve::{FlowValveControls, FlowValveFrame, FlowValveSpec};
 pub use plan::{SpaceBodyLaws, SpaceBodySpec};
 pub use space_body::{

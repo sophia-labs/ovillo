@@ -61,6 +61,10 @@ impl WorldLayout {
                     aperture_scalars += 2;
                     constitutive_scalars += 2 + body.configuration_space.dimensions();
                 }
+                BodyConstitutionSpec::Hammer { hammer } => {
+                    // Position, velocity, one felt compression per wire.
+                    constitutive_scalars += 2 + hammer.wires.len();
+                }
             }
         }
         Self::assemble(
@@ -187,6 +191,12 @@ impl WorldCostEstimate {
                         + boundary.outputs.len() * (3 * sites + MODE_COUNT)
                         + MODE_COUNT;
                     nonlinear_iterations += sites;
+                }
+                BodyConstitutionSpec::Hammer { hammer } => {
+                    // While thrown: each wire's start/free/compliance sums and
+                    // its forced response; the nested force solve.
+                    dot_product_terms += 5 * MODE_COUNT * hammer.wires.len();
+                    nonlinear_iterations += 16 * hammer.wires.len();
                 }
                 BodyConstitutionSpec::ModalSpace { .. } => {
                     // Per sample, as a modal body; reconfiguration (an eigen

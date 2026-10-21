@@ -25,7 +25,10 @@ pub use types::{
 };
 
 pub const WORLD_PLAN_SCHEMA_VERSION: &str = "ariadne-world-plan-v2";
-pub const MAX_BODY_INSTANCES: usize = 64;
+/// Bodies one World may hold. A piano's strings, hammers and soundboard
+/// need more than the guitar's nine; this is a capacity, not a law, and
+/// every plan valid under the earlier 64 is valid and unchanged.
+pub const MAX_BODY_INSTANCES: usize = 256;
 pub const MAX_DIRECT_COUPLINGS: usize = 4_096;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
