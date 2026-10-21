@@ -74,12 +74,19 @@ identical.
 
 ## The TV, estimated, not measured
 
-The Realtek RTD288O ran the tube tract at about 82% worklet load. On this
-machine, in light mode, the World costs 0.25 to 0.5 of the tube's load while
-consonants sound and about the same at idle (its idle light-mode load was not
-measurable for the tube in one run and 5.8% in another). If the 82% was
-consonant play, expect roughly 20-40% on the TV; if it was idle, expect
-roughly the same 82%. Not run on the device.
+wasm wall RTF on a quiet core (load average 5; `examples/abi_bench.mjs`,
+the same ABI calls for both engines, 6 s each, final builds):
+
+| | full: held /a/ / mama / papapa / sss | light: held / mama / papapa / sss |
+|---|---|---|
+| World tract | 23.7 / 10.1 / 7.5 / 18.6x | 24.1 / 17.4 / 14.3 / 13.0x |
+| tube tract (fe4fb03) | 1.7 / 6.8 / 1.2 / 2.0x | 5.9 / 16.1 / 4.8 / 7.5x |
+
+The Realtek RTD288O ran the tube tract at about 82% worklet load (in light
+mode: its probe threshold on TV is 5x). In light mode the World needs 0.25x
+(held vowel), 0.93x (mama), 0.34x (papapa) and 0.58x (sss) of the tube's
+time here, so on the TV expect about 20% to 76% for the same workload, if
+the ratios carry over to 32-bit ARM. Not run on the device.
 
 ## Gaps
 
