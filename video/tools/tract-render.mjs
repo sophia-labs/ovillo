@@ -53,7 +53,7 @@ const SCRIPT = [
   [0.00, { preset: 3, set: { pitch: 110, tense: 0.6, breath: 0 } }, 'rest'],
   [0.00, { vibrato: [5.5, 0.12, 0.3] }, ''],
   [0.12, { preset: 0, set: { breath: 0.6 } }, '/a/'],
-  [1.27, { ramp: { lips: [0, 0.05] } }, 'p'],
+  [1.15, { ramp: { lips: [0, 0.06] } }, 'p'],
   [1.44, { preset: 0, set: { pitch: 123.5 } }, 'pa'],
   [2.45, { preset: 1, set: { pitch: 130.8 } }, '/i/'],
   [3.55, { preset: 2, set: { pitch: 146.8 } }, '/u/'],
