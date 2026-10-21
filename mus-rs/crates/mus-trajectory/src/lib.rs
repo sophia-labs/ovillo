@@ -160,8 +160,11 @@ impl TrajectoryTrack {
                     Interpolation::Step => 0.0,
                     Interpolation::Linear => phase,
                     Interpolation::Smoothstep => phase * phase * (3.0 - 2.0 * phase),
+                    // `powf(3.0)` is the cube SPEC-TRAJECTORY.md pins (the Python
+                    // mirror's `phase**3`); `phase * phase * phase` rounds twice
+                    // and differs by one ulp on some phases.
                     Interpolation::Smootherstep => {
-                        phase * phase * phase * (phase * (phase * 6.0 - 15.0) + 10.0)
+                        phase.powf(3.0) * (phase * (phase * 6.0 - 15.0) + 10.0)
                     }
                     Interpolation::Cosine => 0.5 - 0.5 * (std::f64::consts::PI * phase).cos(),
                 };
