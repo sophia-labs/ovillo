@@ -1,0 +1,55 @@
+# ovillo.service (SKETCH, not applied): ovillo.sophia-labs.com's gardend in public mode, loopback 7692.
+# Mirrors deploy/two-box/cow-tools/systemd/cow-tools.service. No services (no vehicle, no cow-tools server),
+# no ONNX runtime (the graph has no semantic index), so the unit is smaller: a quarter of the cap.
+#   /srv/sophia/ovillo/current   the release: gardend, site/ (the Shrubbery app build + media/ scores/ receipts/)
+#   /srv/sophia/ovillo/profile   graphs/, public.json
+[Unit]
+Description=ovillo.sophia-labs.com: the public gardend (loopback 7692)
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor=/srv/sophia
+ConditionPathExists=/srv/sophia/ovillo/current/gardend
+ConditionPathExists=/srv/sophia/ovillo/profile/public.json
+
+[Service]
+Type=simple
+User=ovillo
+Group=ovillo
+WorkingDirectory=/srv/sophia/ovillo/state
+EnvironmentFile=/etc/ovillo/owner.env
+Environment=HOME=/srv/sophia/ovillo/state
+Environment=GARDEN_PUBLIC_BASE_URL=https://ovillo.sophia-labs.com
+Environment=GARDEN_NO_UPDATE_CHECK=1
+Environment=RUST_LOG=info
+ExecStart=/srv/sophia/ovillo/current/gardend serve --profile /srv/sophia/ovillo/profile --port 7692
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=60
+CPUQuota=50%
+CPUWeight=20
+MemoryHigh=1G
+MemoryMax=2G
+TasksMax=256
+LimitNOFILE=16384
+IOWeight=30
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/srv/sophia/ovillo/profile /srv/sophia/ovillo/state
+InaccessiblePaths=-/srv/sophia/cells -/srv/sophia/backups -/srv/sophia/releases -/etc/sophia -/etc/ovillo -/srv/sophia/cow-tools
+
+[Install]
+WantedBy=multi-user.target

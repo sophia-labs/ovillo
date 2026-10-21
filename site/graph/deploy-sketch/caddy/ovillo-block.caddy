@@ -1,0 +1,69 @@
+# Replaces the static ovillo block in deploy/two-box/caddy/Caddyfile (SKETCH, not applied).
+# What changes from the static block:
+#   * `root` is the release's site/ (the SAME directory gardend takes as siteDir), served by Caddy's file_server,
+#     because gardend 0.1.4 answers a Range request with 200 and the whole file (no 206): <audio> seeking needs
+#     Range, and Caddy's file_server does it. Caddy also gives .mus/.wasm their types (gardend sends .mus as
+#     application/octet-stream).
+#   * Only the graph's doors go to gardend: /mcp, /graphs, /health, /self-host.json. Public mode refuses the rest
+#     anyway; the proxy list is the second wall.
+#   * CSP is the static block's, unchanged ('wasm-unsafe-eval' for the wasm worklet/Worker, blob: workers, media-src
+#     'self' blob:). connect-src 'self' already covers /mcp and the media fetches (peaks, energy). Nothing new.
+#   * The same kill switch style as cow-tools: a file Caddy stats on every request (switches/public.off) -> 503.
+{$OVILLO_HOST:ovillo.sophia-labs.com} {
+	root * {$OVILLO_ROOT:/srv/sophia/ovillo/current/site}
+	encode zstd gzip
+
+	@off file /srv/sophia/ovillo/switches/public.off
+	respond @off "Ovillo is resting." 503
+
+	log {
+		output file {$SIRIN_LOG_DIR:/var/log/caddy}/ovillo-access.json {
+			roll_size 50MiB
+			roll_keep 7
+		}
+		format filter {
+			wrap json
+			fields {
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		-Server
+	}
+
+	@wasm path *.wasm
+	header @wasm Content-Type "application/wasm"
+	@mus path *.mus
+	header @mus Content-Type "text/plain; charset=utf-8"
+
+	# The graph: gardend, loopback only. Caddy appends the visitor's address to X-Forwarded-For (public.json's
+	# clientIpHeader reads the last one).
+	@graph path /mcp /mcp/* /graphs /graphs/* /health /self-host.json
+	handle @graph {
+		reverse_proxy 127.0.0.1:7692 {
+			flush_interval -1
+		}
+	}
+
+	# Media are content-addressed by slug and rebuilt with the graph: a short cache.
+	@media path /media/* /scores/* /receipts/*
+	header @media Cache-Control "public, max-age=3600"
+	@shell path / /index.html /llms.txt *.html
+	header @shell Cache-Control "no-cache"
+	@hashed path /assets/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+
+	handle {
+		try_files {path} {path}/index.html /index.html
+		file_server
+	}
+}

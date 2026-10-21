@@ -1,0 +1,26 @@
+# score: Gigante y juguete
+# summary: 11 bars / 2 guitars / ~0.4 min — one tune in canon on two guitar-shaped worlds four octaves apart: a giant tuned an octave down, a toy a fourth up (a requinto)
+# tempo: 92    time: 4/4    key: Em    bars: 11
+# reverb: 1.2
+# master: rms=-17
+
+# text @b1: the toy (tuned A2 D3 G3 C4 E4 A4) plays the tune where it is written
+# text @b2: one bar later the giant (tuned E1 A1 D2 G2 B2 E3) plays it two octaves below; same anatomy, same body, strings at other tensions
+
+# instruments:
+#   jj   = steel-string guitar (treble, -12, anatomy=steel-string-v0, tuning=A2 D3 G3 C4 E4 A4, capo=0)
+#   jj.v = the toy's fingers (treble, pos=0.10, pick=0.85)
+#   gg   = steel-string guitar (treble, -12, anatomy=steel-string-v0, tuning=E1 A1 D2 G2 B2 E3, capo=0)
+#   gg.p = the giant's thumb (treble, pos=0.16, pick=0.4, gain=4)
+
+bar 1: jj.v={mf} E4q@2:0 G4q@2:3 A4q@1:0 B4q@1:2  gg.p=-
+bar 2: jj.v=B4q@1:2 A4q@1:0 G4q@2:3 E4q@2:0  gg.p={f} E2q@4:2 G2q@3:0 A2q@3:2 B2q@2:0
+bar 3: jj.v=D4q@3:2 E4q@2:0 G4q@2:3 A4q@1:0  gg.p=B2q@2:0 A2q@3:2 G2q@3:0 E2q@4:2
+bar 4: jj.v=B4h.@1:2 Rq  gg.p=D2q@4:0 E2q@4:2 G2q@3:0 A2q@3:2
+bar 5: jj.v=E5q@1:7 D5q@1:5 B4q@1:2 A4q@1:0  gg.p=B2h.@2:0 Rq
+bar 6: jj.v=G4q@2:3 A4q@1:0 B4e@1:2 A4e@1:0 G4q@2:3  gg.p=E3q@1:0 D3q@2:3 B2q@2:0 A2q@3:2
+bar 7: jj.v=E4q@2:0 D4q@3:2 E4q@2:0 F#4q@2:2  gg.p=G2q@3:0 A2q@3:2 B2e@2:0 A2e@3:2 G2q@3:0
+bar 8: jj.v=E4w@2:0  gg.p=E2q@4:2 D2q@4:0 E2q@4:2 F#2q@4:4
+bar 9: jj.v=-  gg.p=E2w@4:2
+bar 10: jj.v=-  gg.p=-
+bar 11: jj.v=-  gg.p=-

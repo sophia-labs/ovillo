@@ -14,4 +14,5 @@ pub mod trombone_nd;
 pub mod trombone_nd_player;
 pub mod trombone_player;
 pub mod trombone_world;
+#[cfg(feature = "weave")]
 pub mod weave;

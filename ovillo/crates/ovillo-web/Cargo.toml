@@ -1,0 +1,16 @@
+[package]
+name = "ovillo-web"
+description = "The Ovillo rig (simulated guitar, guitarist, Ariadne World) as a plain-C-ABI WebAssembly module for an AudioWorklet."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ovillo-dsp = { path = "../ovillo-dsp", default-features = false }
+mus-ariadne = { workspace = true }
+rtrb = { workspace = true }
+serde_json = { workspace = true }

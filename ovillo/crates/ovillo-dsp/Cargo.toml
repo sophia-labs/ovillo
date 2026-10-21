@@ -8,10 +8,24 @@ repository.workspace = true
 
 [dependencies]
 mus-ariadne = { workspace = true }
-mus-dsp = { workspace = true }
+# Only `weave` (the synth=weave/pluck voice) uses it; its `full` default pulls C
+# libsoxr, so a wasm build turns it off with `default-features = false`.
+mus-dsp = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 rtrb = { workspace = true }
+
+[features]
+default = ["weave"]
+weave = ["dep:mus-dsp"]
+
+[[example]]
+name = "weave_render"
+required-features = ["weave"]
+
+[[example]]
+name = "weave_probe"
+required-features = ["weave"]
 
 [dev-dependencies]
 hound = { workspace = true }

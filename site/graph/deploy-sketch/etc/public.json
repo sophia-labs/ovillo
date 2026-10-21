@@ -1,0 +1,8 @@
+{
+  "graphs": ["ovillo"],
+  "siteDir": "/srv/sophia/ovillo/current/site",
+  "clientIpHeader": "x-forwarded-for",
+  "rateLimit": { "perMinute": 240, "burst": 120 },
+  "maxBodyBytes": 32768,
+  "sparql": { "timeoutMs": 10000, "maxRows": 1000 }
+}

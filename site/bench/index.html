@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ovillo Bench</title>
+<meta name="description" content="A simulated guitar played live through the Ariadne World, in your browser.">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="./bench.css">
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; background: #000; }
+  body { padding: 16px; font: 12px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: #6d776f; }
+  main { max-width: 1120px; margin: 0 auto; }
+  p { margin: 10px 2px 0; text-transform: uppercase; }
+  noscript { color: #c9d1c9; }
+</style>
+</head>
+<body>
+<main>
+  <div id="bench"></div>
+  <p>Keys (click the bench first): Z X C V B N pluck the open strings (Shift harder) · 1–8 softkeys · Space start/stop · ↑ ↓ or wheel on the softkeys turn the lit one · 0 reset world · − = master · \ mute · Esc back.</p>
+  <noscript>The bench needs JavaScript, WebAssembly and AudioWorklet.</noscript>
+</main>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

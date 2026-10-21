@@ -1,0 +1,95 @@
+/* Ovillo site: the bench's instrument-CRT language (black field, graticule
+   lines, stroke traces, one monospace face, colour is meaning) for prose. */
+:root {
+  color-scheme: dark;
+  --bg: #000;
+  --bezel: #0b0d0f;
+  --line: #2c343c;
+  --text: #c9d1c9;
+  --dim: #6d776f;
+  --on: #62d26f;
+  --warn: #ffb000;
+  --world: #ff9d3b;
+  --blue: #5aa0ff;
+  --font: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font: 13px/1.55 var(--font); padding: 0 16px; overflow-x: hidden; }
+a { color: var(--on); text-decoration: none; border-bottom: 1px solid var(--line); }
+a:hover { border-bottom-color: var(--on); }
+code { color: var(--text); }
+.dim { color: var(--dim); }
+.warn { color: var(--warn); }
+
+.top { max-width: 1120px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; justify-content: space-between; padding: 18px 0 14px; border-bottom: 1px solid var(--line); }
+.top .mark { font-weight: 700; letter-spacing: 0.18em; color: var(--text); border: 0; }
+.top nav { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12px; }
+.top nav a { color: var(--dim); border: 0; }
+.top nav a:hover { color: var(--text); }
+
+main { max-width: 1120px; margin: 0 auto; }
+.intro { max-width: 760px; padding: 36px 0 8px; }
+.intro h1 { font-size: 20px; line-height: 1.35; font-weight: 600; margin: 0 0 16px; letter-spacing: 0.01em; }
+.intro p { margin: 0 0 12px; }
+
+.block { padding: 28px 0 8px; border-bottom: 1px solid var(--line); }
+.head { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+.head h2 { margin: 0; font-size: 13px; letter-spacing: 0.14em; font-weight: 700; }
+.head .dim { font-size: 11px; letter-spacing: 0.06em; }
+.lede { max-width: 760px; margin: 0 0 16px; }
+.keys { font-size: 11px; color: var(--dim); margin: 10px 0 0; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; }
+.filters button, .piece .play {
+  font: 11px var(--font); letter-spacing: 0.06em; color: var(--dim); background: transparent;
+  border: 1px solid var(--line); padding: 5px 9px; cursor: pointer; border-radius: 0;
+}
+.filters button.on { color: var(--on); border-color: var(--on); }
+.filters button:hover, .piece .play:hover { color: var(--text); }
+
+.group h3.gt { font-size: 11px; letter-spacing: 0.12em; color: var(--dim); font-weight: 400; margin: 22px 0 8px; }
+.piece { border: 1px solid var(--line); background: var(--bezel); padding: 12px; margin: 0 0 10px; }
+.piece[hidden] { display: none; }
+.piece .row { display: grid; grid-template-columns: auto 1fr auto auto; gap: 4px 14px; align-items: center; }
+.piece .play { min-width: 64px; }
+.piece.playing .play { color: var(--on); border-color: var(--on); }
+.piece .title { margin: 0; font-size: 14px; font-weight: 600; }
+.piece .engine { font-size: 11px; }
+.piece .tags { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.piece .tags span { font-size: 10px; letter-spacing: 0.06em; color: var(--dim); border: 1px solid var(--line); padding: 1px 5px; }
+.piece .tags span.weird { color: var(--world); border-color: #5a3a1c; }
+.piece .tags span.pretty { color: var(--on); border-color: #24502b; }
+.piece .tags span.loud { color: var(--warn); border-color: var(--warn); }
+.piece .time { font-size: 11px; min-width: 9ch; text-align: right; }
+.piece .track { position: relative; height: 9px; margin: 10px 0 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.piece .track .pos { position: absolute; left: 0; bottom: -1px; height: 1px; width: 0; background: var(--on); }
+.piece .note { margin: 10px 0 0; max-width: 820px; }
+.piece .figs { display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 0; }
+.piece.open .figs { display: grid; }
+.piece .figs figure { margin: 0; border: 1px solid var(--line); background: #000; padding: 4px; }
+.piece .figs img { display: block; width: 100%; height: auto; }
+.piece .figs figcaption { font-size: 10px; color: var(--dim); letter-spacing: 0.05em; padding: 2px 2px 0; }
+.piece .facts { display: none; margin: 10px 0 0; font-size: 11px; color: var(--dim); }
+.piece.open .facts { display: block; }
+.piece .facts table { border-collapse: collapse; }
+.piece .facts td { padding: 1px 14px 1px 0; white-space: nowrap; }
+.piece .facts td.v { color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+.piece .facts td.ok { color: var(--on); }
+.piece .facts .scroll { overflow-x: auto; }
+.piece .links { margin: 10px 0 0; font-size: 11px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.piece .links button { font: 11px var(--font); color: var(--dim); background: none; border: 0; border-bottom: 1px solid var(--line); padding: 0; cursor: pointer; }
+
+pre.cmd { background: var(--bezel); border: 1px solid var(--line); padding: 12px; overflow-x: auto; font: 12px/1.6 var(--font); color: var(--text); margin: 0 0 14px; }
+#get p { max-width: 760px; }
+ul.limits { max-width: 820px; margin: 0; padding: 0 0 0 18px; }
+ul.limits li { margin: 0 0 6px; }
+
+footer { max-width: 1120px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; padding: 18px 0 28px; font-size: 11px; color: var(--dim); }
+
+@media (max-width: 640px) {
+  .piece .row { grid-template-columns: auto 1fr; }
+  .piece .tags { justify-content: flex-start; grid-column: 1 / -1; }
+  .piece .time { grid-column: 1 / -1; text-align: left; }
+  .piece .figs { grid-template-columns: 1fr; }
+}
