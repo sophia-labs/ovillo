@@ -1,0 +1,93 @@
+{
+  "anatomy": "TractNdAnatomy::public_v1 (44+31, contact follow-below-floor, lip seal 0.02, 5 slots)",
+  "label": "fit",
+  "method": "coordinate grids (7^3, x5 velum values for /u/) at steps 0.04, 0.015, 0.005 around ovillo-tract fe4fb03's sealed-velum presets; objective sum over F1-F3 of ln(peak/target)^2; peaks = modal::response_peaks of the World's computed modes",
+  "schema": "ovillo.tract-world.public-preset-fit.v0",
+  "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs VOWEL_*_MODES (GARGANTA rung-1 design profiles, not measurements)",
+  "vowels": [
+    {
+      "evaluations": 1030,
+      "fitted": [
+        0.060000000000000005,
+        0.73,
+        0.5549999999999999,
+        0.0
+      ],
+      "peaks_hz": [
+        710.0,
+        1150.0,
+        2503.0,
+        3980.0
+      ],
+      "rms_log_error": 0.0006924049630885299,
+      "start": [
+        0.065,
+        0.725,
+        0.61,
+        0.0
+      ],
+      "target_hz": [
+        710.0,
+        1150.0,
+        2500.0
+      ],
+      "vowel": "a"
+    },
+    {
+      "evaluations": 1030,
+      "fitted": [
+        0.89,
+        0.6849999999999999,
+        0.73,
+        0.0
+      ],
+      "peaks_hz": [
+        290.0,
+        2248.0,
+        2958.0,
+        3749.0
+      ],
+      "rms_log_error": 0.0016457157268937527,
+      "start": [
+        0.885,
+        0.69,
+        0.76,
+        0.0
+      ],
+      "target_hz": [
+        290.0,
+        2250.0,
+        2950.0
+      ],
+      "vowel": "i"
+    },
+    {
+      "evaluations": 5146,
+      "fitted": [
+        0.43500000000000005,
+        0.9199999999999999,
+        0.036000000000000004,
+        0.01
+      ],
+      "peaks_hz": [
+        312.0,
+        699.0,
+        2382.0,
+        3347.0
+      ],
+      "rms_log_error": 0.008685803996192207,
+      "start": [
+        0.395,
+        0.885,
+        0.05,
+        0.015
+      ],
+      "target_hz": [
+        310.0,
+        700.0,
+        2350.0
+      ],
+      "vowel": "u"
+    }
+  ]
+}

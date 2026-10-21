@@ -13,8 +13,10 @@
 //! What is law, fit and approximation is listed in `CHECKPOINT-2A.md` at the
 //! worktree root.
 
+pub mod abi;
 pub mod anatomy;
 pub mod bench;
+pub mod gestures;
 pub mod measure;
 pub mod modal;
 pub mod world;

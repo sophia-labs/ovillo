@@ -15,10 +15,27 @@ fn render(interval: usize, seconds: f64, breath: f64) -> Vec<f64> {
 }
 
 fn render_with(interval: usize, seconds: f64, breath: f64, min_move: f64) -> Vec<f64> {
+    if std::env::args().any(|a| a == "--public") {
+        return render_public(interval, seconds, min_move);
+    }
     let mut w = Workload::new(44, 31, interval, true, SR, min_move);
     w.breath = breath;
     let mut out = vec![0.0f32; (seconds * SR) as usize];
     w.render(&mut out);
+    out.iter().map(|&v| f64::from(v)).collect()
+}
+
+/// The public engine running its own "mama" gesture (lips, velum, tongue).
+fn render_public(interval: usize, seconds: f64, min_move: f64) -> Vec<f64> {
+    use mus_ariadne::{ConnectionPolicy, DisposalPolicy};
+    use ovillo_tract_world::gestures::Gesture;
+    use ovillo_tract_world::world::{self as tw, TractWorldNd};
+    let mut w = TractWorldNd::with(SR, ovillo_tract_world::TractNdAnatomy::public_v1(), ConnectionPolicy::MassMomentum { disposal: DisposalPolicy::Dissipate }, tw::ART_REST).unwrap();
+    w.update_interval = interval;
+    w.min_move = min_move;
+    w.set_gesture(Some(Gesture::mama()));
+    let mut out = vec![0.0f32; (seconds * SR) as usize];
+    w.process(&mut out).unwrap();
     out.iter().map(|&v| f64::from(v)).collect()
 }
 
@@ -95,6 +112,13 @@ fn main() {
     let seconds = 2.8;
     let r = render(1, seconds, 0.6);
     let (r_ltas, r_tracks) = (ltas(&r), tracks(&r));
+    if std::env::args().any(|a| a == "--public") {
+        for (interval, min_move) in [(32usize, 1.0e-3), (128, 4.0e-3), (256, 8.0e-3)] {
+            let x = render_with(interval, seconds, 0.6, min_move);
+            compare(&format!("public every {interval}, min {min_move}"), &x, &r, &r_ltas, &r_tracks);
+        }
+        return;
+    }
     if std::env::args().any(|a| a == "--threshold-only") {
         let x = render_with(32, seconds, 0.6, 0.001);
         compare("every 32, min_move 0.001", &x, &r, &r_ltas, &r_tracks);

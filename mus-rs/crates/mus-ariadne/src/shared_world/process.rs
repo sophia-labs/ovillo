@@ -159,6 +159,12 @@ impl World {
         self.last_coupling_frame = coupling;
         local_residual = local_residual.max(coupling.metric_residual.abs());
 
+        // A world whose every body is an N-D body with an inert port never
+        // touches the shared space: it stays exactly at rest, so skip it.
+        if self.space_port_inert.iter().all(|inert| *inert) {
+            self.last_space_frame = Default::default();
+            return self.finish_without_space(energy_start, control_work, source_work, internal_loss, local_residual, radiation_fraction, coupling);
+        }
         self.space
             .begin_frame()
             .map_err(|error| WorldError::Space(error.to_string()))?;
@@ -255,6 +261,68 @@ impl World {
             space_emitted_right: space_frame.emitted_right,
             direct_exchange_into_left: coupling.exchange_into_left,
             space_exchange_into_bodies,
+            local_residual,
+        })
+    }
+
+    /// The tail of `finish_after_local` for a world that does not touch the
+    /// shared space (N-D bodies with inert ports only).
+    #[allow(clippy::too_many_arguments)]
+    fn finish_without_space<F>(
+        &mut self,
+        energy_start: f64,
+        control_work: f64,
+        source_work: f64,
+        mut internal_loss: f64,
+        mut local_residual: f64,
+        mut radiation_fraction: F,
+        coupling: crate::coupling::CouplingFrame,
+    ) -> Result<WorldFrame, WorldError>
+    where
+        F: FnMut(usize) -> f64,
+    {
+        if self.pending_disposal_internal != 0.0 {
+            internal_loss += std::mem::take(&mut self.pending_disposal_internal);
+        }
+        let mut radiation = std::mem::take(&mut self.pending_disposal_radiation);
+        for index in 0..self.bodies.len() {
+            let space = self.bodies[index].space_body_mut().expect("inert ports belong to N-D bodies");
+            let (radiated, residual) = space
+                .radiate(radiation_fraction(index), &mut self.body_radiation[index])
+                .map_err(|error| WorldError::Body {
+                    id: self.body_ids[index].clone(),
+                    message: error.to_string(),
+                })?;
+            self.body_emissions[index] = self.body_radiation[index].first().copied().unwrap_or(0.0);
+            radiation += radiated;
+            local_residual = local_residual.max(residual.abs());
+        }
+        let energy_end = self.total_stored_energy();
+        if !energy_end.is_finite() {
+            return Err(WorldError::NonFiniteState);
+        }
+        let ledger_frame = WorkFrame {
+            energy_start,
+            source_work,
+            control_work,
+            internal_loss,
+            radiation_loss: radiation,
+            output_work: 0.0,
+            energy_end,
+        };
+        self.ledger.push(ledger_frame);
+        self.sample_frames += 1;
+        local_residual = local_residual.max(ledger_frame.residual().abs());
+        self.maximum_local_residual = self.maximum_local_residual.max(local_residual);
+        Ok(WorldFrame {
+            source_work,
+            control_work,
+            internal_loss,
+            radiation,
+            space_emitted_left: 0.0,
+            space_emitted_right: 0.0,
+            direct_exchange_into_left: coupling.exchange_into_left,
+            space_exchange_into_bodies: 0.0,
             local_residual,
         })
     }

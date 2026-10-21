@@ -105,8 +105,12 @@ pub struct AeroFrame {
     pub efficiency: f64,
     /// Separation loss of this step (before the turbulent share).
     pub jet_loss: f64,
-    /// Work the turbulent force did on the field.
+    /// Work the turbulent force did on the field (net: its self term plus a
+    /// zero-mean cross term with the flow already in its column).
     pub turbulence_work: f64,
+    /// The self term `kappa_o (p_s dt)^2 / 2 >= 0`: the fluctuation energy the
+    /// source injects (what a readout calls "turbulence paid").
+    pub turbulence_injected: f64,
 }
 
 /// Cumulative totals.
@@ -114,6 +118,7 @@ pub struct AeroFrame {
 pub struct AeroTotals {
     pub jet_loss: f64,
     pub turbulence_work: f64,
+    pub turbulence_injected: f64,
     pub closed_samples: u64,
 }
 
@@ -245,6 +250,7 @@ impl AeroRuntime {
                             if work <= available {
                                 obstacle.push(q, d, sqrt_dt);
                                 frame.turbulence_work = work;
+                                frame.turbulence_injected = 0.5 * obstacle.kappa * d * d;
                                 break;
                             }
                             xi *= 0.5;
@@ -256,6 +262,7 @@ impl AeroRuntime {
         self.credit = (self.credit + frame.jet_loss - frame.turbulence_work).max(0.0);
         self.totals.jet_loss += frame.jet_loss;
         self.totals.turbulence_work += frame.turbulence_work;
+        self.totals.turbulence_injected += frame.turbulence_injected;
         if frame.jet_closed {
             self.totals.closed_samples += 1;
         }

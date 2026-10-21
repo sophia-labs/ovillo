@@ -2,7 +2,7 @@
 
 use mus_ariadne::{ConnectionPolicy, DisposalPolicy};
 use ovillo_tract_world::world::{self as tw, Articulation, TractControls, TractWorldNd};
-use ovillo_tract_world::{measure, modal, TractNdAnatomy};
+use ovillo_tract_world::{modal, TractNdAnatomy};
 
 const SR: f64 = 48_000.0;
 
@@ -75,51 +75,36 @@ fn the_velum_opens_the_nose() {
         }
         nose / (lips + nose)
     };
-    // The port never closes exactly: it bottoms out at GARGANTA's 0.025 cm²
-    // floor (exact closure is G2), so the nose leaks at velum 0. Compare with
-    // the tube tract's own leak under the same procedure.
-    let tube_share = |velum: f64| {
-        use ovillo_tract as ot;
-        let mut w = ot::TractWorld::new(SR);
-        let mut c = ot::TractControls::default();
-        c.articulation = ot::Articulation { velum, ..ot::presets::ART_A };
-        c.breath = 0.6;
-        c.aspiration = 0.0;
-        w.set_controls(c);
-        w.snap_configuration();
-        let mut block = [0.0f32; 128];
-        for _ in 0..(0.3 * SR / 128.0) as usize {
-            w.process(&mut block);
-        }
-        let before = w.flows();
-        for _ in 0..(0.3 * SR / 128.0) as usize {
-            w.process(&mut block);
-        }
-        let after = w.flows();
-        let nose = after.radiation_nose - before.radiation_nose;
-        nose / (nose + after.radiation_lips - before.radiation_lips)
-    };
+    // The port never closes exactly here: it bottoms out at GARGANTA's
+    // 0.025 cm² floor (this is the linear anatomy; POC-3's contact seals it).
+    // The tube tract at f43f372 leaked the same way: its receipt
+    // (`ovillo-tract/receipts/render-receipt.json` at f43f372, vowel /a/)
+    // books radiationNose 2.908e-5 J against radiationLips 5.830e-4 J, a
+    // 4.75% share, and 10.95% with the velum open (measured at the
+    // checkpoint with that build). Since fe4fb03 that tube tract seals the
+    // velum exactly, so the live comparison is pinned to those numbers.
     let closed = nose_share(0.0);
     let open = nose_share(1.0);
-    let (tube_closed, tube_open) = (tube_share(0.0), tube_share(1.0));
-    println!("nasal share of radiated energy: N-D World velum 0 {closed:.4}, velum 1 {open:.4}; tube tract velum 0 {tube_closed:.4}, velum 1 {tube_open:.4}");
+    let (tube_closed, tube_open) = (2.9078432390458533e-5 / (2.9078432390458533e-5 + 5.829516271642762e-4), 0.1095);
+    println!("nasal share of radiated energy: N-D World velum 0 {closed:.4}, velum 1 {open:.4}; tube tract at f43f372 velum 0 {tube_closed:.4}, velum 1 {tube_open:.4}");
     assert!(open > 2.0 * closed, "opening the velum must open the nose: {closed} -> {open}");
-    assert!((closed / tube_closed).ln().abs() < 1.0_f64.ln() + 0.7, "closed-velum leak {closed} vs the tube tract's {tube_closed}");
+    assert!((closed / tube_closed).ln().abs() < 0.7, "closed-velum leak {closed} vs the tube tract's {tube_closed}");
 }
 
 /// The World's computed resonances sit on the tube tract's (two independent
-/// discretizations of the same area function): within 2.5% for F1-F3.
+/// discretizations of the same area function): within 2.5% for F1-F3. The
+/// tube's peaks are its rigid-glottis impulse response at f43f372, recorded
+/// in `ovillo-tract/receipts/preset-fit.json` there (`tube_resonances_hz`);
+/// since fe4fb03 that tube tract seals the velum and was re-fitted, so the
+/// comparison is pinned to the numbers the checkpoint measured.
 #[test]
 fn computed_modes_agree_with_the_tube_tracts_resonances() {
-    use ovillo_tract as ot;
-    for (art, name) in [(tw::ART_A, "a"), (tw::ART_I, "i"), (tw::ART_U, "u")] {
+    let tube_f43f372 = [[717.7734375, 1157.2265625, 2545.8984375], [292.96875, 2267.578125, 2950.1953125], [304.6875, 703.125, 2396.484375]];
+    for ((art, name), tube) in [(tw::ART_A, "a"), (tw::ART_I, "i"), (tw::ART_U, "u")].into_iter().zip(tube_f43f372) {
         let w = world(art);
         let modes = w.world().space_body(0).unwrap().network_modes().unwrap();
         let nd = modal::response_peaks(&modes, 90.0, 4_500.0);
-        let a = ot::Articulation { tongue_index: art.tongue_index, tongue_diameter: art.tongue_diameter, lips: art.lips, velum: art.velum };
-        let mut tube_world = ot::TractWorld::new(SR);
-        let tube = measure::spectrum_peaks(&tube_world.impulse_response(a, 48_000, 1e-6), 2.0 * SR, 90.0, 4_500.0);
-        println!("/{name}/ N-D {:?} tube {:?}", &nd[..3], &tube[..3]);
+        println!("/{name}/ N-D {:?} tube@f43f372 {:?}", &nd[..3], tube);
         for k in 0..3 {
             assert!((nd[k] / tube[k] - 1.0).abs() < 0.025, "/{name}/ F{}: {} vs {}", k + 1, nd[k], tube[k]);
         }

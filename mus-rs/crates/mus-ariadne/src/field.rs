@@ -209,6 +209,45 @@ impl<const N: usize> ModalMetricWaveField<N> {
         }
     }
 
+    /// Exact rotation only, without the diagnostic energy sums (the caller's
+    /// ledger measures the world's energy).
+    pub(crate) fn propagate_lean(&mut self) {
+        for index in 0..N {
+            let displacement = self.state.displacement[index];
+            let momentum = self.state.momentum[index];
+            self.state.displacement[index] =
+                self.cosine[index] * displacement + self.sine[index] * momentum / self.omega[index];
+            self.state.momentum[index] =
+                self.cosine[index] * momentum - self.sine[index] * self.omega[index] * displacement;
+        }
+    }
+
+    /// `damp_displacement` booking the loss per mode in one pass.
+    pub(crate) fn damp_displacement_lean(&mut self, retain: &[f64; N]) -> f64 {
+        let mut loss = 0.0;
+        for index in 0..N {
+            let q = self.state.displacement[index];
+            let r = retain[index];
+            loss += 0.5 * self.dt * (self.omega[index] * q).powi(2) * (1.0 - r * r);
+            self.state.displacement[index] = q * r;
+        }
+        loss
+    }
+
+    /// `damp_momentum_modes` without the whole-field sums: `removed[k]` per
+    /// mode, their sum returned.
+    pub(crate) fn damp_momentum_lean(&mut self, retain: &[f64; N], removed: &mut [f64; N]) -> f64 {
+        let mut loss = 0.0;
+        for index in 0..N {
+            let m = self.state.momentum[index];
+            let r = retain[index];
+            removed[index] = 0.5 * self.dt * m * m * (1.0 - r * r);
+            loss += removed[index];
+            self.state.momentum[index] = m * r;
+        }
+        loss
+    }
+
     /// Scale each mode's displacement `q` only by its retain factor (a loss
     /// on the conjugate of the momentum port; for the tube network, the
     /// column momenta). Returns the energy removed.
