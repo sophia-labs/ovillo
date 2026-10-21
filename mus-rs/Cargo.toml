@@ -18,6 +18,7 @@ members = [
     "crates/mus-gesture",
     "crates/np-rand",
     "plugins/ariadne-clap",
+    "tools/ariadne-world-export",
     "xtask",
 ]
 resolver = "2"

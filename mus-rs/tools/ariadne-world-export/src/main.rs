@@ -5,12 +5,10 @@ use std::path::{Path, PathBuf};
 use mus_ariadne::law::active::ActiveInclusionControls;
 use mus_ariadne::law::transport::ResonantTransportControls;
 use mus_ariadne::{
-    BodyControls, BoundObservationProgram, SharedSpaceControls, StereoListener,
-    StereoListenerSpec, World, WorldControls, WorldPlan,
+    BodyControls, BoundObservationProgram, SharedSpaceControls, StereoListener, StereoListenerSpec,
+    World, WorldControls, WorldPlan,
 };
-use mus_ariadne_webgpu_bridge::{
-    canonical_optical_observation_program, OpticalConstitutionPlan,
-};
+use mus_ariadne_webgpu_bridge::{canonical_optical_observation_program, OpticalConstitutionPlan};
 use mus_observation::{
     digest_json, encode_trace, ObservationFrame, ObservationTrace, ObservationValue, RunIdentity,
     ScalarType,
@@ -137,8 +135,7 @@ fn run() -> Result<(), String> {
         .len()
         .checked_add(tail_frames)
         .ok_or_else(|| "render horizon overflows addressable memory".to_owned())?;
-    let (observation_rate_hz, cadence_ticks) =
-        exact_rate(sample_rate, TARGET_OPTICAL_RATE_HZ)?;
+    let (observation_rate_hz, cadence_ticks) = exact_rate(sample_rate, TARGET_OPTICAL_RATE_HZ)?;
 
     let plan = WorldPlan::string_brass_v1(sample_rate as f64);
     let physical_world_digest = plan.digest().map_err(|error| error.to_string())?;
@@ -163,9 +160,7 @@ fn run() -> Result<(), String> {
     optical_plan
         .validate(&plan, &observation_schema)
         .map_err(|error| error.to_string())?;
-    let optical_constitution_digest = optical_plan
-        .digest()
-        .map_err(|error| error.to_string())?;
+    let optical_constitution_digest = optical_plan.digest().map_err(|error| error.to_string())?;
 
     let source_adapter = json!({
         "schema": "ariadne-source-adapter-v1",
@@ -186,8 +181,8 @@ fn run() -> Result<(), String> {
     let intervention_digest = digest_json(&intervention).map_err(|error| error.to_string())?;
     let source_frames = u64::try_from(source.frames.len())
         .map_err(|_| "source frame count exceeds u64".to_owned())?;
-    let tail_frames_u64 = u64::try_from(tail_frames)
-        .map_err(|_| "tail frame count exceeds u64".to_owned())?;
+    let tail_frames_u64 =
+        u64::try_from(tail_frames).map_err(|_| "tail frame count exceeds u64".to_owned())?;
     let run_identity = RunIdentity::new(
         physical_world_digest.clone(),
         listener.listener_digest().to_owned(),
@@ -219,11 +214,7 @@ fn run() -> Result<(), String> {
     let world_controls = config.controls.world();
     let mut body_controls = vec![BodyControls::default(); world.body_count()];
     for index in 0..horizon {
-        let input = source
-            .frames
-            .get(index)
-            .copied()
-            .unwrap_or([0.0, 0.0]);
+        let input = source.frames.get(index).copied().unwrap_or([0.0, 0.0]);
         let source_coordinate = 0.5 * (input[0] as f64 + input[1] as f64);
         body_controls[0] = config.controls.body(source_coordinate);
         let frame = world
@@ -238,10 +229,7 @@ fn run() -> Result<(), String> {
             .observe_sample_into(tick, &world, &frame, &mut observation_values)
             .map_err(|error| error.to_string())?
         {
-            observation_frames.push(ObservationFrame::new(
-                tick,
-                observation_values.clone(),
-            ));
+            observation_frames.push(ObservationFrame::new(tick, observation_values.clone()));
         }
     }
     if observation_frames
@@ -418,8 +406,8 @@ fn zero_values(schema: &mus_observation::ObservationSchema) -> Vec<ObservationVa
 fn read_wav(path: &Path) -> Result<Source, String> {
     let bytes = fs::read(path).map_err(|error| format!("{}: {error}", path.display()))?;
     let sha256 = format!("sha256:{:x}", Sha256::digest(&bytes));
-    let mut reader = hound::WavReader::open(path)
-        .map_err(|error| format!("{}: {error}", path.display()))?;
+    let mut reader =
+        hound::WavReader::open(path).map_err(|error| format!("{}: {error}", path.display()))?;
     let spec = reader.spec();
     let channels = spec.channels as usize;
     if channels == 0 {
