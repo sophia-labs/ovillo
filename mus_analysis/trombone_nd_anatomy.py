@@ -10,8 +10,8 @@ and its derivation receipt. One ``modal_space`` body:
   the 24 lowest modes of the lossless Webster network at every point; the
   bell mouth is the radiating end (its conductance is the runtime's law);
 * coordinate ``slide_extension_m``: each slide leg's extension, 0 .. 0.72 m.
-  The slide tube's length is ``1.19 m + 2 x`` (a ``tube_length`` term: this
-  needs ``patches/mus-ariadne-tube-length.patch``). Positions are solved, not
+  The slide tube's length is ``1.19 m + 2 x`` (a ``tube_length`` area term,
+  ``mus-ariadne`` ``configuration/network.rs`` ``AreaTermSpec::TubeLength``). Positions are solved, not
   chosen (receipt ``slide.positions_m``);
 * connection ``mass_momentum`` (the air state is held across a slide move,
   the work billed; energy the retained modes cannot hold is radiated);

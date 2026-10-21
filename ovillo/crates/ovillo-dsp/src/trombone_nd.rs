@@ -10,9 +10,7 @@
 //! moved by `World::set_body_configuration_point` under the mass-momentum
 //! connection, billed as control work). What `tick` returns is the World's
 //! own emission: the bell volume's pressure (Pa), times [`OUTPUT_SCALE`].
-//!
-//! The plan uses a `tube_length` area term, which needs
-//! `patches/mus-ariadne-tube-length.patch` applied to `mus-ariadne`.
+//! The slide is the network's `tube_length` area term.
 
 use mus_ariadne::{
     BodyControls, ConstitutiveBodyControls, ConstitutiveWorldPlan, FlowValveControls, SpaceBodyControls, World,
@@ -65,13 +63,7 @@ impl TromboneNd {
     }
 
     pub fn from_json(plan_json: &str) -> Result<Self, String> {
-        let plan: ConstitutiveWorldPlan = serde_json::from_str(plan_json).map_err(|e| {
-            if e.to_string().contains("tube_length") {
-                format!("{e}: this plan needs patches/mus-ariadne-tube-length.patch applied to mus-ariadne")
-            } else {
-                e.to_string()
-            }
-        })?;
+        let plan: ConstitutiveWorldPlan = serde_json::from_str(plan_json).map_err(|e| e.to_string())?;
         let lung_refill_w = 3.0;
         let world = World::from_constitutive_plan(plan).map_err(|e| e.to_string())?;
         let slide = world.body_configuration_point(0).map_or(0.0, |p| p[0]);
@@ -80,6 +72,8 @@ impl TromboneNd {
                 body: BodyControls { work_input: lung_refill_w, ..Default::default() },
                 valve: FlowValveControls { supply: 0.0 },
                 radiation_scale: 1.0,
+                // no knock on the wall: the lips are the only source
+                node_source: None,
             })],
             world,
             lung_refill_w,
@@ -164,17 +158,6 @@ impl TromboneNd {
 mod tests {
     use super::*;
 
-    /// `None` (and a note) when the runtime lacks the tube-length patch.
-    fn instrument() -> Option<TromboneNd> {
-        match TromboneNd::new() {
-            Ok(t) => Some(t),
-            Err(e) if e.contains("tube_length") => {
-                eprintln!("skipped: {e}");
-                None
-            }
-            Err(e) => panic!("{e}"),
-        }
-    }
 
     fn phrase(sr: f64) -> Vec<Breath> {
         // a tongued note, a lip move, a slide move under it, a release
@@ -194,7 +177,7 @@ mod tests {
     /// same samples bit for bit.
     #[test]
     fn audio_is_exactly_the_world_emission() {
-        let Some(mut tw) = instrument() else { return };
+        let mut tw = TromboneNd::new().unwrap();
         let mut world = TromboneNd::world_from_json(PLAN_JSON).unwrap();
         let mut sounded = 0;
         for b in phrase(48_000.0) {
@@ -225,7 +208,7 @@ mod tests {
     /// T2: the books close at roundoff (<= 1e-12 per frame, 1e-15 per frame summed).
     #[test]
     fn the_ledger_closes() {
-        let Some(mut tw) = instrument() else { return };
+        let mut tw = TromboneNd::new().unwrap();
         for b in phrase(48_000.0) {
             tw.tick(b).unwrap();
         }

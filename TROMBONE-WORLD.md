@@ -1,11 +1,10 @@
 # A trombone that is one Ariadne World
 
-## v1: one N-D body (branch `ariadne/trombone-world-v1-20261020`, on `poc-3-20261020`)
+## v1: one N-D body (merged on `main` after `80c4325`)
 
-*Needs `patches/mus-ariadne-tube-length.patch` applied to `mus-ariadne` (not
-applied on this branch, as asked). On an unpatched runtime the v1 plan refuses
-to load with a message naming the patch, and its tests skip. v0 (below)
-still builds and plays.*
+*Built on `poc-3-20261020` as `ariadne/trombone-world-v1-20261020`; landed with
+the tube-length change made in `mus-ariadne` itself (below). v0 (below) still
+builds and plays.*
 
 ### What it is
 
@@ -22,7 +21,7 @@ its receipt sits beside it.
   law, booked as radiation. There is no cup body and no fitted throat weighting:
   the lips act on the bore's own air.
 - **Slide:** the body's one coordinate, `slide_extension_m` (0 to 0.72 m per
-  leg). The slide tube's length is 1.19 m + 2x, a `tube_length` term (the patch).
+  leg). The slide tube's length is 1.19 m + 2x, a `tube_length` area term (the runtime change below).
   Moves use the `mass_momentum` connection (the air state Cp, Lu is held; the
   work is billed; energy the 24 modes cannot hold is radiated). Positions are
   solved on the network modes: 0, 8.8, 18.0, 27.7, 38.0, 48.8, 60.1 cm.
@@ -35,11 +34,12 @@ its receipt sits beside it.
 - **What you hear:** the World's own emission (the bell volume's pressure, Pa)
   × `OUTPUT_SCALE` = 1/300 (set once).
 
-### The patch (`patches/mus-ariadne-tube-length.patch`, 158 lines)
+### The runtime change: a tube length on a coordinate
 
-A trombone slide changes a tube's length. The tag's tube network fixes
-`length_m` and lets only areas depend on the coordinates, and no area function
-can remove travel time. The patch adds `AreaTermSpec::TubeLength { tube,
+A trombone slide changes a tube's length. The tag's tube network fixed
+`length_m` and let only areas depend on the coordinates, and no area function
+can remove travel time. `mus-ariadne` `configuration/network.rs` now has
+`AreaTermSpec::TubeLength { tube,
 length_m: AffineSpec }`: the tube's sections stretch uniformly, and `dx` and the
 column halves are recomputed per point. It is a new enum variant, so no existing
 struct literal breaks, and specs without it serialize as before. Tests in
@@ -49,7 +49,8 @@ struct literal breaks, and specs without it serialize as before. Tests in
   non-positive length is refused by the band check;
 - `a_slide_move_is_transported_and_old_specs_serialize_unchanged`.
 
-With it applied: mus-ariadne 60/60 lib tests and ovillo-dsp 37/37 pass.
+(First written as a patch against `poc-3-20261020`, then ported onto `main`'s
+`network.rs`, beside its `Constriction` term.)
 
 ### How it was tuned (all `fit`, measured on this World)
 
@@ -74,7 +75,7 @@ With it applied: mus-ariadne 60/60 lib tests and ovillo-dsp 37/37 pass.
   - Articulation is v0's: tonguing as pressure, slurs as lip moves under a
     legato tongue, smears/scoops/falls/vibrato as slide transport.
 
-### Gates (renders `ovillo/renders/trombone-nd-*.wav`, made in a tree with the patch applied)
+### Gates (renders `ovillo/renders/trombone-nd-*.wav`)
 
 - **T1 lawful: pass.**
   - `trombone_nd::tests::audio_is_exactly_the_world_emission`: a second World

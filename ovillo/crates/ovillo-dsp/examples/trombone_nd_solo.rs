@@ -10,7 +10,6 @@
 //!
 //! Writes `trombone-nd-<piece>.wav` (mono float, exactly the World's emission
 //! times `OUTPUT_SCALE`, sample for sample), `...-notes.tsv`, `...-receipt.json`.
-//! Needs `patches/mus-ariadne-tube-length.patch` applied to mus-ariadne.
 
 use ovillo_dsp::trombone_nd::{TromboneNd, OUTPUT_SCALE, PLAN_JSON};
 use ovillo_dsp::trombone_nd_player::{perform, place, ModeTable, Placement, Skill};
@@ -141,7 +140,7 @@ fn main() {
     let sr = 48_000.0;
     let table = ModeTable::embedded().expect("mode table");
     let skill = Skill::embedded().expect("player skill");
-    let mut tw = TromboneNd::new().expect("trombone World (needs the tube-length patch)");
+    let mut tw = TromboneNd::new().expect("trombone World");
     let (notes, placed) = match piece.as_str() {
         "etude" => etude(&table, &skill),
         "dynamics" => dynamics(&table, &skill),
