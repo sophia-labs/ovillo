@@ -200,14 +200,130 @@ impl LocalMediumPlan {
         Ok(())
     }
 
+    /// SHA-256 of the plan's canonical JSON: the bytes the Python reference
+    /// hashes (`json.dumps(plan, sort_keys=True, separators=(",", ":"),
+    /// ensure_ascii=False)`), so a plan has one content address in both
+    /// runtimes. serde_json alone spells some floats differently from Python
+    /// (`-0.00004658216673761258` vs `-4.658216673761258e-05`).
     pub fn digest(&self) -> Result<String, LocalMediumError> {
         self.validate()?;
         let value = serde_json::to_value(self)
             .map_err(|error| LocalMediumError::Serialization(error.to_string()))?;
-        let encoded = serde_json::to_vec(&value)
-            .map_err(|error| LocalMediumError::Serialization(error.to_string()))?;
+        let mut encoded = Vec::new();
+        write_python_canonical_json(&value, &mut encoded)?;
         Ok(format!("{:x}", Sha256::digest(encoded)))
     }
+}
+
+/// Python's `json.dumps(..., sort_keys=True, separators=(",", ":"),
+/// ensure_ascii=False)` for the values a plan serializes to.
+fn write_python_canonical_json(
+    value: &serde_json::Value,
+    out: &mut Vec<u8>,
+) -> Result<(), LocalMediumError> {
+    use serde_json::Value;
+    match value {
+        Value::Null => out.extend_from_slice(b"null"),
+        Value::Bool(flag) => out.extend_from_slice(if *flag { b"true" } else { b"false" }),
+        Value::Number(number) => {
+            if number.is_f64() {
+                let float = number.as_f64().ok_or_else(|| {
+                    LocalMediumError::Serialization("non-finite number".to_owned())
+                })?;
+                out.extend_from_slice(python_float_repr(float)?.as_bytes());
+            } else {
+                out.extend_from_slice(number.to_string().as_bytes());
+            }
+        }
+        Value::String(text) => {
+            let quoted = serde_json::to_string(text)
+                .map_err(|error| LocalMediumError::Serialization(error.to_string()))?;
+            out.extend_from_slice(quoted.as_bytes());
+        }
+        Value::Array(items) => {
+            out.push(b'[');
+            for (index, item) in items.iter().enumerate() {
+                if index > 0 {
+                    out.push(b',');
+                }
+                write_python_canonical_json(item, out)?;
+            }
+            out.push(b']');
+        }
+        Value::Object(map) => {
+            // serde_json's default map is ordered by key, as `sort_keys` is.
+            out.push(b'{');
+            for (index, (key, item)) in map.iter().enumerate() {
+                if index > 0 {
+                    out.push(b',');
+                }
+                let quoted = serde_json::to_string(key)
+                    .map_err(|error| LocalMediumError::Serialization(error.to_string()))?;
+                out.extend_from_slice(quoted.as_bytes());
+                out.push(b':');
+                write_python_canonical_json(item, out)?;
+            }
+            out.push(b'}');
+        }
+    }
+    Ok(())
+}
+
+/// CPython's `repr(float)`: the shortest round-trip digits, in positional
+/// form when the decimal point falls at -3..=16 digits and in `d.ddde±XX`
+/// form otherwise.
+fn python_float_repr(value: f64) -> Result<String, LocalMediumError> {
+    if !value.is_finite() {
+        return Err(LocalMediumError::Serialization(
+            "non-finite number in a plan".to_owned(),
+        ));
+    }
+    if value == 0.0 {
+        return Ok(if value.is_sign_negative() {
+            "-0.0"
+        } else {
+            "0.0"
+        }
+        .to_owned());
+    }
+    // Rust's `{:e}` writes the same shortest round-trip digits.
+    let scientific = format!("{:e}", value.abs());
+    let (mantissa, exponent) = scientific
+        .split_once('e')
+        .ok_or_else(|| LocalMediumError::Serialization(scientific.clone()))?;
+    let exponent: i32 = exponent
+        .parse()
+        .map_err(|_| LocalMediumError::Serialization(scientific.clone()))?;
+    let digits: String = mantissa.chars().filter(char::is_ascii_digit).collect();
+    let point = exponent + 1;
+    let mut text = String::new();
+    if value.is_sign_negative() {
+        text.push('-');
+    }
+    if point <= -4 || point > 16 {
+        text.push_str(&digits[..1]);
+        if digits.len() > 1 {
+            text.push('.');
+            text.push_str(&digits[1..]);
+        }
+        let shown = point - 1;
+        text.push('e');
+        text.push(if shown < 0 { '-' } else { '+' });
+        text.push_str(&format!("{:02}", shown.unsigned_abs()));
+    } else if point <= 0 {
+        text.push_str("0.");
+        text.push_str(&"0".repeat(point.unsigned_abs() as usize));
+        text.push_str(&digits);
+    } else if (point as usize) < digits.len() {
+        text.push_str(&digits[..point as usize]);
+        text.push('.');
+        text.push_str(&digits[point as usize..]);
+    } else {
+        text.push_str(&digits);
+        text.push_str(&"0".repeat(point as usize - digits.len()));
+        text.push_str(".0");
+    }
+    Ok(text)
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -680,6 +796,35 @@ const fn default_true() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn float_spelling_is_cpython_repr() {
+        // Expected strings are CPython 3 `repr()` of the same doubles.
+        let cases: [(f64, &str); 19] = [
+            (0.0, "0.0"),
+            (-0.0, "-0.0"),
+            (1.0, "1.0"),
+            (48_000.0, "48000.0"),
+            (0.0001, "0.0001"),
+            (0.00001, "1e-05"),
+            (4.658216673761258e-05, "4.658216673761258e-05"),
+            (-2.0218389277721283e-08, "-2.0218389277721283e-08"),
+            (1e16, "1e+16"),
+            (1e15, "1000000000000000.0"),
+            (123456789012345680.0, "1.2345678901234568e+17"),
+            (0.1, "0.1"),
+            (-0.25, "-0.25"),
+            (1.5e-300, "1.5e-300"),
+            (5e-324, "5e-324"),
+            (f64::MAX, "1.7976931348623157e+308"),
+            (12345.678, "12345.678"),
+            (0.001234, "0.001234"),
+            (9.999999999999999e-05, "9.999999999999999e-05"),
+        ];
+        for (value, expected) in cases {
+            assert_eq!(python_float_repr(value).unwrap(), expected, "{value:e}");
+        }
+    }
 
     fn site(id: &str, metric: f64) -> LocalMediumSiteSpec {
         LocalMediumSiteSpec {
