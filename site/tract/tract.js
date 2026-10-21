@@ -1,12 +1,13 @@
 // Ovillo Tract: a vocal tract made of an Ariadne World, after Neil Thapen's
-// Pink Trombone (2017). The World runs in WebAssembly (ovillo-tract-wasm); the
+// Pink Trombone (2017). The World runs in WebAssembly (ovillo-tract-world, a
+// mus_ariadne::World, through ovillo-tract-wasm's C ABI); the
 // pictures read its state every frame and never write it, except through the
 // same controls a player has (articulators, breath, orbs).
 
 import * as THREE from './vendor/three/three.module.min.js';
 
 // ---------------------------------------------------------------- layout --
-// Mirrors ovillo-tract-wasm `layout`.
+// Mirrors ovillo-tract-wasm `layout` (ovillo-tract-world's `abi::layout` is identical).
 const L = {
   ORAL_N: 0, NASAL_N: 1, VELUM_SECTION: 2, FOLD_GAP_MM: 3, FOLD_GAP_MIN_MM: 4, FOLD_GAP_MAX_MM: 5,
   GLOTTAL_FLOW: 6, LUNG_PA: 7, LUNG_FRACTION: 8, F0: 9, TRACT_E: 10, FOLD_E: 11, LUNG_E: 12,
@@ -52,7 +53,8 @@ const silent = {
     this.x = inst.exports;
     this.x.tract_init(48000);
     this.bench();
-    // Light mode (the World at half rate, upsampled) on slow devices, or on request.
+    // Light mode on slow devices, or on request (the World tract: the same World
+    // moved less often; the tube tract: the World at half rate, upsampled).
     const lite = query.get('lite');
     decimate = lite === '1' ? 2 : lite === '0' ? 1 : (wasmRtf < (TV ? 5 : 2.5) ? 2 : 1);
     this.x.tract_init_decimated(48000, decimate);
@@ -852,7 +854,7 @@ function drawReadout() {
     ['books, relative', `<span class="${rel < 1e-8 ? 'ok' : 'warn'}">${rel.toExponential(1)}</span>`],
     ['DSP load (worklet)', dspLoad === null ? 'not started' : `${(dspLoad * 100).toFixed(1)}%`],
     ['wasm real-time factor', wasmRtf ? `${wasmRtf.toFixed(1)}× (main thread)` : '–'],
-    ['sections oral · nasal', `${s[L.ORAL_N]} · ${s[L.NASAL_N]}${s[L.DECIMATE] > 1 ? ' (light mode, half rate)' : ''}`],
+    ['sections oral · nasal', `${s[L.ORAL_N]} · ${s[L.NASAL_N]}${s[L.DECIMATE] > 1 ? ' (light mode)' : ''}`],
   ];
   $('readout').innerHTML = rows.map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
   $('h-f0').textContent = s[L.F0] > 0 ? s[L.F0].toFixed(0) + ' Hz' : 'still';

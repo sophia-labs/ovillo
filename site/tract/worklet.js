@@ -1,7 +1,8 @@
 // The tract World inside an AudioWorkletProcessor.
 //
 // The page passes the wasm bytes in processorOptions (a worklet cannot fetch);
-// the module is the C-ABI cdylib ovillo-tract-wasm: no imports, no bindgen.
+// the module is a C-ABI cdylib with ovillo-tract-wasm's exports (built from
+// ovillo-tract-world; ovillo-tract-wasm also fits): no imports, no bindgen.
 // Each render quantum asks the World for 128 samples and copies them out of
 // linear memory. Every few quanta it snapshots the World's state for the
 // pictures and posts it to the page with the measured DSP load.

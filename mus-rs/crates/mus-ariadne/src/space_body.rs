@@ -38,6 +38,10 @@ pub struct SpaceBodyControls {
     /// Tube network: multiplier on the computed radiation (1 is the law,
     /// 0 removes radiation exactly).
     pub radiation_scale: f64,
+    /// Tube network: an external volume velocity (m³/s) into one volume
+    /// this sample (a knock on the wall); its exact work `pbar U dt` is
+    /// booked as source work.
+    pub node_source: Option<(usize, f64)>,
 }
 
 impl Default for SpaceBodyControls {
@@ -46,6 +50,7 @@ impl Default for SpaceBodyControls {
             body: BodyControls::default(),
             valve: FlowValveControls::default(),
             radiation_scale: 1.0,
+            node_source: None,
         }
     }
 }
@@ -116,6 +121,8 @@ pub struct SpaceTotals {
     /// mode-diagonal law; the difference is that approximation's error
     /// (it drains static pressure that the physical law would not).
     pub physical_radiation_by_end: [f64; 4],
+    /// Source work of external knocks (`node_source`).
+    pub knock_work: f64,
     pub aero: AeroTotals,
 }
 
@@ -403,6 +410,16 @@ impl SpaceBody {
         observation
     }
 
+    /// The valve's half-gap (m) and the jet's last Reynolds number, cheaply
+    /// (non-loading; zeros for a modal constitution).
+    #[must_use]
+    pub fn valve_gap_and_reynolds(&self) -> (f64, f64) {
+        match &self.laws {
+            Laws::Network(laws) => (laws.valve.half_gap_m(), laws.aero.as_ref().map_or(0.0, |a| a.last.reynolds)),
+            Laws::Modal(_) => (0.0, 0.0),
+        }
+    }
+
     /// Cumulative energies (`None` for a modal constitution).
     #[must_use]
     pub fn totals(&self) -> Option<SpaceTotals> {
@@ -416,6 +433,13 @@ impl SpaceBody {
             }
             Laws::Modal(_) => None,
         }
+    }
+
+    /// Mode shapes `phi_k(node)` at a network volume (non-loading).
+    #[must_use]
+    pub fn node_shape(&self, node: usize) -> Option<[f64; MODE_COUNT]> {
+        let Laws::Network(laws) = &self.laws else { return None };
+        (node < laws.frame.nodes).then(|| laws.frame.shape_at(node))
     }
 
     /// Pressure (Pa) at a network volume, from the retained modes
@@ -606,6 +630,14 @@ impl SpaceBody {
         controls: &SpaceBodyControls,
         returning_space_activity: f64,
     ) -> Result<SpaceLocalFrame, SpaceBodyError> {
+        // The public engine's lean path (DC-correct air): per-mode loss
+        // booking, no diagnostic sums; the World's ledger still measures
+        // every frame's closure.
+        if let Laws::Network(laws) = &self.laws {
+            if laws.aero.as_ref().is_some_and(|a| a.spec.dc_wall_loss) {
+                return self.process_local_lean(controls);
+            }
+        }
         let body_controls = controls.body.sanitized();
         let energy_before = self.total_stored_energy();
         let capacity = self.spec.reservoir.capacity;
@@ -678,6 +710,26 @@ impl SpaceBody {
                     capacity,
                 );
                 laws.last_valve = valve;
+                let mut knock = 0.0;
+                if let Some((node, flow)) = controls.node_source {
+                    if node < laws.frame.nodes && flow.is_finite() && flow != 0.0 {
+                        let shape = laws.frame.shape_at(node);
+                        let sqrt_dt = self.dt.sqrt();
+                        let momentum = self.field.momentum_mut();
+                        let mut norm2 = 0.0;
+                        let mut projection = 0.0;
+                        for k in 0..MODE_COUNT {
+                            norm2 += shape[k] * shape[k];
+                            projection += shape[k] * momentum[k];
+                        }
+                        let p_bar = sqrt_dt * projection + 0.5 * self.dt * norm2 * flow;
+                        for k in 0..MODE_COUNT {
+                            momentum[k] += sqrt_dt * shape[k] * flow;
+                        }
+                        knock = p_bar * flow * self.dt;
+                        laws.totals.knock_work += knock;
+                    }
+                }
                 let mut aero_loss = 0.0;
                 let mut dc_wall_loss = false;
                 if let Some(aero) = &mut laws.aero {
@@ -700,7 +752,7 @@ impl SpaceBody {
                 t.fold_loss += valve.fold_loss;
                 t.wall_loss += field_loss.loss;
                 let residual = propagation.residual.abs().max(field_loss.residual.abs());
-                (work_input, loss, residual)
+                (work_input + knock, loss, residual)
             }
         };
         let energy_after = self.total_stored_energy();
@@ -712,6 +764,56 @@ impl SpaceBody {
             internal_loss,
             closure_residual: energy_after - energy_before - source_work + internal_loss,
             local_residual,
+        })
+    }
+
+    fn process_local_lean(&mut self, controls: &SpaceBodyControls) -> Result<SpaceLocalFrame, SpaceBodyError> {
+        let capacity = self.spec.reservoir.capacity;
+        let refill = if controls.body.work_input.is_finite() { controls.body.work_input.clamp(0.0, 1.0) } else { 0.0 };
+        let gap = (capacity - self.reservoir_energy).max(0.0);
+        let work_input = (refill * self.dt).min(gap);
+        self.reservoir_energy += work_input;
+        let Laws::Network(laws) = &mut self.laws else { unreachable!() };
+        laws.radiation_scale = if controls.radiation_scale.is_finite() { controls.radiation_scale.max(0.0) } else { 0.0 };
+        let valve = laws.valve.process(self.field.momentum_mut(), &laws.valve_shape, controls.valve, &mut self.reservoir_energy, capacity);
+        laws.last_valve = valve;
+        let mut knock = 0.0;
+        if let Some((node, flow)) = controls.node_source {
+            if node < laws.frame.nodes && flow.is_finite() && flow != 0.0 {
+                let shape = laws.frame.shape_at(node);
+                let sqrt_dt = self.dt.sqrt();
+                let momentum = self.field.momentum_mut();
+                let mut norm2 = 0.0;
+                let mut projection = 0.0;
+                for k in 0..MODE_COUNT {
+                    norm2 += shape[k] * shape[k];
+                    projection += shape[k] * momentum[k];
+                }
+                let p_bar = sqrt_dt * projection + 0.5 * self.dt * norm2 * flow;
+                for k in 0..MODE_COUNT {
+                    momentum[k] += sqrt_dt * shape[k] * flow;
+                }
+                knock = p_bar * flow * self.dt;
+                laws.totals.knock_work += knock;
+            }
+        }
+        let aero = laws.aero.as_mut().expect("lean path has air").step(self.field.displacement_mut(), self.dt);
+        self.field.propagate_lean();
+        let wall = self.field.damp_displacement_lean(&laws.wall_retain_q);
+        let t = &mut laws.totals;
+        t.reservoir_draw += valve.reservoir_draw;
+        t.valve_field_work += valve.field_work;
+        t.valve_jet_loss += valve.jet_loss;
+        t.fold_loss += valve.fold_loss;
+        t.wall_loss += wall;
+        if !self.reservoir_energy.is_finite() || self.reservoir_energy < -1.0e-15 || self.field.momentum().iter().any(|v| !v.is_finite()) {
+            return Err(SpaceBodyError::NonFiniteState);
+        }
+        Ok(SpaceLocalFrame {
+            source_work: work_input + knock,
+            internal_loss: valve.jet_loss + valve.fold_loss + wall + aero.jet_loss - aero.turbulence_work,
+            closure_residual: 0.0,
+            local_residual: 0.0,
         })
     }
 
@@ -744,7 +846,8 @@ impl SpaceBody {
                     laws.retain_scale = laws.radiation_scale;
                 }
                 let loss = if dc {
-                    self.field.damp_momentum_modes(&laws.retain, &mut laws.removed)
+                    let loss = self.field.damp_momentum_lean(&laws.retain, &mut laws.removed);
+                    crate::field::MetricLossFrame { loss, ..Default::default() }
                 } else {
                     self.field.damp_modes(&laws.retain, &mut laws.removed)
                 };

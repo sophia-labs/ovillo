@@ -70,6 +70,15 @@ pub struct TractNdAnatomy {
     /// acoustics, and the plan is byte-identical to the checkpoint's.
     pub contact: Option<ContactSpec>,
     pub aero: Option<AeroSpec>,
+    /// Touch/gesture constriction slots (0: none, the checkpoint anatomy).
+    /// Each adds two coordinates, `slot<k>_position` and `slot<k>_degree`.
+    pub constriction_slots: usize,
+    /// `ovillo-tract` fe4fb03 `constriction_width` (design hypothesis).
+    pub constriction_shoulder_width: f64,
+    /// `ovillo-tract` fe4fb03 `lip_seal`: below this lips value the lip
+    /// section's flow aperture goes to exactly zero (degree `1 - lips/seal`
+    /// on the last section).
+    pub lip_seal: Option<f64>,
 }
 
 impl Default for TractNdAnatomy {
@@ -129,7 +138,34 @@ impl TractNdAnatomy {
             lung_refill_w: 0.30,
             contact: None,
             aero: None,
+            constriction_slots: 0,
+            constriction_shoulder_width: 0.022,
+            lip_seal: None,
         }
+    }
+
+    /// The public engine: `adult_v0` on the tube tract's grid, with POC-3's
+    /// air and five constriction slots (slot 0 for gestures, 1-4 for touches,
+    /// as `ovillo-tract-wasm`).
+    #[must_use]
+    pub fn public_v1() -> Self {
+        let mut a = Self::adult_v0(44, 31).with_air();
+        a.constriction_slots = 5;
+        // The public contact rule: the flow aperture is the area family's own
+        // value (contact at 0); a column follows it only below the cone's
+        // floor, so open vowels keep the checkpoint's acoustics.
+        if let Some(contact) = &mut a.contact {
+            contact.contact_area_m2 = 0.0;
+            contact.follow_below_floor = true;
+        }
+        a.lip_seal = Some(0.02);
+        a
+    }
+
+    /// Number of configuration coordinates.
+    #[must_use]
+    pub fn dimensions(&self) -> usize {
+        4 + 2 * self.constriction_slots
     }
 
     /// The same anatomy with POC-3's air: contact at the oral tube's
@@ -147,6 +183,7 @@ impl TractNdAnatomy {
             contact_area_m2: AREA_FLOOR_CM2 * 1.0e-4,
             sealed_area_m2: 1.0e-13,
             seal_branch_port: true,
+            follow_below_floor: false,
         });
         self.aero = Some(AeroSpec {
             loss_scale: 1.0,
@@ -244,6 +281,31 @@ impl TractNdAnatomy {
                 area_m2: AffineSpec { constant: 0.0, terms: vec![(3, self.velum_port_max_cm2 * 1.0e-4)] },
             },
         ];
+        let mut area_terms = area_terms;
+        // ovillo-tract fe4fb03's constriction: the wall pressed in by
+        // (1 - degree bump), flat top of 0.6 section, Gaussian shoulder.
+        if let Some(seal) = self.lip_seal {
+            // Degree 0 at `seal`, 1 (sealed) at `seal / 5`: tissue touches
+            // at a finite gap, so an approaching lip closes in finite time.
+            let closed_at = 0.2 * seal;
+            area_terms.push(AreaTermSpec::Constriction {
+                tube: 0,
+                position: AffineSpec::constant((n as f64 - 0.5) / n as f64),
+                degree: AffineSpec { constant: seal / (seal - closed_at), terms: vec![(2, -1.0 / (seal - closed_at))] },
+                half_width: 0.6 / n as f64,
+                shoulder_width: 1.0e-3,
+            });
+        }
+        for k in 0..self.constriction_slots {
+            area_terms.push(AreaTermSpec::Constriction {
+                tube: 0,
+                position: AffineSpec { constant: 0.0, terms: vec![(4 + 2 * k, 1.0)] },
+                // Contact at degree 0.98 (a finite remaining gap seals).
+                degree: AffineSpec { constant: 0.0, terms: vec![(5 + 2 * k, 1.0 / 0.98)] },
+                half_width: 0.6 / n as f64,
+                shoulder_width: self.constriction_shoulder_width,
+            });
+        }
         TubeNetworkSpec {
             speed_of_sound_m_s: SPEED_OF_SOUND_M_S,
             air_density_kg_m3: AIR_DENSITY_KG_M3,
@@ -281,11 +343,15 @@ impl TractNdAnatomy {
         let mut space_port = template.bodies[0].space_port;
         space_port.coupling_weights = [0.0; 8];
         let names = ["tongue_index", "tongue_diameter", "lips", "velum"];
-        let coordinates = names
+        let mut coordinates: Vec<ConfigurationCoordinate> = names
             .iter()
             .zip(initial)
             .map(|(name, value)| ConfigurationCoordinate { name: (*name).into(), lower: 0.0, upper: 1.0, initial: value.clamp(0.0, 1.0) })
             .collect();
+        for k in 0..self.constriction_slots {
+            coordinates.push(ConfigurationCoordinate { name: format!("slot{k}_position"), lower: 0.0, upper: 1.0, initial: 0.9 });
+            coordinates.push(ConfigurationCoordinate { name: format!("slot{k}_degree"), lower: 0.0, upper: 1.0, initial: 0.0 });
+        }
         ConstitutiveWorldPlan {
             schema_version: WORLD_PLAN_V3_SCHEMA_VERSION.to_owned(),
             world_name: "ovillo-tract-world-v0".into(),

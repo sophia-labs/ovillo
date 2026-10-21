@@ -126,6 +126,19 @@ pub enum AreaTermSpec {
         center: f64,
         width: f64,
     },
+    /// A constriction pressed into the wall at a coordinate-driven place:
+    /// `A *= max(1 - degree(x) bump(s - position(x)), 0)` with
+    /// `bump = 1` within `half_width` and a Gaussian shoulder of
+    /// `shoulder_width` outside, so degree 1 closes exactly. Applied to the
+    /// family's value before the cone's clamp (the flow aperture sees zero;
+    /// the acoustic area stays at the floor).
+    Constriction {
+        tube: usize,
+        position: AffineSpec,
+        degree: AffineSpec,
+        half_width: f64,
+        shoulder_width: f64,
+    },
     /// `A[section] = area(x)`, applied after the log terms.
     SectionArea {
         tube: usize,
@@ -184,6 +197,16 @@ pub struct ContactSpec {
     pub contact_area_m2: f64,
     pub sealed_area_m2: f64,
     pub seal_branch_port: bool,
+    /// The public rule: every column whose unclamped area falls below the
+    /// cone's floor follows it (each half-section at `max(A, sealed_area)`),
+    /// continuous with the cone above the floor; open acoustics unchanged.
+    /// `false` (POC-3): only the narrowest column, at its flow aperture.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub follow_below_floor: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 impl TubeNetworkSpec {
@@ -272,6 +295,10 @@ impl TubeNetworkSpec {
                 AreaTermSpec::SectionArea { tube, section, area_m2 } => {
                     *tube < self.tubes.len() && *section < self.tubes[*tube].base_log_area_m2.len() && area_m2.validate(dims)
                 }
+                AreaTermSpec::Constriction { tube, position, degree, half_width, shoulder_width } => {
+                    *tube < self.tubes.len() && position.validate(dims) && degree.validate(dims)
+                        && half_width.is_finite() && *half_width >= 0.0 && shoulder_width.is_finite() && *shoulder_width > 0.0
+                }
             };
             if !ok {
                 return bad("invalid-area-term", format!("area term {term:?} is outside the network or the space"));
@@ -300,26 +327,51 @@ impl TubeNetworkSpec {
                 return bad("invalid-contact", format!("contact {contact:?} is outside the network"));
             }
         }
-        // Sampled band check: every corner of the box and its centre.
+        // Sampled band check: every corner of the box and its centre (up to
+        // 8 coordinates); beyond that the centre, the two extreme corners and
+        // every axis's two ends with the others at the centre.
         let mut network = TubeNetwork::compile(self, dims);
         let mut frame = network.empty_frame();
         let mut point = vec![0.0; dims];
-        for corner in 0..=(1usize << dims) {
+        let samples = if dims <= 8 { (1usize << dims) + 1 } else { 3 + 2 * dims };
+        for sample in 0..samples {
             for (axis, coordinate) in space.coordinates.iter().enumerate() {
-                point[axis] = if corner == 1usize << dims {
-                    0.5 * (coordinate.lower + coordinate.upper)
-                } else if corner >> axis & 1 == 1 {
-                    coordinate.upper
+                let centre = 0.5 * (coordinate.lower + coordinate.upper);
+                point[axis] = if dims <= 8 {
+                    if sample == 1usize << dims {
+                        centre
+                    } else if sample >> axis & 1 == 1 {
+                        coordinate.upper
+                    } else {
+                        coordinate.lower
+                    }
                 } else {
-                    coordinate.lower
+                    match sample {
+                        0 => centre,
+                        1 => coordinate.lower,
+                        2 => coordinate.upper,
+                        k => {
+                            let (a, upper) = ((k - 3) / 2, (k - 3) % 2 == 1);
+                            if a == axis { if upper { coordinate.upper } else { coordinate.lower } } else { centre }
+                        }
+                    }
                 };
             }
-            network.compute(&point, None, &mut frame).map_err(|error| {
-                PlanError::new("tube-network-modes", format!("at {point:?}: {error:?}"))
-            })?;
-            frame.metric().runtime_check(sample_rate_hz).map_err(|message| {
-                PlanError::new("tube-network-band", format!("at {point:?}: {message}"))
-            })?;
+            let edge = std::f64::consts::TAU * 0.48 * sample_rate_hz;
+            match network.check_band(&point, &mut frame, edge * edge) {
+                Some(true) => {}
+                Some(false) => {
+                    return Err(PlanError::new("tube-network-band", format!("at {point:?}: the lowest {MODE_COUNT} modes are not all inside (0, 0.48 fs)")));
+                }
+                None => {
+                    network.compute(&point, None, &mut frame).map_err(|error| {
+                        PlanError::new("tube-network-modes", format!("at {point:?}: {error:?}"))
+                    })?;
+                    frame.metric().runtime_check(sample_rate_hz).map_err(|message| {
+                        PlanError::new("tube-network-band", format!("at {point:?}: {message}"))
+                    })?;
+                }
+            }
         }
         Ok(())
     }
@@ -426,6 +478,8 @@ pub(crate) struct TubeNetwork {
     log_area: Vec<f64>,
     /// Columns whose inertance follows a flow aperture (contact).
     column_override: Vec<(usize, f64)>,
+    band_probe: Option<f64>,
+    band_result: Option<bool>,
     /// Solves certified by the warm tree path / done densely.
     pub(crate) warm_solves: u64,
     pub(crate) dense_solves: u64,
@@ -495,6 +549,8 @@ impl TubeNetwork {
             spec: spec.clone(),
             tree,
             column_override: Vec::with_capacity(2),
+            band_probe: None,
+            band_result: None,
             warm_solves: 0,
             dense_solves: 0,
             nodes,
@@ -515,6 +571,17 @@ impl TubeNetwork {
 
     pub(crate) fn node(&self, tube: usize, section: usize) -> usize {
         self.offsets[tube] + section
+    }
+
+    /// Band check by inertia (`None` when the network is not a tree).
+    pub(crate) fn check_band(&mut self, point: &[f64], frame: &mut NetworkFrame, max_omega2: f64) -> Option<bool> {
+        self.tree.as_ref()?;
+        self.band_probe = Some(max_omega2);
+        self.band_result = None;
+        let computed = self.compute(point, None, frame);
+        self.band_probe = None;
+        computed.ok()?;
+        self.band_result.take()
     }
 
     pub(crate) fn contact_tube(&self) -> Option<usize> {
@@ -601,11 +668,23 @@ impl TubeNetwork {
                         self.log_area[n] += amplitude * gaussian(self.node_position[n], *center, *width);
                     }
                 }
-                AreaTermSpec::SectionArea { .. } => {}
+                AreaTermSpec::SectionArea { .. } | AreaTermSpec::Constriction { .. } => {}
             }
         }
         for (n, value) in out.iter_mut().enumerate().take(self.nodes) {
-            let raw = self.log_area[n].exp();
+            let mut raw = self.log_area[n].exp();
+            for term in &spec.area_terms {
+                if let AreaTermSpec::Constriction { tube, position, degree, half_width, shoulder_width } = term {
+                    if self.node_tube[n] == *tube {
+                        let d = degree.eval(point).clamp(0.0, 1.0);
+                        if d > 0.0 {
+                            let dist = (self.node_position[n] - position.eval(point)).abs();
+                            let bump = if dist <= *half_width { 1.0 } else { (-0.5 * ((dist - half_width) / shoulder_width).powi(2)).exp() };
+                            raw *= (1.0 - d * bump).max(0.0);
+                        }
+                    }
+                }
+            }
             unclamped[n] = raw;
             *value = raw.clamp(spec.area_floor_m2, spec.area_ceiling_m2);
         }
@@ -645,7 +724,44 @@ impl TubeNetwork {
         out.jet = None;
         out.port = None;
         out.sealed.clear();
-        if let Some(contact) = self.spec.contact {
+        if let Some(contact) = self.spec.contact.filter(|c| c.follow_below_floor) {
+            let floor = self.spec.area_floor_m2;
+            let unclamped = &out.unclamped_areas_m2;
+            let aperture = |node: usize| (unclamped[node] - contact.contact_area_m2).max(0.0);
+            let half = |node: usize| unclamped[node].max(contact.sealed_area_m2);
+            let mut best = (f64::INFINITY, contact.first_junction);
+            for junction in contact.first_junction..=contact.last_junction {
+                let a = self.offsets[contact.tube] + junction;
+                let open = aperture(a).min(aperture(a + 1));
+                let element = self.junction_element(contact.tube, junction);
+                if open <= 0.0 {
+                    out.sealed.push(element);
+                }
+                if unclamped[a].min(unclamped[a + 1]) < floor || open <= 0.0 {
+                    let e = &self.elements[element];
+                    let inertance = rho * (e.half_a / half(a) + e.half_b / half(a + 1));
+                    self.column_override.push((element, -inertance));
+                }
+                if open < best.0 || (open <= 0.0 && best.0 <= 0.0) {
+                    best = (open, junction);
+                }
+            }
+            let element = self.junction_element(contact.tube, best.1);
+            out.jet = Some((best.1, element, best.0));
+            if contact.seal_branch_port {
+                if let Some((element, node)) = self.branch_element(0) {
+                    let open = aperture(node);
+                    if unclamped[node] < floor || open <= 0.0 {
+                        let e = &self.elements[element];
+                        self.column_override.push((element, -(rho * e.half_b / half(node))));
+                    }
+                    out.port = Some((element, open));
+                    if open <= 0.0 {
+                        out.sealed.push(element);
+                    }
+                }
+            }
+        } else if let Some(contact) = self.spec.contact {
             let aperture = |node: usize| (out.unclamped_areas_m2[node] - contact.contact_area_m2).max(0.0);
             // Every column at contact is sealed; the jet is the narrowest
             // column (the most downstream one among sealed ties, so the
@@ -696,9 +812,14 @@ impl TubeNetwork {
                 let radius = (a_area / std::f64::consts::PI).sqrt();
                 inertance += rho * self.spec.radiating_ends[end].end_correction_ratio * radius / a_area;
             }
-            if let Some(&(_, column_area)) = self.column_override.iter().find(|(e, _)| *e == j) {
-                // The column at its flow aperture (a branch port has no trunk half).
-                inertance = rho * (element.half_a + element.half_b) / column_area;
+            if let Some(&(_, value)) = self.column_override.iter().find(|(e, _)| *e == j) {
+                inertance = if value < 0.0 {
+                    // Public rule: an inertance computed below.
+                    -value
+                } else {
+                    // POC-3: the column at its flow aperture (a branch port has no trunk half).
+                    rho * (element.half_a + element.half_b) / value
+                };
             }
             out.inertance[j] = inertance;
             let ca = out.compliance[element.a];
@@ -715,6 +836,17 @@ impl TubeNetwork {
                     }
                 }
             }
+        }
+        if let (Some(limit), Some(tree)) = (self.band_probe, self.tree.as_mut()) {
+            // Planner band check: Sylvester inertia counts on the tree's
+            // LDL^T, no eigenvectors: no eigenvalue at or below 0, and at
+            // least MODE_COUNT below the band edge.
+            tree.diagonal.copy_from_slice(&diagonal);
+            let positive = tree.count_below(0.0) == 0;
+            let inside = tree.count_below(limit) >= MODE_COUNT;
+            self.band_result = Some(positive && inside);
+            self.log_area = diagonal;
+            return Ok(());
         }
         if !dense_needed {
             let tree = self.tree.as_mut().expect("tree");

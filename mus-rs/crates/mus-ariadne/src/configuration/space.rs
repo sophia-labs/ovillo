@@ -8,9 +8,11 @@ use crate::plan::PlanError;
 
 use super::network::TubeNetworkSpec;
 
-/// Largest supported number of coordinates. A multilinear map evaluates
-/// `2^dimensions` corners per point, so this also bounds its cost (256).
-pub const MAX_CONFIGURATION_DIMENSIONS: usize = 8;
+/// Largest supported number of coordinates (tube networks and stiff strings).
+pub const MAX_CONFIGURATION_DIMENSIONS: usize = 16;
+/// A multilinear map evaluates `2^dimensions` corners per point: at most 8
+/// coordinates (256 corners).
+pub const MAX_MULTILINEAR_DIMENSIONS: usize = 8;
 const MAX_ANCHORS: usize = 4_096;
 
 /// One named coordinate of a configuration space with its closed bounds.
@@ -262,6 +264,12 @@ fn validate_multilinear(
     anchors: &[WorldConfiguration],
     sample_rate_hz: f64,
 ) -> Result<(), PlanError> {
+    if coordinates.len() > MAX_MULTILINEAR_DIMENSIONS {
+        return Err(PlanError::new(
+            "invalid-configuration-dimensions",
+            format!("a multilinear map takes at most {MAX_MULTILINEAR_DIMENSIONS} coordinates"),
+        ));
+    }
     if axes.len() != coordinates.len() {
         return Err(PlanError::new(
             "invalid-multilinear-axes",
@@ -373,7 +381,7 @@ impl MultilinearMap {
     pub(crate) fn evaluate(&mut self, point: &[f64]) -> WorldConfiguration {
         let dims = self.axes.len();
         let mut base = 0usize;
-        let mut t = [0.0_f64; MAX_CONFIGURATION_DIMENSIONS];
+        let mut t = [0.0_f64; MAX_MULTILINEAR_DIMENSIONS];
         for axis in 0..dims {
             let grid = &self.axes[axis];
             let x = point[axis].clamp(grid[0], *grid.last().unwrap());

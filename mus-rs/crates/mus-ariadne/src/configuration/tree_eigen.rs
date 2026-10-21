@@ -97,6 +97,15 @@ impl TreeEigen {
         (p != ROOT).then_some(p)
     }
 
+    /// Eigenvalues strictly below `lambda` (Sylvester inertia of `S - lambda I`).
+    pub(crate) fn count_below(&mut self, lambda: f64) -> usize {
+        let norm = (0..self.n)
+            .map(|i| self.diagonal[i].abs() + 2.0 * self.off[i].abs())
+            .fold(0.0_f64, f64::max)
+            .max(f64::MIN_POSITIVE);
+        self.factor(lambda, f64::EPSILON * norm)
+    }
+
     /// `L D L^T` of `S - lambda I`; returns the number of negative pivots.
     fn factor(&mut self, lambda: f64, tiny: f64) -> usize {
         for i in 0..self.n {
