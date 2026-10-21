@@ -1,0 +1,15 @@
+{
+  "name": "ovillo-release-video",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Ovillo release video: four Ariadne Worlds rendered frame by frame with three.js, captured in muted headless Chromium.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "capture": "node tools/capture.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.61.1",
+    "three": "0.170.0"
+  }
+}
