@@ -508,9 +508,23 @@ fn instrument_report(
     voices: &BTreeMap<String, Vec<f64>>,
     diagnostics: &mut Vec<Value>,
 ) -> Vec<Value> {
+    // An instrument that declares `anatomy=` is played on an Ariadne world, and its
+    // dot-voices are that world's hands, staves or pedal: they resolve no samples by design.
+    let worlds: Vec<(&str, &str)> = instruments
+        .iter()
+        .filter_map(|i| i.params.get("anatomy").map(|a| (i.abbrev.as_str(), a.trim())))
+        .collect();
     instruments.iter().map(|inst| {
         let p = &inst.params;
-        let source = if SYNTH_KEYS.iter().any(|key| p.contains_key(*key)) {
+        let world = worlds.iter().find(|(base, _)| inst.abbrev == *base || inst.abbrev.starts_with(&format!("{base}.")));
+        let source = if let Some((base, anatomy)) = world {
+            if inst.abbrev == *base {
+                json!({"kind":"ariadne-world","anatomy":anatomy})
+            } else {
+                let role = if p.contains_key("pedal") { "pedal" } else { "part" };
+                json!({"kind":"ariadne-world","anatomy":anatomy,"of":base,"role":role})
+            }
+        } else if SYNTH_KEYS.iter().any(|key| p.contains_key(*key)) {
             let patch: Map<String, Value> = SYNTH_KEYS.iter().filter_map(|key| p.get(*key).map(|v| ((*key).into(), json!(v)))).collect();
             json!({"kind":"synth","patch":patch})
         } else if let Some(sample) = p.get("sample") {

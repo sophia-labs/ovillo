@@ -1,0 +1,13 @@
+# score: Piano probe: dynamics
+# summary: 5 bars / 1 piano / ~0.4 min — C3, C4 and C5 struck pp, mf and ff, each held 1.5 s and damped
+# tempo: 60    time: 4/4    bars: 5
+
+# instruments:
+#   pn   = grand piano (treble, anatomy=piano-v1)
+#   pn.r = right hand (treble)
+
+bar 1: pn.r={pp} C3q. Re {mf} C3q. Re
+bar 2: pn.r={ff} C3q. Re {pp} C4q. Re
+bar 3: pn.r={mf} C4q. Re {ff} C4q. Re
+bar 4: pn.r={pp} C5q. Re {mf} C5q. Re
+bar 5: pn.r={ff} C5q. Re Rh

@@ -311,6 +311,18 @@ impl<const N: usize> ModalMetricWaveField<N> {
         })
     }
 
+    /// `radiate` along a direction already of unit length, without the
+    /// diagnostic energy sums: returns `(emitted coordinate, radiation)`.
+    pub(crate) fn radiate_unit(&mut self, direction: &[f64; N], fraction: f64) -> (f64, f64) {
+        let projection = dot(&self.state.momentum, direction);
+        let emitted_coordinate = fraction.sqrt() * projection;
+        let removal = 1.0 - (1.0 - fraction).sqrt();
+        for (momentum, direction) in self.state.momentum.iter_mut().zip(direction) {
+            *momentum -= removal * direction * projection;
+        }
+        (emitted_coordinate, 0.5 * self.dt * emitted_coordinate * emitted_coordinate)
+    }
+
     /// Normalized generalized effort conjugate to a finite-aperture momentum
     /// projection. This is used for compliant-boundary synchronization only;
     /// it is not itself an unbooked source of work.
@@ -337,6 +349,26 @@ impl<const N: usize> ModalMetricWaveField<N> {
 
     pub(crate) fn displacement_mut(&mut self) -> &mut [f64; N] {
         &mut self.state.displacement
+    }
+
+    /// `(omega, cos(omega dt), sin(omega dt))` per mode, as `propagate` uses them.
+    pub(crate) fn rotation(&self) -> (&[f64; N], &[f64; N], &[f64; N]) {
+        (&self.omega, &self.cosine, &self.sine)
+    }
+
+    /// The uniform per-mode loss of `damp`, booking the energy removed in the
+    /// same pass instead of measuring the whole field twice.
+    pub(crate) fn damp_lean(&mut self) -> f64 {
+        let mut loss = 0.0;
+        for index in 0..N {
+            let r = self.retain[index];
+            let q = self.state.displacement[index];
+            let m = self.state.momentum[index];
+            loss += 0.5 * self.dt * (m * m + (self.omega[index] * q).powi(2)) * (1.0 - r * r);
+            self.state.displacement[index] = q * r;
+            self.state.momentum[index] = m * r;
+        }
+        loss
     }
 
     fn rebuild(&mut self) {

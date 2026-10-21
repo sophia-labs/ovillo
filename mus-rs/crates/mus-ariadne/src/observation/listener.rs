@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::plan::{PlanError, WorldPlan};
+use crate::ir::MODE_COUNT;
+use crate::plan::{ConstitutiveWorldPlan, PlanError, WorldPlan};
 use crate::shared_world::{World, WorldFrame};
 
 pub const STEREO_LISTENER_VERSION: &str = "ariadne-stereo-listener-v1";
@@ -14,6 +15,20 @@ pub struct StereoBodyTap {
     pub right_projection: f64,
 }
 
+/// A linear readout of one body's modal state, `left = sum_k (ld_k q_k + lm_k
+/// m_k)` and `right` likewise: for instance a microphone's far-field pressure
+/// in one direction, from each mode's radiation pattern. It reads the state
+/// after the World's step and never acts on the body.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StereoStateTap {
+    pub body_id: String,
+    pub left_displacement: [f64; MODE_COUNT],
+    pub left_momentum: [f64; MODE_COUNT],
+    pub right_displacement: [f64; MODE_COUNT],
+    pub right_momentum: [f64; MODE_COUNT],
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StereoListenerSpec {
@@ -23,6 +38,9 @@ pub struct StereoListenerSpec {
     pub space_left_projection: f64,
     pub space_right_projection: f64,
     pub output_scale: f64,
+    /// Additive: a listener without state taps serializes (and digests) as before.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub state_taps: Vec<StereoStateTap>,
 }
 
 impl StereoListenerSpec {
@@ -46,6 +64,7 @@ impl StereoListenerSpec {
             space_left_projection: 1.0,
             space_right_projection: 1.0,
             output_scale,
+            state_taps: Vec::new(),
         };
         result.validate(plan)?;
         Ok(result)
@@ -53,12 +72,43 @@ impl StereoListenerSpec {
 
     pub fn validate(&self, plan: &WorldPlan) -> Result<(), ListenerError> {
         plan.validate()?;
+        let ids: Vec<&str> = plan.bodies.iter().map(|body| body.id.as_str()).collect();
+        self.validate_parts(plan.digest()?, &ids)
+    }
+
+    /// A listener over a typed (plan-v3) world: the given emission and state
+    /// taps, the shared space heard at unit projection on both sides.
+    pub fn for_constitutive(
+        plan: &ConstitutiveWorldPlan,
+        body_taps: Vec<StereoBodyTap>,
+        state_taps: Vec<StereoStateTap>,
+        output_scale: f64,
+    ) -> Result<Self, ListenerError> {
+        let result = Self {
+            schema_version: STEREO_LISTENER_VERSION.to_owned(),
+            physical_world_digest: plan.digest()?,
+            body_taps,
+            space_left_projection: 1.0,
+            space_right_projection: 1.0,
+            output_scale,
+            state_taps,
+        };
+        result.validate_constitutive(plan)?;
+        Ok(result)
+    }
+
+    pub fn validate_constitutive(&self, plan: &ConstitutiveWorldPlan) -> Result<(), ListenerError> {
+        plan.validate()?;
+        let ids: Vec<&str> = plan.bodies.iter().map(|body| body.id.as_str()).collect();
+        self.validate_parts(plan.digest()?, &ids)
+    }
+
+    fn validate_parts(&self, expected: String, body_ids: &[&str]) -> Result<(), ListenerError> {
         if self.schema_version != STEREO_LISTENER_VERSION {
             return Err(ListenerError::UnsupportedVersion(
                 self.schema_version.clone(),
             ));
         }
-        let expected = plan.digest()?;
         if self.physical_world_digest != expected {
             return Err(ListenerError::WorldDigestMismatch {
                 expected,
@@ -73,13 +123,23 @@ impl StereoListenerSpec {
         }
         let mut nonzero = self.space_left_projection != 0.0 || self.space_right_projection != 0.0;
         for tap in &self.body_taps {
-            if !plan.bodies.iter().any(|body| body.id == tap.body_id) {
+            if !body_ids.contains(&tap.body_id.as_str()) {
                 return Err(ListenerError::UnknownBody(tap.body_id.clone()));
             }
             if !tap.left_projection.is_finite() || !tap.right_projection.is_finite() {
                 return Err(ListenerError::NonFiniteProjection);
             }
             nonzero |= tap.left_projection != 0.0 || tap.right_projection != 0.0;
+        }
+        for tap in &self.state_taps {
+            if !body_ids.contains(&tap.body_id.as_str()) {
+                return Err(ListenerError::UnknownBody(tap.body_id.clone()));
+            }
+            let all = tap.left_displacement.iter().chain(&tap.left_momentum).chain(&tap.right_displacement).chain(&tap.right_momentum);
+            if all.clone().any(|v| !v.is_finite()) {
+                return Err(ListenerError::NonFiniteProjection);
+            }
+            nonzero |= all.into_iter().any(|v| *v != 0.0);
         }
         if !nonzero {
             return Err(ListenerError::Silent);
@@ -108,10 +168,17 @@ struct BoundStereoTap {
 }
 
 #[derive(Debug, Clone)]
+struct BoundStateTap {
+    body: usize,
+    tap: StereoStateTap,
+}
+
+#[derive(Debug, Clone)]
 pub struct StereoListener {
     physical_world_digest: String,
     listener_digest: String,
     taps: Vec<BoundStereoTap>,
+    state_taps: Vec<BoundStateTap>,
     space_left: f64,
     space_right: f64,
     scale: f64,
@@ -120,14 +187,25 @@ pub struct StereoListener {
 impl StereoListener {
     pub fn bind(spec: &StereoListenerSpec, plan: &WorldPlan) -> Result<Self, ListenerError> {
         spec.validate(plan)?;
+        let ids: Vec<&str> = plan.bodies.iter().map(|body| body.id.as_str()).collect();
+        Self::bind_parts(spec, &ids)
+    }
+
+    /// Bind to a typed (plan-v3) world.
+    pub fn bind_constitutive(spec: &StereoListenerSpec, plan: &ConstitutiveWorldPlan) -> Result<Self, ListenerError> {
+        spec.validate_constitutive(plan)?;
+        let ids: Vec<&str> = plan.bodies.iter().map(|body| body.id.as_str()).collect();
+        Self::bind_parts(spec, &ids)
+    }
+
+    fn bind_parts(spec: &StereoListenerSpec, body_ids: &[&str]) -> Result<Self, ListenerError> {
         let taps = spec
             .body_taps
             .iter()
             .map(|tap| {
-                let body = plan
-                    .bodies
+                let body = body_ids
                     .iter()
-                    .position(|body| body.id == tap.body_id)
+                    .position(|id| *id == tap.body_id)
                     .ok_or_else(|| ListenerError::UnknownBody(tap.body_id.clone()))?;
                 Ok(BoundStereoTap {
                     body,
@@ -136,10 +214,22 @@ impl StereoListener {
                 })
             })
             .collect::<Result<Vec<_>, ListenerError>>()?;
+        let state_taps = spec
+            .state_taps
+            .iter()
+            .map(|tap| {
+                let body = body_ids
+                    .iter()
+                    .position(|id| *id == tap.body_id)
+                    .ok_or_else(|| ListenerError::UnknownBody(tap.body_id.clone()))?;
+                Ok(BoundStateTap { body, tap: tap.clone() })
+            })
+            .collect::<Result<Vec<_>, ListenerError>>()?;
         Ok(Self {
             physical_world_digest: spec.physical_world_digest.clone(),
             listener_digest: spec.digest()?,
             taps,
+            state_taps,
             space_left: spec.space_left_projection,
             space_right: spec.space_right_projection,
             scale: spec.output_scale,
@@ -168,6 +258,15 @@ impl StereoListener {
                 .ok_or(ListenerError::BoundIndex)?;
             left += tap.left * emission;
             right += tap.right * emission;
+        }
+        for bound in &self.state_taps {
+            let state = world.body_state(bound.body).ok_or(ListenerError::BoundIndex)?;
+            let tap = &bound.tap;
+            for k in 0..MODE_COUNT {
+                let (q, m) = (state.displacement[k], state.momentum[k]);
+                left += tap.left_displacement[k] * q + tap.left_momentum[k] * m;
+                right += tap.right_displacement[k] * q + tap.right_momentum[k] * m;
+            }
         }
         let output = StereoFrame {
             left: self.scale * left,

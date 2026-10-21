@@ -137,7 +137,7 @@ impl World {
         controls: WorldControls,
         energy_start: f64,
         control_work: f64,
-        source_work: f64,
+        mut source_work: f64,
         mut internal_loss: f64,
         mut local_residual: f64,
         mut radiation_fraction: F,
@@ -145,6 +145,17 @@ impl World {
     where
         F: FnMut(usize) -> f64,
     {
+        // Stateful contact laws (hammers) open the coupling stage; a world
+        // without hammers skips this exactly.
+        if !self.hammers.is_empty() {
+            if self.pending_source_work != 0.0 {
+                source_work += std::mem::take(&mut self.pending_source_work);
+            }
+            if self.pending_contact_loss != 0.0 {
+                internal_loss += std::mem::take(&mut self.pending_contact_loss);
+            }
+            internal_loss += self.process_hammers();
+        }
         let coupling = self
             .couplings
             .process_constitutive(
@@ -183,9 +194,9 @@ impl World {
             }
             let exchange = self
                 .space
-                .exchange_port(
+                .exchange_compiled_port(
                     self.bodies[index].momentum_mut(),
-                    &self.space_ports[index],
+                    &mut self.compiled_ports[index],
                     controls.space,
                 )
                 .map_err(|error| WorldError::Space(error.to_string()))?;
@@ -292,9 +303,13 @@ impl World {
         }
         let mut radiation = std::mem::take(&mut self.pending_disposal_radiation);
         for index in 0..self.bodies.len() {
-            let space = self.bodies[index]
-                .space_body_mut()
-                .expect("inert ports belong to N-D bodies");
+            let Some(space) = self.bodies[index].space_body_mut() else {
+                // Inert ports belong to N-D bodies or to hammers, which radiate nothing.
+                self.body_emissions[index] = 0.0;
+                self.body_radiation[index].clear();
+                self.body_radiation[index].push(0.0);
+                continue;
+            };
             let (radiated, residual) = space
                 .radiate(radiation_fraction(index), &mut self.body_radiation[index])
                 .map_err(|error| WorldError::Body {

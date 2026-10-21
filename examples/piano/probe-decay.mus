@@ -1,0 +1,13 @@
+# score: Piano probe: decay by register
+# summary: 5 bars / 1 piano / ~0.4 min — C2, C3, C4, C5 and C6 at mezzo-forte, each held 4 s, then damped
+# tempo: 60    time: 4/4    bars: 5
+
+# instruments:
+#   pn   = grand piano (treble, anatomy=piano-v1)
+#   pn.r = right hand (treble)
+
+bar 1: pn.r={mf} C2w
+bar 2: pn.r=C3w
+bar 3: pn.r=C4w
+bar 4: pn.r=C5w
+bar 5: pn.r=C6w

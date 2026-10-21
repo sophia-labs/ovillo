@@ -11,7 +11,7 @@ use crate::plan::{
 };
 use crate::shared_space::SharedSpace;
 
-use super::{World, WorldError};
+use super::{hammer, World, WorldError};
 
 impl From<PlanError> for WorldError {
     fn from(error: PlanError) -> Self {
@@ -101,6 +101,10 @@ impl World {
             plan.shared_space,
             couplings,
         )
+        .and_then(|mut world| {
+            world.hammers = hammer::bind_hammers(&plan, &world)?;
+            Ok(world)
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -125,15 +129,22 @@ impl World {
         let space = SharedSpace::try_new(sample_rate_hz, shared_space)
             .map_err(|error| WorldError::Space(error.to_string()))?;
         let body_count = bodies.len();
+        let compiled_ports = space_ports
+            .iter()
+            .map(crate::shared_space::CompiledSpacePort::compile)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| WorldError::Space(error.to_string()))?;
         let space_port_inert = bodies
             .iter()
             .zip(&space_ports)
             .map(|(body, port)| {
-                body.space_body().is_some() && port.coupling_weights.iter().all(|w| *w == 0.0)
+                (body.space_body().is_some() || body.hammer().is_some())
+                    && port.coupling_weights.iter().all(|w| *w == 0.0)
             })
             .collect();
         Ok(Self {
             space_port_inert,
+            compiled_ports,
             legacy_plan,
             constitutive_plan,
             world_name,
@@ -142,7 +153,6 @@ impl World {
             body_indices,
             body_ids,
             body_poses,
-            space_ports,
             bodies,
             space,
             couplings,
@@ -160,6 +170,9 @@ impl World {
             pending_disposal_internal: 0.0,
             pending_disposal_radiation: 0.0,
             disposal_total: 0.0,
+            hammers: Vec::new(),
+            pending_source_work: 0.0,
+            pending_contact_loss: 0.0,
         })
     }
 

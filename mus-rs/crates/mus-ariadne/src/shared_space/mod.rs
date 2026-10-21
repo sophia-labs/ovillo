@@ -3,7 +3,7 @@
 mod runtime;
 mod types;
 
-pub(crate) use runtime::SharedSpace;
+pub(crate) use runtime::{CompiledSpacePort, SharedSpace};
 pub use types::{SharedSpaceControls, SharedSpaceError, SharedSpaceExchange, SharedSpaceFrame};
 
 #[cfg(test)]

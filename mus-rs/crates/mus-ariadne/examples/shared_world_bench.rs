@@ -155,6 +155,7 @@ fn ring_listener(plan: &WorldPlan) -> Result<StereoListenerSpec, String> {
         space_left_projection: 1.0,
         space_right_projection: 1.0,
         output_scale: 1.0,
+        state_taps: Vec::new(),
     };
     spec.validate(plan).map_err(|error| error.to_string())?;
     Ok(spec)

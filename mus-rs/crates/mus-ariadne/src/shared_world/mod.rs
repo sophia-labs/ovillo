@@ -1,6 +1,7 @@
 //! Canonical multi-body Ariadne physical runtime.
 
 mod build;
+mod hammer;
 mod observe;
 mod process;
 mod space;
@@ -14,7 +15,7 @@ use mus_watsn::WorkLedger;
 
 use crate::constitutive_body::WorldBody;
 use crate::coupling::{CouplingFrame, CouplingNetwork};
-use crate::plan::{BodyPose, ConstitutiveWorldPlan, SpacePortSpec, WorldPlan};
+use crate::plan::{BodyPose, ConstitutiveWorldPlan, WorldPlan};
 use crate::shared_space::{SharedSpace, SharedSpaceFrame};
 
 /// Several persistent bodies, one shared field, one coupling graph, and one
@@ -29,7 +30,6 @@ pub struct World {
     pub(super) body_indices: BTreeMap<String, usize>,
     pub(super) body_ids: Vec<String>,
     pub(super) body_poses: Vec<BodyPose>,
-    pub(super) space_ports: Vec<SpacePortSpec>,
     pub(super) bodies: Vec<WorldBody>,
     pub(super) space: SharedSpace,
     pub(super) couplings: CouplingNetwork,
@@ -49,8 +49,16 @@ pub struct World {
     pub(super) pending_disposal_internal: f64,
     pub(super) pending_disposal_radiation: f64,
     pub(super) disposal_total: f64,
-    /// Per body: an N-D body whose shared-space port weights are all zero.
+    /// Per body: an N-D body (or a hammer) whose shared-space port weights are all zero.
     pub(super) space_port_inert: Vec<bool>,
+    /// Per body: its port, unit directions taken once (`exchange_compiled_port`).
+    pub(super) compiled_ports: Vec<crate::shared_space::CompiledSpacePort>,
+    /// Hammers and the wires each strikes (empty unless the plan declares hammers).
+    pub(super) hammers: Vec<hammer::HammerBinding>,
+    /// Source work and contact loss booked between frames by `strike_hammer`
+    /// (zero for every world without hammers).
+    pub(super) pending_source_work: f64,
+    pub(super) pending_contact_loss: f64,
 }
 
 #[cfg(test)]

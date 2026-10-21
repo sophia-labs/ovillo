@@ -11,6 +11,7 @@
 //! superseded here — this stage's whole point is to stop refusing those
 //! constructs and render them instead.
 
+pub mod ariadne_piano;
 pub mod ariadne_tab;
 mod events;
 mod gestures;
@@ -134,10 +135,27 @@ pub struct RenderStats {
     pub voices: usize,
     pub total_seconds: f64,
     pub tuning_a: f64,
-    /// One receipt per annotated-tab instrument played on an Ariadne world.
-    pub ariadne_worlds: Vec<ariadne_tab::AriadneWorldReceipt>,
+    /// One receipt per instrument played on an Ariadne world.
+    pub ariadne_worlds: Vec<AriadneReceipt>,
     /// Per-body stored energy through each such render (for visualizers).
-    pub ariadne_energy: Vec<ariadne_tab::EnergyTrace>,
+    pub ariadne_energy: Vec<AriadneTrace>,
+}
+
+/// An Ariadne world's receipt: an annotated-tab instrument's or a piano's.
+/// Untagged: each serializes exactly as its own struct.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum AriadneReceipt {
+    Tab(ariadne_tab::AriadneWorldReceipt),
+    Piano(ariadne_piano::PianoWorldReceipt),
+}
+
+/// An Ariadne world's energy trace (untagged, as [`AriadneReceipt`]).
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum AriadneTrace {
+    Tab(ariadne_tab::EnergyTrace),
+    Piano(ariadne_piano::PianoEnergyTrace),
 }
 
 #[derive(Debug, Clone)]
@@ -249,12 +267,14 @@ fn render_inner(
 
     // ---- voices (lines 745-774)
     // Instruments that declare an `anatomy=` are played on an Ariadne world,
-    // with their dot-voices as hands (SPEC-TAB.md); everything else is a voice.
+    // with their dot-voices as hands (SPEC-TAB.md) or, for a piano, as staves
+    // and pedal (SPEC-ARIADNE-PIANO.md); everything else is a voice.
     let (tab_instruments, tab_owned) = ariadne_tab::collect(&proposal.instruments, score_dir)?;
+    let (piano_instruments, piano_owned) = ariadne_piano::collect(&proposal.instruments, score_dir)?;
     let voice_instruments: Vec<_> = proposal
         .instruments
         .iter()
-        .filter(|i| !tab_owned.contains(&i.abbrev))
+        .filter(|i| !tab_owned.contains(&i.abbrev) && !piano_owned.contains(&i.abbrev))
         .cloned()
         .collect();
     let (voices, warnings) = pack::build_voices(&voice_instruments, pack.as_ref(), score_dir, a4)?;
@@ -342,6 +362,20 @@ fn render_inner(
     )?;
     stats.voices += tab_instruments.len();
 
+    // ---- pianos: one persistent world each
+    ariadne_piano::render(
+        &piano_instruments,
+        &bar_map,
+        &bar_content,
+        n_bars,
+        swing_unit_ql,
+        swing_r,
+        mus_dsp::SR_F64,
+        &mut buffers,
+        &mut stats,
+    )?;
+    stats.voices += piano_instruments.len();
+
     // ---- deferred mixdown + sidechain (lines 1140-1148)
     let sidechain_hits = mixbus::deferred_mixdown(
         &mut buffers,
@@ -410,12 +444,13 @@ pub fn render_stems(
         Some(rel) => Some((*cache.load(&score_dir.join(rel))?).clone()),
         None => None,
     };
-    // Tab instruments are played on Ariadne worlds, not voiced; they have no stem yet.
+    // Tab instruments and pianos are played on Ariadne worlds, not voiced; they have no stem yet.
     let (_, tab_owned) = ariadne_tab::collect(&proposal.instruments, score_dir)?;
+    let (_, piano_owned) = ariadne_piano::collect(&proposal.instruments, score_dir)?;
     let voice_instruments: Vec<_> = proposal
         .instruments
         .iter()
-        .filter(|i| !tab_owned.contains(&i.abbrev))
+        .filter(|i| !tab_owned.contains(&i.abbrev) && !piano_owned.contains(&i.abbrev))
         .cloned()
         .collect();
     let (voices, warnings) = pack::build_voices(&voice_instruments, pack.as_ref(), score_dir, a4)?;

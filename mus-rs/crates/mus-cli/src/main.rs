@@ -62,9 +62,9 @@ struct Receipt {
     /// pre-send, no reverb/master — the spatial scene's raw material).
     #[serde(rename = "stems", skip_serializing_if = "Option::is_none")]
     stems: Option<BTreeMap<String, String>>,
-    /// Annotated-tab instruments played on Ariadne worlds: plan, hands, ledger.
+    /// Instruments played on Ariadne worlds (annotated tab, piano): plan, touches, ledger.
     #[serde(rename = "ariadneWorlds", skip_serializing_if = "Vec::is_empty")]
-    ariadne_worlds: Vec<mus_engine::ariadne_tab::AriadneWorldReceipt>,
+    ariadne_worlds: Vec<mus_engine::AriadneReceipt>,
 }
 
 impl Receipt {

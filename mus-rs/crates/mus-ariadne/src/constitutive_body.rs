@@ -4,6 +4,7 @@
 use crate::body::{Body, BodyControls, BodyError, BodyLocalFrame, BodyReconfigurationFrame};
 use crate::field::MetricFieldState;
 use crate::ir::MODE_COUNT;
+use crate::law::hammer::FeltHammer;
 use crate::law::medium::{
     LocalConstitutiveMedium, LocalMediumError, LocalMediumInputFrame, LocalMediumSourceDrive,
     LocalMediumState,
@@ -116,6 +117,15 @@ pub(crate) enum WorldBody {
     Modal(Body),
     LocalMedium(LocalMediumWorldBody),
     ModalSpace(SpaceBody),
+    Hammer(HammerWorldBody),
+}
+
+/// A felt hammer in the World. It has no modal field: `momentum` is a
+/// zero aperture kept only so the body list stays uniform (the plan refuses
+/// couplings and shared-space ports on a hammer).
+pub(crate) struct HammerWorldBody {
+    pub(crate) hammer: FeltHammer,
+    no_field: [f64; MODE_COUNT],
 }
 
 #[derive(Debug, Clone)]

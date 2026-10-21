@@ -40,7 +40,7 @@ pub use body::{Body, BodyControls, BodyError, BodyLocalFrame, BodyReconfiguratio
 pub use configuration::{
     AffineSpec, AreaTermSpec, ConfigurationCoordinate, ConfigurationMapSpec,
     ConfigurationSpaceSpec, ConnectionPolicy, ContactSpec, DisposalPolicy, RadiatingEndSpec,
-    StiffStringSpec, TubeBranchSpec, TubeNetworkSpec, TubeSpec,
+    StiffStringSpec, StiffWireSpec, TubeBranchSpec, TubeNetworkSpec, TubeSpec,
 };
 pub use constitutive_body::{
     ConstitutiveBodyControls, ConstitutiveBodyError, LocalMediumBodyControls,
@@ -51,11 +51,13 @@ pub use ir::{
     ACTIVE_RANKS, MODE_COUNT, SPACE_COURSES, TRANSPORT_PAIRS,
 };
 pub use law::aero::{AeroFrame, AeroSpec, AeroTotals};
+pub use law::damper::DamperSpec;
+pub use law::hammer::{HammerContactSpec, HammerFrame, HammerSpec, HammerTotals};
 pub use law::valve::{FlowValveControls, FlowValveFrame, FlowValveSpec};
 pub use observation::{
     BoundObservationProgram, ListenerError, ObservationProgramError, ObservationRuntimeError,
     ObservationSource, StereoBodyTap, StereoFrame, StereoListener, StereoListenerSpec,
-    WorldObservationChannel, WorldObservationProgram,
+    StereoStateTap, WorldObservationChannel, WorldObservationProgram,
 };
 pub use performance::{WorldCostEstimate, WorldLayout};
 pub use plan::{

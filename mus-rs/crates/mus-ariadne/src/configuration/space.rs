@@ -45,6 +45,10 @@ pub enum ConfigurationMapSpec {
     /// Partials computed from a pinned stiff string (a constitutive law):
     /// `f_n = n f0 sqrt(1 + B n^2)`, `f0 ~ sqrt(T)/L`, `B ~ 1/(T L^2)`.
     StiffString { string: StiffStringSpec },
+    /// Partials computed from a pinned stiff wire declared by its material
+    /// and geometry (a constitutive law; [`StiffWireSpec`]). Additive: the
+    /// variants above serialize exactly as before.
+    StiffWire { wire: StiffWireSpec },
 }
 
 /// A pinned stiff string whose stopped length (and optionally tension) are
@@ -150,6 +154,242 @@ impl StiffStringSpec {
                 })?;
         }
         Ok(())
+    }
+}
+
+/// `ln(1000)`: T60 is the time for a mode's energy to fall 60 dB.
+const LN_1000: f64 = 6.907_755_278_982_137;
+
+/// A pinned stiff wire declared by what a scale designer writes down: its
+/// speaking length, the diameter of its bending core, its linear density
+/// (core plus any winding), the core's Young's modulus, and its tension,
+/// which one coordinate scales (`T = t T0`, the tuning pin). The partials
+/// follow (Euler-Bernoulli stiff string, pinned ends):
+///
+/// ```text
+/// f0  = sqrt(T / mu) / (2 L)
+/// B   = pi^3 E d^4 / (64 T L^2)
+/// f_n = n f0 sqrt(1 + B n^2)
+/// ```
+///
+/// with mass-normalized mode shapes `sqrt(2 / (mu L)) sin(n pi x / L)` (pure
+/// sines: pinned ends) and loss `sigma(omega) = a + b omega^2` per partial
+/// (T60 = `ln(1000) / sigma`). A wound string's winding adds mass, not
+/// bending stiffness: `B` is the core's (the usual approximation). The wire
+/// radiates as a thin cylinder (a line dipole, `ka << 1`): its radiation
+/// direction weighs partial `n` by `omega_n^(3/2)`, and
+/// [`StiffWireSpec::dipole_radiation_sigma`] gives each partial's rate.
+///
+/// Only partials below `band_limit_hz` at the box's highest tension are
+/// retained ([`StiffWireSpec::retained_partials`]). The slots above hold no
+/// state: every direction this law hands out (mode shape, moving-end weight,
+/// radiation) is zero there, and they repeat the last retained partial's
+/// frequency and loss only to keep the metric valid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StiffWireSpec {
+    pub speaking_length_m: f64,
+    pub core_diameter_m: f64,
+    pub linear_density_kg_m: f64,
+    pub youngs_modulus_pa: f64,
+    pub tension_n: f64,
+    /// Coordinate holding tension relative to `tension_n`.
+    pub tension_coordinate: usize,
+    pub band_limit_hz: f64,
+    pub decay_constant_per_s: f64,
+    pub decay_quadratic_s: f64,
+}
+
+impl StiffWireSpec {
+    /// Fundamental of the flexible string, `sqrt(T / mu) / (2 L)`, at tension ratio `t`.
+    #[must_use]
+    pub fn flexible_fundamental_hz(&self, t: f64) -> f64 {
+        (t * self.tension_n / self.linear_density_kg_m).sqrt() / (2.0 * self.speaking_length_m)
+    }
+
+    /// `B = pi^3 E d^4 / (64 T L^2)` at tension ratio `t`.
+    #[must_use]
+    pub fn inharmonicity(&self, t: f64) -> f64 {
+        let pi = std::f64::consts::PI;
+        pi.powi(3) * self.youngs_modulus_pa * self.core_diameter_m.powi(4)
+            / (64.0 * t * self.tension_n * self.speaking_length_m.powi(2))
+    }
+
+    /// Partial `n` (1-based) at tension ratio `t`.
+    #[must_use]
+    pub fn partial_hz(&self, n: usize, t: f64) -> f64 {
+        let n = n as f64;
+        n * self.flexible_fundamental_hz(t) * (1.0 + self.inharmonicity(t) * n * n).sqrt()
+    }
+
+    /// How many partials lie below `band_limit_hz` at the highest tension
+    /// ratio `t_max` (at most [`MODE_COUNT`]). Partial frequencies grow with
+    /// tension, so this count holds over the whole box.
+    #[must_use]
+    pub fn retained_partials(&self, t_max: f64) -> usize {
+        (1..=MODE_COUNT).take_while(|&n| self.partial_hz(n, t_max) < self.band_limit_hz).count()
+    }
+
+    /// The configuration at `point` with `retained` partials: the law, evaluated.
+    #[must_use]
+    pub fn configuration_at(&self, point: &[f64], retained: usize) -> WorldConfiguration {
+        let t = point[self.tension_coordinate];
+        let mut frequency_hz = [0.0; MODE_COUNT];
+        let mut t60_seconds = [0.0; MODE_COUNT];
+        let mut radiation_direction = [0.0; MODE_COUNT];
+        let kept = retained.clamp(1, MODE_COUNT);
+        for index in 0..MODE_COUNT {
+            let f = self.partial_hz(index.min(kept - 1) + 1, t);
+            let omega = std::f64::consts::TAU * f;
+            frequency_hz[index] = f;
+            t60_seconds[index] = LN_1000 / (self.decay_constant_per_s + self.decay_quadratic_s * omega * omega);
+            if index < kept {
+                radiation_direction[index] = omega.powf(1.5);
+            }
+        }
+        let norm = radiation_direction.iter().map(|v| v * v).sum::<f64>().sqrt();
+        for value in &mut radiation_direction {
+            *value /= norm;
+        }
+        WorldConfiguration {
+            metric: MetricSpec { frequency_hz, t60_seconds },
+            aperture: wire_aperture(),
+            radiation_direction,
+        }
+    }
+
+    /// Mass-normalized mode shapes (1/sqrt(kg)) averaged over a contact of
+    /// `width_m` centred at `fraction` of the speaking length:
+    /// `sqrt(2 / (mu L)) sin(n pi x / L) sinc(n pi w / (2 L))`. Zero in the
+    /// slots that are not retained.
+    #[must_use]
+    pub fn mode_shape_at(&self, fraction: f64, width_m: f64, retained: usize) -> [f64; MODE_COUNT] {
+        let length = self.speaking_length_m;
+        let norm = (2.0 / (self.linear_density_kg_m * length)).sqrt();
+        let half = 0.5 * width_m.max(0.0) / length;
+        std::array::from_fn(|index| {
+            if index >= retained {
+                return 0.0;
+            }
+            let n = index as f64 + 1.0;
+            let u = std::f64::consts::PI * n * half;
+            let sinc = if u.abs() < 1.0e-12 { 1.0 } else { u.sin() / u };
+            norm * (std::f64::consts::PI * n * fraction).sin() * sinc
+        })
+    }
+
+    /// How strongly each partial couples to a moving bridge end, at
+    /// resonance (`sqrt(kg)/s`). With the end displaced by `u_b`, the string
+    /// is `w_s + (x / L) u_b`; the tension and bending cross terms vanish for
+    /// pinned partials, and the kinetic one is `u_b' sum_n G_n eta_n'` with
+    /// `G_n = sqrt(2 mu L) (-1)^(n+1) / (n pi)`. Partial `n` against a
+    /// support mode `Phi` of the same frequency then exchanges as two
+    /// resonators split by `omega_n G_n Phi`, and
+    /// `omega_n G_n = (-1)^(n+1) sqrt(2 T / L) sqrt(1 + B n^2)` (which gives
+    /// the transmission-line decay `sigma_n = (T / L)(1 + B n^2) Re Y` against
+    /// a support admittance `Y`). Zero in the slots that are not retained.
+    #[must_use]
+    pub fn moving_end_weights(&self, t: f64, retained: usize) -> [f64; MODE_COUNT] {
+        let scale = (2.0 * t * self.tension_n / self.speaking_length_m).sqrt();
+        let b = self.inharmonicity(t);
+        std::array::from_fn(|index| {
+            if index >= retained {
+                return 0.0;
+            }
+            let n = index as f64 + 1.0;
+            let sign = if index % 2 == 0 { 1.0 } else { -1.0 };
+            sign * scale * (1.0 + b * n * n).sqrt()
+        })
+    }
+
+    /// Amplitude decay rate of each partial by the wire's own radiation, a
+    /// thin cylinder of radius `a` in air (`ka << 1`, a line dipole). The
+    /// exact field `p = A H1(kr) cos(theta)` with `ka << 1` radiates
+    /// `pi^2 / 4 rho c k^3 a^4 U^2` per unit length, so
+    /// `sigma_n = pi^2 rho omega_n^3 a^4 / (4 c^2 mu)`. With the projection
+    /// radiation law, a radiation fraction of `4 sum(sigma) / fs` along this
+    /// map's direction removes about these rates (modes well separated).
+    #[must_use]
+    pub fn dipole_radiation_sigma(
+        &self,
+        t: f64,
+        retained: usize,
+        outer_diameter_m: f64,
+        air_density_kg_m3: f64,
+        speed_of_sound_m_s: f64,
+    ) -> [f64; MODE_COUNT] {
+        let a4 = (0.5 * outer_diameter_m).powi(4);
+        let pi2 = std::f64::consts::PI * std::f64::consts::PI;
+        std::array::from_fn(|index| {
+            if index >= retained {
+                return 0.0;
+            }
+            let omega = std::f64::consts::TAU * self.partial_hz(index + 1, t);
+            pi2 * air_density_kg_m3 * omega.powi(3) * a4
+                / (4.0 * speed_of_sound_m_s * speed_of_sound_m_s * self.linear_density_kg_m)
+        })
+    }
+
+    fn validate(&self, coordinates: &[ConfigurationCoordinate], sample_rate_hz: f64) -> Result<(), PlanError> {
+        let dims = coordinates.len();
+        let positive = [
+            self.speaking_length_m,
+            self.core_diameter_m,
+            self.linear_density_kg_m,
+            self.youngs_modulus_pa,
+            self.tension_n,
+            self.band_limit_hz,
+        ];
+        if self.tension_coordinate >= dims
+            || coordinates[self.tension_coordinate].lower <= 0.0
+            || positive.iter().any(|v| !v.is_finite() || *v <= 0.0)
+            || !self.decay_constant_per_s.is_finite()
+            || !self.decay_quadratic_s.is_finite()
+            || self.decay_constant_per_s < 0.0
+            || self.decay_quadratic_s < 0.0
+            || self.decay_constant_per_s + self.decay_quadratic_s <= 0.0
+            || self.band_limit_hz > 0.48 * sample_rate_hz
+        {
+            return Err(PlanError::new(
+                "invalid-stiff-wire",
+                "stiff wire needs positive length, core, density, modulus and tension, positive loss, \
+                 a positive tension coordinate and a band limit inside the runtime band",
+            ));
+        }
+        let t_max = coordinates[self.tension_coordinate].upper;
+        let retained = self.retained_partials(t_max);
+        if retained == 0 {
+            return Err(PlanError::new(
+                "invalid-stiff-wire-band",
+                "the wire's fundamental lies above its band limit",
+            ));
+        }
+        for t in [coordinates[self.tension_coordinate].lower, t_max] {
+            let mut point: Vec<f64> = coordinates.iter().map(|c| c.initial).collect();
+            point[self.tension_coordinate] = t;
+            self.configuration_at(&point, retained).validate(sample_rate_hz).map_err(|error| {
+                PlanError::new("invalid-stiff-wire-band", format!("at tension ratio {t}: {error}"))
+            })?;
+        }
+        Ok(())
+    }
+}
+
+/// A wire has no compliant aperture; the configuration carries an inert one
+/// so the shared metric type stays valid.
+fn wire_aperture() -> ApertureSpec {
+    ApertureSpec {
+        natural_frequency_hz: 500.0,
+        quartic_stiffness: 0.0,
+        asymmetry: 0.0,
+        equilibrium_displacement: 0.0,
+        opening_bias: 0.0,
+        damping_per_second: 50.0,
+        source_to_aperture_rate_hz: 0.0,
+        source_to_field_rate_hz: 0.0,
+        sweep_rate_hz: 0.0,
+        active_rate_per_second: 0.0,
+        active_target_momentum: 0.25,
     }
 }
 
@@ -274,6 +514,15 @@ impl ConfigurationSpaceSpec {
                 string.validate(&self.coordinates, sample_rate_hz)
             }
             (ConfigurationMapSpec::StiffString { .. }, ConnectionPolicy::MassMomentum { .. }) => {
+                Err(PlanError::new(
+                    "connection-needs-physical-frame",
+                    "the mass-momentum connection needs a tube-network map",
+                ))
+            }
+            (ConfigurationMapSpec::StiffWire { wire }, ConnectionPolicy::ModalCoordinates) => {
+                wire.validate(&self.coordinates, sample_rate_hz)
+            }
+            (ConfigurationMapSpec::StiffWire { .. }, ConnectionPolicy::MassMomentum { .. }) => {
                 Err(PlanError::new(
                     "connection-needs-physical-frame",
                     "the mass-momentum connection needs a tube-network map",

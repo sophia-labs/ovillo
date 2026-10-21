@@ -11,7 +11,9 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::configuration::ConfigurationMapSpec;
 use crate::ir::MODE_COUNT;
+use crate::law::hammer::HammerSpec;
 use crate::law::medium::LocalMediumPlan;
 
 use super::helpers::{validate_direction, validate_id};
@@ -85,9 +87,13 @@ pub enum BodyConstitutionSpec {
     /// A body with an N-dimensional configuration space
     /// (`SPECS/ariadne/ND-CONFIGURATION.md`). Additive: the two variants above
     /// serialize exactly as before.
-    ModalSpace {
-        body: super::SpaceBodySpec,
-    },
+    ModalSpace { body: super::SpaceBodySpec },
+    /// A felt hammer: a mass with one coordinate whose felt contact with the
+    /// wires it names is a stateful coupling law (`law::hammer`). It has no
+    /// modal field: it takes no couplings and no shared-space port, and is
+    /// thrown by `World::strike_hammer`. Additive: the variants above
+    /// serialize exactly as before.
+    Hammer { hammer: HammerSpec },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -287,10 +293,22 @@ impl ConstitutiveWorldPlan {
                 BodyConstitutionSpec::ModalSpace { body } => {
                     body.validate(self.internal_sample_rate_hz)?;
                 }
+                BodyConstitutionSpec::Hammer { hammer } => {
+                    hammer
+                        .validate()
+                        .map_err(|message| PlanError::new("invalid-hammer", message))?;
+                    if body.space_port.coupling_weights.iter().any(|w| *w != 0.0) {
+                        return Err(PlanError::new(
+                            "hammer-space-port",
+                            format!("hammer {:?} has no field to exchange with the shared space", body.id),
+                        ));
+                    }
+                }
             }
             body.space_port.validate()?;
             body.pose.validate()?;
         }
+        self.validate_hammers()?;
         let mut edge_ids = BTreeSet::new();
         for edge in &self.direct_couplings {
             validate_id("coupling", &edge.id)?;
@@ -303,6 +321,8 @@ impl ConstitutiveWorldPlan {
             if edge.left_body == edge.right_body
                 || !body_ids.contains(edge.left_body.as_str())
                 || !body_ids.contains(edge.right_body.as_str())
+                || self.is_hammer(&edge.left_body)
+                || self.is_hammer(&edge.right_body)
             {
                 return Err(PlanError::new(
                     "invalid-coupling-endpoint",
@@ -321,6 +341,49 @@ impl ConstitutiveWorldPlan {
                     "invalid-coupling-law",
                     format!("coupling {:?} is outside the supported domain", edge.id),
                 ));
+            }
+        }
+        Ok(())
+    }
+
+    fn is_hammer(&self, id: &str) -> bool {
+        self.bodies
+            .iter()
+            .any(|body| body.id == id && matches!(body.constitution, BodyConstitutionSpec::Hammer { .. }))
+    }
+
+    /// Every hammer strikes distinct stiff-wire bodies of this plan, inside
+    /// their speaking length, and no wire is struck by two hammers.
+    fn validate_hammers(&self) -> Result<(), PlanError> {
+        let mut struck = BTreeSet::new();
+        for body in &self.bodies {
+            let BodyConstitutionSpec::Hammer { hammer } = &body.constitution else { continue };
+            for contact in &hammer.wires {
+                let wire = self.bodies.iter().find(|b| b.id == contact.body).and_then(|b| match &b.constitution {
+                    BodyConstitutionSpec::ModalSpace { body } => match &body.configuration_space.map {
+                        ConfigurationMapSpec::StiffWire { wire } => Some(wire),
+                        _ => None,
+                    },
+                    _ => None,
+                });
+                let Some(wire) = wire else {
+                    return Err(PlanError::new(
+                        "invalid-hammer-wire",
+                        format!("hammer {:?} strikes {:?}, which is not a stiff-wire body", body.id, contact.body),
+                    ));
+                };
+                if !struck.insert(contact.body.as_str()) {
+                    return Err(PlanError::new(
+                        "invalid-hammer-wire",
+                        format!("wire {:?} is struck twice", contact.body),
+                    ));
+                }
+                if hammer.contact_width_m >= contact.strike_fraction * wire.speaking_length_m * 2.0 {
+                    return Err(PlanError::new(
+                        "invalid-hammer-contact",
+                        format!("hammer {:?}'s felt is wider than twice its strike distance on {:?}", body.id, contact.body),
+                    ));
+                }
             }
         }
         Ok(())
