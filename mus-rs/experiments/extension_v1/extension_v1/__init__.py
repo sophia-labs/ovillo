@@ -10,12 +10,6 @@ from .closed_gestures import (
 from .development import DevelopmentConfig, development_receipt
 from .geometry import GeometryConfig, geometry_receipt
 from .morphology import MorphologyConfig, optimize_morphology
-from .trajectory_export import (
-    TrajectoryExportError,
-    closed_token_to_trajectory,
-    program_digest,
-    write_closed_token_trajectory,
-)
 
 __all__ = [
     "CliffordConfig",
@@ -24,14 +18,10 @@ __all__ = [
     "DevelopmentConfig",
     "GeometryConfig",
     "MorphologyConfig",
-    "TrajectoryExportError",
-    "closed_token_to_trajectory",
     "commuting_control",
     "development_receipt",
     "exact_receipt",
     "geometry_receipt",
     "optimize_morphology",
-    "program_digest",
     "train_closed_gestures",
-    "write_closed_token_trajectory",
 ]
