@@ -22,6 +22,12 @@ export const PALETTE = {
   rose: 0xfda4af, // the Ovillo mark
 };
 
+// Each batch draws a pixel once (stencil: a ref of its own, NotEqual then Replace), so the
+// round caps where a polyline's segments meet do not add up into beads; different
+// batches (core over glow, one kind of mark over another) still add, like phosphor.
+let STENCIL_REF = 0;
+const GAIN = 1.3;
+
 // Widths are CSS pixels: LineSegments2.onBeforeRender sets the material's resolution to the
 // renderer's viewport, which three.js keeps in CSS pixels whatever the pixel ratio, so a
 // frame captured at deviceScaleFactor 2 is the same picture, supersampled.
@@ -36,6 +42,12 @@ function material(width, opacity) {
     blending: THREE.AdditiveBlending,
     worldUnits: false,
   });
+  m.stencilWrite = true;
+  m.stencilRef = (STENCIL_REF++ % 254) + 1;
+  m.stencilFunc = THREE.NotEqualStencilFunc;
+  m.stencilFail = THREE.KeepStencilOp;
+  m.stencilZFail = THREE.KeepStencilOp;
+  m.stencilZPass = THREE.ReplaceStencilOp;
   return m;
 }
 
@@ -65,9 +77,11 @@ export class Strokes {
 
   begin() { this.pos.length = 0; this.col.length = 0; return this; }
 
-  // one segment a-b, colour c (hex) at brightness k (0..)
+  // one segment a-b, colour c (hex) at brightness k (0..); GAIN makes up for the overlaps
+  // the stencil no longer double-counts
   seg(a, b, c, k = 1, k2 = k) {
     if (k <= 0.002 && k2 <= 0.002) return;
+    k *= GAIN; k2 *= GAIN;
     this.pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
     const r = ((c >> 16) & 255) / 255, g = ((c >> 8) & 255) / 255, bl = (c & 255) / 255;
     this.col.push(r * k, g * k, bl * k, r * k2, g * k2, bl * k2);

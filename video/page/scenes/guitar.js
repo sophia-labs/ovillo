@@ -78,7 +78,7 @@ export class GuitarScene {
   layout() {
     const w = this.width, h = this.height;
     if (this.variant === '4x5') {
-      planeCamera(this.camera, { target: V(0.0, 0.47, -0.03), angle: 33, tilt: 38, r: 2.5, fov: 30, w, h, cx: 556, cy: 534 });
+      planeCamera(this.camera, { target: V(0.0, 0.47, -0.03), angle: 33, tilt: 38, r: 2.8, fov: 30, w, h, cx: 560, cy: 516 });
     } else {
       planeCamera(this.camera, { target: V(0.0, 0.47, -0.03), angle: 22, tilt: 40, r: 2.15, fov: 30, w, h, cx: 600, cy: 540 });
     }
@@ -124,13 +124,16 @@ export class GuitarScene {
     this.room.begin();
     const zf = -g.depth - 0.03;
     const kR = (0.03 + 0.09 * roomLv) * fadeIn;
-    for (let k = 0; k <= 10; k++) {
-      const x = -0.325 + k * 0.065;
-      this.room.seg(V(x, -0.03, zf), V(x, 1.14, zf), C.blue, kR);
+    // the graticule stays out of the panel: each line is cut where it leaves the scene's box
+    const box = this.variant === '4x5' ? { x0: 0, x1: this.width, y0: 236, y1: 850 } : { x0: 0, x1: 1240, y0: 200, y1: 880 };
+    const grid = (a, b) => { const c = clipToBox(a, b, this.camera, this.width, this.height, box); if (c) this.room.seg(c[0], c[1], C.blue, kR); };
+    for (let k = 0; k <= 12; k++) {
+      const x = -0.39 + k * 0.065;
+      grid(V(x, -0.13, zf), V(x, 1.17, zf));
     }
-    for (let k = 0; k <= 18; k++) {
-      const y = -0.03 + k * 0.065;
-      this.room.seg(V(-0.325, y, zf), V(0.325, y, zf), C.blue, kR);
+    for (let k = 0; k <= 20; k++) {
+      const y = -0.13 + k * 0.065;
+      grid(V(-0.39, y, zf), V(0.39, y, zf));
     }
     this.room.end();
 
@@ -180,7 +183,7 @@ export class GuitarScene {
         let z = 0;
         for (let m = 0; m < coef.length; m++) z += coef[m] * sh[m];
         pts.push(V(line.xy[i][0], line.xy[i][1], z));
-        ks.push(Math.min(0.95, 0.06 + 0.26 * topLv + 26 * Math.abs(z)) * fadeIn);
+        ks.push(Math.min(0.95, 0.08 + 0.36 * topLv + 30 * Math.abs(z)) * fadeIn);
       }
       T.poly(pts, C.world, ks);
     }
@@ -209,7 +212,7 @@ export class GuitarScene {
       }
       St.poly([this.stringPoint(s, g.saddleY), this.stringPoint(s, g.nutY)], C.dim, 0.16 * fadeIn);
       if (lv > 0.01) {
-        St.poly(cur, C.world, 0.22 + 0.55 * lv);
+        St.poly(cur, C.world, 0.25 + 0.6 * lv);
         St.poly(up, C.world, 0.16 * lv);
         St.poly(dn, C.world, 0.16 * lv);
       }
@@ -265,7 +268,7 @@ export class GuitarScene {
       const age = t - pk.t;
       if (age < 0 || age > life) continue;
       const r = 0.03 + 0.30 * (age / life);
-      const k = 0.55 * pk.strength * (1 - age / life) ** 2;
+      const k = 0.42 * pk.strength * (1 - age / life) ** 2;
       Sh.circle(hc, r, V(1, 0, 0), V(0, 1, 0), C.blue, k, 72);
       Sh.circle(V(hc.x, hc.y, r * 0.5), r * 0.866, V(1, 0, 0), V(0, 1, 0), C.blue, 0.55 * k, 64);
       for (const a of [0, Math.PI / 3, (2 * Math.PI) / 3]) {
@@ -302,6 +305,16 @@ export class GuitarScene {
       mus: musModel(d.bars, t, this.variant),
     };
   }
+}
+
+// the part of segment a-b whose projection lies inside a screen box (pixels), or null
+function clipToBox(a, b, camera, w, h, box) {
+  const inside = (p) => { const q = p.clone().project(camera); const x = (q.x + 1) / 2 * w, y = (1 - q.y) / 2 * h; return x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1; };
+  const N = 48;
+  let first = -1, last = -1;
+  for (let i = 0; i <= N; i++) if (inside(a.clone().lerp(b, i / N))) { if (first < 0) first = i; last = i; }
+  if (first < 0 || last <= first) return null;
+  return [a.clone().lerp(b, first / N), a.clone().lerp(b, last / N)];
 }
 
 function sample_row(rows, t0, dt, t) {

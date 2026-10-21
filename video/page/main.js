@@ -24,7 +24,7 @@ const { width, height } = manifest.variants[variant];
 const dpr = Number(q.get('dpr') || window.devicePixelRatio || 1);
 
 const canvas = $('gl');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, stencil: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(dpr);
 renderer.setSize(width, height, false);
 renderer.setClearColor(0x000000, 1);

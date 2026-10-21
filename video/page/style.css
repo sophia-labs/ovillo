@@ -92,15 +92,15 @@ body.v16x9 header .sub { font-size: 27px; margin-top: 10px; }
 body.v16x9 header .world { font-size: 21px; margin-top: 6px; }
 body.v16x9 .flag { left: 1290px; top: 52px; font-size: 22px; }
 body.v16x9 .readouts { left: 1290px; top: 150px; right: 64px; grid-template-columns: auto auto; justify-content: start; }
-body.v16x9 .chain { left: 1290px; right: 64px; top: 470px; grid-auto-flow: row; grid-auto-rows: auto; gap: 12px 0; }
+body.v16x9 .chain { left: 1290px; right: 64px; top: 440px; grid-auto-flow: row; grid-auto-rows: auto; gap: 12px 0; }
 body.v16x9 .chain .st { display: grid; grid-template-columns: 150px 1fr 170px; align-items: center; gap: 0 14px; }
 body.v16x9 .chain .st .bar { margin-top: 0; }
 body.v16x9 .chain .st .v { margin-top: 0; text-align: right; }
 body.v16x9 .caption { left: 64px; width: 1150px; top: 914px; font-size: 36px; }
-body.v16x9 .ledger { left: 1290px; right: 64px; top: 742px; }
+body.v16x9 .ledger { left: 1290px; right: 64px; top: 700px; }
 body.v16x9 .ledger .row { grid-template-columns: 1fr 1fr; gap: 10px 24px; }
 body.v16x9 .ledger .foot { white-space: normal; line-height: 1.35; }
-body.v16x9 .mus { left: 1290px; right: 64px; top: 900px; height: 150px; overflow: hidden; font-size: 19px; }
+body.v16x9 .mus { left: 1290px; right: 64px; top: 905px; height: 150px; overflow: hidden; font-size: 18px; }
 
 /* ------------------------------------------------------------------- cards */
 #card { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
