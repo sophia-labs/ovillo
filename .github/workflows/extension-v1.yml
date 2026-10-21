@@ -28,6 +28,10 @@ jobs:
           cache: pip
           cache-dependency-path: mus-rs/experiments/extension_v1/pyproject.toml
       - run: python -m pip install --upgrade pip
+      # CPU build of the pinned torch range: the default wheel's CUDA
+      # libraries (~4 GB) do not fit the hosted runner, and nothing here
+      # uses a GPU.
+      - run: python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch>=2.2'
       - run: python -m pip install -e '.[test]'
       - run: python -m compileall -q extension_v1 tests
       - run: pytest
