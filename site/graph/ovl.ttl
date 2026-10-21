@@ -15,6 +15,20 @@
 # Energies and works are in the World's own state units (the receipt calls them joules; they are not calibrated
 # against a measured instrument). A ledger closes when sourceWork + controlWork = internalLoss + radiation + stored
 # change, to the closureResidual; the residual is the World's bookkeeping error, not a measurement.
+#
+# 2026-10-21 (release r2): pieces a Rust example plays. The trombone v1 World (one N-D body, ovillo 9bed930) is not
+# played by `mus render`: examples/trombone_nd_solo.rs builds the World from its plan (ariadne-world-plan-v3), gives
+# its player a note list, and writes the audio, the note list (TSV), a receipt (ovillo.trombone-nd-render.v1, whose
+# `ledger` is mus_ariadne's WorldReceipt) and an energy trace. Mapped here as: the note list is the piece's ovl:Score
+# (format "ovillo-notes-tsv", no repo path: the example writes it, ovl:generator names the example); the receipt's
+# ledger is one ovl:Ledger (ovl:world = the plan's body id, ovl:anatomy = the body's anatomy_name), with three new
+# terms the receipt states and `mus render` receipts do not: ovl:initialEnergy, ovl:finalEnergy, ovl:sampleFrames.
+# What such a receipt does not state is omitted, never filled in: ovl:renderDigest, ovl:engineVersion,
+# ovl:listenerDigest (no listener: the sound is the bell's own emission), and the touch counts (plucks, hammer-ons,
+# pull-offs, slides: this World is not played by touches). ovl:eventCount is the receipt's `notes`; ovl:wallSeconds
+# its `renderWallSeconds`. A measurement of the render (pitch, cents and sounded partial per note, level spread;
+# mus_analysis.trombone_world_analyse) is a file beside the receipt, named by the new ovl:analysis (origin "page":
+# made after the World, about its output).
 
 <http://sophia.ai/ovillo> a owl:Ontology ;
     dcterms:title "Ovillo" ;
@@ -33,7 +47,7 @@ ovl:Piece a owl:Class ;
 
 ovl:Score a owl:Class ;
     rdfs:label "Score" ;
-    rdfs:comment "What the World plays: MUS source text, or the bench's JSON score." .
+    rdfs:comment "What the World plays: MUS source text, the bench's JSON score, or the note list a Rust example gave its player (TSV, one row per note)." .
 
 ovl:Render a owl:Class ;
     rdfs:label "Render" ;
@@ -41,7 +55,7 @@ ovl:Render a owl:Class ;
 
 ovl:Ledger a owl:Class ;
     rdfs:label "Ledger" ;
-    rdfs:comment "One World's energy account for one render, read off the render receipt (ariadneWorlds[]). A render by two Worlds has two ledgers. Omitted for the bench pieces, which keep no receipt." .
+    rdfs:comment "One World's energy account for one render, read off the render receipt (ariadneWorlds[]), or off an example's receipt (its `ledger`, the World's own receipt). A render by two Worlds has two ledgers. Omitted for the bench pieces, which keep no receipt." .
 
 ovl:BenchRun a owl:Class ;
     rdfs:label "Bench run" ;
@@ -49,7 +63,7 @@ ovl:BenchRun a owl:Class ;
 
 ovl:Instrument a owl:Class ;
     rdfs:label "Instrument" ;
-    rdfs:comment "The kind of World a piece sounds out of: a steel-string anatomy with a tuning, the bench rig." .
+    rdfs:comment "The kind of World a piece sounds out of: a steel-string anatomy with a tuning, the bench rig, the trombone World (one N-D body)." .
 
 ovl:Playlist a owl:Class ;
     rdfs:label "Playlist" ;
@@ -78,13 +92,13 @@ ovl:position a owl:DatatypeProperty ; rdfs:label "position" ; rdfs:domain ovl:Pi
 # ---- Score ----
 
 ovl:format a owl:DatatypeProperty ; rdfs:label "format" ; rdfs:domain ovl:Score ; rdfs:range xsd:string ;
-    rdfs:comment "\"mus\" (MUS source) or \"ovillo-score-json\" (the bench's JSON score)." .
+    rdfs:comment "\"mus\" (MUS source), \"ovillo-score-json\" (the bench's JSON score) or \"ovillo-notes-tsv\" (an example's note list: start_s, end_s, midi, partial, slide, position, art, fx, vel, bore_hz)." .
 ovl:text a owl:DatatypeProperty ; rdfs:label "text" ; rdfs:domain ovl:Score ; rdfs:range xsd:string ;
     rdfs:comment "The score's source, byte for byte (the same text as scores/<slug>.mus or .json)." .
 ovl:sourceDigest a owl:DatatypeProperty ; rdfs:label "source digest" ; rdfs:domain ovl:Score ; rdfs:range xsd:string ;
     rdfs:comment "sha256 of the source bytes, as \"sha256:<hex>\". For a MUS piece it is the receipt's own sourceDigest." ; ovl:origin "world" .
 ovl:repoPath a owl:DatatypeProperty ; rdfs:label "repo path" ; rdfs:domain ovl:Score ; rdfs:range xsd:string ;
-    rdfs:comment "Where the score lives in the ovillo repository." .
+    rdfs:comment "Where the score lives in the ovillo repository. Absent for a note list an example writes when it renders (ovl:generator names the example)." .
 ovl:generator a owl:DatatypeProperty ; rdfs:label "generator" ; rdfs:domain ovl:Score ; rdfs:range xsd:string ;
     rdfs:comment "Repository path of the script that wrote the score, when a script did." .
 
@@ -97,9 +111,9 @@ ovl:audioDigest a owl:DatatypeProperty ; rdfs:label "audio digest" ; rdfs:domain
 ovl:durationSeconds a owl:DatatypeProperty ; rdfs:label "duration" ; rdfs:domain ovl:Render ; rdfs:range xsd:double ;
     rdfs:comment "Seconds of audio (samples over sample rate, to the millisecond)." ; ovl:origin "world" .
 ovl:renderDigest a owl:DatatypeProperty ; rdfs:label "render digest" ; rdfs:domain ovl:Render ; rdfs:range xsd:string ;
-    rdfs:comment "The receipt's renderDigest of the World's output (before the page gain). Absent when there is no receipt (bench pieces)." ; ovl:origin "world" .
+    rdfs:comment "The receipt's renderDigest of the World's output (before the page gain). Absent when there is no receipt (bench pieces) or the receipt states none (an example's receipt)." ; ovl:origin "world" .
 ovl:engineVersion a owl:DatatypeProperty ; rdfs:label "engine version" ; rdfs:domain ovl:Render ; rdfs:range xsd:string ;
-    rdfs:comment "The receipt's engineVersion (mus-engine/...). Absent when there is no receipt." ; ovl:origin "world" .
+    rdfs:comment "The receipt's engineVersion (mus-engine/...). Absent when there is no receipt or the receipt states none (an example's receipt: the engine is the example at ovl:sourceRevision)." ; ovl:origin "world" .
 ovl:worldPeakDbfs a owl:DatatypeProperty ; rdfs:label "World peak (dBFS)" ; rdfs:domain ovl:Render ; rdfs:range xsd:double ;
     rdfs:comment "The World's output peak before the page gain." ; ovl:origin "world" .
 ovl:worldRmsDbfs a owl:DatatypeProperty ; rdfs:label "World RMS (dBFS)" ; rdfs:domain ovl:Render ; rdfs:range xsd:double ;
@@ -107,15 +121,17 @@ ovl:worldRmsDbfs a owl:DatatypeProperty ; rdfs:label "World RMS (dBFS)" ; rdfs:d
 ovl:pageGainDb a owl:DatatypeProperty ; rdfs:label "page gain (dB)" ; rdfs:domain ovl:Render ; rdfs:range xsd:double ;
     rdfs:comment "The gain the page applies after the World to match loudness (target RMS -18 dBFS, peak kept under -1 dBFS). Not the World's." ; ovl:origin "page" .
 ovl:wallSeconds a owl:DatatypeProperty ; rdfs:label "wall seconds" ; rdfs:domain ovl:Render ; rdfs:range xsd:double ;
-    rdfs:comment "How long the render took on the machine that made it (an Intel i9-9880H laptop). Receipt pieces only." ; ovl:origin "world" .
+    rdfs:comment "How long the render took on the machine that made it (an Intel i9-9880H laptop; an example's renderWallSeconds). Receipt pieces only." ; ovl:origin "world" .
 ovl:eventCount a owl:DatatypeProperty ; rdfs:label "event count" ; rdfs:domain ovl:Render ; rdfs:range xsd:integer ;
-    rdfs:comment "Events the engine played, from the receipt." ; ovl:origin "world" .
+    rdfs:comment "Events the engine played, from the receipt (an example's: its notes)." ; ovl:origin "world" .
 ovl:peaks a owl:ObjectProperty ; rdfs:label "peaks" ; rdfs:domain ovl:Render ;
     rdfs:comment "URL of the waveform peaks JSON: {sr, samplesPerPeak, peaks:[min,max,...]} of the played audio (page gain applied), mono mean." ; ovl:origin "page" .
 ovl:energyTrace a owl:ObjectProperty ; rdfs:label "energy trace" ; rdfs:domain ovl:Render ;
-    rdfs:comment "URL of the compact energy JSON: stored energy of the strings, the box and the room every 10 ms, plus every touch. Absent for the bench pieces, which keep no trace." ; ovl:origin "world" .
+    rdfs:comment "URL of the compact energy JSON: stored energy of the World's parts every 10 ms (the strings, the box and the room; the trombone's air and lips), plus every touch (the trombone's: its note starts). Absent for the bench pieces, which keep no trace." ; ovl:origin "world" .
 ovl:receipt a owl:ObjectProperty ; rdfs:label "receipt" ; rdfs:domain ovl:Render ;
-    rdfs:comment "URL of the render receipt (mus.audio.render-receipt.v1), with its ariadneWorlds ledger. Absent for the bench pieces." ; ovl:origin "world" .
+    rdfs:comment "URL of the render receipt (mus.audio.render-receipt.v1, with its ariadneWorlds ledger; or an example's, e.g. ovillo.trombone-nd-render.v1, whole). Absent for the bench pieces." ; ovl:origin "world" .
+ovl:analysis a owl:ObjectProperty ; rdfs:label "analysis" ; rdfs:domain ovl:Render ;
+    rdfs:comment "URL of a measurement of the render, made after the World from its audio and its note list (mus_analysis.trombone_world_analyse: per note the pitch, the cents from the written note, the partial that sounded, the level; a summary). Not the World's own numbers. Absent where a render was not measured." ; ovl:origin "page" .
 ovl:ledger a owl:ObjectProperty ; rdfs:label "ledger" ; rdfs:domain ovl:Render ; rdfs:range ovl:Ledger .
 ovl:bench a owl:ObjectProperty ; rdfs:label "bench run" ; rdfs:domain ovl:Render ; rdfs:range ovl:BenchRun .
 ovl:sourceRevision a owl:DatatypeProperty ; rdfs:label "source revision" ; rdfs:domain ovl:Render ; rdfs:range xsd:string ;
@@ -124,9 +140,9 @@ ovl:sourceRevision a owl:DatatypeProperty ; rdfs:label "source revision" ; rdfs:
 # ---- Ledger (one World's account; the numbers are the World's own, in its state units) ----
 
 ovl:world a owl:DatatypeProperty ; rdfs:label "world" ; rdfs:domain ovl:Ledger ; rdfs:range xsd:string ;
-    rdfs:comment "The World's instrument abbreviation in the score (gt, jj, gg, ...)." ; ovl:origin "world" .
+    rdfs:comment "The World's instrument abbreviation in the score (gt, jj, gg, ...); for a World an example plays, the plan's body id (trombone)." ; ovl:origin "world" .
 ovl:anatomy a owl:DatatypeProperty ; rdfs:label "anatomy" ; rdfs:range xsd:string ;
-    rdfs:comment "The anatomy the World is built from (steel-string-v0). On a Ledger or an Instrument." ; ovl:origin "world" .
+    rdfs:comment "The anatomy the World is built from (steel-string-v0; ovillo-trombone-nd-v1, the plan body's anatomy_name). On a Ledger or an Instrument." ; ovl:origin "world" .
 ovl:planDigest a owl:DatatypeProperty ; rdfs:label "plan digest" ; rdfs:domain ovl:Ledger ; rdfs:range xsd:string ; ovl:origin "world" ;
     rdfs:comment "The digest of the World's plan." .
 ovl:listenerDigest a owl:DatatypeProperty ; rdfs:label "listener digest" ; rdfs:domain ovl:Ledger ; rdfs:range xsd:string ; ovl:origin "world" ;
@@ -138,9 +154,15 @@ ovl:hammerOns a owl:DatatypeProperty ; rdfs:label "hammer-ons" ; rdfs:domain ovl
 ovl:pullOffs a owl:DatatypeProperty ; rdfs:label "pull-offs" ; rdfs:domain ovl:Ledger ; rdfs:range xsd:integer ; ovl:origin "world" .
 ovl:slides a owl:DatatypeProperty ; rdfs:label "slides" ; rdfs:domain ovl:Ledger ; rdfs:range xsd:integer ; ovl:origin "world" .
 ovl:sourceWork a owl:DatatypeProperty ; rdfs:label "source work" ; rdfs:domain ovl:Ledger ; rdfs:range xsd:double ; ovl:origin "world" ;
-    rdfs:comment "Work done on the World by the sources (the plectrum, the finger), in the World's state units." .
+    rdfs:comment "Work done on the World by the sources (the plectrum, the finger; the trombone's lungs, refilled), in the World's state units." .
 ovl:controlWork a owl:DatatypeProperty ; rdfs:label "control work" ; rdfs:domain ovl:Ledger ; rdfs:range xsd:double ; ovl:origin "world" ;
-    rdfs:comment "Work done by control changes (fretting, mutes, slides), billed to the player." .
+    rdfs:comment "Work done by control changes (fretting, mutes, slides; the trombone's slide and lip tension), billed to the player." .
+ovl:initialEnergy a owl:DatatypeProperty ; rdfs:label "initial energy" ; rdfs:domain ovl:Ledger ; rdfs:range xsd:double ; ovl:origin "world" ;
+    rdfs:comment "The World's stored energy before its first frame (the trombone's: its lungs, full). Stated by an example's World receipt; `mus render` receipts do not state it (absent). With it the books read initialEnergy + sourceWork + controlWork = internalLoss + radiation + finalEnergy, to the residual." .
+ovl:finalEnergy a owl:DatatypeProperty ; rdfs:label "final energy" ; rdfs:domain ovl:Ledger ; rdfs:range xsd:double ; ovl:origin "world" ;
+    rdfs:comment "The World's stored energy after its last frame. Where ovl:initialEnergy is stated." .
+ovl:sampleFrames a owl:DatatypeProperty ; rdfs:label "sample frames" ; rdfs:domain ovl:Ledger ; rdfs:range xsd:integer ; ovl:origin "world" ;
+    rdfs:comment "Frames the World stepped (its receipt's sampleFrames). Where the receipt states it." .
 ovl:internalLoss a owl:DatatypeProperty ; rdfs:label "internal loss" ; rdfs:domain ovl:Ledger ; rdfs:range xsd:double ; ovl:origin "world" ;
     rdfs:comment "Energy dissipated inside the bodies (damping), in the World's state units." .
 ovl:radiation a owl:DatatypeProperty ; rdfs:label "radiation" ; rdfs:domain ovl:Ledger ; rdfs:range xsd:double ; ovl:origin "world" ;
@@ -164,7 +186,7 @@ ovl:safetyLimitedFrames a owl:DatatypeProperty ; rdfs:label "safety-limited fram
 # ---- Instrument ----
 
 ovl:kind a owl:DatatypeProperty ; rdfs:label "kind" ; rdfs:domain ovl:Instrument ; rdfs:range xsd:string ;
-    rdfs:comment "\"steel-string\", \"bench\"." .
+    rdfs:comment "\"steel-string\", \"bench\", \"trombone\" (the trombone v1 World: one modal_space body, a tube-network bore, the slide its coordinate, the lips a flow valve; not the additive-source trombone dropped 2026-10-20)." .
 ovl:tuning a owl:DatatypeProperty ; rdfs:label "tuning" ; rdfs:domain ovl:Instrument ; rdfs:range xsd:string ;
     rdfs:comment "Open strings, lowest first, as note names: \"D2 A2 D3 G3 A3 D4\"." .
 

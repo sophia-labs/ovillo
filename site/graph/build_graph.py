@@ -8,6 +8,17 @@ and out/site/ (the files the triples point at).
 pieces.json is what site/scores/pieces.py writes: each piece's wav, score, receipt and energy-trace paths.
 Same inputs, same bytes: triples are sorted, JSON is key-sorted and compact, the mp3 is encoded bit-exact.
 Every sound comes out of an Ariadne World; there is no other engine to describe.
+
+Three kinds of piece (2026-10-21):
+  * a MUS piece: `mus render`'s receipt (mus.audio.render-receipt.v1), one ledger per ariadneWorlds[] entry;
+  * a bench piece (`bench`): the engine's log, no receipt;
+  * an example-World piece (`world`): a Rust example played a World plan (ariadne-world-plan-v3) and wrote a receipt
+    whose `ledger` is the World's own receipt (mus_ariadne::WorldReceipt), a note list (TSV) as its score, an energy
+    trace in mus-engine's shape, and optionally an analysis (a measurement of the render). One entry:
+      {"slug", "title", "group", "tags", "engine", "note", "wav", "score": <notes.tsv>, "scoreRepoPath": null,
+       "generator": <repo path of the example>, "receipt", "energy", "analysis", "sourceRevision", "created",
+       "world": {"kind", "title", "plan": <path of the plan JSON>}}
+The catalogue used is copied to out/pieces.json (not part of the site: it names local paths).
 """
 import argparse, hashlib, json, re, shutil, subprocess
 from pathlib import Path
@@ -28,6 +39,13 @@ PATCH_FILES = {"agua-mansa": "glass", "toward-the-bore": "brass", "hungry-world"
 GROUP_TITLES = {"today": "Today (2026-10-20)", "repo": "From the repository", "bench": "The bench"}
 RECEIPT_KEEP = ("schema", "renderDigest", "sourceDigest", "engineVersion", "peakDbfs", "rmsDbfs", "durationSeconds",
                 "wallSeconds", "eventCount", "voiceCount", "badTokens", "warnings", "ariadneWorlds")
+SCORE_FORMATS = {".mus": "mus", ".json": "ovillo-score-json", ".tsv": "ovillo-notes-tsv"}
+# An example-World receipt's `ledger`: mus_ariadne::WorldReceipt as the example writes it (camelCase).
+WORLD_LEDGER = (("sourceWork", "sourceWork"), ("controlWork", "controlWork"), ("internalLoss", "internalLoss"),
+                ("radiation", "radiation"), ("cumulativeClosureResidual", "closureResidual"),
+                ("maximumFrameResidual", "maxFrameResidual"), ("initialEnergy", "initialEnergy"), ("finalEnergy", "finalEnergy"))
+STRING_UNITS = ("stored energy in the World's own state units (raw energy, not decibels); strings, box and room each "
+                "summed over their bodies; 4 significant digits")
 
 
 def db(x):
@@ -58,32 +76,59 @@ def note_name(n):
     return n.lower().replace("#", "s")
 
 
+def body_kind(channel):
+    """The body kind a raw engine channel belongs to: string/6 -> strings, box/0 -> box, room -> room, air -> air."""
+    head = channel.split("/")[0]
+    return "strings" if head == "string" else head
+
+
 def compact_energy(trace):
-    """Per World: stored energy of strings, box, room every hop; top level is the sum over Worlds."""
+    """Per World: stored energy of each body kind every hop (strings, box, room for the steel-string; air and lips for
+    the trombone), in the order the trace names them; top level is the sum over Worlds."""
+    kinds = []
+    for w in trace["worlds"]:
+        for c in w["channels"]:
+            if body_kind(c) not in kinds:
+                kinds.append(body_kind(c))
+    strings = kinds == ["strings", "box", "room"]
     worlds, touches = [], []
     for w in trace["worlds"]:
         ch = w["channels"]
         fr = np.array(w["frames"], dtype=float)
-        sel = lambda f: [i for i, c in enumerate(ch) if f(c)]
-        cols = [fr[:, sel(lambda c: c.startswith("string/"))].sum(axis=1),
-                fr[:, sel(lambda c: c.startswith("box/"))].sum(axis=1),
-                fr[:, sel(lambda c: c == "room")].sum(axis=1)]
+        cols = [fr[:, [i for i, c in enumerate(ch) if body_kind(c) == k]].sum(axis=1) for k in kinds]
         worlds.append((w["instrument"], sig4(np.stack(cols, axis=1))))
         for t in w.get("touches", []):
-            touches.append({"t": round(t["seconds"], 4), "string": t.get("string"), "kind": t.get("kind"),
-                            "fret": t.get("fret"), "db": t.get("db"), "hand": t.get("hand"), "world": w["instrument"]})
+            keep = ("string", "kind", "fret", "db", "hand") if strings else tuple(k for k in ("kind", "midi", "partial", "position") if k in t)
+            touches.append({"t": round(t["seconds"], 4), **{k: t.get(k) for k in keep}, "world": w["instrument"]})
     n = max(len(f) for _, f in worlds)
-    total = np.zeros((n, 3))
+    total = np.zeros((n, len(kinds)))
     for _, f in worlds:
         total[: len(f)] += f
-    touches.sort(key=lambda t: (t["t"], t["world"], t["string"] if t["string"] is not None else -1))
+    touches.sort(key=lambda t: (t["t"], t["world"], t["string"] if t.get("string") is not None else -1))
+    if strings:
+        units = STRING_UNITS
+    else:
+        parts = trace["worlds"][0].get("parts", {})
+        reservoirs = trace["worlds"][0].get("reservoirs", [])
+        units = ("stored energy in the World's own state units (raw energy, not decibels), by part: "
+                 + "; ".join(f"{k} = {parts[k]}" for k in kinds if k in parts)
+                 + ("; not in the frames: " + "; ".join(f"{k} = {parts[k]}" for k in reservoirs if k in parts) if reservoirs else "")
+                 + "; the touches are the note list's starts; 4 significant digits")
     out = {"schema": "ovillo.energy.v1", "hopSeconds": trace["worlds"][0]["hopSeconds"], "startSeconds": 0,
-           "channels": ["strings", "box", "room"],
-           "units": "stored energy in the World's own state units (raw energy, not decibels); strings, box and room each summed over their bodies; 4 significant digits",
-           "frames": sig4(total).tolist(), "touches": touches}
+           "channels": kinds, "units": units, "frames": sig4(total).tolist(), "touches": touches}
     if len(worlds) > 1:
         out["worlds"] = [{"world": name, "frames": f.tolist()} for name, f in worlds]
     return out
+
+
+def plan_world(plan):
+    """A World plan's name for its ledger and its anatomy: a one-body plan is named by its body (and its anatomy is the
+    body's anatomy_name); a plan of several bodies by its world_name."""
+    assert plan.get("schema_version") == "ariadne-world-plan-v3", plan.get("schema_version")
+    bodies = plan["bodies"]
+    if len(bodies) == 1:
+        return bodies[0]["id"], bodies[0]["constitution"]["body"].get("anatomy_name") or plan["world_name"]
+    return plan["world_name"], plan["world_name"]
 
 
 def main():
@@ -91,13 +136,15 @@ def main():
     ap.add_argument("--pieces", default=f"{SCRATCH}/scores/pieces.json")
     ap.add_argument("--out", default=str(HERE / "out"))
     a = ap.parse_args()
-    pieces = json.loads(Path(a.pieces).read_text())
+    catalogue = Path(a.pieces).read_bytes()  # read before out/ is cleared: the catalogue may live there
+    pieces = json.loads(catalogue)
     out = Path(a.out)
     if out.exists():
         shutil.rmtree(out)
     site = out / "site"
     for d in ("media", "scores", "receipts"):
         (site / d).mkdir(parents=True)
+    (out / "pieces.json").write_bytes(catalogue)
     g = Graph()
     for p, f in (("ovl", OVL), ("dcterms", DCT)):
         g.bind(p, f)
@@ -124,8 +171,8 @@ def main():
             g.add((ps, OVL.tag, L(t)))
         groups.setdefault(p["group"], []).append(ps)
         g.add((ps, OVL.position, L(len(groups[p["group"]]), XSD.integer)))
-        g.add((ps, OVL.render, rs)); g.add((rs, RDF.type, OVL.Render)); g.add((rs, DCT.created, L(CREATED, XSD.date)))
-        g.add((rs, OVL.sourceRevision, L(SOURCE_REVISION)))
+        g.add((ps, OVL.render, rs)); g.add((rs, RDF.type, OVL.Render)); g.add((rs, DCT.created, L(p.get("created", CREATED), XSD.date)))
+        g.add((rs, OVL.sourceRevision, L(p.get("sourceRevision", SOURCE_REVISION))))
 
         # --- audio: the World's output, then the page's gain, mp3 and peaks
         x, sr = sf.read(p["wav"], always_2d=True)
@@ -153,16 +200,44 @@ def main():
             (site / "scores" / f"{slug}{ext}").write_bytes(raw)
             ss = iri("score", slug)
             g.add((ps, OVL.score, ss)); g.add((ss, RDF.type, OVL.Score))
-            g.add((ss, OVL['format'], L("mus" if ext == ".mus" else "ovillo-score-json")))
+            g.add((ss, OVL['format'], L(SCORE_FORMATS[ext])))
             g.add((ss, OVL.text, L(raw.decode("utf-8")))); g.add((ss, OVL.sourceDigest, L(sha(raw))))
-            rel = p["score"].split("/fresh/ovillo/")[-1] if "/fresh/ovillo/" in p["score"] else f"site/scores/{sp.name}"
-            g.add((ss, OVL.repoPath, L(rel)))
+            if "scoreRepoPath" in p:  # stated; null = the score is not in the repository (an example wrote it)
+                rel = p["scoreRepoPath"]
+            else:
+                rel = p["score"].split("/fresh/ovillo/")[-1] if "/fresh/ovillo/" in p["score"] else f"site/scores/{sp.name}"
+            if rel:
+                g.add((ss, OVL.repoPath, L(rel)))
             gen = HERE.parent / "scores" / (sp.stem + ".py")
-            if gen.exists():
+            if p.get("generator"):
+                g.add((ss, OVL.generator, L(p["generator"])))
+            elif gen.exists():
                 g.add((ss, OVL.generator, L(f"site/scores/{gen.name}")))
 
+        # --- an example-World piece: the example's receipt, whose ledger is the World's own (mus_ariadne::WorldReceipt)
+        if p.get("world"):
+            w = p["world"]
+            r = json.loads(Path(p["receipt"]).read_text())
+            name, anatomy = plan_world(json.loads(Path(w["plan"]).read_text()))
+            (site / "receipts" / f"{slug}.json").write_text(jdump(r))  # whole: it carries no logs
+            g.add((rs, OVL.receipt, url(f"receipts/{slug}.json")))
+            # it states no renderDigest and no engineVersion: omitted, not made up
+            g.add((rs, OVL.wallSeconds, L(float(r["renderWallSeconds"]), XSD.double)))
+            g.add((rs, OVL.eventCount, L(int(r["notes"]), XSD.integer)))
+            ls = iri("ledger", f"{slug}-{name}")
+            g.add((rs, OVL.ledger, ls)); g.add((ls, RDF.type, OVL.Ledger))
+            g.add((ls, OVL.world, L(name))); g.add((ls, OVL.anatomy, L(anatomy))); g.add((ls, OVL.planDigest, L(r["planDigest"])))
+            g.add((ls, OVL.simulatedSeconds, L(float(r["seconds"]), XSD.double)))
+            g.add((ls, OVL.sampleFrames, L(int(r["ledger"]["sampleFrames"]), XSD.integer)))
+            for k, pr in WORLD_LEDGER:  # no plucks, hammer-ons, pull-offs or slides: this World is not touched that way
+                g.add((ls, OVL[pr], L(float(r["ledger"][k]), XSD.double)))
+            g.add((ps, OVL.instrument, add_instrument(w["kind"], w["title"], anatomy, None, anatomy)))
+            if p.get("analysis"):
+                (site / "receipts" / f"{slug}.analysis.json").write_text(jdump(json.loads(Path(p["analysis"]).read_text())))
+                g.add((rs, OVL.analysis, url(f"receipts/{slug}.analysis.json")))
+
         # --- receipt, ledgers, energy (MUS pieces)
-        if p.get("receipt"):
+        elif p.get("receipt"):
             r = json.loads(Path(p["receipt"]).read_text())
             (site / "receipts" / f"{slug}.json").write_text(jdump({k: r[k] for k in RECEIPT_KEEP if k in r}))
             g.add((rs, OVL.receipt, url(f"receipts/{slug}.json")))
@@ -226,7 +301,9 @@ def main():
     (site / "llms.txt").write_text(
         "# Ovillo\nPieces played by Ariadne Worlds (physical models of instruments and rooms), with each World's energy ledger.\n"
         "Read the graph `ovillo` with sparql_query at /mcp (read-only). Vocabulary: http://sophia.ai/ovillo#\n"
-        "Files: /media/<slug>.mp3, /media/<slug>.peaks.json, /media/<slug>.energy.json, /scores/<slug>.mus, /receipts/<slug>.json\n")
+        "Files: /media/<slug>.mp3, /media/<slug>.peaks.json, /media/<slug>.energy.json, /scores/<slug>.mus (.json for a bench "
+        "score, .tsv for the note list an example played), /receipts/<slug>.json (and /receipts/<slug>.analysis.json where the "
+        "render was measured)\n")
     # public mode wants an index.html; this is a stand-in the Shrubbery app's build replaces
     rows = "".join(f'<li><a href="media/{p["slug"]}.mp3">{p["title"]}</a> ({p["group"]})</li>' for p in pieces)
     (site / "index.html").write_text(

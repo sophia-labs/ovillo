@@ -5,14 +5,28 @@ Every sound comes out of an Ariadne World. This directory builds the small graph
 ## Build and test
 
 ```sh
-uv run --with numpy --with soundfile --with rdflib python site/graph/build_graph.py   # -> site/graph/out/ovillo.nt, out/site/
-uv run --with numpy --with soundfile --with rdflib python site/graph/test_graph.py    # 8 checks, ~2.5 min (one is a second full build compared byte for byte)
+uv run --with numpy --with soundfile --with rdflib python site/graph/build_graph.py --pieces site/graph/pieces-r2.json   # -> out/ovillo.nt, out/site/, out/pieces.json
+uv run --with numpy --with soundfile --with rdflib python site/graph/test_graph.py    # 13 checks, 20 s to 2.5 min (one is a second full build compared byte for byte)
 ```
 
-`--pieces` names the catalogue (`site/scores/pieces.py` writes it; default is the 2026-10-20 session's `scores/pieces.json`), `--out` the output directory. `out/` is not committed (about 12 MB of mp3s and 168 KB of triples); the same inputs give the same bytes.
+`--pieces` names the catalogue (default: the 2026-10-20 session's `scores/pieces.json`, the 17 pieces `site/scores/pieces.py` wrote); `pieces-r2.json` (release r2, 2026-10-21) is those 17 unchanged plus the trombone. The builder copies the catalogue it used to `out/pieces.json`, and the tests read that one. `--out` is the output directory. `out/` is not committed (about 12 MB of mp3s and 175 KB of triples; `out/pieces.json` names local paths and is not part of the site); the same inputs give the same bytes.
+
+### Pieces a Rust example plays (2026-10-21: the trombone v1)
+
+The trombone v1 World (one N-D body: a tube-network bore, the slide its coordinate, the lips the runtime's flow valve; ovillo `TROMBONE-WORLD.md`) is not played by `mus render` but by `ovillo/crates/ovillo-dsp/examples/trombone_nd_solo.rs`, which writes the WAV, the note list (TSV), a receipt (`ovillo.trombone-nd-render.v1`, its `ledger` the World's own receipt) and, since ovillo `3dcfc98`, an energy trace (air and lips every 10 ms; the lungs apart). A catalogue entry with `world` says so; the mapping is in `ovl.ttl`'s 2026-10-21 note. A second such piece is one more entry:
+
+```json
+{"slug": "…", "title": "…", "group": "repo", "tags": ["…"], "engine": "…", "note": "… only numbers from the receipt or analysis …",
+ "wav": "<renders>/x.wav", "score": "<renders>/x-notes.tsv", "scoreRepoPath": null, "generator": "<repo path of the example>",
+ "receipt": "<renders>/x-receipt.json", "energy": "<renders>/x.energy.json", "analysis": "<renders>/x-analysis.json",
+ "sourceRevision": "<ovillo commit the example was built from>", "created": "YYYY-MM-DD",
+ "world": {"kind": "…", "title": "…", "plan": "<the World plan JSON, ariadne-world-plan-v3>"}}
+```
+
+The receipt must carry `planDigest`, `seconds`, `notes`, `renderWallSeconds`, `peak` and a `ledger` with mus_ariadne's WorldReceipt fields (`sampleFrames`, `initialEnergy`, `finalEnergy`, `sourceWork`, `controlWork`, `internalLoss`, `radiation`, `cumulativeClosureResidual`, `globalClosureResidual`, `maximumFrameResidual`): `trombone_nd_solo.rs` writes exactly that. `energy` and `analysis` are optional (omitted, not faked). The test admits such a piece by a positive rule (`lawful_example_world`): its plan is a World plan naming no synthesized source, its books close at roundoff, its WAV has the World's frame count and the receipt's peak, its trace a frame per 10 ms; every number in its note must be one of its receipt's or analysis's. A new instrument kind (`world.kind`) is admitted by that rule alone; only the trombone also gets a structural test (`test_the_trombone_is_one_nd_body`).
 `out/ovillo.nt` carries the vocabulary too (parsed from `ovl.ttl`), so one `gardend load` is the whole of `user:rdf`. `out/ux-config.nt` is the Shrubbery app's layouts (one `ux:LayoutDocument` per route, `ux:layoutJson`; the file `ux-config.nt` here is written by `pnpm --filter @shrubbery/ovillo fixture:ux -- --stdout`), loaded with `--into urn:mnemosyne:local:graph:ovillo:ux:config`; without it the app uses its built-in layouts and says so.
 
-Bench pieces have no receipt and no energy trace: the graph has no `ovl:receipt`, `ovl:ledger`, `ovl:energyTrace` or `ovl:renderDigest` for them (omitted, not faked); their `ovl:BenchRun` holds the engine log's numbers.
+Bench pieces have no receipt and no energy trace: the graph has no `ovl:receipt`, `ovl:ledger`, `ovl:energyTrace` or `ovl:renderDigest` for them (omitted, not faked); their `ovl:BenchRun` holds the engine log's numbers. An example-World piece (the trombone) has a receipt and a ledger but no `ovl:renderDigest`, `ovl:engineVersion`, `ovl:listenerDigest` or touch counts: its receipt does not state them.
 
 ## The local public gardend (port 7792)
 

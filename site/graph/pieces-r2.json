@@ -1,0 +1,299 @@
+[
+ {
+  "slug": "hilo-de-luz",
+  "title": "Hilo de luz",
+  "group": "today",
+  "tags": [
+   "pretty"
+  ],
+  "engine": "steel-string world · DADGAD",
+  "note": "A lullaby in 3/4 for three hands. The open strings of DADGAD rolled over a ringing low D, a melody with a hammer-on, then harmonics at the 12th and 7th frets (played as plucks at the harmonic's pitch, a v0 limit).",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/10-hilo-de-luz.wav",
+  "score": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/scores/hilo_de_luz.mus",
+  "receipt": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/10-hilo-de-luz.json",
+  "energy": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/10-hilo-de-luz.energy.json"
+ },
+ {
+  "slug": "enjambre",
+  "title": "Enjambre",
+  "group": "today",
+  "tags": [
+   "weird"
+  ],
+  "engine": "steel-string world · tuned to six adjacent semitones",
+  "note": "The guitar retuned D3 D♯3 E3 F3 F♯3 G3, a cluster, picked hard at the bridge by two offset plectrums. One fretting shape slides up nine frets and the swarm lands on C add9, then the top string slides home fret by fret with no new pluck.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/11-enjambre.wav",
+  "score": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/scores/enjambre.mus",
+  "receipt": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/11-enjambre.json",
+  "energy": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/11-enjambre.energy.json"
+ },
+ {
+  "slug": "pulgar-de-tierra",
+  "title": "Pulgar de tierra",
+  "group": "today",
+  "tags": [
+   "rhythmic"
+  ],
+  "engine": "steel-string world · drop C",
+  "note": "A palm-muted thumb thumping near the bridge, chucks and a pentatonic lick with hammer-ons and pull-offs. The [x] dead notes are written but v0 plays them as ordinary plucks; the palm mute is real loss on every partial.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/12-pulgar.wav",
+  "score": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/scores/pulgar.mus",
+  "receipt": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/12-pulgar.json",
+  "energy": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/12-pulgar.energy.json"
+ },
+ {
+  "slug": "bajo-la-casa",
+  "title": "Bajo la casa",
+  "group": "today",
+  "tags": [
+   "pretty",
+   "dark"
+  ],
+  "engine": "steel-string world · baritone tuning",
+  "note": "i–VI–iv–V in B minor on the same body tuned a fourth low, plucked with the soft of the finger. The low string slides under a held chord; a slide carries the string's energy along and the receipt bills the work.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/13-bajo.wav",
+  "score": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/scores/bajo.mus",
+  "receipt": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/13-bajo.json",
+  "energy": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/13-bajo.energy.json"
+ },
+ {
+  "slug": "gigante-y-juguete",
+  "title": "Gigante y juguete",
+  "group": "today",
+  "tags": [
+   "playful",
+   "weird"
+  ],
+  "engine": "two steel-string worlds",
+  "note": "One tune in canon on two guitar-shaped worlds: a giant tuned an octave down and a toy tuned a fourth up. A toy tuned a full octave up was refused by the engine: its 24th partial at the 12th fret would sit at 23 kHz, past the band.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/17-gigante.wav",
+  "score": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/scores/gigante.mus",
+  "receipt": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/17-gigante.json",
+  "energy": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/17-gigante.energy.json"
+ },
+ {
+  "slug": "agua-mansa",
+  "title": "Agua mansa",
+  "group": "today",
+  "tags": [
+   "pretty"
+  ],
+  "engine": "bench: simulated guitar → Ariadne World",
+  "note": "A written score for the bench's simulated guitarist (bends, vibrato, slow strums from Em9 to Bm7), played into the World with a patch of long sustain and a persistent shared space.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/bench/agua/agua-mansa-wet.wav",
+  "score": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/scores/agua-mansa.json",
+  "bench": {
+   "closureResidual": "1.30e-18",
+   "safetyLimitedFrames": 0,
+   "patch": "glass"
+  }
+ },
+ {
+  "slug": "toward-the-bore",
+  "title": "Toward the brass bore",
+  "group": "today",
+  "tags": [
+   "weird",
+   "loud"
+  ],
+  "engine": "bench: simulated guitar → Ariadne World",
+  "note": "The AMBIENT guitarist with the configuration map pushed all the way from the six-course string body to the B♭ brass bore. The World goes hot: 22,863 safety-limited frames, and the runaway guard fades it to rest and back in. Turn it down.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/bench/brass/ambient-wet.wav",
+  "score": null,
+  "bench": {
+   "closureResidual": "-6.25e-17",
+   "safetyLimitedFrames": 22863,
+   "patch": "material_organization = 1.0"
+  }
+ },
+ {
+  "slug": "hungry-world",
+  "title": "Hungry world",
+  "group": "today",
+  "tags": [
+   "weird"
+  ],
+  "engine": "bench: simulated guitar → Ariadne World",
+  "note": "The RIFF pattern into a World with hunger, metabolism, reciprocity and a shared space all turned up.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/bench/hungry/riff-wet.wav",
+  "score": null,
+  "bench": {
+   "closureResidual": "-4.34e-19",
+   "safetyLimitedFrames": 0,
+   "patch": "hunger 1.0, metabolism 1.0, reciprocity 0.5, shared space 0.7"
+  }
+ },
+ {
+  "slug": "halfway",
+  "title": "Halfway",
+  "group": "today",
+  "tags": [
+   "pretty",
+   "weird"
+  ],
+  "engine": "bench: simulated guitar → Ariadne World",
+  "note": "ARPEGGIO with the map halfway between string body and brass bore, and more sustain.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/bench/midway/arpeggio-wet.wav",
+  "score": null,
+  "bench": {
+   "closureResidual": "9.54e-18",
+   "safetyLimitedFrames": 0,
+   "patch": "material_organization = 0.5, sustain 0.6"
+  }
+ },
+ {
+  "slug": "steel-string-tour",
+  "title": "Steel-string tour",
+  "group": "repo",
+  "tags": [
+   "acceptance"
+  ],
+  "engine": "steel-string world",
+  "note": "The repository's acceptance score for the steel-string: open strings left to ring, a hammer-on, a pull-off, a slide, the palm-muted thumb.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/00-tour.wav",
+  "score": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/fresh/ovillo/examples/tab/steel_string_tour.mus",
+  "receipt": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/00-tour.json",
+  "energy": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/00-tour.energy.json"
+ },
+ {
+  "slug": "wayfaring-stranger",
+  "title": "Wayfaring Stranger",
+  "group": "repo",
+  "tags": [
+   "pretty"
+  ],
+  "engine": "steel-string world · after Doc Watson",
+  "note": "The traditional hymn (first printed 1858) as a full annotated tab for thumb, melody and fills.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/01-wayfaring.wav",
+  "score": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/fresh/ovillo/examples/tab/wayfaring-stranger-doc.mus",
+  "receipt": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/01-wayfaring.json",
+  "energy": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/sounds/01-wayfaring.energy.json"
+ },
+ {
+  "slug": "ambient",
+  "title": "AMBIENT",
+  "group": "bench",
+  "tags": [
+   "pretty"
+  ],
+  "engine": "bench: simulated guitar → Ariadne World",
+  "note": "The bench guitarist's ambient piece: drones, slowly rolled colour chords, high plucks with late vibrato, bars of silence for hearing the World ring. Neck pickup.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/bench/ambient/ambient-wet.wav",
+  "score": null,
+  "bench": {
+   "closureResidual": "4.34e-19",
+   "safetyLimitedFrames": 0,
+   "patch": "ovillo-default"
+  }
+ },
+ {
+  "slug": "travis",
+  "title": "TRAVIS",
+  "group": "bench",
+  "tags": [
+   "pretty"
+  ],
+  "engine": "bench: simulated guitar → Ariadne World",
+  "note": "Alternating-bass fingerpicking in C and G. Middle pickup.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/bench/travis/travis-wet.wav",
+  "score": null,
+  "bench": {
+   "closureResidual": "1.30e-18",
+   "safetyLimitedFrames": 0,
+   "patch": "ovillo-default"
+  }
+ },
+ {
+  "slug": "blues",
+  "title": "BLUES",
+  "group": "bench",
+  "tags": [
+   "rhythmic"
+  ],
+  "engine": "bench: simulated guitar → Ariadne World",
+  "note": "A 12-bar shuffle in E or A, licks with curls and bends. Bridge pickup.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/bench/blues/blues-wet.wav",
+  "score": null,
+  "bench": {
+   "closureResidual": "-4.34e-19",
+   "safetyLimitedFrames": 0,
+   "patch": "ovillo-default"
+  }
+ },
+ {
+  "slug": "wander",
+  "title": "WANDER",
+  "group": "bench",
+  "tags": [
+   "pretty"
+  ],
+  "engine": "bench: simulated guitar → Ariadne World",
+  "note": "A Markov chord progression that modulates now and then through the new key's V7.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/bench/wander/wander-wet.wav",
+  "score": null,
+  "bench": {
+   "closureResidual": "0.00e0",
+   "safetyLimitedFrames": 0,
+   "patch": "ovillo-default"
+  }
+ },
+ {
+  "slug": "melody",
+  "title": "MELODY",
+  "group": "bench",
+  "tags": [
+   "pretty"
+  ],
+  "engine": "bench: simulated guitar → Ariadne World",
+  "note": "A slow single line in A or D minor, antecedent and consequent, over a soft bass.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/bench/melody/melody-wet.wav",
+  "score": null,
+  "bench": {
+   "closureResidual": "4.34e-19",
+   "safetyLimitedFrames": 0,
+   "patch": "ovillo-default"
+  }
+ },
+ {
+  "slug": "first-light",
+  "title": "first light",
+  "group": "bench",
+  "tags": [
+   "pretty"
+  ],
+  "engine": "bench: simulated guitar → Ariadne World",
+  "note": "The bench's example score: Em9, a high pluck with vibrato, a bend, a partial up-strum.",
+  "wav": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/bench/score/first-light-wet.wav",
+  "score": "/private/tmp/claude-501/-Users-vera-dev-sophia/ae46aca1-49fc-48f7-b253-025c47555890/scratchpad/fresh/ovillo/ovillo/scores/first-light.json",
+  "bench": {
+   "closureResidual": "-1.30e-18",
+   "safetyLimitedFrames": 0,
+   "patch": "ovillo-default"
+  }
+ },
+ {
+  "slug": "trombone-solo",
+  "title": "Trombone solo",
+  "group": "repo",
+  "tags": [
+   "acceptance",
+   "pretty"
+  ],
+  "engine": "trombone world · one N-D body",
+  "note": "The 36 notes of the repository's trombone solo, tongued, slurred and smeared, with scoops, swells, vibrato, a rip up to C5 and two falls, played by one Ariadne World: a single body whose bore is a network of tubes, whose slide is the body's one coordinate and whose lips are the runtime's flow valve, blown from the lungs. Measured on this render, every note sounds on the partial the player placed it on (36 of 36), a median of 5.7 cents from the written pitch and 13.7 at most, and sustained notes written at the same dynamic spread over a median of 0.7 dB; the ledger closes to 3.6e-15 in its worst frame. It does not brighten as it gets louder: the runtime's acoustics are linear, so nothing steepens the wave in the bore. Heard dry, with no room.",
+  "wav": "/Users/vera/dev/ovillo-tbn-trace-20261021/ovillo/renders/trombone-nd-solo.wav",
+  "score": "/Users/vera/dev/ovillo-tbn-trace-20261021/ovillo/renders/trombone-nd-solo-notes.tsv",
+  "scoreRepoPath": null,
+  "generator": "ovillo/crates/ovillo-dsp/examples/trombone_nd_solo.rs",
+  "receipt": "/Users/vera/dev/ovillo-tbn-trace-20261021/ovillo/renders/trombone-nd-solo-receipt.json",
+  "energy": "/Users/vera/dev/ovillo-tbn-trace-20261021/ovillo/renders/trombone-nd-solo.energy.json",
+  "analysis": "/Users/vera/dev/ovillo-tbn-trace-20261021/ovillo/renders/trombone-nd-solo-analysis.json",
+  "sourceRevision": "3dcfc981a2958dc0922c77c620d18e03a739e2c8",
+  "created": "2026-10-21",
+  "world": {
+   "kind": "trombone",
+   "title": "Trombone v1: one N-D Ariadne body (a tube-network bore, the slide its coordinate, flow-valve lips)",
+   "plan": "/Users/vera/dev/ovillo-tbn-trace-20261021/profiles/ariadne-trombone-v1.plan.json"
+  }
+ }
+]
