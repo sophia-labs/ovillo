@@ -9,9 +9,12 @@
 //! - `dynamics`: F3, Bb3, D4, F4 in first position, each tongued at five dynamics.
 //!
 //! Writes `trombone-nd-<piece>.wav` (mono float, exactly the World's emission
-//! times `OUTPUT_SCALE`, sample for sample), `...-notes.tsv`, `...-receipt.json`.
+//! times `OUTPUT_SCALE`, sample for sample), `...-notes.tsv`, `...-receipt.json`,
+//! and `trombone-nd-<piece>.energy.json`: the World's stored energy every 10 ms
+//! (air, lips; the lungs apart) in mus-engine's `mus.ariadne.energy-trace.v1`
+//! shape, with the note starts as touches (`trombone_nd::EnergyTrace`).
 
-use ovillo_dsp::trombone_nd::{TromboneNd, OUTPUT_SCALE, PLAN_JSON};
+use ovillo_dsp::trombone_nd::{EnergyTrace, TromboneNd, OUTPUT_SCALE, PLAN_JSON};
 use ovillo_dsp::trombone_nd_player::{perform, place, ModeTable, Placement, Skill};
 use ovillo_dsp::trombone_player::{hz_of, Art, Note, DIM, FALL, RIP, SCOOP, SWELL, VIB};
 
@@ -153,9 +156,11 @@ fn main() {
     let breaths = perform(&table, &skill, &notes, &placed, sr, 2.5);
     tw.set_slide_now(breaths[0].slide_m).expect("slide");
     let mut audio = Vec::with_capacity(breaths.len());
+    let mut trace = EnergyTrace::new(sr);
     let t0 = std::time::Instant::now();
     for b in &breaths {
         audio.push(tw.tick(*b).expect("the World stepped"));
+        trace.observe(&tw);
     }
     let took = t0.elapsed().as_secs_f64();
     let seconds = breaths.len() as f64 / sr;
@@ -176,6 +181,16 @@ fn main() {
         );
     }
     std::fs::write(out_dir.join(format!("{stem}-notes.tsv")), tsv).unwrap();
+    let touches = notes
+        .iter()
+        .zip(&placed)
+        .map(|(x, p)| {
+            serde_json::json!({ "seconds": x.start_s, "kind": format!("{:?}", x.art).to_lowercase(), "midi": x.midi,
+                "partial": p.partial, "position": p.position(&table) })
+        })
+        .collect();
+    let body = tw.world().body_id(0).unwrap_or("trombone").to_owned();
+    std::fs::write(out_dir.join(format!("{stem}.energy.json")), serde_json::to_string(&trace.to_json(&body, touches)).unwrap()).unwrap();
     let r = tw.world().receipt();
     let m = tw.moves();
     let peak = audio.iter().fold(0.0f64, |a, v| a.max(v.abs()));

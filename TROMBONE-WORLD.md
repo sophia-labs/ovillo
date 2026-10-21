@@ -33,6 +33,14 @@ its receipt sits beside it.
     and billed as control work.
 - **What you hear:** the World's own emission (the bell volume's pressure, Pa)
   × `OUTPUT_SCALE` = 1/300 (set once).
+- **Where the energy is** (2026-10-21): `examples/trombone_nd_solo.rs` also writes
+  `trombone-nd-<piece>.energy.json` in mus-engine's `mus.ariadne.energy-trace.v1`
+  shape (`trombone_nd::EnergyTrace`): every 10 ms the body's air (its field) and
+  lips (the valve: material energy less the field) as channels, the lungs (the
+  reservoir) apart, the note starts as touches. Reading it changes no sample: the
+  WAVs and note lists are byte-identical to `9bed930`'s, and
+  `trombone_nd::tests::the_energy_trace_is_the_worlds_stored_energy` checks the
+  parts against the World's material and total stored energy at every sample.
 
 ### The runtime change: a tube length on a coordinate
 
