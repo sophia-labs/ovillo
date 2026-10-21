@@ -56,13 +56,58 @@ jobs:
           print("fixture schema valid:", expected)
           EOF
 
-      # The committed Rust test vectors must be exactly reproducible from
-      # the committed NPZ/JSON artifacts (seeded export, no drift).
-      - name: Regenerate Rust test vectors and diff against committed
+      # The committed Rust test vectors must be reproducible from the
+      # committed NPZ/JSON artifacts (seeded export, no drift). They are
+      # numpy/BLAS products and eigenphases, whose last bits depend on the
+      # BLAS build and CPU (a regeneration differs from the committed file
+      # by ~1e-15), so byte equality cannot hold across machines. Require the
+      # identical structure, every non-float value exactly, and every float
+      # within 1e-13: two orders below the Rust replay's 1e-12 tolerance.
+      - name: Regenerate Rust test vectors and compare with committed
         run: |
           cp paper/ariadne-protected-nonabelian/unified_artifacts/unified_rust_test_vectors.json /tmp/committed_vectors.json
           python mus-rs/tools/unified_export_test_vectors.py
-          diff /tmp/committed_vectors.json paper/ariadne-protected-nonabelian/unified_artifacts/unified_rust_test_vectors.json
+          python - <<'EOF'
+          import json
+
+          TOLERANCE = 1.0e-13
+          committed = json.load(open("/tmp/committed_vectors.json"))
+          regenerated = json.load(open(
+              "paper/ariadne-protected-nonabelian/unified_artifacts/unified_rust_test_vectors.json"
+          ))
+          problems, floats, worst = [], 0, 0.0
+
+          def number(value):
+              return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+          def compare(left, right, path):
+              global floats, worst
+              if number(left) and number(right) and (
+                  isinstance(left, float) or isinstance(right, float)
+              ):
+                  floats += 1
+                  worst = max(worst, abs(left - right))
+                  if not abs(left - right) <= TOLERANCE:
+                      problems.append(f"{path}: {left!r} != {right!r}")
+              elif type(left) is not type(right):
+                  problems.append(f"{path}: {type(left).__name__} != {type(right).__name__}")
+              elif isinstance(left, dict):
+                  if left.keys() != right.keys():
+                      problems.append(f"{path}: keys {sorted(left)} != {sorted(right)}")
+                  for key in left.keys() & right.keys():
+                      compare(left[key], right[key], f"{path}/{key}")
+              elif isinstance(left, list):
+                  if len(left) != len(right):
+                      problems.append(f"{path}: length {len(left)} != {len(right)}")
+                  for index, (a, b) in enumerate(zip(left, right)):
+                      compare(a, b, f"{path}[{index}]")
+              elif left != right:
+                  problems.append(f"{path}: {left!r} != {right!r}")
+
+          compare(committed, regenerated, "")
+          print(f"{floats} floats compared, max |committed - regenerated| = {worst:.3e}")
+          assert not problems, "\n".join(problems[:50])
+          EOF
 
   rust-replay:
     runs-on: ubuntu-latest
