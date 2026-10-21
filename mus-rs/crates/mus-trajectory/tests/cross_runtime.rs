@@ -1,4 +1,4 @@
-use mus_trajectory::{TrajectoryProgram, TrajectoryReceipt};
+use mus_trajectory::lanes::{TrajectoryProgram, TrajectoryReceipt};
 
 #[test]
 fn python_fixture_replays_with_the_same_digest_and_values() {

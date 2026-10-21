@@ -8,5 +8,5 @@ physical bodies, inverse gesture compilation, and learned gesture models.
 - [`fixtures/garganta-ba.json`](./fixtures/garganta-ba.json) — current GARGANTA adapter path.
 - matching `*.receipt.json` files — Python-produced, Rust-replayed receipts.
 
-The executable Rust object is `mus-trajectory::TrajectoryProgram`. The Python
+The executable Rust object is `mus_trajectory::lanes::TrajectoryProgram`. The Python
 research mirror is `mus_analysis.trajectory.TrajectoryProgram`.

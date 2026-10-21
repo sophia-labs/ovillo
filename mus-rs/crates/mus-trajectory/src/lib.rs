@@ -14,6 +14,11 @@
 //! a musician author a path now, while an agent may later synthesize an
 //! equivalent [`TrajectoryProgram`] from a higher-level request.
 
+/// The `mus-trajectory/v1` lane format (`SPECS/trajectory/TRAJECTORY-v1.md`):
+/// the Rust consumer of the Python-produced lane programs and receipts in
+/// `SPECS/trajectory/fixtures` and the Extension v1 trajectory export.
+pub mod lanes;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter};
 
