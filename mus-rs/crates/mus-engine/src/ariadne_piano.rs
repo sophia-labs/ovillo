@@ -261,7 +261,24 @@ pub struct PianoEnergyTrace {
     /// Every key the score pressed, as it reached the world.
     pub strikes: Vec<StrikeRecord>,
     pub pedal: Vec<[f64; 2]>,
+    /// The World's own books at each hop (`World::receipt`, cumulative, f64), in
+    /// `PIANO_LEDGER_COLUMNS` order; the hammer throws are booked outside the
+    /// per-hop source flows, so this is the running ledger.
+    pub ledger_columns: Vec<&'static str>,
+    pub ledger_frames: Vec<[f64; 8]>,
 }
+
+/// Column names of [`PianoEnergyTrace::ledger_frames`] (as mus-engine's tab trace names them).
+pub const PIANO_LEDGER_COLUMNS: [&str; 8] = [
+    "sourceWork",
+    "controlWork",
+    "internalLoss",
+    "radiation",
+    "initialEnergy",
+    "currentEnergy",
+    "cumulativeClosureResidual",
+    "maximumFrameResidual",
+];
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1016,6 +1033,8 @@ fn play(
         bridge_frames: Vec::new(),
         strikes: Vec::new(),
         pedal: pedal.clone(),
+        ledger_columns: PIANO_LEDGER_COLUMNS.to_vec(),
+        ledger_frames: Vec::new(),
     };
     let n = bodies.len();
     let (mut source_acc, mut radiation_acc, mut loss_acc) =
@@ -1139,6 +1158,17 @@ fn play(
             trace.radiation_frames.push(take(&mut radiation_acc));
             trace.loss_frames.push(take(&mut loss_acc));
             trace.bridge_frames.push(take(&mut bridge_acc));
+            let books = world.receipt();
+            trace.ledger_frames.push([
+                books.source_work,
+                books.control_work,
+                books.internal_loss,
+                books.radiation,
+                books.initial_energy,
+                books.current_energy,
+                books.cumulative_closure_residual,
+                books.maximum_frame_residual,
+            ]);
         }
     }
     for (hammer, strikes, mut record) in pending_records {
