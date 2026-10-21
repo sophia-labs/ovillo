@@ -158,10 +158,10 @@ fn modal_centroid(world: &World, body: usize) -> f64 {
     let state = world.body_state(body).unwrap();
     let f = world.space_body(body).unwrap().frequencies_hz();
     let (mut num, mut den) = (0.0, 0.0);
-    for k in 0..MODE_COUNT {
-        let w = std::f64::consts::TAU * f[k];
+    for (k, &fk) in f.iter().enumerate().take(MODE_COUNT) {
+        let w = std::f64::consts::TAU * fk;
         let e = state.momentum[k].powi(2) + (w * state.displacement[k]).powi(2);
-        num += f[k] * e;
+        num += fk * e;
         den += e;
     }
     num / den
@@ -215,7 +215,7 @@ fn stiff_wire_partials_follow_from_material_and_geometry() {
         speaking_length_m: 0.090,
         core_diameter_m: 0.875e-3,
         linear_density_kg_m: 4.73e-3,
-        tension_n: 4.73e-3 * (2.0 * 2093.004_522 * 0.090_f64).powi(2),
+        tension_n: 4.73e-3 * (2.0 * 2093.004522 * 0.090_f64).powi(2),
         ..c4_wire(1.0)
     };
     assert_eq!(c7.retained_partials(1.02), 7);

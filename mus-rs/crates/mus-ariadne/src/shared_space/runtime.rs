@@ -66,12 +66,12 @@ pub(crate) struct CompiledSpacePort {
 impl CompiledSpacePort {
     pub(crate) fn compile(port: &SpacePortSpec) -> Result<Self, SharedSpaceError> {
         let mut directions = [[0.0; MODE_COUNT]; SPACE_COURSES];
-        for course in 0..SPACE_COURSES {
-            directions[course] = normalized(port.body_directions[course]).map_err(|_| {
-                SharedSpaceError::InvalidDirection {
-                    name: "body port",
-                    index: course,
-                }
+        for (course, (direction, &body)) in
+            directions.iter_mut().zip(&port.body_directions).enumerate()
+        {
+            *direction = normalized(body).map_err(|_| SharedSpaceError::InvalidDirection {
+                name: "body port",
+                index: course,
             })?;
         }
         // NaN bits never equal a computed angle's: the first exchange computes every rotation.

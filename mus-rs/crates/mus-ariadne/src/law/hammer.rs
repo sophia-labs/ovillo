@@ -253,8 +253,9 @@ impl FeltHammer {
             .fold(f64::INFINITY, f64::min);
         self.y = nearest - self.spec.letoff_m;
         self.v = velocity;
-        for i in 0..self.wires {
-            self.compression[i] = self.y - displacement[i];
+        let y = self.y;
+        for (compression, &d) in self.compression.iter_mut().zip(&displacement[..self.wires]) {
+            *compression = y - d;
         }
         self.active = true;
         self.first_contact = None;
@@ -320,10 +321,11 @@ impl FeltHammer {
         let dt = self.dt;
         let h = dt * dt / (2.0 * self.spec.mass_kg);
         // Free felt is re-read from the geometry (no energy changes hands).
-        for i in 0..n {
-            let geometric = self.y - wires[i].start;
-            if self.compression[i] <= 0.0 && geometric <= 0.0 {
-                self.compression[i] = geometric;
+        let y = self.y;
+        for (compression, wire) in self.compression[..n].iter_mut().zip(&wires[..n]) {
+            let geometric = y - wire.start;
+            if *compression <= 0.0 && geometric <= 0.0 {
+                *compression = geometric;
             }
         }
         // delta_i' = a_i - S h - F_i g_i.
@@ -401,8 +403,8 @@ impl FeltHammer {
                         0.5 * (lo + hi)
                     };
                 }
-                for i in 0..n {
-                    forces[i] = solve_wire(i, s);
+                for (i, force) in forces[..n].iter_mut().enumerate() {
+                    *force = solve_wire(i, s);
                 }
                 total = forces[..n].iter().sum();
             }

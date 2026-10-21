@@ -419,14 +419,18 @@ impl StagedRender {
             n_total,
             &mut stats,
         )?;
-        let pianos = (!piano_instruments.is_empty()).then(|| PianoPass {
-            instruments: piano_instruments,
-            bar_map,
-            bar_content,
-            n_bars,
-            swing_unit_ql,
-            swing_r,
-        });
+        let pianos = if piano_instruments.is_empty() {
+            None
+        } else {
+            Some(PianoPass {
+                instruments: piano_instruments,
+                bar_map,
+                bar_content,
+                n_bars,
+                swing_unit_ql,
+                swing_r,
+            })
+        };
         Ok(Self {
             buffers,
             placed,

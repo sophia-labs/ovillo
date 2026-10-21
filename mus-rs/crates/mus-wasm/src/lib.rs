@@ -434,7 +434,7 @@ impl<'a> SourceIndex<'a> {
                 let (from, to) = bar_range(text)?;
                 (from <= bar && bar <= to).then_some((n, *start, *text))
             })
-            .last()?;
+            .next_back()?;
         let colon = text.find(':')?;
         let content = &text[colon + 1..];
         // The track's segment: `track=` at a token boundary, up to the next `x=` that names another track.
@@ -496,7 +496,7 @@ fn occurrence(
             let (from, to) = bar_range(text)?;
             (from <= bar && bar <= to).then_some(*text)
         })
-        .last()
+        .next_back()
         .and_then(|text| text.split_once(':').map(|(_, c)| c))
         .unwrap_or("");
     let walked = segment_tokens(content, track);
