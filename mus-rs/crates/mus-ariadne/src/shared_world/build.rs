@@ -154,7 +154,6 @@ impl World {
             body_indices,
             body_ids,
             body_poses,
-            space_ports,
             bodies,
             space,
             couplings,

@@ -1,5 +1,6 @@
 use std::f64::consts::TAU;
 
+#[cfg(test)]
 use mus_watsn::givens;
 
 use crate::ir::{MODE_COUNT, SPACE_COURSES};
@@ -189,6 +190,9 @@ impl SharedSpace {
         Ok(kinetic(&self.heads, self.dt))
     }
 
+    /// The port exchange from the spec itself (the reference that
+    /// `exchange_compiled_port` is checked against, bit for bit).
+    #[cfg(test)]
     pub(crate) fn exchange_port(
         &mut self,
         body_momentum: &mut [f64; MODE_COUNT],

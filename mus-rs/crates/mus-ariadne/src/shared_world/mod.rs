@@ -16,7 +16,7 @@ use mus_watsn::WorkLedger;
 use crate::constitutive_body::WorldBody;
 use crate::coupling::{CouplingFrame, CouplingNetwork};
 use crate::plan::{
-    BodyPose, ConstitutiveWorldPlan, SpacePortSpec, WorldPlan,
+    BodyPose, ConstitutiveWorldPlan, WorldPlan,
 };
 use crate::shared_space::{SharedSpace, SharedSpaceFrame};
 
@@ -32,7 +32,6 @@ pub struct World {
     pub(super) body_indices: BTreeMap<String, usize>,
     pub(super) body_ids: Vec<String>,
     pub(super) body_poses: Vec<BodyPose>,
-    pub(super) space_ports: Vec<SpacePortSpec>,
     pub(super) bodies: Vec<WorldBody>,
     pub(super) space: SharedSpace,
     pub(super) couplings: CouplingNetwork,
