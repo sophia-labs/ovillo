@@ -1,17 +1,18 @@
 {
   "anatomy": "tract-v0 (TractAnatomy::adult_v0)",
   "label": "fit",
-  "method": "grid 11x11x10 then 9x9x9 refinements at 0.025 and 0.01; objective sum over F1..F3 of ln(measured/target)^2; measured = peaks of the rigid-glottis impulse response of the tract World itself (spectrum_peaks_n, 2^15 FFT at 96 kHz)",
+  "method": "grid 11x11x10 (x4 velum openings for /u/: 0, 0.015, 0.025, 0.04) then 9x9x9 refinements at 0.025 and 0.01; objective sum over F1..F3 of ln(measured/target)^2; measured = peaks of the rigid-glottis impulse response of the tract World itself (spectrum_peaks_n, 2^15 FFT at 96 kHz)",
   "schema": "ovillo.tract.preset-fit.v0",
   "vowels": [
     {
       "evaluations": 2668,
       "fitted": {
-        "lips": 0.5599999999999999,
-        "tongue_diameter": 0.73,
-        "tongue_index": 0.060000000000000005
+        "lips": 0.6099999999999999,
+        "tongue_diameter": 0.725,
+        "tongue_index": 0.06500000000000002,
+        "velum": 0.0
       },
-      "rms_log_error": 0.012764438298424967,
+      "rms_log_error": 0.00649331359760728,
       "target_hz": [
         710.0,
         1150.0,
@@ -19,21 +20,22 @@
       ],
       "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs (GARGANTA rung-1 design profiles, not measurements)",
       "tube_resonances_hz": [
-        717.7734375,
+        711.9140625,
         1157.2265625,
-        2545.8984375,
-        3999.0234375
+        2522.4609375,
+        3990.234375
       ],
       "vowel": "a"
     },
     {
       "evaluations": 2668,
       "fitted": {
-        "lips": 0.41000000000000003,
-        "tongue_diameter": 0.74,
-        "tongue_index": 0.91
+        "lips": 0.7599999999999999,
+        "tongue_diameter": 0.69,
+        "tongue_index": 0.885,
+        "velum": 0.0
       },
-      "rms_log_error": 0.007400469094570674,
+      "rms_log_error": 0.0032384525295624483,
       "target_hz": [
         290.0,
         2250.0,
@@ -41,21 +43,22 @@
       ],
       "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs (GARGANTA rung-1 design profiles, not measurements)",
       "tube_resonances_hz": [
-        292.96875,
-        2267.578125,
-        2950.1953125,
-        3750.0
+        290.0390625,
+        2258.7890625,
+        2961.9140625,
+        3764.6484375
       ],
       "vowel": "i"
     },
     {
-      "evaluations": 2668,
+      "evaluations": 6298,
       "fitted": {
-        "lips": 0.024999999999999994,
-        "tongue_diameter": 0.975,
-        "tongue_index": 0.47500000000000003
+        "lips": 0.05,
+        "tongue_diameter": 0.885,
+        "tongue_index": 0.395,
+        "velum": 0.015
       },
-      "rms_log_error": 0.015300373445831579,
+      "rms_log_error": 0.005034025552307469,
       "target_hz": [
         310.0,
         700.0,
@@ -63,10 +66,10 @@
       ],
       "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs (GARGANTA rung-1 design profiles, not measurements)",
       "tube_resonances_hz": [
-        304.6875,
-        703.125,
-        2396.484375,
-        3228.515625
+        307.6171875,
+        697.265625,
+        2352.5390625,
+        3462.890625
       ],
       "vowel": "u"
     }
