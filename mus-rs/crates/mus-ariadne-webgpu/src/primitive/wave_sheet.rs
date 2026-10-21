@@ -79,7 +79,7 @@ impl WaveSheet2D {
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Ariadne WaveSheet2D WESL"),
-            source: wgpu::ShaderSource::Wgsl(wesl::include_wesl!("ariadne_wave_sheet")),
+            source: wgpu::ShaderSource::Wgsl(wesl::include_wesl!("ariadne_wave_sheet").into()),
         });
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Ariadne WaveSheet2D pipeline"),

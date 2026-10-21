@@ -81,7 +81,7 @@ impl ObserverImpulseRaster2D {
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Ariadne observer impulse WESL"),
-            source: wgpu::ShaderSource::Wgsl(wesl::include_wesl!("ariadne_impulse_raster")),
+            source: wgpu::ShaderSource::Wgsl(wesl::include_wesl!("ariadne_impulse_raster").into()),
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Ariadne observer impulse pipeline"),

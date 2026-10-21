@@ -74,7 +74,7 @@ impl WorldPresenter {
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Ariadne World presenter WESL"),
-            source: wgpu::ShaderSource::Wgsl(wesl::include_wesl!("ariadne_world_present")),
+            source: wgpu::ShaderSource::Wgsl(wesl::include_wesl!("ariadne_world_present").into()),
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Ariadne World presenter pipeline"),
