@@ -25,7 +25,8 @@
    "tension from f0, L, mu",
    "partials, B and mode shapes (runtime stiff_wire)",
    "board modes (finite differences)",
-   "board radiation (baffled Rayleigh integral)",
+   "board radiation (baffled Rayleigh integral, diagonal in the modes)",
+   "far-field pressure at the listening points (Rayleigh integral per mode)",
    "string radiation (thin-cylinder dipole, ka << 1)",
    "bridge edge rate (moving string end against the board's mode shapes)"
   ],
@@ -44,7 +45,7 @@
    "damper position, length and resistance",
    "dampers stop at F6",
    "every k-th board mode above the exact band",
-   "the room"
+   "listening points"
   ]
  },
  "limits": [
@@ -54,8 +55,9 @@
   "no hammer shank, no action, no key bounce",
   "no sympathetic strings beyond the notes a score plays",
   "board flat: no crown, no downbearing",
-  "rim clamped and rigid; case, lid and frame rigid",
-  "radiation baffled, no directivity"
+  "rim clamped and rigid; case, lid and frame rigid; no lid",
+  "radiation baffled; diagonal in the modes (no cross-radiation)",
+  "no room: the World is heard dry"
  ],
  "board": {
   "plate_rigidity_across_n_m": 28.552529173236323,
@@ -98,8 +100,8 @@
    "3000-4500": 0.0947,
    "4500-6500": 0.1085
   },
-  "exact_top_hz": 3004.934849720108,
-  "sampled_top_hz": 7362.762919046371,
+  "exact_top_hz": 3004.934849720069,
+  "sampled_top_hz": 7362.762919046382,
   "sampled_stride": 4,
   "radiation_share_by_band": {
    "0-250": 0.339,
@@ -266,7 +268,18 @@
    ]
   ],
   "unison_pitch": 0.0045,
-  "radiation_stride": 2
+  "radiation_stride": 2,
+  "microphone_distance": 1.0,
+  "microphone_directions": [
+   [
+    -0.447,
+    -0.224
+   ],
+   [
+    0.447,
+    -0.224
+   ]
+  ]
  },
  "notes": [
   {
@@ -1502,5 +1515,5 @@
    "damper": false
   }
  ],
- "anatomy_digest": "sha256:d3ae6e40e4b23d0b0c6135b95576583aaaee892dd5d600880856a9735ffaea98"
+ "anatomy_digest": "sha256:ba3525cb67c87948861a3f3574cf8ae7a7b9ca9bb2e72416f523e4104de13994"
 }

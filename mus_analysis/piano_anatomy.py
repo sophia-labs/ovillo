@@ -261,6 +261,11 @@ class Soundboard:
     unison_pitch: float = 0.0045    # string spacing within a choir at the bridge
     # Radiation: the board's own (baffled Rayleigh integral) on every second grid point.
     radiation_stride: int = 2
+    # The listener (design-hypothesis): two far-field points 1 m away, 30 degrees off the
+    # board's normal, leaning to the bass and to the treble side and a little toward the
+    # keyboard (unit vectors' components in the board's plane).
+    microphone_distance: float = 1.0
+    microphone_directions: tuple[tuple[float, float], tuple[float, float]] = ((-0.447, -0.224), (0.447, -0.224))
 
 
 def plate_rigidities(board: Soundboard) -> tuple[float, float]:
@@ -442,6 +447,24 @@ def board_modes(board: Soundboard, count: int, layout: dict[int, list[tuple[floa
                            total_mass=float(mass.sum())))
 
 
+def microphones(board: Soundboard, modes: dict, freq: np.ndarray) -> dict:
+    """Far-field pressure (Pa at `microphone_distance`) at each listening direction as a
+    readout of the modal state: with D_k = sum_i phi_k(x_i) exp(-i k_k u.x_i) dA (u: the
+    direction's component in the board's plane, baffled Rayleigh integral),
+    p = -(rho / (2 pi r)) sum_k (omega_k^2 Re(D_k) eta_k + omega_k Im(D_k) eta_k'), and Ariadne's
+    state is eta = sqrt(dt) q, eta' = sqrt(dt) m. Each mode is taken at its own frequency."""
+    points, area = modes["points"], modes["area"]
+    omega = 2.0 * math.pi * freq
+    k = omega / SPEED_OF_SOUND
+    scale = -AIR_DENSITY * math.sqrt(1.0 / SAMPLE_RATE) / (2.0 * math.pi * board.microphone_distance)
+    out = {}
+    for side, (ux, uy) in zip(("left", "right"), board.microphone_directions):
+        phase = np.exp(-1j * np.outer(points[:, 0] * ux + points[:, 1] * uy, k))
+        d = (modes["phi"] * phase).sum(axis=0) * area
+        out[side] = dict(displacement=scale * omega ** 2 * d.real, momentum=scale * omega * d.imag)
+    return out
+
+
 def radiation_sigma(board: Soundboard, modes: dict) -> np.ndarray:
     """Amplitude decay rate of each mode by its own radiation (baffled Rayleigh integral):
     sigma = rho c k^2 / (4 pi) sum_ij phi_i phi_j sinc(k r_ij) dA^2."""
@@ -527,19 +550,17 @@ def piano_anatomy(design: PianoDesign, board: Soundboard, exact_bodies: int = 9,
     sigma_rad = radiation_sigma(board, sub)
     sigma_wood = math.pi * freq * board.loss_factor
     t60 = LN_1000 / sigma_wood
-    volume = phi.T @ np.full(phi.shape[0], modes["area"])
+    mics = microphones(board, sub, freq)
     bodies = []
     for b in range(len(keep) // MODE_COUNT):
         part = slice(b * MODE_COUNT, (b + 1) * MODE_COUNT)
-        sig = sigma_rad[part]
-        direction = np.sign(volume[part]) * np.sqrt(np.maximum(sig, 0.0))
-        norm = float(np.linalg.norm(direction))
         bodies.append(dict(
             id=f"board/{b}",
             frequency_hz=[float(x) for x in freq[part]],
             t60_seconds=[float(x) for x in t60[part]],
-            radiation_direction=[float(x / norm) for x in direction],
-            radiation_fraction=float(4.0 * sig.sum() / SAMPLE_RATE),
+            radiation_rates_per_s=[float(x) for x in sigma_rad[part]],
+            microphones={side: {q: [float(x) for x in mics[side][q][part]] for q in ("displacement", "momentum")}
+                         for side in mics},
             stands_for=int(stride if b >= exact_bodies else 1),
         ))
     pins = [(n, s, xy) for n in range(1, 89) for s, xy in enumerate(layout[n])]
@@ -588,12 +609,13 @@ def piano_anatomy(design: PianoDesign, board: Soundboard, exact_bodies: int = 9,
                   decay_quadratic_s=design.decay_quadratic, band_limit_hz=design.band_limit,
                   air_density_kg_m3=AIR_DENSITY, speed_of_sound_m_s=SPEED_OF_SOUND),
         notes=notes,
-        board=dict(bodies=bodies, room_weight=0.3),
+        board=dict(bodies=bodies, room_weight=0.0, microphone_distance_m=board.microphone_distance,
+                   microphone_directions=[list(d) for d in board.microphone_directions]),
         room=_room(),
     )
     return anatomy, modes, dict(freq=freq, sigma_rad=sigma_rad, sigma_wood=sigma_wood, stride=stride,
                                 exact_top_hz=float(f_all[exact - 1]), sampled_top_hz=float(freq[-1]),
-                                all_modes=int(len(f_all)), volume=volume)
+                                all_modes=int(len(f_all)))
 
 
 def _normalized(v) -> list[float]:
@@ -644,20 +666,23 @@ def receipt_for(design: PianoDesign, board: Soundboard, anatomy: dict, modes: di
             measured=["soundboard E_L, E_R, G_LR, nu_LR, density, thickness, rib spacing, loss factor",
                       "hammer head masses and radii (keys 1, 37, 73)", "C4 felt K and p"],
             law=["tension from f0, L, mu", "partials, B and mode shapes (runtime stiff_wire)", "board modes (finite differences)",
-                 "board radiation (baffled Rayleigh integral)", "string radiation (thin-cylinder dipole, ka << 1)",
+                 "board radiation (baffled Rayleigh integral, diagonal in the modes)",
+                 "far-field pressure at the listening points (Rayleigh integral per mode)",
+                 "string radiation (thin-cylinder dipole, ka << 1)",
                  "bridge edge rate (moving string end against the board's mode shapes)"],
             fit=[],
             design_hypothesis=["Young's modulus of the wire", "string loss law", "unison detuning", "outline trace and string layout",
                                "rib section (glued, composite)", "bridge section and wood", "felt exponent and force across the keyboard", "felt relaxation",
                                "felt width", "letoff and catch", "damper position, length and resistance", "dampers stop at F6",
-                               "every k-th board mode above the exact band", "the room"],
+                               "every k-th board mode above the exact band", "listening points"],
         ),
         limits=[f"board: {len(anatomy['board']['bodies'])} Ariadne bodies, the {extra['all_modes']} lowest plate modes solved, "
                 f"all below {extra['exact_top_hz']:.0f} Hz kept, every {extra['stride']}th above to {extra['sampled_top_hz']:.0f} Hz",
                 "one transverse polarization; no longitudinal waves, no phantom partials",
                 "no tension modulation (linear strings)", "no hammer shank, no action, no key bounce",
                 "no sympathetic strings beyond the notes a score plays", "board flat: no crown, no downbearing",
-                "rim clamped and rigid; case, lid and frame rigid", "radiation baffled, no directivity"],
+                "rim clamped and rigid; case, lid and frame rigid; no lid",
+                "radiation baffled; diagonal in the modes (no cross-radiation)", "no room: the World is heard dry"],
         board=dict(plate_rigidity_across_n_m=d_x, plate_rigidity_along_n_m=d_y, rib_rigidity_n_m2=rib_ei,
                    rib_smeared_rigidity_n_m=d_x + rib_ei / board.rib_spacing,
                    d_over_rho_h_m4_s2=d_y / (board.density * board.thickness),

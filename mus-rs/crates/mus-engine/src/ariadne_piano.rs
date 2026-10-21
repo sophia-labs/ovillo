@@ -22,7 +22,7 @@ use mus_ariadne::{
     ConfigurationSpaceSpec, ConnectionPolicy, ConstitutiveBodyControls, ConstitutiveBodyInstanceSpec,
     ConstitutiveWorldPlan, DamperSpec, DirectCouplingSpec, HammerContactSpec, HammerSpec, MetricSpec,
     ReservoirSpec, SharedSpaceSpec, SpaceBodyControls, SpaceBodyLaws, SpaceBodySpec, SpacePortSpec,
-    StereoBodyTap, StereoListener, StereoListenerSpec, StiffWireSpec, World, WorldConfiguration,
+    StereoListener, StereoListenerSpec, StereoStateTap, StiffWireSpec, World, WorldConfiguration,
     WorldControls, ApertureSpec, MODE_COUNT, SPACE_COURSES, WORLD_PLAN_V3_SCHEMA_VERSION,
 };
 use mus_notation::{expand_pattern_repetitions, parse_token, split_attached_dynamics, tokenize_bar_content};
@@ -68,9 +68,9 @@ const DAMPER_LAND_SECONDS: f64 = 0.012;
 const PEDAL_LAG_SECONDS: f64 = 0.08;
 /// The tuning pin's range (tension ratio).
 const TENSION_RANGE: (f64, f64) = (0.98, 1.02);
-/// World observation is in the world's own units (sqrt(W), see `field.rs::radiate`).
-/// This brings a mezzo-forte piano near the engine's other voices.
-const OBSERVATION_GAIN: f64 = 40.0;
+/// The listener hears pressure (Pa at 1 m from the board). This brings a
+/// mezzo-forte piano near the engine's other voices.
+const OBSERVATION_GAIN: f64 = 0.1;
 const ENERGY_HOP_SECONDS: f64 = 0.01;
 
 pub fn is_piano_anatomy(value: &str) -> bool {
@@ -142,8 +142,22 @@ struct BoardBody {
     id: String,
     frequency_hz: Vec<f64>,
     t60_seconds: Vec<f64>,
-    radiation_direction: Vec<f64>,
-    radiation_fraction: f64,
+    radiation_rates_per_s: Vec<f64>,
+    microphones: Microphones,
+}
+
+/// The far-field pressure at the two listening points as a readout of a board
+/// body's modal state (`mus_analysis.piano_anatomy.microphones`).
+#[derive(Debug, Clone, Deserialize)]
+struct Microphones {
+    left: Readout,
+    right: Readout,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct Readout {
+    displacement: Vec<f64>,
+    momentum: Vec<f64>,
 }
 
 // ---------------------------------------------------------------- the score side
@@ -515,7 +529,13 @@ fn wire_spec(anatomy: &Anatomy, key: &KeyAnatomy, wire: &WireAnatomy) -> StiffWi
     }
 }
 
-fn space_body(anatomy_name: String, map: ConfigurationMapSpec, coordinate: ConfigurationCoordinate, damper: Option<DamperSpec>) -> BodyConstitutionSpec {
+fn space_body(
+    anatomy_name: String,
+    map: ConfigurationMapSpec,
+    coordinate: ConfigurationCoordinate,
+    damper: Option<DamperSpec>,
+    radiation_rates_per_s: Option<[f64; MODE_COUNT]>,
+) -> BodyConstitutionSpec {
     BodyConstitutionSpec::ModalSpace {
         body: SpaceBodySpec {
             anatomy_name,
@@ -524,7 +544,7 @@ fn space_body(anatomy_name: String, map: ConfigurationMapSpec, coordinate: Confi
                 map,
                 connection: ConnectionPolicy::ModalCoordinates,
             },
-            laws: SpaceBodyLaws::Passive { damper },
+            laws: SpaceBodyLaws::Passive { damper, radiation_rates_per_s },
             reservoir: ReservoirSpec { capacity: 1.0e-6 },
         },
     }
@@ -555,14 +575,20 @@ fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, Str
     let mut bodies = Vec::new();
     let mut radiation_fraction = Vec::new();
     let mut taps = Vec::new();
+    let array = |v: &[f64], what: &str| -> Result<[f64; MODE_COUNT], String> {
+        v.try_into().map_err(|_| format!("board {what}: {} values, not {MODE_COUNT}", v.len()))
+    };
     let static_axis = ConfigurationCoordinate { name: "static".into(), lower: 0.0, upper: 1.0, initial: 0.0 };
     let mut board_bodies = Vec::new();
     for board in &anatomy.board.bodies {
-        let direction: [f64; MODE_COUNT] = board.radiation_direction.as_slice().try_into().map_err(|_| "board direction size")?;
+        let rates = array(&board.radiation_rates_per_s, "radiation rates")?;
+        // The board radiates mode by mode (diagonal); the configured direction only
+        // keeps the shared metric type valid and aims the room port, if any.
+        let direction = unit(&rates.map(f64::sqrt));
         let configuration = WorldConfiguration {
             metric: MetricSpec {
-                frequency_hz: board.frequency_hz.as_slice().try_into().map_err(|_| "board frequency size")?,
-                t60_seconds: board.t60_seconds.as_slice().try_into().map_err(|_| "board t60 size")?,
+                frequency_hz: array(&board.frequency_hz, "frequencies")?,
+                t60_seconds: array(&board.t60_seconds, "T60s")?,
             },
             aperture: inert_aperture(),
             radiation_direction: direction,
@@ -575,12 +601,20 @@ fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, Str
                 ConfigurationMapSpec::Multilinear { axes: vec![vec![0.0, 1.0]], anchors: vec![configuration, configuration] },
                 static_axis.clone(),
                 None,
+                Some(rates),
             ),
-            space_port: room_port(&direction.map(f64::abs), anatomy.board.room_weight),
+            space_port: if anatomy.board.room_weight > 0.0 { room_port(&direction, anatomy.board.room_weight) } else { inert_port() },
             pose: BodyPose::default(),
         });
-        radiation_fraction.push(board.radiation_fraction);
-        taps.push(StereoBodyTap { body_id: board.id.clone(), left_projection: 0.5_f64.sqrt(), right_projection: 0.5_f64.sqrt() });
+        radiation_fraction.push(0.0);
+        let mic = &board.microphones;
+        taps.push(StereoStateTap {
+            body_id: board.id.clone(),
+            left_displacement: array(&mic.left.displacement, "microphone")?,
+            left_momentum: array(&mic.left.momentum, "microphone")?,
+            right_displacement: array(&mic.right.displacement, "microphone")?,
+            right_momentum: array(&mic.right.momentum, "microphone")?,
+        });
     }
     let mut edges = Vec::new();
     let mut layout = BTreeMap::new();
@@ -591,7 +625,6 @@ fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, Str
         let key = anatomy.notes.iter().find(|n| n.key == k).ok_or_else(|| format!("no key {k}"))?;
         let mut strings = Vec::new();
         let mut contacts = Vec::new();
-        let pan = 0.25 + 0.5 * (k as f64 - 1.0) / 87.0;
         for (s, wire) in key.wires.iter().enumerate() {
             let spec = wire_spec(anatomy, key, wire);
             let retained = spec.retained_partials(TENSION_RANGE.1);
@@ -628,11 +661,11 @@ fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, Str
                     ConfigurationMapSpec::StiffWire { wire: spec.clone() },
                     tension_axis.clone(),
                     key.damper,
+                    None,
                 ),
                 space_port: inert_port(),
                 pose: BodyPose::default(),
             });
-            taps.push(StereoBodyTap { body_id: id, left_projection: (1.0 - pan).sqrt(), right_projection: pan.sqrt() });
             if s == 0 {
                 receipts.push(KeyReceipt {
                     key: k,
@@ -678,7 +711,10 @@ fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, Str
         direct_couplings: edges,
     };
     plan.validate().map_err(|e| e.to_string())?;
-    let listener = StereoListenerSpec::for_constitutive(&plan, taps, 1.0).map_err(|e| e.to_string())?;
+    // What is heard: the soundboard's far field at the two listening points. The
+    // strings' own (line-dipole) radiation is booked but not heard (it is some
+    // 70 dB below the board's); with no room the World is heard dry.
+    let listener = StereoListenerSpec::for_constitutive(&plan, Vec::new(), taps, 1.0).map_err(|e| e.to_string())?;
     Ok(Composition { plan, listener, radiation_fraction, keys: layout, board_bodies, string_bodies, receipts })
 }
 
@@ -890,8 +926,8 @@ fn play(
         for i in 0..n {
             source_acc[i] += world.body_last_source_work(i).unwrap_or(0.0);
             loss_acc[i] += world.body_last_internal_loss(i).unwrap_or(0.0);
-            let e = world.body_emission(i).unwrap_or(0.0);
-            let radiated = 0.5 * dt * e * e;
+            // Every emitted coordinate e carries dt e^2 / 2 of radiated energy.
+            let radiated: f64 = world.body_radiation(i).map_or(0.0, |es| es.iter().map(|e| 0.5 * dt * e * e).sum());
             radiation_acc[i] += radiated;
             if is_board[i] {
                 board_radiation += radiated;
