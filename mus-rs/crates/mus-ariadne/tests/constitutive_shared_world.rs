@@ -81,7 +81,7 @@ fn port(enabled: bool) -> SpacePortSpec {
     SpacePortSpec {
         body_directions: std::array::from_fn(direction),
         coupling_weights: if enabled {
-            [8.0, 0.0, 0.0, 0.0]
+            std::array::from_fn(|course| if course == 0 { 8.0 } else { 0.0 })
         } else {
             [0.0; SPACE_COURSES]
         },
@@ -115,10 +115,10 @@ fn plan(predictive_port_enabled: bool) -> ConstitutiveWorldPlan {
             },
         ],
         shared_space: SharedSpaceSpec {
-            delays_seconds: [0.000_25, 0.000_5, 0.000_75, 0.001],
+            delays_seconds: std::array::from_fn(|course| 0.000_25 * (course + 1) as f64),
             scattering_direction: [0.5; SPACE_COURSES],
-            radiation_left: [1.0, 0.0, 0.0, 0.0],
-            radiation_right: [0.0, 1.0, 0.0, 0.0],
+            radiation_left: std::array::from_fn(|course| if course == 0 { 1.0 } else { 0.0 }),
+            radiation_right: std::array::from_fn(|course| if course == 1 { 1.0 } else { 0.0 }),
         },
         direct_couplings: Vec::new(),
     }

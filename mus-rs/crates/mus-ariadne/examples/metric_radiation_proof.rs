@@ -1,4 +1,6 @@
-use mus_ariadne::{MetricRadiationAperture, MetricRadiationPlan, METRIC_RADIATION_SCHEMA_VERSION};
+use mus_ariadne::law::radiation::{
+    MetricRadiationAperture, MetricRadiationPlan, METRIC_RADIATION_SCHEMA_VERSION,
+};
 use serde_json::json;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

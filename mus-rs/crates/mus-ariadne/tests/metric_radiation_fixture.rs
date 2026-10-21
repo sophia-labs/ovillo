@@ -1,4 +1,4 @@
-use mus_ariadne::{MetricRadiationAperture, MetricRadiationPlan};
+use mus_ariadne::law::radiation::{MetricRadiationAperture, MetricRadiationPlan};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

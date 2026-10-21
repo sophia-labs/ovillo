@@ -67,7 +67,7 @@ fn body(name: &str) -> LocalMediumBoundarySpec {
 fn main() {
     let template = WorldPlan::string_brass_v1(48_000.0);
     let mut port: SpacePortSpec = template.bodies[0].space_port;
-    port.coupling_weights = [8.0, 0.0, 0.0, 0.0];
+    port.coupling_weights = std::array::from_fn(|course| if course == 0 { 8.0 } else { 0.0 });
     port.body_directions = std::array::from_fn(direction);
     let plan = ConstitutiveWorldPlan {
         schema_version: WORLD_PLAN_V3_SCHEMA_VERSION.to_owned(),

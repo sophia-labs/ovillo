@@ -1,7 +1,11 @@
-//! Reproducible benchmark for the canonical Ariadne sample path.
+//! Reproducible benchmark for the canonical Ariadne sample path: the one-body
+//! world (a one-element `WorldPlan`) heard by the plug-in's stereo listener.
 //! Run: `cargo run -p mus-ariadne --release --example world_bench`
 
-use mus_ariadne::{World, WorldControls, WorldSpec};
+use mus_ariadne::{
+    BodyControls, StereoListener, StereoListenerSpec, World, WorldControls, WorldCostEstimate,
+    WorldLayout, WorldPlan,
+};
 use std::hint::black_box;
 use std::time::Instant;
 
@@ -13,11 +17,15 @@ fn main() {
 }
 
 fn run_case(label: &str, rate: f64, active: bool) {
-    let mut spec = WorldSpec::string_brass_v1();
-    spec.internal_sample_rate_hz = rate;
-    let mut world = World::try_new(spec).expect("valid benchmark world");
+    let plan = WorldPlan::string_brass_v1(rate);
+    let listener_spec = StereoListenerSpec::all_bodies(&plan, 1.0).expect("valid listener");
+    let listener = StereoListener::bind(&listener_spec, &plan).expect("bound listener");
+    let layout = WorldLayout::from_plan(&plan);
+    let cost = WorldCostEstimate::for_plan(&plan);
+    let mut world = World::from_plan(plan).expect("valid benchmark world");
+    let world_controls = WorldControls::default();
     let mut controls = if active {
-        WorldControls {
+        BodyControls {
             active_coupling: 1.0,
             active: mus_ariadne::law::active::ActiveInclusionControls {
                 drive: 1.05,
@@ -35,7 +43,7 @@ fn run_case(label: &str, rate: f64, active: bool) {
             ..Default::default()
         }
     } else {
-        WorldControls::default()
+        BodyControls::default()
     };
 
     let warmup = rate as usize / 4;
@@ -43,15 +51,21 @@ fn run_case(label: &str, rate: f64, active: bool) {
     let mut checksum = 0.0;
     for sample in 0..warmup {
         controls.source_wave = source(sample, rate as usize);
-        let frame = world.process_sample(controls).expect("finite warmup");
-        checksum += frame.left + frame.right;
+        let frame = world
+            .process_sample(&[controls], world_controls)
+            .expect("finite warmup");
+        let heard = listener.observe(&world, &frame).expect("finite listener");
+        checksum += heard.left + heard.right;
     }
 
     let started = Instant::now();
     for sample in 0..frames {
         controls.source_wave = source(sample, rate as usize);
-        let frame = world.process_sample(controls).expect("finite benchmark");
-        checksum += frame.left + frame.right;
+        let frame = world
+            .process_sample(&[controls], world_controls)
+            .expect("finite benchmark");
+        let heard = listener.observe(&world, &frame).expect("finite listener");
+        checksum += heard.left + heard.right;
     }
     let seconds = started.elapsed().as_secs_f64();
     let receipt = world.receipt();
@@ -59,9 +73,9 @@ fn run_case(label: &str, rate: f64, active: bool) {
         "case={label} rate={rate:.0} frames={frames} seconds={seconds:.9} ns_per_sample={:.3} real_time_factor={:.3} delay_cells={} delay_bytes={} structural_ops={} max_local_residual={:.6e} global_residual={:.6e} checksum={:.12e}",
         seconds * 1.0e9 / frames as f64,
         (frames as f64 / rate) / seconds,
-        receipt.runtime_layout.delay_cells,
-        receipt.runtime_layout.delay_heap_bytes,
-        receipt.structural_cost.estimated_scalar_operations,
+        layout.delay_cells,
+        layout.delay_heap_bytes,
+        cost.estimated_scalar_operations,
         receipt.maximum_local_residual,
         receipt.global_closure_residual,
         black_box(checksum),
