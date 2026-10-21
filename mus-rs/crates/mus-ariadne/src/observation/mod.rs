@@ -9,8 +9,8 @@ mod program;
 mod runtime;
 
 pub use listener::{
-    ListenerError, StereoBodyTap, StereoFrame, StereoListener, StereoListenerSpec,
-    StereoStateTap, STEREO_LISTENER_VERSION,
+    ListenerError, StereoBodyTap, StereoFrame, StereoListener, StereoListenerSpec, StereoStateTap,
+    STEREO_LISTENER_VERSION,
 };
 pub use program::{
     ObservationProgramError, ObservationSource, WorldObservationChannel, WorldObservationProgram,

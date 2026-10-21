@@ -57,7 +57,9 @@ impl DamperSpec {
     pub fn point_fractions(&self, speaking_length_m: f64) -> Vec<f64> {
         let start = self.center_fraction - 0.5 * self.length_m / speaking_length_m;
         let step = self.length_m / speaking_length_m / self.points as f64;
-        (0..self.points).map(|j| start + (j as f64 + 0.5) * step).collect()
+        (0..self.points)
+            .map(|j| start + (j as f64 + 0.5) * step)
+            .collect()
     }
 }
 
@@ -88,7 +90,13 @@ impl<const N: usize> FeltDamper<N> {
             rates.push(share * norm2);
         }
         let retain = vec![1.0; rates.len()];
-        Self { directions, rates, retain, dt: sample_rate_hz.recip(), engagement: 0.0 }
+        Self {
+            directions,
+            rates,
+            retain,
+            dt: sample_rate_hz.recip(),
+            engagement: 0.0,
+        }
     }
 
     #[must_use]
@@ -104,7 +112,11 @@ impl<const N: usize> FeltDamper<N> {
 
     /// How fully the felt rests on the wire, clamped into `[0, 1]`.
     pub fn set_engagement(&mut self, engagement: f64) {
-        let engagement = if engagement.is_finite() { engagement.clamp(0.0, 1.0) } else { 0.0 };
+        let engagement = if engagement.is_finite() {
+            engagement.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
         if engagement.to_bits() == self.engagement.to_bits() {
             return;
         }
@@ -121,7 +133,11 @@ impl<const N: usize> FeltDamper<N> {
         }
         let mut loss = 0.0;
         for (direction, retain) in self.directions.iter().zip(&self.retain) {
-            let projection: f64 = direction.iter().zip(momentum.iter()).map(|(u, m)| u * m).sum();
+            let projection: f64 = direction
+                .iter()
+                .zip(momentum.iter())
+                .map(|(u, m)| u * m)
+                .sum();
             let removed = (1.0 - retain) * projection;
             for (m, u) in momentum.iter_mut().zip(direction) {
                 *m -= removed * u;

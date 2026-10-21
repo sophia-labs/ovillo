@@ -106,15 +106,24 @@ fn a_compiled_port_exchanges_bit_for_bit_as_the_spec_port() {
     let mut a: [f64; crate::ir::MODE_COUNT] = std::array::from_fn(|i| 0.3 * (i as f64 * 0.7).sin());
     let mut b = a;
     for step in 0..2_000 {
-        let controls = SharedSpaceControls { coupling: 0.2 + 0.6 * ((step / 500) as f64 / 4.0), ..Default::default() };
+        let controls = SharedSpaceControls {
+            coupling: 0.2 + 0.6 * ((step / 500) as f64 / 4.0),
+            ..Default::default()
+        };
         plain.begin_frame().unwrap();
         compiled.begin_frame().unwrap();
         let x = plain.exchange_port(&mut a, &port, controls).unwrap();
-        let y = compiled.exchange_compiled_port(&mut b, &mut compiled_port, controls).unwrap();
+        let y = compiled
+            .exchange_compiled_port(&mut b, &mut compiled_port, controls)
+            .unwrap();
         assert_eq!(x, y, "step {step}");
         assert_eq!(a, b, "step {step}");
-        let fx = plain.finish_frame(controls, x.signed_into_body, x.metric_residual).unwrap();
-        let fy = compiled.finish_frame(controls, y.signed_into_body, y.metric_residual).unwrap();
+        let fx = plain
+            .finish_frame(controls, x.signed_into_body, x.metric_residual)
+            .unwrap();
+        let fy = compiled
+            .finish_frame(controls, y.signed_into_body, y.metric_residual)
+            .unwrap();
         assert_eq!(fx, fy);
     }
 }

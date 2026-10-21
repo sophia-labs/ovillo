@@ -2,7 +2,9 @@
 //! dampers (`law::hammer`, `law::damper`).
 
 use crate::ir::MODE_COUNT;
-use crate::law::hammer::{apply_force, wire_state, HammerFrame, HammerTotals, WireState, MAX_HAMMER_WIRES};
+use crate::law::hammer::{
+    apply_force, wire_state, HammerFrame, HammerTotals, WireState, MAX_HAMMER_WIRES,
+};
 use crate::plan::{BodyConstitutionSpec, ConstitutiveWorldPlan};
 
 use super::{World, WorldError};
@@ -17,10 +19,15 @@ pub(crate) struct HammerBinding {
 
 /// Resolve every hammer's wires to body indices and strike shapes. The plan
 /// has already checked that each named wire is a stiff-wire body.
-pub(super) fn bind_hammers(plan: &ConstitutiveWorldPlan, world: &World) -> Result<Vec<HammerBinding>, WorldError> {
+pub(super) fn bind_hammers(
+    plan: &ConstitutiveWorldPlan,
+    world: &World,
+) -> Result<Vec<HammerBinding>, WorldError> {
     let mut bindings = Vec::new();
     for (index, body) in plan.bodies.iter().enumerate() {
-        let BodyConstitutionSpec::Hammer { hammer } = &body.constitution else { continue };
+        let BodyConstitutionSpec::Hammer { hammer } = &body.constitution else {
+            continue;
+        };
         let mut wires = Vec::with_capacity(hammer.wires.len());
         for contact in &hammer.wires {
             let wire_index = world
@@ -33,7 +40,10 @@ pub(super) fn bind_hammers(plan: &ConstitutiveWorldPlan, world: &World) -> Resul
                     id: contact.body.clone(),
                     message: "a hammer strikes only stiff-wire bodies".to_owned(),
                 })?;
-            wires.push((wire_index, wire.mode_shape_at(contact.strike_fraction, hammer.contact_width_m, retained)));
+            wires.push((
+                wire_index,
+                wire.mode_shape_at(contact.strike_fraction, hammer.contact_width_m, retained),
+            ));
         }
         bindings.push(HammerBinding { body: index, wires });
     }
@@ -46,7 +56,11 @@ impl World {
             .iter()
             .position(|binding| binding.body == index)
             .ok_or_else(|| WorldError::Body {
-                id: self.body_ids.get(index).cloned().unwrap_or_else(|| format!("index/{index}")),
+                id: self
+                    .body_ids
+                    .get(index)
+                    .cloned()
+                    .unwrap_or_else(|| format!("index/{index}")),
                 message: "body is not a hammer".to_owned(),
             })
     }
@@ -61,8 +75,17 @@ impl World {
         let sqrt_dt = self.sample_rate_hz.recip().sqrt();
         let mut displacement = [0.0; MAX_HAMMER_WIRES];
         for (slot, (wire, shape)) in self.hammers[binding].wires.iter().enumerate() {
-            let field = self.bodies[*wire].space_body().expect("bound to a wire").field();
-            displacement[slot] = sqrt_dt * field.displacement().iter().zip(shape).map(|(q, c)| q * c).sum::<f64>();
+            let field = self.bodies[*wire]
+                .space_body()
+                .expect("bound to a wire")
+                .field();
+            displacement[slot] = sqrt_dt
+                * field
+                    .displacement()
+                    .iter()
+                    .zip(shape)
+                    .map(|(q, c)| q * c)
+                    .sum::<f64>();
         }
         let energy_before = self.total_stored_energy();
         let hammer = self.bodies[index].hammer_mut().expect("bound to a hammer");
@@ -82,20 +105,31 @@ impl World {
         let sqrt_dt = self.sample_rate_hz.recip().sqrt();
         let mut loss = 0.0;
         for binding in &self.hammers {
-            if !self.bodies[binding.body].hammer().is_some_and(|h| h.is_active()) {
+            if !self.bodies[binding.body]
+                .hammer()
+                .is_some_and(|h| h.is_active())
+            {
                 continue;
             }
             let mut states = [WireState::default(); MAX_HAMMER_WIRES];
             for (slot, (wire, shape)) in binding.wires.iter().enumerate() {
-                let field = self.bodies[*wire].space_body().expect("bound to a wire").field();
+                let field = self.bodies[*wire]
+                    .space_body()
+                    .expect("bound to a wire")
+                    .field();
                 states[slot] = wire_state(field, shape, sqrt_dt);
             }
             let mut forces = [0.0; MAX_HAMMER_WIRES];
-            let hammer = self.bodies[binding.body].hammer_mut().expect("bound to a hammer");
+            let hammer = self.bodies[binding.body]
+                .hammer_mut()
+                .expect("bound to a hammer");
             loss += hammer.step(&states[..binding.wires.len()], &mut forces);
             loss += hammer.catch_if_rebounded();
             for (slot, (wire, shape)) in binding.wires.iter().enumerate() {
-                let field = self.bodies[*wire].space_body_mut().expect("bound to a wire").field_mut();
+                let field = self.bodies[*wire]
+                    .space_body_mut()
+                    .expect("bound to a wire")
+                    .field_mut();
                 apply_force(field, shape, forces[slot], sqrt_dt);
             }
         }
@@ -110,12 +144,17 @@ impl World {
             .get(index)
             .cloned()
             .ok_or_else(|| WorldError::UnknownBody(format!("index/{index}")))?;
-        let body = self.bodies[index].space_body_mut().ok_or_else(|| WorldError::Body {
-            id: id.clone(),
-            message: "body has no damper".to_owned(),
-        })?;
+        let body = self.bodies[index]
+            .space_body_mut()
+            .ok_or_else(|| WorldError::Body {
+                id: id.clone(),
+                message: "body has no damper".to_owned(),
+            })?;
         body.set_damper_engagement(engagement)
-            .map_err(|error| WorldError::Body { id, message: error.to_string() })
+            .map_err(|error| WorldError::Body {
+                id,
+                message: error.to_string(),
+            })
     }
 
     /// How fully wire body `index`'s damper rests (`None` without one).

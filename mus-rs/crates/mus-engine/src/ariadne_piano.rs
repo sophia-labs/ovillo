@@ -18,14 +18,17 @@ use std::f64::consts::TAU;
 use std::path::Path;
 
 use mus_ariadne::{
-    BodyConstitutionSpec, BodyControls, BodyPose, ConfigurationCoordinate, ConfigurationMapSpec,
-    ConfigurationSpaceSpec, ConnectionPolicy, ConstitutiveBodyControls, ConstitutiveBodyInstanceSpec,
-    ConstitutiveWorldPlan, DamperSpec, DirectCouplingSpec, HammerContactSpec, HammerSpec, MetricSpec,
-    ReservoirSpec, SharedSpaceSpec, SpaceBodyControls, SpaceBodyLaws, SpaceBodySpec, SpacePortSpec,
-    StereoListener, StereoListenerSpec, StereoStateTap, StiffWireSpec, World, WorldConfiguration,
-    WorldControls, ApertureSpec, MODE_COUNT, SPACE_COURSES, WORLD_PLAN_V3_SCHEMA_VERSION,
+    ApertureSpec, BodyConstitutionSpec, BodyControls, BodyPose, ConfigurationCoordinate,
+    ConfigurationMapSpec, ConfigurationSpaceSpec, ConnectionPolicy, ConstitutiveBodyControls,
+    ConstitutiveBodyInstanceSpec, ConstitutiveWorldPlan, DamperSpec, DirectCouplingSpec,
+    HammerContactSpec, HammerSpec, MetricSpec, ReservoirSpec, SharedSpaceSpec, SpaceBodyControls,
+    SpaceBodyLaws, SpaceBodySpec, SpacePortSpec, StereoListener, StereoListenerSpec,
+    StereoStateTap, StiffWireSpec, World, WorldConfiguration, WorldControls, MODE_COUNT,
+    SPACE_COURSES, WORLD_PLAN_V3_SCHEMA_VERSION,
 };
-use mus_notation::{expand_pattern_repetitions, parse_token, split_attached_dynamics, tokenize_bar_content};
+use mus_notation::{
+    expand_pattern_repetitions, parse_token, split_attached_dynamics, tokenize_bar_content,
+};
 use mus_text::ProposalInstrument;
 use serde::{Deserialize, Serialize};
 
@@ -294,21 +297,35 @@ pub fn collect(
 ) -> Result<(Vec<PianoInstrument>, Vec<String>), RenderError> {
     let mut found = Vec::new();
     let mut owned = Vec::new();
-    for base in instruments.iter().filter(|i| i.params.get("anatomy").is_some_and(|a| is_piano_anatomy(a))) {
+    for base in instruments
+        .iter()
+        .filter(|i| i.params.get("anatomy").is_some_and(|a| is_piano_anatomy(a)))
+    {
         let invalid = |msg: String| RenderError::Invalid(format!("{}: {msg}", base.abbrev));
         let anatomy_name = base.params["anatomy"].trim().to_owned();
         let text = if anatomy_name == "piano-v1" {
             PIANO_V1.to_owned()
         } else {
-            std::fs::read_to_string(score_dir.join(&anatomy_name)).map_err(|e| invalid(format!("anatomy {anatomy_name}: {e}")))?
+            std::fs::read_to_string(score_dir.join(&anatomy_name))
+                .map_err(|e| invalid(format!("anatomy {anatomy_name}: {e}")))?
         };
-        let anatomy: Anatomy =
-            serde_json::from_str(&text).map_err(|e| invalid(format!("anatomy {anatomy_name}: {e}")))?;
+        let anatomy: Anatomy = serde_json::from_str(&text)
+            .map_err(|e| invalid(format!("anatomy {anatomy_name}: {e}")))?;
         if anatomy.schema != "mus.ariadne.piano-anatomy.v1" {
-            return Err(invalid(format!("anatomy {anatomy_name} has schema {}", anatomy.schema)));
+            return Err(invalid(format!(
+                "anatomy {anatomy_name} has schema {}",
+                anatomy.schema
+            )));
         }
-        let number = |key: &str, default: f64, params: &BTreeMap<String, String>| -> Result<f64, RenderError> {
-            params.get(key).map_or(Ok(default), |v| v.trim().parse::<f64>().map_err(|_| invalid(format!("{key}={v}"))))
+        let number = |key: &str,
+                      default: f64,
+                      params: &BTreeMap<String, String>|
+         -> Result<f64, RenderError> {
+            params.get(key).map_or(Ok(default), |v| {
+                v.trim()
+                    .parse::<f64>()
+                    .map_err(|_| invalid(format!("{key}={v}")))
+            })
         };
         let prefix = format!("{}.", base.abbrev);
         let mut staves = Vec::new();
@@ -316,10 +333,21 @@ pub fn collect(
         for voice in instruments.iter().filter(|i| i.abbrev.starts_with(&prefix)) {
             match voice.params.get("pedal").map(|p| p.trim()) {
                 Some("sustain") => {
-                    pedal = Some(Pedal { abbrev: voice.abbrev.clone(), lag_s: number("lag", PEDAL_LAG_SECONDS, &voice.params)? })
+                    pedal = Some(Pedal {
+                        abbrev: voice.abbrev.clone(),
+                        lag_s: number("lag", PEDAL_LAG_SECONDS, &voice.params)?,
+                    })
                 }
-                Some(other) => return Err(invalid(format!("{}: pedal={other} (only pedal=sustain)", voice.abbrev))),
-                None => staves.push(Staff { abbrev: voice.abbrev.clone(), gain_db: number("gain", 0.0, &voice.params)? }),
+                Some(other) => {
+                    return Err(invalid(format!(
+                        "{}: pedal={other} (only pedal=sustain)",
+                        voice.abbrev
+                    )))
+                }
+                None => staves.push(Staff {
+                    abbrev: voice.abbrev.clone(),
+                    gain_db: number("gain", 0.0, &voice.params)?,
+                }),
             }
         }
         owned.push(base.abbrev.clone());
@@ -355,7 +383,10 @@ fn warp(q: f64, unit: f64, ratio: f64) -> f64 {
 }
 
 fn velocity_of(dynamic: &str) -> f64 {
-    VELOCITY.iter().find(|(name, _)| *name == dynamic).map_or(1.6, |(_, v)| *v)
+    VELOCITY
+        .iter()
+        .find(|(name, _)| *name == dynamic)
+        .map_or(1.6, |(_, v)| *v)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -375,12 +406,18 @@ fn performance(
         let mut cur_dyn = "mf".to_string();
         let mut count = 0_u32;
         for b in 1..=n_bars {
-            let Some(content) = bar_content.get(&b).and_then(|m| m.get(abbr)) else { continue };
+            let Some(content) = bar_content.get(&b).and_then(|m| m.get(abbr)) else {
+                continue;
+            };
             if content.trim().is_empty() || content.trim() == "-" {
                 continue;
             }
-            let Some(timing) = bar_map.bars.get(&b) else { continue };
-            let tokens = split_attached_dynamics(&expand_pattern_repetitions(&tokenize_bar_content(content)));
+            let Some(timing) = bar_map.bars.get(&b) else {
+                continue;
+            };
+            let tokens = split_attached_dynamics(&expand_pattern_repetitions(
+                &tokenize_bar_content(content),
+            ));
             let mut q = 0.0_f64;
             for tk in &tokens {
                 let Some(ev) = parse_token(tk) else {
@@ -406,7 +443,9 @@ fn performance(
                 let end = timing.start_s + warp(q + ev.ql, swing_unit_ql, swing_r) * timing.spq;
                 q += ev.ql;
                 if !ev.tab.is_empty() {
-                    stats.bad.push(format!("b{b} {abbr}: {tk} (a piano takes pitches, not @string:fret)"));
+                    stats.bad.push(format!(
+                        "b{b} {abbr}: {tk} (a piano takes pitches, not @string:fret)"
+                    ));
                     continue;
                 }
                 let shorten = ev
@@ -414,13 +453,27 @@ fn performance(
                     .iter()
                     .filter_map(|f| ART_SHORTEN.iter().find(|(n, _)| *n == f).map(|(_, r)| *r))
                     .fold(1.0_f64, f64::min);
-                let art: f64 = ev.flags.iter().filter_map(|f| ART_GAIN.iter().find(|(n, _)| *n == f).map(|(_, d)| *d)).sum();
-                let gain = ev.params.get("gain").and_then(|g| g.parse::<f64>().ok()).unwrap_or(0.0);
-                let velocity = velocity_of(&cur_dyn) * 2f64.powf((art + gain + staff.gain_db) / ARTICULATION_DB_PER_DOUBLING);
+                let art: f64 = ev
+                    .flags
+                    .iter()
+                    .filter_map(|f| ART_GAIN.iter().find(|(n, _)| *n == f).map(|(_, d)| *d))
+                    .sum();
+                let gain = ev
+                    .params
+                    .get("gain")
+                    .and_then(|g| g.parse::<f64>().ok())
+                    .unwrap_or(0.0);
+                let velocity = velocity_of(&cur_dyn)
+                    * 2f64.powf((art + gain + staff.gain_db) / ARTICULATION_DB_PER_DOUBLING);
                 for midi in &ev.midis {
                     let key = (midi.round() as i64) - 20;
-                    if (midi - midi.round()).abs() > 1e-9 || key < 1 || !keys.contains(&(key as usize)) {
-                        stats.bad.push(format!("b{b} {abbr}: {tk} (midi {midi} is not a key of this piano)"));
+                    if (midi - midi.round()).abs() > 1e-9
+                        || key < 1
+                        || !keys.contains(&(key as usize))
+                    {
+                        stats.bad.push(format!(
+                            "b{b} {abbr}: {tk} (midi {midi} is not a key of this piano)"
+                        ));
                         continue;
                     }
                     presses.push(KeyPress {
@@ -442,8 +495,12 @@ fn performance(
         let abbr = p.abbrev.as_str();
         let mut count = 0_u32;
         for b in 1..=n_bars {
-            let Some(content) = bar_content.get(&b).and_then(|m| m.get(abbr)) else { continue };
-            let Some(timing) = bar_map.bars.get(&b) else { continue };
+            let Some(content) = bar_content.get(&b).and_then(|m| m.get(abbr)) else {
+                continue;
+            };
+            let Some(timing) = bar_map.bars.get(&b) else {
+                continue;
+            };
             let mut q = 0.0_f64;
             for tk in &tokenize_bar_content(content) {
                 let Some(ev) = parse_token(tk) else {
@@ -463,7 +520,9 @@ fn performance(
                         count += 1;
                     }
                     "rest" | "dynamic" | "hairpin" => {}
-                    _ => stats.bad.push(format!("b{b} {abbr}: {tk} (the pedal takes X<duration> and rests)")),
+                    _ => stats.bad.push(format!(
+                        "b{b} {abbr}: {tk} (the pedal takes X<duration> and rests)"
+                    )),
                 }
             }
         }
@@ -492,11 +551,16 @@ fn inert_port() -> SpacePortSpec {
 fn room_port(direction: &[f64; MODE_COUNT], weight: f64) -> SpacePortSpec {
     let body_directions = std::array::from_fn(|course| {
         let sign = if course % 2 == 0 { 1.0 } else { -1.0 };
-        let rolled: [f64; MODE_COUNT] =
-            std::array::from_fn(|i| sign * direction[(i + MODE_COUNT - course % MODE_COUNT) % MODE_COUNT] + 0.15 * direction[i]);
+        let rolled: [f64; MODE_COUNT] = std::array::from_fn(|i| {
+            sign * direction[(i + MODE_COUNT - course % MODE_COUNT) % MODE_COUNT]
+                + 0.15 * direction[i]
+        });
         unit(&rolled)
     });
-    SpacePortSpec { body_directions, coupling_weights: std::array::from_fn(|c| weight * 0.9_f64.powi(c as i32)) }
+    SpacePortSpec {
+        body_directions,
+        coupling_weights: std::array::from_fn(|c| weight * 0.9_f64.powi(c as i32)),
+    }
 }
 
 fn inert_aperture() -> ApertureSpec {
@@ -544,7 +608,10 @@ fn space_body(
                 map,
                 connection: ConnectionPolicy::ModalCoordinates,
             },
-            laws: SpaceBodyLaws::Passive { damper, radiation_rates_per_s },
+            laws: SpaceBodyLaws::Passive {
+                damper,
+                radiation_rates_per_s,
+            },
             reservoir: ReservoirSpec { capacity: 1.0e-6 },
         },
     }
@@ -576,9 +643,15 @@ fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, Str
     let mut radiation_fraction = Vec::new();
     let mut taps = Vec::new();
     let array = |v: &[f64], what: &str| -> Result<[f64; MODE_COUNT], String> {
-        v.try_into().map_err(|_| format!("board {what}: {} values, not {MODE_COUNT}", v.len()))
+        v.try_into()
+            .map_err(|_| format!("board {what}: {} values, not {MODE_COUNT}", v.len()))
     };
-    let static_axis = ConfigurationCoordinate { name: "static".into(), lower: 0.0, upper: 1.0, initial: 0.0 };
+    let static_axis = ConfigurationCoordinate {
+        name: "static".into(),
+        lower: 0.0,
+        upper: 1.0,
+        initial: 0.0,
+    };
     let mut board_bodies = Vec::new();
     for board in &anatomy.board.bodies {
         let rates = array(&board.radiation_rates_per_s, "radiation rates")?;
@@ -598,12 +671,19 @@ fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, Str
             id: board.id.clone(),
             constitution: space_body(
                 format!("piano-soundboard-{}", board.id.replace('/', "-")),
-                ConfigurationMapSpec::Multilinear { axes: vec![vec![0.0, 1.0]], anchors: vec![configuration, configuration] },
+                ConfigurationMapSpec::Multilinear {
+                    axes: vec![vec![0.0, 1.0]],
+                    anchors: vec![configuration, configuration],
+                },
                 static_axis.clone(),
                 None,
                 Some(rates),
             ),
-            space_port: if anatomy.board.room_weight > 0.0 { room_port(&direction, anatomy.board.room_weight) } else { inert_port() },
+            space_port: if anatomy.board.room_weight > 0.0 {
+                room_port(&direction, anatomy.board.room_weight)
+            } else {
+                inert_port()
+            },
             pose: BodyPose::default(),
         });
         radiation_fraction.push(0.0);
@@ -620,9 +700,18 @@ fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, Str
     let mut layout = BTreeMap::new();
     let mut string_bodies = Vec::new();
     let mut receipts = Vec::new();
-    let tension_axis = ConfigurationCoordinate { name: "tension_ratio".into(), lower: TENSION_RANGE.0, upper: TENSION_RANGE.1, initial: 1.0 };
+    let tension_axis = ConfigurationCoordinate {
+        name: "tension_ratio".into(),
+        lower: TENSION_RANGE.0,
+        upper: TENSION_RANGE.1,
+        initial: 1.0,
+    };
     for &k in keys {
-        let key = anatomy.notes.iter().find(|n| n.key == k).ok_or_else(|| format!("no key {k}"))?;
+        let key = anatomy
+            .notes
+            .iter()
+            .find(|n| n.key == k)
+            .ok_or_else(|| format!("no key {k}"))?;
         let mut strings = Vec::new();
         let mut contacts = Vec::new();
         for (s, wire) in key.wires.iter().enumerate() {
@@ -630,13 +719,22 @@ fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, Str
             let retained = spec.retained_partials(TENSION_RANGE.1);
             let id = format!("string/{}/{s}", key.name);
             // The wire's own line-dipole radiation, as a projection fraction.
-            let sigma = spec.dipole_radiation_sigma(1.0, retained, key.outer_diameter_m, anatomy.wire.air_density_kg_m3, anatomy.wire.speed_of_sound_m_s);
+            let sigma = spec.dipole_radiation_sigma(
+                1.0,
+                retained,
+                key.outer_diameter_m,
+                anatomy.wire.air_density_kg_m3,
+                anatomy.wire.speed_of_sound_m_s,
+            );
             radiation_fraction.push(4.0 * sigma.iter().sum::<f64>() / fs);
             // The bridge: partial n against board mode m exchange at omega_n G_n Phi_m(pin).
             let weights = spec.moving_end_weights(1.0, retained);
             let weight_norm = weights.iter().map(|v| v * v).sum::<f64>().sqrt();
             for (b, shape) in wire.board_shapes.iter().enumerate() {
-                let shape: [f64; MODE_COUNT] = shape.as_slice().try_into().map_err(|_| "board shape size")?;
+                let shape: [f64; MODE_COUNT] = shape
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| "board shape size")?;
                 let shape_norm = shape.iter().map(|v| v * v).sum::<f64>().sqrt();
                 if shape_norm < 1.0e-9 {
                     continue;
@@ -653,7 +751,10 @@ fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, Str
             }
             strings.push(bodies.len());
             string_bodies.push(bodies.len());
-            contacts.push(HammerContactSpec { body: id.clone(), strike_fraction: key.strike_fraction });
+            contacts.push(HammerContactSpec {
+                body: id.clone(),
+                strike_fraction: key.strike_fraction,
+            });
             bodies.push(ConstitutiveBodyInstanceSpec {
                 id: id.clone(),
                 constitution: space_body(
@@ -700,7 +801,14 @@ fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, Str
             pose: BodyPose::default(),
         });
         radiation_fraction.push(0.0);
-        layout.insert(k, KeyBodies { strings, hammer, damped: key.damper.is_some() });
+        layout.insert(
+            k,
+            KeyBodies {
+                strings,
+                hammer,
+                damped: key.damper.is_some(),
+            },
+        );
     }
     let plan = ConstitutiveWorldPlan {
         schema_version: WORLD_PLAN_V3_SCHEMA_VERSION.to_owned(),
@@ -714,8 +822,17 @@ fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, Str
     // What is heard: the soundboard's far field at the two listening points. The
     // strings' own (line-dipole) radiation is booked but not heard (it is some
     // 70 dB below the board's); with no room the World is heard dry.
-    let listener = StereoListenerSpec::for_constitutive(&plan, Vec::new(), taps, 1.0).map_err(|e| e.to_string())?;
-    Ok(Composition { plan, listener, radiation_fraction, keys: layout, board_bodies, string_bodies, receipts })
+    let listener = StereoListenerSpec::for_constitutive(&plan, Vec::new(), taps, 1.0)
+        .map_err(|e| e.to_string())?;
+    Ok(Composition {
+        plan,
+        listener,
+        radiation_fraction,
+        keys: layout,
+        board_bodies,
+        string_bodies,
+        receipts,
+    })
 }
 
 /// A key's damper: resting (1) unless the key or the pedal holds it up.
@@ -751,24 +868,42 @@ fn play(
     stats: &mut RenderStats,
 ) -> Result<Option<PianoPerformance>, RenderError> {
     let world_err = |e: String| RenderError::Invalid(format!("{} world: {e}", inst.abbrev));
-    let (presses, pedal) = performance(inst, bar_map, bar_content, n_bars, swing_unit_ql, swing_r, stats);
+    let (presses, pedal) = performance(
+        inst,
+        bar_map,
+        bar_content,
+        n_bars,
+        swing_unit_ql,
+        swing_r,
+        stats,
+    );
     if presses.is_empty() {
         return Ok(None);
     }
     if (inst.anatomy.sample_rate_hz - sample_rate).abs() > 1e-6 {
-        return Err(world_err(format!("anatomy runs at {} Hz, the engine at {sample_rate} Hz", inst.anatomy.sample_rate_hz)));
+        return Err(world_err(format!(
+            "anatomy runs at {} Hz, the engine at {sample_rate} Hz",
+            inst.anatomy.sample_rate_hz
+        )));
     }
     let used: BTreeSet<usize> = presses.iter().map(|p| p.key).collect();
     let composition = compose(&inst.anatomy, &used).map_err(world_err)?;
-    let listener = StereoListener::bind_constitutive(&composition.listener, &composition.plan).map_err(|e| world_err(e.to_string()))?;
-    let mut world = World::from_constitutive_plan(composition.plan.clone()).map_err(|e| world_err(e.to_string()))?;
-    let bodies: Vec<String> = (0..world.body_count()).map(|i| world.body_id(i).unwrap_or("?").to_owned()).collect();
+    let listener = StereoListener::bind_constitutive(&composition.listener, &composition.plan)
+        .map_err(|e| world_err(e.to_string()))?;
+    let mut world = World::from_constitutive_plan(composition.plan.clone())
+        .map_err(|e| world_err(e.to_string()))?;
+    let bodies: Vec<String> = (0..world.body_count())
+        .map(|i| world.body_id(i).unwrap_or("?").to_owned())
+        .collect();
     let controls: Vec<ConstitutiveBodyControls> = composition
         .radiation_fraction
         .iter()
         .map(|&fraction| {
             ConstitutiveBodyControls::ModalSpace(SpaceBodyControls {
-                body: BodyControls { radiation_fraction: fraction, ..BodyControls::default() },
+                body: BodyControls {
+                    radiation_fraction: fraction,
+                    ..BodyControls::default()
+                },
                 ..SpaceBodyControls::default()
             })
         })
@@ -777,19 +912,37 @@ fn play(
     // ---- the performance, as per-sample actions on the world
     let dt = 1.0 / sample_rate;
     let at = |seconds: f64| (seconds.max(0.0) * sample_rate).round() as usize;
-    let key_of = |k: usize| inst.anatomy.notes.iter().find(|n| n.key == k).expect("composed key");
+    let key_of = |k: usize| {
+        inst.anatomy
+            .notes
+            .iter()
+            .find(|n| n.key == k)
+            .expect("composed key")
+    };
     // The hammer leaves the escapement letoff / v before it meets the strings.
     let mut launches: Vec<(usize, usize, f64, usize)> = presses
         .iter()
         .enumerate()
-        .map(|(i, p)| (at(p.onset_s - key_of(p.key).hammer.letoff_m / p.velocity), p.key, p.velocity, i))
+        .map(|(i, p)| {
+            (
+                at(p.onset_s - key_of(p.key).hammer.letoff_m / p.velocity),
+                p.key,
+                p.velocity,
+                i,
+            )
+        })
         .collect();
     launches.sort_by_key(|l| (l.0, l.1));
-    let first = launches[0].0.min(at(presses[0].onset_s - DAMPER_LEAD_SECONDS));
+    let first = launches[0]
+        .0
+        .min(at(presses[0].onset_s - DAMPER_LEAD_SECONDS));
     let start = first.saturating_sub(at(0.005));
     // Each damper is held up while its key is down (from DAMPER_LEAD_SECONDS before the
     // hammer arrives to the release) or the pedal is: merged sample spans per key.
-    let pedal_spans: Vec<(usize, usize)> = pedal.iter().map(|span| (at(span[0]), at(span[1]))).collect();
+    let pedal_spans: Vec<(usize, usize)> = pedal
+        .iter()
+        .map(|span| (at(span[0]), at(span[1])))
+        .collect();
     let mut dampers: BTreeMap<usize, DamperState> = composition
         .keys
         .iter()
@@ -809,7 +962,12 @@ fn play(
                     _ => merged.push((a, b)),
                 }
             }
-            let mut state = DamperState { engagement: 1.0, falling_since: None, spans: merged, cursor: 0 };
+            let mut state = DamperState {
+                engagement: 1.0,
+                falling_since: None,
+                spans: merged,
+                cursor: 0,
+            };
             // A damper rests at the start unless its key (or the pedal) is already down.
             if state.lifted(start) {
                 state.engagement = 0.0;
@@ -819,7 +977,9 @@ fn play(
         .collect();
     for (key, state) in &dampers {
         for &body in &composition.keys[key].strings {
-            world.set_body_damper(body, state.engagement).map_err(|e| world_err(e.to_string()))?;
+            world
+                .set_body_damper(body, state.engagement)
+                .map_err(|e| world_err(e.to_string()))?;
         }
     }
     let hop = (ENERGY_HOP_SECONDS * sample_rate) as usize;
@@ -829,25 +989,37 @@ fn play(
             let id = world.coupling_id(e).unwrap_or("");
             let rest = id.strip_prefix("bridge/")?;
             let (prefix, _) = rest.rsplit_once('/')?;
-            composition.string_bodies.iter().position(|&b| bodies[b] == format!("string/{prefix}"))
+            composition
+                .string_bodies
+                .iter()
+                .position(|&b| bodies[b] == format!("string/{prefix}"))
         })
         .collect();
     let mut trace = PianoEnergyTrace {
         instrument: inst.abbrev.clone(),
         hop_seconds: ENERGY_HOP_SECONDS,
         start_seconds: start as f64 / sample_rate,
-        channels: bodies.iter().cloned().chain(std::iter::once("room".to_owned())).collect(),
+        channels: bodies
+            .iter()
+            .cloned()
+            .chain(std::iter::once("room".to_owned()))
+            .collect(),
         frames: Vec::new(),
         source_frames: Vec::new(),
         radiation_frames: Vec::new(),
         loss_frames: Vec::new(),
-        strings: composition.string_bodies.iter().map(|&b| bodies[b].clone()).collect(),
+        strings: composition
+            .string_bodies
+            .iter()
+            .map(|&b| bodies[b].clone())
+            .collect(),
         bridge_frames: Vec::new(),
         strikes: Vec::new(),
         pedal: pedal.clone(),
     };
     let n = bodies.len();
-    let (mut source_acc, mut radiation_acc, mut loss_acc) = (vec![0.0_f64; n], vec![0.0_f64; n], vec![0.0_f64; n]);
+    let (mut source_acc, mut radiation_acc, mut loss_acc) =
+        (vec![0.0_f64; n], vec![0.0_f64; n], vec![0.0_f64; n]);
     let mut bridge_acc = vec![0.0_f64; composition.string_bodies.len()];
     let mut left = vec![0.0_f32; n_total.saturating_sub(start)];
     let mut right = vec![0.0_f32; left.len()];
@@ -855,14 +1027,20 @@ fn play(
     let mut pending_records: Vec<(usize, usize, StrikeRecord)> = Vec::new(); // (hammer body, strikes count at launch, record)
     let mut damper_falls = 0_usize;
     let (mut board_radiation, mut string_radiation) = (0.0_f64, 0.0_f64);
-    let is_board: Vec<bool> = (0..n).map(|i| composition.board_bodies.contains(&i)).collect();
-    let is_string: Vec<bool> = (0..n).map(|i| composition.string_bodies.contains(&i)).collect();
+    let is_board: Vec<bool> = (0..n)
+        .map(|i| composition.board_bodies.contains(&i))
+        .collect();
+    let is_string: Vec<bool> = (0..n)
+        .map(|i| composition.string_bodies.contains(&i))
+        .collect();
     let mut refused = 0_usize;
     for k in start..n_total {
         while next_launch < launches.len() && launches[next_launch].0 <= k {
             let (_, key, velocity, press) = launches[next_launch];
             let hammer = composition.keys[&key].hammer;
-            let accepted = world.strike_hammer(hammer, velocity).map_err(|e| world_err(e.to_string()))?;
+            let accepted = world
+                .strike_hammer(hammer, velocity)
+                .map_err(|e| world_err(e.to_string()))?;
             let p = &presses[press];
             let record = StrikeRecord {
                 seconds: p.onset_s,
@@ -915,19 +1093,27 @@ fn play(
             }
             if state.engagement.to_bits() != before.to_bits() {
                 for &body in &composition.keys[key].strings {
-                    world.set_body_damper(body, state.engagement).map_err(|e| world_err(e.to_string()))?;
+                    world
+                        .set_body_damper(body, state.engagement)
+                        .map_err(|e| world_err(e.to_string()))?;
                 }
             }
         }
-        let frame = world.process_constitutive_sample(&controls, WorldControls::default()).map_err(|e| world_err(e.to_string()))?;
-        let heard = listener.observe(&world, &frame).map_err(|e| world_err(e.to_string()))?;
+        let frame = world
+            .process_constitutive_sample(&controls, WorldControls::default())
+            .map_err(|e| world_err(e.to_string()))?;
+        let heard = listener
+            .observe(&world, &frame)
+            .map_err(|e| world_err(e.to_string()))?;
         left[k - start] = heard.left as f32;
         right[k - start] = heard.right as f32;
         for i in 0..n {
             source_acc[i] += world.body_last_source_work(i).unwrap_or(0.0);
             loss_acc[i] += world.body_last_internal_loss(i).unwrap_or(0.0);
             // Every emitted coordinate e carries dt e^2 / 2 of radiated energy.
-            let radiated: f64 = world.body_radiation(i).map_or(0.0, |es| es.iter().map(|e| 0.5 * dt * e * e).sum());
+            let radiated: f64 = world
+                .body_radiation(i)
+                .map_or(0.0, |es| es.iter().map(|e| 0.5 * dt * e * e).sum());
             radiation_acc[i] += radiated;
             if is_board[i] {
                 board_radiation += radiated;
@@ -941,10 +1127,14 @@ fn play(
             }
         }
         if (k - start) % hop == 0 {
-            let mut row: Vec<f32> = (0..n).map(|i| world.body_material_energy(i).unwrap_or(0.0) as f32).collect();
+            let mut row: Vec<f32> = (0..n)
+                .map(|i| world.body_material_energy(i).unwrap_or(0.0) as f32)
+                .collect();
             row.push(world.space_stored_energy() as f32);
             trace.frames.push(row);
-            let take = |acc: &mut Vec<f64>| -> Vec<f32> { acc.iter_mut().map(|v| std::mem::take(v) as f32).collect() };
+            let take = |acc: &mut Vec<f64>| -> Vec<f32> {
+                acc.iter_mut().map(|v| std::mem::take(v) as f32).collect()
+            };
             trace.source_frames.push(take(&mut source_acc));
             trace.radiation_frames.push(take(&mut radiation_acc));
             trace.loss_frames.push(take(&mut loss_acc));
@@ -959,8 +1149,15 @@ fn play(
         }
         trace.strikes.push(record);
     }
-    trace.strikes.sort_by(|a, b| a.seconds.total_cmp(&b.seconds).then(a.midi.cmp(&b.midi)));
-    let contacts: Vec<f64> = trace.strikes.iter().filter(|s| !s.refused && s.contact_ms > 0.0).map(|s| s.contact_ms).collect();
+    trace
+        .strikes
+        .sort_by(|a, b| a.seconds.total_cmp(&b.seconds).then(a.midi.cmp(&b.midi)));
+    let contacts: Vec<f64> = trace
+        .strikes
+        .iter()
+        .filter(|s| !s.refused && s.contact_ms > 0.0)
+        .map(|s| s.contact_ms)
+        .collect();
     let r = world.receipt();
     let receipt = PianoWorldReceipt {
         instrument: inst.abbrev.clone(),
@@ -1011,12 +1208,34 @@ pub fn render(
 ) -> Result<(), RenderError> {
     let n_total = buffers.dry[0].len();
     for inst in instruments {
-        let Some(performance) = play(inst, bar_map, bar_content, n_bars, swing_unit_ql, swing_r, sample_rate, n_total, stats)? else {
+        let Some(performance) = play(
+            inst,
+            bar_map,
+            bar_content,
+            n_bars,
+            swing_unit_ql,
+            swing_r,
+            sample_rate,
+            n_total,
+            stats,
+        )?
+        else {
             continue;
         };
-        buffers.mix_one(performance.start, &performance.left, &performance.right, performance.send, performance.gain, None);
-        stats.ariadne_worlds.push(crate::AriadneReceipt::Piano(performance.receipt));
-        stats.ariadne_energy.push(crate::AriadneTrace::Piano(performance.trace));
+        buffers.mix_one(
+            performance.start,
+            &performance.left,
+            &performance.right,
+            performance.send,
+            performance.gain,
+            None,
+        );
+        stats
+            .ariadne_worlds
+            .push(crate::AriadneReceipt::Piano(performance.receipt));
+        stats
+            .ariadne_energy
+            .push(crate::AriadneTrace::Piano(performance.trace));
     }
     Ok(())
 }
@@ -1030,19 +1249,39 @@ pub fn play_score(source: &str, score_dir: &Path) -> Result<Vec<PianoPerformance
     let headers = &proposal.headers;
     let (swing_unit_ql, swing_r) = crate::layout::parse_swing(headers.get("swing"));
     let (pianos, _) = collect(&proposal.instruments, score_dir)?;
-    let abbrevs: Vec<String> = proposal.instruments.iter().map(|i| i.abbrev.clone()).collect();
+    let abbrevs: Vec<String> = proposal
+        .instruments
+        .iter()
+        .map(|i| i.abbrev.clone())
+        .collect();
     let raw = crate::rawbars::scan(source, &abbrevs);
     let n_bars = headers
         .get("bars")
         .and_then(|v| v.trim().parse::<u32>().ok())
         .filter(|&n| n != 0)
         .unwrap_or(raw.max_bar);
-    let bar_map = crate::layout::build_bar_map(headers.get("tempo"), headers.get("time"), &raw.inline_tempo, &raw.inline_time, n_bars)?;
+    let bar_map = crate::layout::build_bar_map(
+        headers.get("tempo"),
+        headers.get("time"),
+        &raw.inline_tempo,
+        &raw.inline_time,
+        n_bars,
+    )?;
     let n_total = (bar_map.total_s * mus_dsp::SR_F64) as usize;
     let mut stats = RenderStats::default();
     let mut out = Vec::new();
     for inst in &pianos {
-        if let Some(p) = play(inst, &bar_map, &raw.bar_content, n_bars, swing_unit_ql, swing_r, mus_dsp::SR_F64, n_total, &mut stats)? {
+        if let Some(p) = play(
+            inst,
+            &bar_map,
+            &raw.bar_content,
+            n_bars,
+            swing_unit_ql,
+            swing_r,
+            mus_dsp::SR_F64,
+            n_total,
+            &mut stats,
+        )? {
             out.push(p);
         }
     }

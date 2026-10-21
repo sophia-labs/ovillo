@@ -7,7 +7,6 @@
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
 
-
 use crate::body::Body;
 use crate::constitutive_body::WorldBody;
 use crate::ir::MODE_COUNT;

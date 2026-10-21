@@ -227,7 +227,9 @@ impl StiffWireSpec {
     /// tension, so this count holds over the whole box.
     #[must_use]
     pub fn retained_partials(&self, t_max: f64) -> usize {
-        (1..=MODE_COUNT).take_while(|&n| self.partial_hz(n, t_max) < self.band_limit_hz).count()
+        (1..=MODE_COUNT)
+            .take_while(|&n| self.partial_hz(n, t_max) < self.band_limit_hz)
+            .count()
     }
 
     /// The configuration at `point` with `retained` partials: the law, evaluated.
@@ -242,17 +244,25 @@ impl StiffWireSpec {
             let f = self.partial_hz(index.min(kept - 1) + 1, t);
             let omega = std::f64::consts::TAU * f;
             frequency_hz[index] = f;
-            t60_seconds[index] = LN_1000 / (self.decay_constant_per_s + self.decay_quadratic_s * omega * omega);
+            t60_seconds[index] =
+                LN_1000 / (self.decay_constant_per_s + self.decay_quadratic_s * omega * omega);
             if index < kept {
                 radiation_direction[index] = omega.powf(1.5);
             }
         }
-        let norm = radiation_direction.iter().map(|v| v * v).sum::<f64>().sqrt();
+        let norm = radiation_direction
+            .iter()
+            .map(|v| v * v)
+            .sum::<f64>()
+            .sqrt();
         for value in &mut radiation_direction {
             *value /= norm;
         }
         WorldConfiguration {
-            metric: MetricSpec { frequency_hz, t60_seconds },
+            metric: MetricSpec {
+                frequency_hz,
+                t60_seconds,
+            },
             aperture: wire_aperture(),
             radiation_direction,
         }
@@ -330,7 +340,11 @@ impl StiffWireSpec {
         })
     }
 
-    fn validate(&self, coordinates: &[ConfigurationCoordinate], sample_rate_hz: f64) -> Result<(), PlanError> {
+    fn validate(
+        &self,
+        coordinates: &[ConfigurationCoordinate],
+        sample_rate_hz: f64,
+    ) -> Result<(), PlanError> {
         let dims = coordinates.len();
         let positive = [
             self.speaking_length_m,
@@ -367,9 +381,14 @@ impl StiffWireSpec {
         for t in [coordinates[self.tension_coordinate].lower, t_max] {
             let mut point: Vec<f64> = coordinates.iter().map(|c| c.initial).collect();
             point[self.tension_coordinate] = t;
-            self.configuration_at(&point, retained).validate(sample_rate_hz).map_err(|error| {
-                PlanError::new("invalid-stiff-wire-band", format!("at tension ratio {t}: {error}"))
-            })?;
+            self.configuration_at(&point, retained)
+                .validate(sample_rate_hz)
+                .map_err(|error| {
+                    PlanError::new(
+                        "invalid-stiff-wire-band",
+                        format!("at tension ratio {t}: {error}"),
+                    )
+                })?;
         }
         Ok(())
     }

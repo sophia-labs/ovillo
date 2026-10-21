@@ -7,12 +7,13 @@
 //! Real runtime, no mocks: every test builds `mus_ariadne::World`s from plans.
 
 use mus_ariadne::{
-    ApertureSpec, BodyConstitutionSpec, BodyControls, BodyPose, ConfigurationCoordinate, ConfigurationMapSpec,
-    ConfigurationSpaceSpec, ConnectionPolicy, ConstitutiveBodyControls, ConstitutiveBodyInstanceSpec,
-    ConstitutiveWorldPlan, DamperSpec, DirectCouplingSpec, HammerContactSpec, HammerSpec, MetricSpec,
-    ReservoirSpec, SpaceBodyControls, SpaceBodyLaws, SpaceBodySpec, SpacePortSpec, StereoListener,
-    StereoListenerSpec, StereoStateTap, StiffWireSpec, World, WorldConfiguration, WorldControls, WorldPlan,
-    MODE_COUNT, SPACE_COURSES, WORLD_PLAN_V3_SCHEMA_VERSION,
+    ApertureSpec, BodyConstitutionSpec, BodyControls, BodyPose, ConfigurationCoordinate,
+    ConfigurationMapSpec, ConfigurationSpaceSpec, ConnectionPolicy, ConstitutiveBodyControls,
+    ConstitutiveBodyInstanceSpec, ConstitutiveWorldPlan, DamperSpec, DirectCouplingSpec,
+    HammerContactSpec, HammerSpec, MetricSpec, ReservoirSpec, SpaceBodyControls, SpaceBodyLaws,
+    SpaceBodySpec, SpacePortSpec, StereoListener, StereoListenerSpec, StereoStateTap,
+    StiffWireSpec, World, WorldConfiguration, WorldControls, WorldPlan, MODE_COUNT, SPACE_COURSES,
+    WORLD_PLAN_V3_SCHEMA_VERSION,
 };
 
 const SAMPLE_RATE: f64 = 48_000.0;
@@ -43,18 +44,30 @@ fn inert_port() -> SpacePortSpec {
     }
 }
 
-fn wire_body(id: &str, wire: StiffWireSpec, damper: Option<DamperSpec>) -> ConstitutiveBodyInstanceSpec {
+fn wire_body(
+    id: &str,
+    wire: StiffWireSpec,
+    damper: Option<DamperSpec>,
+) -> ConstitutiveBodyInstanceSpec {
     ConstitutiveBodyInstanceSpec {
         id: id.into(),
         constitution: BodyConstitutionSpec::ModalSpace {
             body: SpaceBodySpec {
                 anatomy_name: "test-wire".into(),
                 configuration_space: ConfigurationSpaceSpec {
-                    coordinates: vec![ConfigurationCoordinate { name: "tension_ratio".into(), lower: 0.98, upper: 1.02, initial: 1.0 }],
+                    coordinates: vec![ConfigurationCoordinate {
+                        name: "tension_ratio".into(),
+                        lower: 0.98,
+                        upper: 1.02,
+                        initial: 1.0,
+                    }],
                     map: ConfigurationMapSpec::StiffWire { wire },
                     connection: ConnectionPolicy::ModalCoordinates,
                 },
-                laws: SpaceBodyLaws::Passive { damper, radiation_rates_per_s: None },
+                laws: SpaceBodyLaws::Passive {
+                    damper,
+                    radiation_rates_per_s: None,
+                },
                 reservoir: ReservoirSpec { capacity: 1.0e-6 },
             },
         },
@@ -79,7 +92,10 @@ fn hammer_body(wires: &[&str], strike_fraction: f64) -> ConstitutiveBodyInstance
                 catch_m: 8.0e-3,
                 wires: wires
                     .iter()
-                    .map(|body| HammerContactSpec { body: (*body).into(), strike_fraction })
+                    .map(|body| HammerContactSpec {
+                        body: (*body).into(),
+                        strike_fraction,
+                    })
                     .collect(),
             },
         },
@@ -89,7 +105,12 @@ fn hammer_body(wires: &[&str], strike_fraction: f64) -> ConstitutiveBodyInstance
 }
 
 fn damper() -> DamperSpec {
-    DamperSpec { center_fraction: 0.16, length_m: 0.015, resistance_kg_s: 0.3, points: 4 }
+    DamperSpec {
+        center_fraction: 0.16,
+        length_m: 0.015,
+        resistance_kg_s: 0.3,
+        points: 4,
+    }
 }
 
 /// A C4 unison of `strings` wires (tuned 0, +0.6, -0.6 cents) and its hammer.
@@ -98,7 +119,11 @@ fn unison_plan(strings: usize, with_damper: bool) -> ConstitutiveWorldPlan {
     let mut bodies: Vec<ConstitutiveBodyInstanceSpec> = (0..strings)
         .map(|i| {
             let scale = 2f64.powf(2.0 * cents[i] / 1200.0);
-            wire_body(&format!("wire/{i}"), c4_wire(scale), with_damper.then(damper))
+            wire_body(
+                &format!("wire/{i}"),
+                c4_wire(scale),
+                with_damper.then(damper),
+            )
         })
         .collect();
     let ids: Vec<String> = (0..strings).map(|i| format!("wire/{i}")).collect();
@@ -118,7 +143,10 @@ fn controls(world: &World) -> Vec<ConstitutiveBodyControls> {
     (0..world.body_count())
         .map(|_| {
             ConstitutiveBodyControls::ModalSpace(SpaceBodyControls {
-                body: BodyControls { radiation_fraction: 0.0, ..Default::default() },
+                body: BodyControls {
+                    radiation_fraction: 0.0,
+                    ..Default::default()
+                },
                 ..Default::default()
             })
         })
@@ -151,26 +179,36 @@ fn stiff_wire_partials_follow_from_material_and_geometry() {
     let world = World::from_constitutive_plan(unison_plan(1, false)).unwrap();
     let body = world.space_body(0).unwrap();
     let (spec, retained) = body.wire().unwrap();
-    assert_eq!(retained, MODE_COUNT, "all 24 C4 partials lie below 21.6 kHz");
+    assert_eq!(
+        retained, MODE_COUNT,
+        "all 24 C4 partials lie below 21.6 kHz"
+    );
     for (k, f) in body.frequencies_hz().iter().enumerate() {
         let n = k as f64 + 1.0;
         let law = n * f0 * (1.0 + b * n * n).sqrt();
         assert!((f / law - 1.0).abs() < 1e-13, "partial {n}: {f} vs {law}");
     }
     // Mass-normalized pinned shapes: sum_x mu psi_j psi_k dx = delta_jk.
-    let shapes: Vec<[f64; MODE_COUNT]> =
-        (0..4_000).map(|i| spec.mode_shape_at((i as f64 + 0.5) / 4_000.0, 0.0, retained)).collect();
+    let shapes: Vec<[f64; MODE_COUNT]> = (0..4_000)
+        .map(|i| spec.mode_shape_at((i as f64 + 0.5) / 4_000.0, 0.0, retained))
+        .collect();
     let dx = spec.speaking_length_m / 4_000.0;
     for j in [0, 5, 23] {
         for k in [0, 5, 23] {
-            let gram: f64 = shapes.iter().map(|s| s[j] * s[k]).sum::<f64>() * spec.linear_density_kg_m * dx;
+            let gram: f64 =
+                shapes.iter().map(|s| s[j] * s[k]).sum::<f64>() * spec.linear_density_kg_m * dx;
             let want = if j == k { 1.0 } else { 0.0 };
             assert!((gram - want).abs() < 1e-9, "<{j},{k}> = {gram}");
         }
     }
     // A wire hardly radiates: its own (line-dipole) rate is far below its loss.
     let dipole = spec.dipole_radiation_sigma(1.0, retained, spec.core_diameter_m, 1.204, 343.0);
-    assert!(dipole[0] < 1e-5 && dipole[23] < 0.05 && dipole[23] > dipole[22], "{:e} {:e}", dipole[0], dipole[23]);
+    assert!(
+        dipole[0] < 1e-5 && dipole[23] < 0.05 && dipole[23] > dipole[22],
+        "{:e} {:e}",
+        dipole[0],
+        dipole[23]
+    );
     // C7 (Engelbrecht et al. n = 76: L = 90 mm, d = 0.875 mm): only 7
     // partials lie below 21.6 kHz; the other slots carry nothing.
     let c7 = StiffWireSpec {
@@ -198,7 +236,9 @@ fn a_hammer_blow_closes_the_ledger_and_the_backcheck_catches_it() {
         if sample == 10 {
             assert!(world.strike_hammer(hammer, 3.0).unwrap());
         }
-        world.process_constitutive_sample(&controls, WorldControls::default()).unwrap();
+        world
+            .process_constitutive_sample(&controls, WorldControls::default())
+            .unwrap();
         scale = scale.max(world.total_stored_energy());
         contact_force_peak = contact_force_peak.max(world.hammer_frame(hammer).unwrap().force_n);
     }
@@ -218,15 +258,30 @@ fn a_hammer_blow_closes_the_ledger_and_the_backcheck_catches_it() {
         receipt.cumulative_closure_residual,
         receipt.maximum_frame_residual
     );
-    assert_eq!(receipt.source_work, kinetic, "the throw is the only source work");
-    assert!(receipt.maximum_frame_residual < 1e-15 * scale.max(1.0) + 1e-16, "every frame closes to roundoff");
+    assert_eq!(
+        receipt.source_work, kinetic,
+        "the throw is the only source work"
+    );
+    assert!(
+        receipt.maximum_frame_residual < 1e-15 * scale.max(1.0) + 1e-16,
+        "every frame closes to roundoff"
+    );
     assert!(receipt.cumulative_closure_residual.abs() < 1e-13);
-    assert!(totals.felt_loss > 0.0 && totals.felt_loss < 0.5 * kinetic, "the felt's relaxation is a modest loss");
-    assert!(!world.hammer_active(hammer).unwrap(), "after the rebound the backcheck holds the hammer");
+    assert!(
+        totals.felt_loss > 0.0 && totals.felt_loss < 0.5 * kinetic,
+        "the felt's relaxation is a modest loss"
+    );
+    assert!(
+        !world.hammer_active(hammer).unwrap(),
+        "after the rebound the backcheck holds the hammer"
+    );
     assert!(totals.catch_loss > 0.0);
     let contact_ms = totals.last_contact_samples as f64 / SAMPLE_RATE * 1e3;
     assert!((0.5..5.0).contains(&contact_ms), "contact {contact_ms} ms");
-    assert!(wires > 0.2 * kinetic, "a good part of the throw is left in the wires");
+    assert!(
+        wires > 0.2 * kinetic,
+        "a good part of the throw is left in the wires"
+    );
 }
 
 #[test]
@@ -238,17 +293,30 @@ fn a_harder_blow_touches_for_less_time_and_leaves_a_brighter_wire() {
         let hammer = world.body_index("hammer").unwrap();
         world.strike_hammer(hammer, velocity).unwrap();
         for _ in 0..1_200 {
-            world.process_constitutive_sample(&controls, WorldControls::default()).unwrap();
+            world
+                .process_constitutive_sample(&controls, WorldControls::default())
+                .unwrap();
         }
         let totals = world.hammer_totals(hammer).unwrap();
-        rows.push((velocity, totals.last_contact_samples, modal_centroid(&world, 0), totals.last_peak_force_n));
+        rows.push((
+            velocity,
+            totals.last_contact_samples,
+            modal_centroid(&world, 0),
+            totals.last_peak_force_n,
+        ));
         assert!(world.receipt().maximum_frame_residual < 1e-15);
     }
     for (v, samples, centroid, force) in &rows {
         println!("C4 single wire, {v} m/s: contact {:.3} ms, wire centroid {centroid:.0} Hz, peak {force:.1} N", *samples as f64 / SAMPLE_RATE * 1e3);
     }
-    assert!(rows.windows(2).all(|w| w[1].1 < w[0].1), "contact shortens with velocity");
-    assert!(rows.windows(2).all(|w| w[1].2 > w[0].2), "the wire's energy moves up the partials");
+    assert!(
+        rows.windows(2).all(|w| w[1].1 < w[0].1),
+        "contact shortens with velocity"
+    );
+    assert!(
+        rows.windows(2).all(|w| w[1].2 > w[0].2),
+        "the wire's energy moves up the partials"
+    );
 }
 
 #[test]
@@ -263,7 +331,9 @@ fn a_resting_damper_stops_a_ringing_wire_and_books_its_loss() {
             if rest && sample == 4_800 {
                 world.set_body_damper(0, 1.0).unwrap();
             }
-            world.process_constitutive_sample(&controls, WorldControls::default()).unwrap();
+            world
+                .process_constitutive_sample(&controls, WorldControls::default())
+                .unwrap();
             if sample == 4_799 {
                 energies.push(world.body_material_energy(0).unwrap());
             }
@@ -288,7 +358,9 @@ fn a_hammer_refuses_a_second_throw_while_its_felt_presses() {
     assert!(world.strike_hammer(hammer, 2.0).unwrap());
     let mut refused = false;
     for _ in 0..2_000 {
-        world.process_constitutive_sample(&controls, WorldControls::default()).unwrap();
+        world
+            .process_constitutive_sample(&controls, WorldControls::default())
+            .unwrap();
         if world.hammer_in_contact(hammer).unwrap() && !refused {
             assert!(!world.strike_hammer(hammer, 2.0).unwrap());
             refused = true;
@@ -299,7 +371,9 @@ fn a_hammer_refuses_a_second_throw_while_its_felt_presses() {
     // takes its kinetic energy first, and the books still close.
     assert!(world.strike_hammer(hammer, 1.0).unwrap());
     for _ in 0..2_000 {
-        world.process_constitutive_sample(&controls, WorldControls::default()).unwrap();
+        world
+            .process_constitutive_sample(&controls, WorldControls::default())
+            .unwrap();
     }
     let totals = world.hammer_totals(hammer).unwrap();
     assert_eq!((totals.strikes, totals.refused_strikes), (2, 1));
@@ -311,13 +385,25 @@ fn a_hammer_refuses_a_second_throw_while_its_felt_presses() {
 /// closes, and a state-tap listener reads it without loading the world.
 #[test]
 fn a_modally_radiating_support_books_its_radiation_and_is_heard_without_loading() {
-    let frequency_hz: [f64; MODE_COUNT] = std::array::from_fn(|k| 200.0 * (15.0_f64).powf(k as f64 / 23.0));
+    let frequency_hz: [f64; MODE_COUNT] =
+        std::array::from_fn(|k| 200.0 * (15.0_f64).powf(k as f64 / 23.0));
     let configuration = WorldConfiguration {
-        metric: MetricSpec { frequency_hz, t60_seconds: frequency_hz.map(|f| 2.2 / (0.02 * f)) },
+        metric: MetricSpec {
+            frequency_hz,
+            t60_seconds: frequency_hz.map(|f| 2.2 / (0.02 * f)),
+        },
         aperture: ApertureSpec {
-            natural_frequency_hz: 500.0, quartic_stiffness: 0.0, asymmetry: 0.0, equilibrium_displacement: 0.0,
-            opening_bias: 0.0, damping_per_second: 50.0, source_to_aperture_rate_hz: 0.0, source_to_field_rate_hz: 0.0,
-            sweep_rate_hz: 0.0, active_rate_per_second: 0.0, active_target_momentum: 0.25,
+            natural_frequency_hz: 500.0,
+            quartic_stiffness: 0.0,
+            asymmetry: 0.0,
+            equilibrium_displacement: 0.0,
+            opening_bias: 0.0,
+            damping_per_second: 50.0,
+            source_to_aperture_rate_hz: 0.0,
+            source_to_field_rate_hz: 0.0,
+            sweep_rate_hz: 0.0,
+            active_rate_per_second: 0.0,
+            active_target_momentum: 0.25,
         },
         radiation_direction: [1.0 / (MODE_COUNT as f64).sqrt(); MODE_COUNT],
     };
@@ -328,11 +414,22 @@ fn a_modally_radiating_support_books_its_radiation_and_is_heard_without_loading(
             body: SpaceBodySpec {
                 anatomy_name: "test-support".into(),
                 configuration_space: ConfigurationSpaceSpec {
-                    coordinates: vec![ConfigurationCoordinate { name: "static".into(), lower: 0.0, upper: 1.0, initial: 0.0 }],
-                    map: ConfigurationMapSpec::Multilinear { axes: vec![vec![0.0, 1.0]], anchors: vec![configuration, configuration] },
+                    coordinates: vec![ConfigurationCoordinate {
+                        name: "static".into(),
+                        lower: 0.0,
+                        upper: 1.0,
+                        initial: 0.0,
+                    }],
+                    map: ConfigurationMapSpec::Multilinear {
+                        axes: vec![vec![0.0, 1.0]],
+                        anchors: vec![configuration, configuration],
+                    },
                     connection: ConnectionPolicy::ModalCoordinates,
                 },
-                laws: SpaceBodyLaws::Passive { damper: None, radiation_rates_per_s: Some([30.0; MODE_COUNT]) },
+                laws: SpaceBodyLaws::Passive {
+                    damper: None,
+                    radiation_rates_per_s: Some([30.0; MODE_COUNT]),
+                },
                 reservoir: ReservoirSpec { capacity: 1.0e-6 },
             },
         },
@@ -363,21 +460,41 @@ fn a_modally_radiating_support_books_its_radiation_and_is_heard_without_loading(
     };
     let spec = StereoListenerSpec::for_constitutive(&plan, Vec::new(), vec![tap], 1.0).unwrap();
     let listener = StereoListener::bind_constitutive(&spec, &plan).unwrap();
-    let (mut heard, mut quiet) = (World::from_constitutive_plan(plan.clone()).unwrap(), World::from_constitutive_plan(plan).unwrap());
+    let (mut heard, mut quiet) = (
+        World::from_constitutive_plan(plan.clone()).unwrap(),
+        World::from_constitutive_plan(plan).unwrap(),
+    );
     let controls = controls(&heard);
     let hammer = heard.body_index("hammer").unwrap();
     heard.strike_hammer(hammer, 2.0).unwrap();
     quiet.strike_hammer(hammer, 2.0).unwrap();
     let (mut booked, mut loudest) = (0.0, 0.0_f64);
     for _ in 0..9_600 {
-        let frame = heard.process_constitutive_sample(&controls, WorldControls::default()).unwrap();
-        quiet.process_constitutive_sample(&controls, WorldControls::default()).unwrap();
+        let frame = heard
+            .process_constitutive_sample(&controls, WorldControls::default())
+            .unwrap();
+        quiet
+            .process_constitutive_sample(&controls, WorldControls::default())
+            .unwrap();
         loudest = loudest.max(listener.observe(&heard, &frame).unwrap().left.abs());
-        booked += heard.body_radiation(support).unwrap().iter().map(|e| 0.5 / SAMPLE_RATE * e * e).sum::<f64>();
+        booked += heard
+            .body_radiation(support)
+            .unwrap()
+            .iter()
+            .map(|e| 0.5 / SAMPLE_RATE * e * e)
+            .sum::<f64>();
     }
-    assert_eq!(heard.body_state(support), quiet.body_state(support), "listening does not load the world");
+    assert_eq!(
+        heard.body_state(support),
+        quiet.body_state(support),
+        "listening does not load the world"
+    );
     let receipt = heard.receipt();
     assert!(loudest > 0.0 && booked > 1e-6 * receipt.source_work);
-    assert!((receipt.radiation - booked).abs() < 1e-12 * receipt.radiation.max(1e-30) + 1e-21, "{} vs {booked}", receipt.radiation);
+    assert!(
+        (receipt.radiation - booked).abs() < 1e-12 * receipt.radiation.max(1e-30) + 1e-21,
+        "{} vs {booked}",
+        receipt.radiation
+    );
     assert!(receipt.maximum_frame_residual < 1e-15);
 }

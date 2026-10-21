@@ -67,11 +67,19 @@ impl CompiledSpacePort {
     pub(crate) fn compile(port: &SpacePortSpec) -> Result<Self, SharedSpaceError> {
         let mut directions = [[0.0; MODE_COUNT]; SPACE_COURSES];
         for course in 0..SPACE_COURSES {
-            directions[course] = normalized(port.body_directions[course])
-                .map_err(|_| SharedSpaceError::InvalidDirection { name: "body port", index: course })?;
+            directions[course] = normalized(port.body_directions[course]).map_err(|_| {
+                SharedSpaceError::InvalidDirection {
+                    name: "body port",
+                    index: course,
+                }
+            })?;
         }
         // NaN bits never equal a computed angle's: the first exchange computes every rotation.
-        Ok(Self { directions, weights: port.coupling_weights, rotations: [(f64::NAN.to_bits(), 0.0, 1.0); SPACE_COURSES] })
+        Ok(Self {
+            directions,
+            weights: port.coupling_weights,
+            rotations: [(f64::NAN.to_bits(), 0.0, 1.0); SPACE_COURSES],
+        })
     }
 }
 
@@ -261,8 +269,7 @@ impl SharedSpace {
         for course in 0..SPACE_COURSES {
             let direction = &port.directions[course];
             let before = dot(body_momentum, direction);
-            let angle = TAU
-                * (2.0 + 190.0 * controls.coupling * controls.coupling)
+            let angle = TAU * (2.0 + 190.0 * controls.coupling * controls.coupling)
                 / self.sample_rate_hz
                 * finite(port.weights[course]);
             let rotation = &mut port.rotations[course];
@@ -272,7 +279,10 @@ impl SharedSpace {
             }
             let (_, sin_angle, cos_angle) = *rotation;
             let head = self.heads[course];
-            let (after, head_after) = (cos_angle * before - sin_angle * head, sin_angle * before + cos_angle * head);
+            let (after, head_after) = (
+                cos_angle * before - sin_angle * head,
+                sin_angle * before + cos_angle * head,
+            );
             add_projection(body_momentum, direction, after - before);
             self.heads[course] = head_after;
             signed_into_body += 0.5 * self.dt * (after * after - before * before);

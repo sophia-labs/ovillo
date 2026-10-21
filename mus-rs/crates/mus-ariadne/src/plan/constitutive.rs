@@ -87,13 +87,17 @@ pub enum BodyConstitutionSpec {
     /// A body with an N-dimensional configuration space
     /// (`SPECS/ariadne/ND-CONFIGURATION.md`). Additive: the two variants above
     /// serialize exactly as before.
-    ModalSpace { body: super::SpaceBodySpec },
+    ModalSpace {
+        body: super::SpaceBodySpec,
+    },
     /// A felt hammer: a mass with one coordinate whose felt contact with the
     /// wires it names is a stateful coupling law (`law::hammer`). It has no
     /// modal field: it takes no couplings and no shared-space port, and is
     /// thrown by `World::strike_hammer`. Additive: the variants above
     /// serialize exactly as before.
-    Hammer { hammer: HammerSpec },
+    Hammer {
+        hammer: HammerSpec,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -300,7 +304,10 @@ impl ConstitutiveWorldPlan {
                     if body.space_port.coupling_weights.iter().any(|w| *w != 0.0) {
                         return Err(PlanError::new(
                             "hammer-space-port",
-                            format!("hammer {:?} has no field to exchange with the shared space", body.id),
+                            format!(
+                                "hammer {:?} has no field to exchange with the shared space",
+                                body.id
+                            ),
                         ));
                     }
                 }
@@ -347,9 +354,9 @@ impl ConstitutiveWorldPlan {
     }
 
     fn is_hammer(&self, id: &str) -> bool {
-        self.bodies
-            .iter()
-            .any(|body| body.id == id && matches!(body.constitution, BodyConstitutionSpec::Hammer { .. }))
+        self.bodies.iter().any(|body| {
+            body.id == id && matches!(body.constitution, BodyConstitutionSpec::Hammer { .. })
+        })
     }
 
     /// Every hammer strikes distinct stiff-wire bodies of this plan, inside
@@ -357,19 +364,30 @@ impl ConstitutiveWorldPlan {
     fn validate_hammers(&self) -> Result<(), PlanError> {
         let mut struck = BTreeSet::new();
         for body in &self.bodies {
-            let BodyConstitutionSpec::Hammer { hammer } = &body.constitution else { continue };
+            let BodyConstitutionSpec::Hammer { hammer } = &body.constitution else {
+                continue;
+            };
             for contact in &hammer.wires {
-                let wire = self.bodies.iter().find(|b| b.id == contact.body).and_then(|b| match &b.constitution {
-                    BodyConstitutionSpec::ModalSpace { body } => match &body.configuration_space.map {
-                        ConfigurationMapSpec::StiffWire { wire } => Some(wire),
+                let wire = self
+                    .bodies
+                    .iter()
+                    .find(|b| b.id == contact.body)
+                    .and_then(|b| match &b.constitution {
+                        BodyConstitutionSpec::ModalSpace { body } => {
+                            match &body.configuration_space.map {
+                                ConfigurationMapSpec::StiffWire { wire } => Some(wire),
+                                _ => None,
+                            }
+                        }
                         _ => None,
-                    },
-                    _ => None,
-                });
+                    });
                 let Some(wire) = wire else {
                     return Err(PlanError::new(
                         "invalid-hammer-wire",
-                        format!("hammer {:?} strikes {:?}, which is not a stiff-wire body", body.id, contact.body),
+                        format!(
+                            "hammer {:?} strikes {:?}, which is not a stiff-wire body",
+                            body.id, contact.body
+                        ),
                     ));
                 };
                 if !struck.insert(contact.body.as_str()) {
@@ -378,10 +396,14 @@ impl ConstitutiveWorldPlan {
                         format!("wire {:?} is struck twice", contact.body),
                     ));
                 }
-                if hammer.contact_width_m >= contact.strike_fraction * wire.speaking_length_m * 2.0 {
+                if hammer.contact_width_m >= contact.strike_fraction * wire.speaking_length_m * 2.0
+                {
                     return Err(PlanError::new(
                         "invalid-hammer-contact",
-                        format!("hammer {:?}'s felt is wider than twice its strike distance on {:?}", body.id, contact.body),
+                        format!(
+                            "hammer {:?}'s felt is wider than twice its strike distance on {:?}",
+                            body.id, contact.body
+                        ),
                     ));
                 }
             }

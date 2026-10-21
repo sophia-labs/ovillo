@@ -270,7 +270,8 @@ fn render_inner(
     // with their dot-voices as hands (SPEC-TAB.md) or, for a piano, as staves
     // and pedal (SPEC-ARIADNE-PIANO.md); everything else is a voice.
     let (tab_instruments, tab_owned) = ariadne_tab::collect(&proposal.instruments, score_dir)?;
-    let (piano_instruments, piano_owned) = ariadne_piano::collect(&proposal.instruments, score_dir)?;
+    let (piano_instruments, piano_owned) =
+        ariadne_piano::collect(&proposal.instruments, score_dir)?;
     let voice_instruments: Vec<_> = proposal
         .instruments
         .iter()

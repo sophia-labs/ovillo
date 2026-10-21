@@ -135,7 +135,12 @@ impl StereoListenerSpec {
             if !body_ids.contains(&tap.body_id.as_str()) {
                 return Err(ListenerError::UnknownBody(tap.body_id.clone()));
             }
-            let all = tap.left_displacement.iter().chain(&tap.left_momentum).chain(&tap.right_displacement).chain(&tap.right_momentum);
+            let all = tap
+                .left_displacement
+                .iter()
+                .chain(&tap.left_momentum)
+                .chain(&tap.right_displacement)
+                .chain(&tap.right_momentum);
             if all.clone().any(|v| !v.is_finite()) {
                 return Err(ListenerError::NonFiniteProjection);
             }
@@ -192,7 +197,10 @@ impl StereoListener {
     }
 
     /// Bind to a typed (plan-v3) world.
-    pub fn bind_constitutive(spec: &StereoListenerSpec, plan: &ConstitutiveWorldPlan) -> Result<Self, ListenerError> {
+    pub fn bind_constitutive(
+        spec: &StereoListenerSpec,
+        plan: &ConstitutiveWorldPlan,
+    ) -> Result<Self, ListenerError> {
         spec.validate_constitutive(plan)?;
         let ids: Vec<&str> = plan.bodies.iter().map(|body| body.id.as_str()).collect();
         Self::bind_parts(spec, &ids)
@@ -222,7 +230,10 @@ impl StereoListener {
                     .iter()
                     .position(|id| *id == tap.body_id)
                     .ok_or_else(|| ListenerError::UnknownBody(tap.body_id.clone()))?;
-                Ok(BoundStateTap { body, tap: tap.clone() })
+                Ok(BoundStateTap {
+                    body,
+                    tap: tap.clone(),
+                })
             })
             .collect::<Result<Vec<_>, ListenerError>>()?;
         Ok(Self {
@@ -260,7 +271,9 @@ impl StereoListener {
             right += tap.right * emission;
         }
         for bound in &self.state_taps {
-            let state = world.body_state(bound.body).ok_or(ListenerError::BoundIndex)?;
+            let state = world
+                .body_state(bound.body)
+                .ok_or(ListenerError::BoundIndex)?;
             let tap = &bound.tap;
             for k in 0..MODE_COUNT {
                 let (q, m) = (state.displacement[k], state.momentum[k]);

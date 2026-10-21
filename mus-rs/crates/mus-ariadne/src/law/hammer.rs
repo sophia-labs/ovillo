@@ -86,7 +86,12 @@ pub struct HammerSpec {
 
 impl HammerSpec {
     pub(crate) fn validate(&self) -> Result<(), &'static str> {
-        let positive = [self.mass_kg, self.felt_stiffness, self.letoff_m, self.catch_m];
+        let positive = [
+            self.mass_kg,
+            self.felt_stiffness,
+            self.letoff_m,
+            self.catch_m,
+        ];
         if positive.iter().any(|v| !v.is_finite() || *v <= 0.0)
             || !self.felt_exponent.is_finite()
             || !(1.0..=5.0).contains(&self.felt_exponent)
@@ -96,10 +101,11 @@ impl HammerSpec {
             || self.contact_width_m < 0.0
             || self.wires.is_empty()
             || self.wires.len() > MAX_HAMMER_WIRES
-            || self
-                .wires
-                .iter()
-                .any(|w| !w.strike_fraction.is_finite() || w.strike_fraction <= 0.0 || w.strike_fraction >= 0.5)
+            || self.wires.iter().any(|w| {
+                !w.strike_fraction.is_finite()
+                    || w.strike_fraction <= 0.0
+                    || w.strike_fraction >= 0.5
+            })
         {
             return Err("hammer needs positive mass, stiffness, letoff and catch, 1 <= p <= 5, \
                         non-negative relaxation and width, and 1..=4 wires struck inside their near half");
@@ -224,7 +230,10 @@ impl FeltHammer {
         if !self.active {
             return 0.0;
         }
-        let felt: f64 = self.compression[..self.wires].iter().map(|d| self.potential(*d)).sum();
+        let felt: f64 = self.compression[..self.wires]
+            .iter()
+            .map(|d| self.potential(*d))
+            .sum();
         0.5 * self.spec.mass_kg * self.v * self.v + felt
     }
 
@@ -238,7 +247,10 @@ impl FeltHammer {
             return None;
         }
         let caught = self.park();
-        let nearest = displacement[..self.wires].iter().copied().fold(f64::INFINITY, f64::min);
+        let nearest = displacement[..self.wires]
+            .iter()
+            .copied()
+            .fold(f64::INFINITY, f64::min);
         self.y = nearest - self.spec.letoff_m;
         self.v = velocity;
         for i in 0..self.wires {
@@ -279,7 +291,11 @@ impl FeltHammer {
             (self.potential(d1) - self.potential(d0)) / gap
         } else {
             let mid = 0.5 * (d0 + d1);
-            if mid > 0.0 { k * mid.powf(p) } else { 0.0 }
+            if mid > 0.0 {
+                k * mid.powf(p)
+            } else {
+                0.0
+            }
         };
         let phi = |d: f64| if d > 0.0 { d.powf(p) } else { 0.0 };
         let relaxation = k * self.spec.felt_relaxation_s * (phi(d1) - phi(d0)) / self.dt;
@@ -289,7 +305,11 @@ impl FeltHammer {
     /// One sample. `wires[i]` describes wire `i` now; returns the force on
     /// each wire (N, held over the sample) and the felt's loss (J). The
     /// caller applies each force to its wire with [`apply_force`].
-    pub(crate) fn step(&mut self, wires: &[WireState], forces: &mut [f64; MAX_HAMMER_WIRES]) -> f64 {
+    pub(crate) fn step(
+        &mut self,
+        wires: &[WireState],
+        forces: &mut [f64; MAX_HAMMER_WIRES],
+    ) -> f64 {
         self.clock += 1;
         *forces = [0.0; MAX_HAMMER_WIRES];
         if !self.active {
@@ -328,14 +348,27 @@ impl FeltHammer {
                 let mut f = upper * 0.5;
                 for _ in 0..NEWTON_STEPS {
                     let value = self.force_law(d0, base - f * g) - f;
-                    if value > 0.0 { lo = f } else { hi = f }
+                    if value > 0.0 {
+                        lo = f
+                    } else {
+                        hi = f
+                    }
                     if hi - lo <= 1.0e-14 * upper || value.abs() <= 4.0 * f64::EPSILON * upper {
                         break;
                     }
                     let step = 1.0e-7 * upper.max(f);
-                    let slope = (self.force_law(d0, base - (f + step) * g) - (f + step) - value) / step;
-                    let next = if slope < 0.0 { f - value / slope } else { f64::NAN };
-                    f = if next.is_finite() && next > lo && next < hi { next } else { 0.5 * (lo + hi) };
+                    let slope =
+                        (self.force_law(d0, base - (f + step) * g) - (f + step) - value) / step;
+                    let next = if slope < 0.0 {
+                        f - value / slope
+                    } else {
+                        f64::NAN
+                    };
+                    f = if next.is_finite() && next > lo && next < hi {
+                        next
+                    } else {
+                        0.5 * (lo + hi)
+                    };
                 }
                 f.clamp(0.0, upper)
             };
@@ -347,14 +380,26 @@ impl FeltHammer {
                 let mut s = upper * 0.5;
                 for _ in 0..NEWTON_STEPS {
                     let value = s - sum_at(s);
-                    if value < 0.0 { lo = s } else { hi = s }
+                    if value < 0.0 {
+                        lo = s
+                    } else {
+                        hi = s
+                    }
                     if hi - lo <= 1.0e-14 * upper || value.abs() <= 16.0 * f64::EPSILON * upper {
                         break;
                     }
                     let step = 1.0e-7 * upper.max(s);
                     let slope = ((s + step) - sum_at(s + step) - value) / step;
-                    let next = if slope > 0.0 { s - value / slope } else { f64::NAN };
-                    s = if next.is_finite() && next > lo && next < hi { next } else { 0.5 * (lo + hi) };
+                    let next = if slope > 0.0 {
+                        s - value / slope
+                    } else {
+                        f64::NAN
+                    };
+                    s = if next.is_finite() && next > lo && next < hi {
+                        next
+                    } else {
+                        0.5 * (lo + hi)
+                    };
                 }
                 for i in 0..n {
                     forces[i] = solve_wire(i, s);
@@ -369,7 +414,8 @@ impl FeltHammer {
         for i in 0..n {
             let dw = (wires[i].free - wires[i].start) + forces[i] * wires[i].compliance;
             let d1 = self.compression[i] + dy - dw;
-            felt_loss += forces[i] * (d1 - self.compression[i]) - (self.potential(d1) - self.potential(self.compression[i]));
+            felt_loss += forces[i] * (d1 - self.compression[i])
+                - (self.potential(d1) - self.potential(self.compression[i]));
             compression[i] = d1;
         }
         self.y += dy;
@@ -380,7 +426,8 @@ impl FeltHammer {
             self.last_contact = self.clock;
             self.totals.contact_samples += 1;
             self.totals.last_peak_force_n = self.totals.last_peak_force_n.max(total);
-            self.totals.last_contact_samples = self.last_contact + 1 - self.first_contact.unwrap_or(self.clock);
+            self.totals.last_contact_samples =
+                self.last_contact + 1 - self.first_contact.unwrap_or(self.clock);
         }
         self.totals.felt_loss += felt_loss;
         let mut frame = HammerFrame {
@@ -400,7 +447,9 @@ impl FeltHammer {
     pub(crate) fn catch_if_rebounded(&mut self) -> f64 {
         if self.active
             && self.v < 0.0
-            && self.compression[..self.wires].iter().all(|d| *d < -self.spec.catch_m)
+            && self.compression[..self.wires]
+                .iter()
+                .all(|d| *d < -self.spec.catch_m)
         {
             return self.park();
         }
@@ -411,7 +460,11 @@ impl FeltHammer {
 /// What wire `shape` (mass-normalized shapes at the strike point) offers a
 /// hammer this sample: its displacement at the start of the step, after the
 /// free step, and its compliance to a force held over the step.
-pub(crate) fn wire_state<const N: usize>(field: &ModalMetricWaveField<N>, shape: &[f64; N], sqrt_dt: f64) -> WireState {
+pub(crate) fn wire_state<const N: usize>(
+    field: &ModalMetricWaveField<N>,
+    shape: &[f64; N],
+    sqrt_dt: f64,
+) -> WireState {
     let (omega, cosine, sine) = field.rotation();
     let q = field.displacement();
     let m = field.momentum();
@@ -433,7 +486,12 @@ pub(crate) fn wire_state<const N: usize>(field: &ModalMetricWaveField<N>, shape:
 
 /// Add the forced response of a force `force` (N) held over the step at the
 /// strike point to the wire's field.
-pub(crate) fn apply_force<const N: usize>(field: &mut ModalMetricWaveField<N>, shape: &[f64; N], force: f64, sqrt_dt: f64) {
+pub(crate) fn apply_force<const N: usize>(
+    field: &mut ModalMetricWaveField<N>,
+    shape: &[f64; N],
+    force: f64,
+    sqrt_dt: f64,
+) {
     if force == 0.0 {
         return;
     }

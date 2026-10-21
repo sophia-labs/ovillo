@@ -20,15 +20,16 @@ use crate::configuration::network::{
 };
 use crate::configuration::space::MultilinearMap;
 use crate::configuration::{
-    ConfigurationMapSpec, ConnectionPolicy, DisposalPolicy, StiffWireSpec, MAX_CONFIGURATION_DIMENSIONS,
+    ConfigurationMapSpec, ConnectionPolicy, DisposalPolicy, StiffWireSpec,
+    MAX_CONFIGURATION_DIMENSIONS,
 };
 use crate::field::{MetricFieldState, ModalMetricWaveField};
 use crate::ir::{MODE_COUNT, TRANSPORT_PAIRS};
 use crate::law::active::{ActiveInclusionFrame, SynchronizedActiveInclusion};
 use crate::law::aero::{AeroFrame, AeroRuntime, AeroTotals, Column};
 use crate::law::aperture::CompliantApertureBoundary;
-use crate::law::transport::InternalResonanceTransport;
 use crate::law::damper::FeltDamper;
+use crate::law::transport::InternalResonanceTransport;
 use crate::law::valve::{FlowValve, FlowValveControls, FlowValveFrame};
 use crate::plan::{SpaceBodyLaws, SpaceBodySpec};
 
@@ -179,13 +180,21 @@ pub(crate) struct SpaceLocalFrame {
 enum ModalMap {
     Multilinear(MultilinearMap),
     StiffString(crate::configuration::StiffStringSpec),
-    StiffWire { wire: StiffWireSpec, retained: usize },
+    StiffWire {
+        wire: StiffWireSpec,
+        retained: usize,
+    },
 }
 
 impl ModalMap {
-    fn compile(spec: &ConfigurationMapSpec, space: &crate::configuration::ConfigurationSpaceSpec) -> Option<Self> {
+    fn compile(
+        spec: &ConfigurationMapSpec,
+        space: &crate::configuration::ConfigurationSpaceSpec,
+    ) -> Option<Self> {
         Some(match spec {
-            ConfigurationMapSpec::Multilinear { axes, anchors } => Self::Multilinear(MultilinearMap::compile(axes, anchors)),
+            ConfigurationMapSpec::Multilinear { axes, anchors } => {
+                Self::Multilinear(MultilinearMap::compile(axes, anchors))
+            }
             ConfigurationMapSpec::StiffString { string } => Self::StiffString(string.clone()),
             ConfigurationMapSpec::StiffWire { wire } => Self::StiffWire {
                 retained: wire.retained_partials(space.coordinates[wire.tension_coordinate].upper),
@@ -289,8 +298,11 @@ impl SpaceBody {
                     ConfigurationMapSpec::Multilinear { axes, anchors } => {
                         ModalMap::Multilinear(MultilinearMap::compile(axes, anchors))
                     }
-                    ConfigurationMapSpec::StiffString { string } => ModalMap::StiffString(string.clone()),
-                    ConfigurationMapSpec::TubeNetwork { .. } | ConfigurationMapSpec::StiffWire { .. } => unreachable!(),
+                    ConfigurationMapSpec::StiffString { string } => {
+                        ModalMap::StiffString(string.clone())
+                    }
+                    ConfigurationMapSpec::TubeNetwork { .. }
+                    | ConfigurationMapSpec::StiffWire { .. } => unreachable!(),
                 };
                 let configuration = map.evaluate(&point[..dimensions]);
                 let field =
@@ -379,12 +391,20 @@ impl SpaceBody {
                 laws.refresh_shapes();
                 (field, Laws::Network(laws))
             }
-            (SpaceBodyLaws::Passive { damper, radiation_rates_per_s }, map_spec) => {
-                let mut map = ModalMap::compile(map_spec, space)
-                    .ok_or_else(|| SpaceBodyError::InvalidSpec("passive laws need a modal map".into()))?;
+            (
+                SpaceBodyLaws::Passive {
+                    damper,
+                    radiation_rates_per_s,
+                },
+                map_spec,
+            ) => {
+                let mut map = ModalMap::compile(map_spec, space).ok_or_else(|| {
+                    SpaceBodyError::InvalidSpec("passive laws need a modal map".into())
+                })?;
                 let configuration = map.evaluate(&point[..dimensions]);
-                let field = ModalMetricWaveField::try_new(sample_rate_hz, configuration.metric.runtime())
-                    .map_err(|m| SpaceBodyError::Field(m.to_owned()))?;
+                let field =
+                    ModalMetricWaveField::try_new(sample_rate_hz, configuration.metric.runtime())
+                        .map_err(|m| SpaceBodyError::Field(m.to_owned()))?;
                 let damper = match (damper, &map) {
                     (Some(damper), ModalMap::StiffWire { wire, retained }) => {
                         let shapes: Vec<[f64; MODE_COUNT]> = damper
@@ -394,7 +414,11 @@ impl SpaceBody {
                             .collect();
                         Some(FeltDamper::new(damper, &shapes, sample_rate_hz))
                     }
-                    (Some(_), _) => return Err(SpaceBodyError::InvalidSpec("a damper needs a stiff wire".into())),
+                    (Some(_), _) => {
+                        return Err(SpaceBodyError::InvalidSpec(
+                            "a damper needs a stiff wire".into(),
+                        ))
+                    }
                     (None, _) => None,
                 };
                 (
@@ -403,11 +427,16 @@ impl SpaceBody {
                         map,
                         radiation_direction: normalize(configuration.radiation_direction)?,
                         damper,
-                        radiation_retain: radiation_rates_per_s.map(|rates| rates.map(|r| (-2.0 * r * dt).exp())),
+                        radiation_retain: radiation_rates_per_s
+                            .map(|rates| rates.map(|r| (-2.0 * r * dt).exp())),
                     }),
                 )
             }
-            _ => return Err(SpaceBodyError::InvalidSpec("laws and map do not match".into())),
+            _ => {
+                return Err(SpaceBodyError::InvalidSpec(
+                    "laws and map do not match".into(),
+                ))
+            }
         };
         Ok(Self {
             reservoir_energy: spec.reservoir.capacity,
@@ -502,7 +531,10 @@ impl SpaceBody {
     #[must_use]
     pub fn valve_gap_and_reynolds(&self) -> (f64, f64) {
         match &self.laws {
-            Laws::Network(laws) => (laws.valve.half_gap_m(), laws.aero.as_ref().map_or(0.0, |a| a.last.reynolds)),
+            Laws::Network(laws) => (
+                laws.valve.half_gap_m(),
+                laws.aero.as_ref().map_or(0.0, |a| a.last.reynolds),
+            ),
             Laws::Modal(_) | Laws::Passive(_) => (0.0, 0.0),
         }
     }
@@ -746,7 +778,9 @@ impl SpaceBody {
     pub fn retune_valve(&mut self, tuning_hz: f64, adduction: f64) -> Result<f64, SpaceBodyError> {
         match &mut self.laws {
             Laws::Network(laws) => Ok(laws.valve.retune(tuning_hz, adduction)),
-            Laws::Modal(_) | Laws::Passive(_) => Err(SpaceBodyError::UnsupportedOperation("this body has no flow valve")),
+            Laws::Modal(_) | Laws::Passive(_) => Err(SpaceBodyError::UnsupportedOperation(
+                "this body has no flow valve",
+            )),
         }
     }
 
@@ -755,7 +789,10 @@ impl SpaceBody {
     #[must_use]
     pub fn wire(&self) -> Option<(&StiffWireSpec, usize)> {
         match &self.laws {
-            Laws::Passive(PassiveLaws { map: ModalMap::StiffWire { wire, retained }, .. }) => Some((wire, *retained)),
+            Laws::Passive(PassiveLaws {
+                map: ModalMap::StiffWire { wire, retained },
+                ..
+            }) => Some((wire, *retained)),
             _ => None,
         }
     }
@@ -764,11 +801,16 @@ impl SpaceBody {
     /// A dashpot does no work, so nothing is billed.
     pub fn set_damper_engagement(&mut self, engagement: f64) -> Result<(), SpaceBodyError> {
         match &mut self.laws {
-            Laws::Passive(PassiveLaws { damper: Some(damper), .. }) => {
+            Laws::Passive(PassiveLaws {
+                damper: Some(damper),
+                ..
+            }) => {
                 damper.set_engagement(engagement);
                 Ok(())
             }
-            _ => Err(SpaceBodyError::UnsupportedOperation("this body has no damper")),
+            _ => Err(SpaceBodyError::UnsupportedOperation(
+                "this body has no damper",
+            )),
         }
     }
 
@@ -776,7 +818,10 @@ impl SpaceBody {
     #[must_use]
     pub fn damper_engagement(&self) -> Option<f64> {
         match &self.laws {
-            Laws::Passive(PassiveLaws { damper: Some(damper), .. }) => Some(damper.engagement()),
+            Laws::Passive(PassiveLaws {
+                damper: Some(damper),
+                ..
+            }) => Some(damper.engagement()),
             _ => None,
         }
     }
@@ -952,13 +997,22 @@ impl SpaceBody {
     /// A passive body: field propagation, then passive loss (the field's
     /// own, then the damper's), booked per mode without whole-field sums;
     /// the World's ledger measures every frame's closure.
-    fn process_local_passive(&mut self, controls: &SpaceBodyControls) -> Result<SpaceLocalFrame, SpaceBodyError> {
+    fn process_local_passive(
+        &mut self,
+        controls: &SpaceBodyControls,
+    ) -> Result<SpaceLocalFrame, SpaceBodyError> {
         let capacity = self.spec.reservoir.capacity;
-        let refill = if controls.body.work_input.is_finite() { controls.body.work_input.clamp(0.0, 1.0) } else { 0.0 };
+        let refill = if controls.body.work_input.is_finite() {
+            controls.body.work_input.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
         let gap = (capacity - self.reservoir_energy).max(0.0);
         let work_input = (refill * self.dt).min(gap);
         self.reservoir_energy += work_input;
-        let Laws::Passive(laws) = &mut self.laws else { unreachable!() };
+        let Laws::Passive(laws) = &mut self.laws else {
+            unreachable!()
+        };
         self.field.propagate_lean();
         let mut loss = self.field.damp_lean();
         if let Some(damper) = &laws.damper {
@@ -967,10 +1021,18 @@ impl SpaceBody {
         if self.field.momentum().iter().any(|v| !v.is_finite()) {
             return Err(SpaceBodyError::NonFiniteState);
         }
-        Ok(SpaceLocalFrame { source_work: work_input, internal_loss: loss, closure_residual: 0.0, local_residual: 0.0 })
+        Ok(SpaceLocalFrame {
+            source_work: work_input,
+            internal_loss: loss,
+            closure_residual: 0.0,
+            local_residual: 0.0,
+        })
     }
 
-    fn process_local_lean(&mut self, controls: &SpaceBodyControls) -> Result<SpaceLocalFrame, SpaceBodyError> {
+    fn process_local_lean(
+        &mut self,
+        controls: &SpaceBodyControls,
+    ) -> Result<SpaceLocalFrame, SpaceBodyError> {
         let capacity = self.spec.reservoir.capacity;
         let refill = if controls.body.work_input.is_finite() {
             controls.body.work_input.clamp(0.0, 1.0)
@@ -1088,7 +1150,8 @@ impl SpaceBody {
                 }
                 // The direction was made unit at construction; the World's
                 // ledger measures the frame.
-                let (coordinate, radiation) = self.field.radiate_unit(&laws.radiation_direction, fraction);
+                let (coordinate, radiation) =
+                    self.field.radiate_unit(&laws.radiation_direction, fraction);
                 emitted.push(coordinate);
                 Ok((radiation, 0.0))
             }

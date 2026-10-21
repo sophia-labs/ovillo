@@ -169,10 +169,11 @@ pub fn collect(
     let mut found = Vec::new();
     let mut owned = Vec::new();
     // A piano's anatomy is not a tab instrument's (`ariadne_piano`).
-    for base in instruments
-        .iter()
-        .filter(|i| i.params.get("anatomy").is_some_and(|a| !crate::ariadne_piano::is_piano_anatomy(a)))
-    {
+    for base in instruments.iter().filter(|i| {
+        i.params
+            .get("anatomy")
+            .is_some_and(|a| !crate::ariadne_piano::is_piano_anatomy(a))
+    }) {
         let invalid = |msg: String| RenderError::Invalid(format!("{}: {msg}", base.abbrev));
         let anatomy = base.params["anatomy"].trim().to_owned();
         let text = if anatomy == "steel-string-v0" {
@@ -761,25 +762,27 @@ pub fn render(
             None,
         );
         let r = world.receipt();
-        stats.ariadne_worlds.push(crate::AriadneReceipt::Tab(AriadneWorldReceipt {
-            instrument: inst.abbrev.clone(),
-            anatomy: inst.anatomy.clone(),
-            plan_digest: world.plan_digest().to_owned(),
-            listener_digest: listener.listener_digest().to_owned(),
-            bodies,
-            plucks: counts[0],
-            hammer_ons: counts[1],
-            pull_offs: counts[2],
-            slides: counts[3],
-            simulated_seconds: (n_total - start) as f64 / sample_rate,
-            strings,
-            source_work: r.source_work,
-            control_work: r.control_work,
-            internal_loss: r.internal_loss,
-            radiation: r.radiation,
-            cumulative_closure_residual: r.cumulative_closure_residual,
-            maximum_frame_residual: r.maximum_frame_residual,
-        }));
+        stats
+            .ariadne_worlds
+            .push(crate::AriadneReceipt::Tab(AriadneWorldReceipt {
+                instrument: inst.abbrev.clone(),
+                anatomy: inst.anatomy.clone(),
+                plan_digest: world.plan_digest().to_owned(),
+                listener_digest: listener.listener_digest().to_owned(),
+                bodies,
+                plucks: counts[0],
+                hammer_ons: counts[1],
+                pull_offs: counts[2],
+                slides: counts[3],
+                simulated_seconds: (n_total - start) as f64 / sample_rate,
+                strings,
+                source_work: r.source_work,
+                control_work: r.control_work,
+                internal_loss: r.internal_loss,
+                radiation: r.radiation,
+                cumulative_closure_residual: r.cumulative_closure_residual,
+                maximum_frame_residual: r.maximum_frame_residual,
+            }));
         stats.ariadne_energy.push(crate::AriadneTrace::Tab(trace));
     }
     Ok(())

@@ -320,7 +320,10 @@ impl<const N: usize> ModalMetricWaveField<N> {
         for (momentum, direction) in self.state.momentum.iter_mut().zip(direction) {
             *momentum -= removal * direction * projection;
         }
-        (emitted_coordinate, 0.5 * self.dt * emitted_coordinate * emitted_coordinate)
+        (
+            emitted_coordinate,
+            0.5 * self.dt * emitted_coordinate * emitted_coordinate,
+        )
     }
 
     /// Normalized generalized effort conjugate to a finite-aperture momentum

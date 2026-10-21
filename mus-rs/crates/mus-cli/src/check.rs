@@ -512,7 +512,11 @@ fn instrument_report(
     // dot-voices are that world's hands, staves or pedal: they resolve no samples by design.
     let worlds: Vec<(&str, &str)> = instruments
         .iter()
-        .filter_map(|i| i.params.get("anatomy").map(|a| (i.abbrev.as_str(), a.trim())))
+        .filter_map(|i| {
+            i.params
+                .get("anatomy")
+                .map(|a| (i.abbrev.as_str(), a.trim()))
+        })
         .collect();
     instruments.iter().map(|inst| {
         let p = &inst.params;
