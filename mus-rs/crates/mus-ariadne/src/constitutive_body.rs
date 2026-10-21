@@ -9,6 +9,7 @@ use crate::law::medium::{
     LocalMediumSourceDrive, LocalMediumState,
 };
 use crate::plan::{BodyConstitutionSpec, LocalMediumBoundarySpec, PlanError};
+use crate::space_body::{SpaceBody, SpaceBodyControls, SpaceBodyError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LocalMediumBodyControls {
@@ -35,6 +36,7 @@ impl Default for LocalMediumBodyControls {
 pub enum ConstitutiveBodyControls {
     Modal(BodyControls),
     LocalMedium(LocalMediumBodyControls),
+    ModalSpace(SpaceBodyControls),
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -55,6 +57,7 @@ pub(crate) struct WorldBodyRadiationFrame {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConstitutiveBodyError {
     Modal(String),
+    Space(String),
     LocalMedium(String),
     ControlKindMismatch,
     UnsupportedReconfiguration,
@@ -67,6 +70,7 @@ impl std::fmt::Display for ConstitutiveBodyError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Modal(message) => write!(formatter, "modal body: {message}"),
+            Self::Space(message) => write!(formatter, "N-D body: {message}"),
             Self::LocalMedium(message) => write!(formatter, "local-medium body: {message}"),
             Self::ControlKindMismatch => {
                 formatter.write_str("body controls do not match the body constitution")
@@ -95,6 +99,12 @@ impl From<BodyError> for ConstitutiveBodyError {
     }
 }
 
+impl From<SpaceBodyError> for ConstitutiveBodyError {
+    fn from(error: SpaceBodyError) -> Self {
+        Self::Space(error.to_string())
+    }
+}
+
 impl From<LocalMediumError> for ConstitutiveBodyError {
     fn from(error: LocalMediumError) -> Self {
         Self::LocalMedium(error.to_string())
@@ -105,6 +115,7 @@ impl From<LocalMediumError> for ConstitutiveBodyError {
 pub(crate) enum WorldBody {
     Modal(Body),
     LocalMedium(LocalMediumWorldBody),
+    ModalSpace(SpaceBody),
 }
 
 #[derive(Debug, Clone)]

@@ -78,6 +78,10 @@ pub struct LocalMediumBoundarySpec {
 pub enum BodyConstitutionSpec {
     Modal { body: BodySpec },
     LocalMedium { boundary: LocalMediumBoundarySpec },
+    /// A body with an N-dimensional configuration space
+    /// (`SPECS/ariadne/ND-CONFIGURATION.md`). Additive: the two variants above
+    /// serialize exactly as before.
+    ModalSpace { body: super::SpaceBodySpec },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -270,6 +274,9 @@ impl ConstitutiveWorldPlan {
                 }
                 BodyConstitutionSpec::LocalMedium { boundary } => {
                     boundary.validate(self.internal_sample_rate_hz)?;
+                }
+                BodyConstitutionSpec::ModalSpace { body } => {
+                    body.validate(self.internal_sample_rate_hz)?;
                 }
             }
             body.space_port.validate()?;

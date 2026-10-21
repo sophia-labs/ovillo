@@ -22,6 +22,7 @@
 #![forbid(unsafe_code)]
 
 pub mod body;
+pub mod configuration;
 mod constitutive_body;
 pub mod coupling;
 pub mod field;
@@ -33,6 +34,7 @@ pub mod plan;
 mod shared_space;
 mod shared_trajectory;
 mod shared_world;
+pub mod space_body;
 
 pub use body::{Body, BodyControls, BodyError, BodyLocalFrame, BodyReconfigurationFrame};
 pub use constitutive_body::{
@@ -64,3 +66,16 @@ pub use shared_space::{
 };
 pub use shared_trajectory::{TrajectoryBindError, TrajectoryBinding, WorldCoordinates};
 pub use shared_world::{World, WorldControls, WorldError, WorldFrame, WorldReceipt};
+pub use configuration::{
+    AffineSpec, AreaTermSpec, ConfigurationCoordinate, ContactSpec, ConfigurationMapSpec,
+    ConfigurationSpaceSpec, ConnectionPolicy, DisposalPolicy, RadiatingEndSpec, StiffStringSpec,
+    TubeBranchSpec,
+    TubeNetworkSpec, TubeSpec,
+};
+pub use law::aero::{AeroFrame, AeroSpec, AeroTotals};
+pub use law::valve::{FlowValveControls, FlowValveFrame, FlowValveSpec};
+pub use plan::{SpaceBodyLaws, SpaceBodySpec};
+pub use space_body::{
+    NetworkModes, SpaceBody, SpaceBodyControls, SpaceBodyError, SpaceBodyObservation, SpaceTotals,
+    SpaceReconfigurationFrame,
+};

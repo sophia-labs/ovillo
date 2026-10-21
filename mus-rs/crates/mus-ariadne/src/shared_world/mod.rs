@@ -3,6 +3,7 @@
 mod build;
 mod observe;
 mod process;
+mod space;
 mod types;
 
 pub use types::{WorldControls, WorldError, WorldFrame, WorldReceipt};
@@ -45,6 +46,13 @@ pub struct World {
     pub(super) pending_control_work: f64,
     pub(super) pending_energy_start: Option<f64>,
     pub(super) maximum_local_residual: f64,
+    /// Disposal from N-D moves since the last ledger frame (zero for every
+    /// world without an N-D tube-network body).
+    pub(super) pending_disposal_internal: f64,
+    pub(super) pending_disposal_radiation: f64,
+    pub(super) disposal_total: f64,
+    /// Per body: an N-D body whose shared-space port weights are all zero.
+    pub(super) space_port_inert: Vec<bool>,
 }
 
 #[cfg(test)]

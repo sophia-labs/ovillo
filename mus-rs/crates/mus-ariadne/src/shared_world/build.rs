@@ -126,7 +126,15 @@ impl World {
         let space = SharedSpace::try_new(sample_rate_hz, shared_space)
             .map_err(|error| WorldError::Space(error.to_string()))?;
         let body_count = bodies.len();
+        let space_port_inert = bodies
+            .iter()
+            .zip(&space_ports)
+            .map(|(body, port)| {
+                body.space_body().is_some() && port.coupling_weights.iter().all(|w| *w == 0.0)
+            })
+            .collect();
         Ok(Self {
+            space_port_inert,
             legacy_plan,
             constitutive_plan,
             world_name,
@@ -150,6 +158,9 @@ impl World {
             pending_control_work: 0.0,
             pending_energy_start: None,
             maximum_local_residual: 0.0,
+            pending_disposal_internal: 0.0,
+            pending_disposal_radiation: 0.0,
+            disposal_total: 0.0,
         })
     }
 

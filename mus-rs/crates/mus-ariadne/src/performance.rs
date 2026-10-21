@@ -56,6 +56,11 @@ impl WorldLayout {
                     aperture_scalars += MODE_COUNT;
                     constitutive_scalars += sites + 1;
                 }
+                BodyConstitutionSpec::ModalSpace { body } => {
+                    material_scalars += 2 * MODE_COUNT;
+                    aperture_scalars += 2;
+                    constitutive_scalars += 2 + body.configuration_space.dimensions();
+                }
             }
         }
         Self::assemble(
@@ -182,6 +187,17 @@ impl WorldCostEstimate {
                         + boundary.outputs.len() * (3 * sites + MODE_COUNT)
                         + MODE_COUNT;
                     nonlinear_iterations += sites;
+                }
+                BodyConstitutionSpec::ModalSpace { .. } => {
+                    // Per sample, as a modal body; reconfiguration (an eigen
+                    // solve for a tube network) is a control-rate cost, not
+                    // counted here.
+                    modal_rotations += MODE_COUNT;
+                    transport_rotations += TRANSPORT_PAIRS;
+                    aperture_rotations += 3;
+                    active_projections += ACTIVE_RANKS;
+                    dot_product_terms += 3 * MODE_COUNT + SPACE_COURSES * MODE_COUNT + MODE_COUNT;
+                    nonlinear_iterations += 8;
                 }
             }
         }

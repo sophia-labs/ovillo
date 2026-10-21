@@ -1,0 +1,840 @@
+{
+  "anatomy": [
+    {
+      "label": "spec",
+      "name": "speed_of_sound",
+      "source": "garganta_anatomy.py SPEED_OF_SOUND_M_S",
+      "unit": "m/s",
+      "value": 343.0
+    },
+    {
+      "label": "spec",
+      "name": "air_density",
+      "source": "garganta_anatomy.py AIR_DENSITY_KG_M3",
+      "unit": "kg/m3",
+      "value": 1.204
+    },
+    {
+      "label": "law",
+      "name": "air_viscosity",
+      "source": "physical constant near 20 C, not present in this repository; slit resistance 12 mu d l^2/a^3 is plane Poiseuille flow",
+      "unit": "Pa s",
+      "value": 0.000018
+    },
+    {
+      "label": "spec",
+      "name": "area_floor",
+      "source": "garganta_anatomy.py area_function_cm2 positive cone",
+      "unit": "cm2",
+      "value": 0.025
+    },
+    {
+      "label": "spec",
+      "name": "area_ceiling",
+      "source": "garganta_anatomy.py area_function_cm2 positive cone",
+      "unit": "cm2",
+      "value": 18.0
+    },
+    {
+      "label": "spec",
+      "name": "neutral_area_function",
+      "source": "garganta_anatomy.py neutral_log_area, coefficients 0, warp 1, lip scale 1",
+      "unit": "-",
+      "value": 0.0
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "oral_length",
+      "source": "inside GARGANTA's tract_length_cm cone [13.5, 21] (AnatomyGenome.from_unit_cube); section count = round(L * 2 fs / c)",
+      "unit": "m",
+      "value": 0.157
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "nasal_length",
+      "source": "no nasal anatomy exists in this repository",
+      "unit": "m",
+      "value": 0.11
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "velum_position",
+      "source": "just below GARGANTA's palate bend (0.46, _warped_coordinate)",
+      "unit": "-",
+      "value": 0.4
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "oral_attenuation",
+      "source": "lumped frequency-independent; GARGANTA's oracle uses wall_loss*sqrt(f/1 kHz), not realizable per sample",
+      "unit": "Np/m",
+      "value": 0.45
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "nasal_attenuation",
+      "source": "nasal passage lossier than oral",
+      "unit": "Np/m",
+      "value": 1.6
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "tongue_back_center",
+      "source": "extends GARGANTA tongue_back (0.43) toward the pharynx",
+      "unit": "-",
+      "value": 0.24
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "tongue_front_center",
+      "source": "extends GARGANTA tongue_front (0.72) toward the alveolar ridge",
+      "unit": "-",
+      "value": 0.8
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "tongue_width",
+      "source": "between GARGANTA tongue widths 0.095 and 0.11",
+      "unit": "-",
+      "value": 0.1
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "tongue_depth_low",
+      "source": "low tongue widens the constriction site",
+      "unit": "ln(area)",
+      "value": -0.9
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "tongue_depth_high",
+      "source": "reaches the area floor from the neutral 3 cm2",
+      "unit": "ln(area)",
+      "value": 3.2
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "tongue_compensation",
+      "source": "GARGANTA's compensating lobes are 0.38/1.12 and 0.42/1.15 of the constriction",
+      "unit": "-",
+      "value": 0.36
+    },
+    {
+      "label": "spec",
+      "name": "tongue_compensation_width",
+      "source": "garganta_anatomy.py articulation_basis compensating lobes (width 0.16)",
+      "unit": "-",
+      "value": 0.16
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "lip_center",
+      "source": "near GARGANTA lip_round centre 0.95",
+      "unit": "-",
+      "value": 0.965
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "lip_width",
+      "source": "near GARGANTA lip_round width 0.055",
+      "unit": "-",
+      "value": 0.045
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "lip_open_scale",
+      "source": "spread lips",
+      "unit": "-",
+      "value": 1.5
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "velum_port_max",
+      "source": "",
+      "unit": "cm2",
+      "value": 1.0
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "nasal_peak_area",
+      "source": "",
+      "unit": "cm2",
+      "value": 1.8
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "nostril_area",
+      "source": "",
+      "unit": "cm2",
+      "value": 0.7
+    },
+    {
+      "label": "spec",
+      "name": "end_correction_ratio",
+      "source": "garganta_anatomy.py _radiation_impedance low-ka reactance 0.61 ka",
+      "unit": "-",
+      "value": 0.61
+    },
+    {
+      "label": "law",
+      "name": "radiation_impedance_ratio",
+      "source": "0.61^2/0.25: makes a parallel air-plug mass + radiation load match the oracle's low-ka limits (0.25 (ka)^2 resistance, 0.61 ka reactance); diverges above ka~1",
+      "unit": "-",
+      "value": 1.4884
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "turbulence_efficiency",
+      "source": "stochastic supply paid by the jet (ANATOMY-EVOLUTION.md section 4 StochasticSupplySpec)",
+      "unit": "-",
+      "value": 0.02
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "fold_length",
+      "source": "",
+      "unit": "m",
+      "value": 0.014
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "fold_thickness",
+      "source": "",
+      "unit": "m",
+      "value": 0.003
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "fold_mass",
+      "source": "",
+      "unit": "kg",
+      "value": 0.00015
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "fold_damping_ratio",
+      "source": "",
+      "unit": "-",
+      "value": 0.1
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "mucosal_delay",
+      "source": "one-mass surface-wave form after Titze (1988, JASA 83:1536); value not from data",
+      "unit": "s",
+      "value": 0.0006
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "contact_stiffness_ratio",
+      "source": "",
+      "unit": "-",
+      "value": 3.0
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "contact_damping_ratio",
+      "source": "",
+      "unit": "-",
+      "value": 1.0
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "rest_half_gap_breathy",
+      "source": "",
+      "unit": "m",
+      "value": 0.0008
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "rest_half_gap_pressed",
+      "source": "",
+      "unit": "m",
+      "value": 0.00005
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "fold_tuning_min",
+      "source": "",
+      "unit": "Hz",
+      "value": 60.0
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "fold_tuning_max",
+      "source": "",
+      "unit": "Hz",
+      "value": 420.0
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "lung_max_pressure",
+      "source": "",
+      "unit": "Pa",
+      "value": 1000.0
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "lung_capacity",
+      "source": "",
+      "unit": "J",
+      "value": 3.0
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "lung_refill",
+      "source": "",
+      "unit": "W",
+      "value": 0.3
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "lung_sag_fraction",
+      "source": "",
+      "unit": "-",
+      "value": 0.1
+    }
+  ],
+  "approximations": [
+    "not a mus_ariadne::World instance: that runtime's bodies are 24-mode modal fields on a one-dimensional configuration path; the tract is a waveguide body built to the same constitution (state, lawful scattering, transport with receipts, one WorkLedger) in this crate",
+    "plane-wave loss is frequency independent (GARGANTA's oracle has sqrt(f) wall loss)",
+    "radiation is a parallel air-plug mass and radiation port matched to the oracle's low-ka limits; it departs above ka ~ 1",
+    "the fold is one mass with a lumped mucosal delay (Titze-form intraglottal pressure), not a two-mass or continuum fold",
+    "aerodynamic work on the folds is booked to the lung supply; its path through the glottis is not resolved",
+    "closures stop at GARGANTA's 0.025 cm2 floor; exact closure (G2 rank change) is not implemented",
+    "aspiration is a stochastic supply paid from the jet's dissipation, not a resolved turbulent flow",
+    "the nasal tract's geometry is a design hypothesis; no nasal anatomy exists in this repository"
+  ],
+  "credit": "after Neil Thapen's Pink Trombone (2017); implemented independently",
+  "gestures": [
+    {
+      "gesture": "aiua",
+      "ledger": {
+        "breakdown": {
+          "foldAeroWork": 0.01821284797342962,
+          "foldControlWork": -1.3885440012649974e-6,
+          "foldLoss": 0.018211459429425272,
+          "impactWork": 0.0,
+          "jetLoss": 0.2042536276924718,
+          "lungSupply": 0.29077853712648755,
+          "muscleWork": 0.2907785371242747,
+          "radiationLips": 0.0007411555790513575,
+          "radiationNose": 0.00003789521754831014,
+          "tractControlWork": -6.400756184778542e-6,
+          "wallLoss": 0.06752563037374074
+        },
+        "controlWork": -8.768834122619813e-6,
+        "cumulativeClosureResidual": 2.1955770534987096e-12,
+        "finalEnergy": 3.0000000000001212,
+        "frames": 1200,
+        "globalClosureResidual": 2.206679283744961e-12,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.2899907174956381,
+        "maximumFrameResidual": 2.398081733190338e-14,
+        "nonFiniteEvents": 0,
+        "radiation": 0.0007790507965996672,
+        "relativeGlobalResidual": 7.588636912715402e-12,
+        "sourceWork": 0.2907785371242747
+      },
+      "peak": 0.057388365268707275,
+      "seconds": 3.2,
+      "wav": "tract-aiua.wav"
+    },
+    {
+      "gesture": "mama",
+      "ledger": {
+        "breakdown": {
+          "foldAeroWork": 0.01816544262215747,
+          "foldControlWork": -4.450831057787822e-6,
+          "foldLoss": 0.018160991791097928,
+          "impactWork": 0.0,
+          "jetLoss": 0.22570115463859933,
+          "lungSupply": 0.3095232696641393,
+          "muscleWork": 0.30952326965889565,
+          "radiationLips": 0.0010779165702850784,
+          "radiationNose": 0.00006918794499369893,
+          "tractControlWork": 0.00011304213535340986,
+          "wallLoss": 0.06462163048953724
+        },
+        "controlWork": 0.0001076117703590456,
+        "cumulativeClosureResidual": 5.25002263884744e-12,
+        "finalEnergy": 3.0,
+        "frames": 1800,
+        "globalClosureResidual": 5.2584603338345914e-12,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.3084837769192347,
+        "maximumFrameResidual": 5.062616992290714e-14,
+        "nonFiniteEvents": 0,
+        "radiation": 0.001147104515278779,
+        "relativeGlobalResidual": 1.6982997011026686e-11,
+        "sourceWork": 0.30952326965889565
+      },
+      "peak": 0.05932551249861717,
+      "seconds": 4.8,
+      "wav": "tract-mama.wav"
+    },
+    {
+      "gesture": "orbs",
+      "hits": [
+        {
+          "energy_j": 0.0002,
+          "k": 0,
+          "position": 0.9,
+          "t_s": 0.352,
+          "voiced": false
+        },
+        {
+          "energy_j": 0.0002,
+          "k": 1,
+          "position": 0.6,
+          "t_s": 0.704,
+          "voiced": false
+        },
+        {
+          "energy_j": 0.0002,
+          "k": 2,
+          "position": 0.3,
+          "t_s": 1.056,
+          "voiced": false
+        },
+        {
+          "energy_j": 0.0002,
+          "k": 3,
+          "position": 0.02,
+          "t_s": 1.408,
+          "voiced": false
+        },
+        {
+          "energy_j": 0.0002,
+          "k": 4,
+          "position": 0.4,
+          "t_s": 1.76,
+          "voiced": false
+        },
+        {
+          "energy_j": 0.0002,
+          "position": 0.85,
+          "t_s": 2.6613333333333333,
+          "voiced": true
+        },
+        {
+          "energy_j": 0.0002,
+          "position": 0.5,
+          "t_s": 3.0613333333333332,
+          "voiced": true
+        },
+        {
+          "energy_j": 0.0002,
+          "position": 0.05,
+          "t_s": 3.461333333333333,
+          "voiced": true
+        },
+        {
+          "energy_j": 0.0002,
+          "position": 0.4,
+          "t_s": 3.8613333333333335,
+          "voiced": true
+        }
+      ],
+      "ledger": {
+        "breakdown": {
+          "foldAeroWork": 0.011328674303406228,
+          "foldControlWork": 3.423061858604043e-7,
+          "foldLoss": 0.01131667102390213,
+          "impactWork": 0.0015719002587628753,
+          "jetLoss": 0.1286233595069829,
+          "lungSupply": 0.18342041210222598,
+          "muscleWork": 0.18341593246350912,
+          "radiationLips": 0.00037129838998988744,
+          "radiationNose": 0.00003166009495054725,
+          "tractControlWork": -0.000019727569289289052,
+          "wallLoss": 0.044506418289651815
+        },
+        "controlWork": -0.00002036479704000488,
+        "cumulativeClosureResidual": -1.4566126083082054e-13,
+        "finalEnergy": 3.0001180606196205,
+        "frames": 1673,
+        "globalClosureResidual": -1.341149413747189e-13,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.1844464488205369,
+        "maximumFrameResidual": 8.43769498715119e-15,
+        "nonFiniteEvents": 0,
+        "radiation": 0.0004029584849404349,
+        "relativeGlobalResidual": 7.249135074715777e-13,
+        "sourceWork": 0.18498783272227198
+      },
+      "peak": 0.07716625183820724,
+      "seconds": 4.461333333333333,
+      "wav": "tract-orbs.wav"
+    }
+  ],
+  "ledgerSchema": "mus_watsn::WorkFrame per 128-sample block: dE = sourceWork (breathing muscles) + controlWork (area transport + fold retuning) - internalLoss (walls, jet, folds) - radiation (lips, nostrils)",
+  "nasalSections": 31,
+  "oralSections": 44,
+  "sampleRateHz": 48000.0,
+  "schema": "ovillo.tract.render-receipt.v0",
+  "tractRateHz": 96000.0,
+  "velumSection": 18,
+  "vowels": [
+    {
+      "articulation": {
+        "lips": 0.56,
+        "tongue_diameter": 0.73,
+        "tongue_index": 0.06,
+        "velum": 0.0
+      },
+      "breath": 0.6,
+      "fold_tuning_hz": 120.0,
+      "ledger": {
+        "breakdown": {
+          "foldAeroWork": 0.008323103819607712,
+          "foldControlWork": 0.0,
+          "foldLoss": 0.008312375209789344,
+          "impactWork": 0.0,
+          "jetLoss": 0.10634518170286848,
+          "lungSupply": 0.13936084752761593,
+          "muscleWork": 0.1393685186434569,
+          "radiationLips": 0.0005829516271642762,
+          "radiationNose": 0.000029078432390458533,
+          "tractControlWork": -5.362693937795708e-6,
+          "wallLoss": 0.024045375351858852
+        },
+        "controlWork": -6.342227874371953e-6,
+        "cumulativeClosureResidual": 1.2065903831626201e-12,
+        "finalEnergy": 3.000047214092722,
+        "frames": 525,
+        "globalClosureResidual": 1.2110312752611208e-12,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.13870293226451677,
+        "maximumFrameResidual": 1.3322676295501878e-14,
+        "nonFiniteEvents": 0,
+        "radiation": 0.0006120300595547352,
+        "relativeGlobalResidual": 8.689022307825843e-12,
+        "sourceWork": 0.1393685186434569
+      },
+      "measured_f0_hz": 139.1304347826087,
+      "method": "LPC as GARGANTA _lpc_envelope_and_formants (16 kHz, pre-emphasis 0.97, Hamming, order 18, roots bw<800 Hz), median of three 50 ms frames from the last 0.4 s of a 1.4 s render; the tube column is the rigid-glottis impulse response of the same World",
+      "render_lpc_formants_hz": [
+        731.0649689903347,
+        1153.7728929367336,
+        2501.0567318575468
+      ],
+      "render_lpc_frames": [
+        [
+          {
+            "bandwidth_hz": 32.535532683210604,
+            "hz": 731.0213241408893
+          },
+          {
+            "bandwidth_hz": 49.05775975626964,
+            "hz": 1153.9243159531197
+          },
+          {
+            "bandwidth_hz": 85.25188162189406,
+            "hz": 2500.980523529486
+          },
+          {
+            "bandwidth_hz": 50.592987085126715,
+            "hz": 3967.631471899312
+          }
+        ],
+        [
+          {
+            "bandwidth_hz": 32.43337610834649,
+            "hz": 731.0649689903347
+          },
+          {
+            "bandwidth_hz": 48.81530147422405,
+            "hz": 1153.7728929367336
+          },
+          {
+            "bandwidth_hz": 84.35904071386075,
+            "hz": 2501.0567318575468
+          },
+          {
+            "bandwidth_hz": 50.24590336040033,
+            "hz": 3967.609573019487
+          }
+        ],
+        [
+          {
+            "bandwidth_hz": 32.51509239948892,
+            "hz": 731.0771530743823
+          },
+          {
+            "bandwidth_hz": 48.90654688900188,
+            "hz": 1153.7040388938015
+          },
+          {
+            "bandwidth_hz": 84.61328098144286,
+            "hz": 2501.1461047196503
+          },
+          {
+            "bandwidth_hz": 50.45435793593323,
+            "hz": 3967.43706760897
+          }
+        ]
+      ],
+      "render_vs_target_percent": [
+        2.966897040892212,
+        0.3280776466724843,
+        0.04226927430187061
+      ],
+      "tail_rms": 0.01421085187840573,
+      "target_hz": [
+        710.0,
+        1150.0,
+        2500.0
+      ],
+      "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs VOWEL_*_MODES (GARGANTA rung-1 design profiles, not measurements)",
+      "tube_resonances_hz": [
+        717.7734375,
+        1156.494140625,
+        2547.36328125,
+        4000.48828125
+      ],
+      "vowel": "a",
+      "wav": "tract-a.wav"
+    },
+    {
+      "articulation": {
+        "lips": 0.41,
+        "tongue_diameter": 0.74,
+        "tongue_index": 0.91,
+        "velum": 0.0
+      },
+      "breath": 0.6,
+      "fold_tuning_hz": 120.0,
+      "ledger": {
+        "breakdown": {
+          "foldAeroWork": 0.00827634531856865,
+          "foldControlWork": 0.0,
+          "foldLoss": 0.008265211222301738,
+          "impactWork": 0.0,
+          "jetLoss": 0.09533287353191093,
+          "lungSupply": 0.1373680190981427,
+          "muscleWork": 0.13736540871136826,
+          "radiationLips": 0.00003522573022067579,
+          "radiationNose": 5.306121439025395e-6,
+          "tractControlWork": -5.468657033091286e-6,
+          "wallLoss": 0.03370223401206921
+        },
+        "controlWork": -6.4481909696675315e-6,
+        "cumulativeClosureResidual": -8.08242361927114e-14,
+        "finalEnergy": 3.000018109902371,
+        "frames": 525,
+        "globalClosureResidual": -8.570921750106208e-14,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.1373003187662819,
+        "maximumFrameResidual": 6.217248937900877e-15,
+        "nonFiniteEvents": 0,
+        "radiation": 0.00004053185165970115,
+        "relativeGlobalResidual": 6.239212269074554e-13,
+        "sourceWork": 0.13736540871136826
+      },
+      "measured_f0_hz": 137.93103448275863,
+      "method": "LPC as GARGANTA _lpc_envelope_and_formants (16 kHz, pre-emphasis 0.97, Hamming, order 18, roots bw<800 Hz), median of three 50 ms frames from the last 0.4 s of a 1.4 s render; the tube column is the rigid-glottis impulse response of the same World",
+      "render_lpc_formants_hz": [
+        354.97027262885797,
+        2307.6498720530058,
+        2948.4013734391897
+      ],
+      "render_lpc_frames": [
+        [
+          {
+            "bandwidth_hz": 64.07190757785212,
+            "hz": 354.92481243694806
+          },
+          {
+            "bandwidth_hz": 45.635007320558316,
+            "hz": 2307.560727316269
+          },
+          {
+            "bandwidth_hz": 48.10156519831492,
+            "hz": 2948.4013734391897
+          },
+          {
+            "bandwidth_hz": 38.525147450864296,
+            "hz": 3754.0847163713165
+          }
+        ],
+        [
+          {
+            "bandwidth_hz": 64.18590990981438,
+            "hz": 354.97027262885797
+          },
+          {
+            "bandwidth_hz": 45.46464207603424,
+            "hz": 2307.6498720530058
+          },
+          {
+            "bandwidth_hz": 47.980142230902885,
+            "hz": 2948.4721816125784
+          },
+          {
+            "bandwidth_hz": 38.46124845856308,
+            "hz": 3754.0115846625886
+          }
+        ],
+        [
+          {
+            "bandwidth_hz": 64.00881099144193,
+            "hz": 355.0496323348872
+          },
+          {
+            "bandwidth_hz": 45.29353262308512,
+            "hz": 2307.713540821652
+          },
+          {
+            "bandwidth_hz": 47.87667174312667,
+            "hz": 2948.3826029357647
+          },
+          {
+            "bandwidth_hz": 38.489911091518394,
+            "hz": 3754.0002365102046
+          }
+        ]
+      ],
+      "render_vs_target_percent": [
+        22.403542285813092,
+        2.5622165356891453,
+        -0.05419073087492599
+      ],
+      "tail_rms": 0.006555695420280017,
+      "target_hz": [
+        290.0,
+        2250.0,
+        2950.0
+      ],
+      "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs VOWEL_*_MODES (GARGANTA rung-1 design profiles, not measurements)",
+      "tube_resonances_hz": [
+        292.96875,
+        2267.578125,
+        2950.927734375,
+        3750.732421875
+      ],
+      "vowel": "i",
+      "wav": "tract-i.wav"
+    },
+    {
+      "articulation": {
+        "lips": 0.025,
+        "tongue_diameter": 0.975,
+        "tongue_index": 0.475,
+        "velum": 0.0
+      },
+      "breath": 0.6,
+      "fold_tuning_hz": 120.0,
+      "ledger": {
+        "breakdown": {
+          "foldAeroWork": 0.009232279218838745,
+          "foldControlWork": 0.0,
+          "foldLoss": 0.009218610177046602,
+          "impactWork": 0.0,
+          "jetLoss": 0.07678014407678435,
+          "lungSupply": 0.12971104602150996,
+          "muscleWork": 0.12971104510994103,
+          "radiationLips": 0.0000224654404374235,
+          "radiationNose": 9.33855777394503e-6,
+          "tractControlWork": -0.00002426339591021585,
+          "wallLoss": 0.04358488106023836
+        },
+        "controlWork": -0.000025242929846792096,
+        "cumulativeClosureResidual": 7.327471962526033e-14,
+        "finalEnergy": 3.0000703628678793,
+        "frames": 525,
+        "globalClosureResidual": 6.572520305780927e-14,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.12958363531406922,
+        "maximumFrameResidual": 7.105427357601002e-15,
+        "nonFiniteEvents": 0,
+        "radiation": 0.000031803998211368544,
+        "relativeGlobalResidual": 5.066061627850221e-13,
+        "sourceWork": 0.12971104510994103
+      },
+      "measured_f0_hz": 134.45378151260505,
+      "method": "LPC as GARGANTA _lpc_envelope_and_formants (16 kHz, pre-emphasis 0.97, Hamming, order 18, roots bw<800 Hz), median of three 50 ms frames from the last 0.4 s of a 1.4 s render; the tube column is the rigid-glottis impulse response of the same World",
+      "render_lpc_formants_hz": [
+        358.67386270854246,
+        792.9767182794466,
+        2308.9725109301617
+      ],
+      "render_lpc_frames": [
+        [
+          {
+            "bandwidth_hz": 33.34404469495092,
+            "hz": 358.4768651270134
+          },
+          {
+            "bandwidth_hz": 76.8133536807568,
+            "hz": 792.5415144622973
+          },
+          {
+            "bandwidth_hz": 208.57423385983876,
+            "hz": 2310.5089888237603
+          },
+          {
+            "bandwidth_hz": 319.0986479102434,
+            "hz": 3212.840486316314
+          }
+        ],
+        [
+          {
+            "bandwidth_hz": 33.57146276268634,
+            "hz": 358.67386270854246
+          },
+          {
+            "bandwidth_hz": 77.63633294084272,
+            "hz": 792.9767182794466
+          },
+          {
+            "bandwidth_hz": 208.2385679133142,
+            "hz": 2308.9725109301617
+          },
+          {
+            "bandwidth_hz": 317.55222194848534,
+            "hz": 3213.5533723969434
+          }
+        ],
+        [
+          {
+            "bandwidth_hz": 33.80925848341076,
+            "hz": 358.75969356821173
+          },
+          {
+            "bandwidth_hz": 78.25648906362504,
+            "hz": 793.1750598784837
+          },
+          {
+            "bandwidth_hz": 208.82364848941137,
+            "hz": 2305.0615926225137
+          },
+          {
+            "bandwidth_hz": 314.5455342167488,
+            "hz": 3209.5305000717112
+          }
+        ]
+      ],
+      "render_vs_target_percent": [
+        15.701246035013696,
+        13.282388325635225,
+        -1.7458505987165251
+      ],
+      "tail_rms": 0.013249380551990248,
+      "target_hz": [
+        310.0,
+        700.0,
+        2350.0
+      ],
+      "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs VOWEL_*_MODES (GARGANTA rung-1 design profiles, not measurements)",
+      "tube_resonances_hz": [
+        304.6875,
+        702.392578125,
+        2397.216796875,
+        3227.783203125
+      ],
+      "vowel": "u",
+      "wav": "tract-u.wav"
+    }
+  ]
+}

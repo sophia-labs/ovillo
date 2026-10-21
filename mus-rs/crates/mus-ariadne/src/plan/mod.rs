@@ -7,6 +7,7 @@
 mod constitutive;
 mod helpers;
 mod preset;
+mod space;
 mod types;
 mod validate;
 #[cfg(test)]
@@ -17,6 +18,7 @@ pub use constitutive::{
     LocalMediumBoundarySpec, LocalMediumPortInputBinding,
     LocalMediumPortOutputBinding, WORLD_PLAN_V3_SCHEMA_VERSION,
 };
+pub use space::{SpaceBodyLaws, SpaceBodySpec};
 pub use types::{
     BodyInstanceSpec, BodyPose, BodySpec, DirectCouplingSpec, SharedSpaceSpec,
     SpacePortSpec, WorldPlan,

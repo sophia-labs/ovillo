@@ -1,0 +1,13 @@
+[package]
+name = "ovillo-tract-wasm"
+description = "C-ABI cdylib of ovillo-tract for an AudioWorkletProcessor (no wasm-bindgen; instantiate from bytes)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ovillo-tract = { workspace = true }
