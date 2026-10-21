@@ -1,0 +1,18 @@
+[package]
+name = "ovillo-tract-world"
+description = "A vocal tract as a true mus_ariadne::World: one N-D body (tongue index, tongue diameter, lips, velum) whose modes are computed from a branched oral+nasal tube network, voiced by a reservoir-paid flow valve."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+mus-ariadne = { workspace = true }
+
+[dev-dependencies]
+hound = { workspace = true }
+serde_json = { workspace = true }
+ovillo-tract = { workspace = true }

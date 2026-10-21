@@ -3940,6 +3940,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ovillo-tract-world"
+version = "0.1.0"
+dependencies = [
+ "hound",
+ "mus-ariadne",
+ "ovillo-tract",
+ "serde_json",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

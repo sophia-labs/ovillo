@@ -1,0 +1,571 @@
+{
+  "articulationSource": "ovillo-tract presets.rs ART_A/I/U (fitted there against the tube tract; not refitted)",
+  "connection": "MassMomentum { disposal: Dissipate }",
+  "gestures": [
+    {
+      "gesture": "aiua",
+      "ledger": {
+        "controlWork": 0.00001180883149135503,
+        "cumulativeClosureResidual": 1.1146639167236572e-13,
+        "disposal": 1.471706516084894e-7,
+        "finalEnergy": 3.000000000000102,
+        "frames": 153600,
+        "globalClosureResidual": 1.4805934256401088e-12,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.28174381898335077,
+        "maximumFrameResidual": 8.881784197001252e-16,
+        "maximumLocalResidual": 8.881784197001252e-16,
+        "moveControlWork": 0.000013221130254875846,
+        "moves": 399,
+        "planDigest": "sha256:a6f741e22f3cee0ae6e9cc43a1032244e44e6247a0b8234b0bb5baf2af33855e",
+        "radiation": 0.004790916418857951,
+        "sourceWork": 0.2865229265693392,
+        "valveRetunes": 2442,
+        "valveWork": -1.4122987635208214e-6
+      },
+      "peak": 0.09857630729675293,
+      "seconds": 3.2,
+      "wav": "nd-aiua.wav"
+    },
+    {
+      "gesture": "mama",
+      "ledger": {
+        "controlWork": 0.00004303256994480575,
+        "cumulativeClosureResidual": -2.318145675417327e-13,
+        "disposal": 1.011497719848612e-6,
+        "finalEnergy": 3.0,
+        "frames": 96000,
+        "globalClosureResidual": 1.8616219676914625e-12,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.14686704361811795,
+        "maximumFrameResidual": 8.881784197001252e-16,
+        "maximumLocalResidual": 8.881784197001252e-16,
+        "moveControlWork": 0.00004522984708924813,
+        "moves": 456,
+        "planDigest": "sha256:6758a559a7e4235a5a3dc1f007815ac49db4259cbfb43b7cc5e11abe908e2576",
+        "radiation": 0.00362647200082193,
+        "sourceWork": 0.15045048304713357,
+        "valveRetunes": 2825,
+        "valveWork": -2.1972771444423153e-6
+      },
+      "peak": 0.21306473016738892,
+      "seconds": 2.0,
+      "wav": "nd-mama.wav"
+    }
+  ],
+  "method": "both worlds: ART_REST start, target vowel at articulator speed, breath 0.6, fold tuning 120 Hz, tenseness 0.6, 1.4 s; LPC = ovillo-tract measure::lpc_formants (copied byte-identical), median of three 50 ms frames in the last 0.4 s; N-D modal peaks = peaks of the World's own modal response H(w) (glottal volume velocity to radiating-volume pressure); tube peaks = ovillo-tract rigid-glottis impulse response",
+  "minMove": 0.001,
+  "nasalSections": 31,
+  "oralSections": 44,
+  "provenance": [
+    {
+      "label": "spec",
+      "name": "area_function_family",
+      "source": "ovillo-tract anatomy.rs oral_areas_cm2/nasal_areas_cm2 (GARGANTA neutral_log_area + tongue/lip terms), lowered to AreaTermSpec; identical formulas",
+      "unit": "-",
+      "value": 0.0
+    },
+    {
+      "label": "copied",
+      "name": "every_anatomy_number",
+      "source": "ovillo/crates/ovillo-tract/src/anatomy.rs TractAnatomy::adult_v0 (labelled there)",
+      "unit": "-",
+      "value": 0.0
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "oral_sections",
+      "source": "this crate: network grid; 44 = the tube tract's section count at 48 kHz",
+      "unit": "-",
+      "value": 44.0
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "nasal_sections",
+      "source": "this crate: network grid; 31 = the tube tract's",
+      "unit": "-",
+      "value": 31.0
+    },
+    {
+      "label": "law",
+      "name": "modes",
+      "source": "mus_ariadne MODE_COUNT: lowest 24 solutions of K phi = w^2 C phi on the network",
+      "unit": "-",
+      "value": 24.0
+    },
+    {
+      "label": "law",
+      "name": "radiation_conductance",
+      "source": "G = A r^2 / (4 rho c l^2), l = dx/2 + 0.61 r: the parallel (end column, G) load's low-ka resistance equals GARGANTA _radiation_impedance's (rho c/A)(ka)^2/4",
+      "unit": "-",
+      "value": 0.0
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "lung_refill",
+      "source": "ovillo/crates/ovillo-tract/src/anatomy.rs TractAnatomy::adult_v0 (labelled there)",
+      "unit": "W",
+      "value": 0.3
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "lung_capacity",
+      "source": "ovillo/crates/ovillo-tract/src/anatomy.rs TractAnatomy::adult_v0 (labelled there)",
+      "unit": "J",
+      "value": 3.0
+    }
+  ],
+  "sampleRateHz": 48000.0,
+  "schema": "ovillo.tract-world.vowels.v0",
+  "targetSource": "mus-rs/crates/mus-dsp/src/body_profiles.rs VOWEL_*_MODES (GARGANTA rung-1 design profiles, not measurements)",
+  "updateInterval": 32,
+  "vowels": [
+    {
+      "articulation": [
+        0.06,
+        0.73,
+        0.56,
+        0.0
+      ],
+      "nd_err_percent": [
+        2.8,
+        -0.2,
+        -1.1
+      ],
+      "nd_world": {
+        "f0_hz": 137.14285714285714,
+        "ledger": {
+          "controlWork": -4.265272015757525e-6,
+          "cumulativeClosureResidual": -8.704148513061227e-14,
+          "disposal": 4.270045648445325e-10,
+          "finalEnergy": 3.0000246588154234,
+          "frames": 67200,
+          "globalClosureResidual": -2.0872192862952943e-14,
+          "initialEnergy": 3.0,
+          "internalLoss": 0.13171795417941576,
+          "maximumFrameResidual": 8.881784197001252e-16,
+          "maximumLocalResidual": 8.881784197001252e-16,
+          "moveControlWork": -4.265272015757525e-6,
+          "moves": 122,
+          "planDigest": "sha256:5617b467134488c2747538b8899abffb7f659356a40eacaeb44f21b62921419c",
+          "radiation": 0.0036701624171688496,
+          "sourceWork": 0.13541704068404403,
+          "valveRetunes": 0,
+          "valveWork": 0.0
+        },
+        "lowest_modes_hz": [
+          711.0004062795488,
+          856.073878548136,
+          1159.3874100072026,
+          2397.879318635096,
+          2546.19325962019,
+          3946.8985286958855,
+          3998.9488584776605,
+          4829.262430607553
+        ],
+        "lpc_frames": [
+          [
+            [
+              729.6417868840455,
+              36.854358191196866
+            ],
+            [
+              1148.205629286725,
+              62.08920211846235
+            ],
+            [
+              2471.3997261769555,
+              121.56099672195344
+            ],
+            [
+              3942.1572255561473,
+              93.01792207094552
+            ]
+          ],
+          [
+            [
+              729.6594302940188,
+              36.86690679095752
+            ],
+            [
+              1148.4024858662524,
+              62.0493514783443
+            ],
+            [
+              2471.236395383764,
+              120.9106810525712
+            ],
+            [
+              3942.0712194035154,
+              93.23594025729254
+            ]
+          ],
+          [
+            [
+              729.6025725642718,
+              36.75538620897592
+            ],
+            [
+              1148.224106313979,
+              61.88486131334715
+            ],
+            [
+              2471.38808526862,
+              120.99201943121459
+            ],
+            [
+              3941.815450778969,
+              93.01010502402589
+            ]
+          ]
+        ],
+        "lpc_hz": [
+          729.6417868840455,
+          1148.224106313979,
+          2471.38808526862
+        ],
+        "modal_response_peaks_hz": [
+          716.0,
+          1158.0,
+          2553.0,
+          3948.0
+        ],
+        "oral_fraction": [
+          0.8267071970259354,
+          0.17904136158801487,
+          0.9941363902919272,
+          0.09879929537088829,
+          0.9004660387949762,
+          0.23987031099628853,
+          0.7607700505717883,
+          0.9990728771344871
+        ],
+        "tail_rms": 0.017065334182632643,
+        "wav": "nd-a.wav"
+      },
+      "target_hz": [
+        710.0,
+        1150.0,
+        2500.0
+      ],
+      "tube_err_percent": [
+        3.0,
+        0.3,
+        0.0
+      ],
+      "tube_tract": {
+        "f0_hz": 139.1304347826087,
+        "lpc_hz": [
+          731.0649689903347,
+          1153.7728929367336,
+          2501.0567318575468
+        ],
+        "tube_peaks_hz": [
+          717.7734375,
+          1156.494140625,
+          2547.36328125,
+          4000.48828125
+        ]
+      },
+      "vowel": "a"
+    },
+    {
+      "articulation": [
+        0.91,
+        0.74,
+        0.41,
+        0.0
+      ],
+      "nd_err_percent": [
+        17.8,
+        2.5,
+        -0.1
+      ],
+      "nd_world": {
+        "f0_hz": 137.93103448275863,
+        "ledger": {
+          "controlWork": -8.175821499342756e-6,
+          "cumulativeClosureResidual": -1.8118839761882555e-13,
+          "disposal": 1.3460699751644792e-9,
+          "finalEnergy": 3.000029681112175,
+          "frames": 67200,
+          "globalClosureResidual": -2.1582735598713043e-13,
+          "initialEnergy": 3.0,
+          "internalLoss": 0.13629174029499372,
+          "maximumFrameResidual": 8.881784197001252e-16,
+          "maximumLocalResidual": 8.881784197001252e-16,
+          "moveControlWork": -8.175821499342756e-6,
+          "moves": 122,
+          "planDigest": "sha256:5617b467134488c2747538b8899abffb7f659356a40eacaeb44f21b62921419c",
+          "radiation": 0.0011161084070194227,
+          "sourceWork": 0.13744570563590353,
+          "valveRetunes": 0,
+          "valveWork": 0.0
+        },
+        "lowest_modes_hz": [
+          292.1752358048357,
+          844.2620812832888,
+          2267.2302910244707,
+          2414.612845458397,
+          2945.843970493965,
+          3745.0585337859375,
+          3959.428947484994,
+          4923.495761510711
+        ],
+        "lpc_frames": [
+          [
+            [
+              341.6924251560449,
+              59.0570671866827
+            ],
+            [
+              2305.1434549866312,
+              59.424722760735214
+            ],
+            [
+              2947.7771037501925,
+              49.329197687570264
+            ],
+            [
+              3748.2026994962275,
+              38.91876548287534
+            ]
+          ],
+          [
+            [
+              341.70984490543265,
+              58.98872898425918
+            ],
+            [
+              2305.126278903071,
+              59.16555813083362
+            ],
+            [
+              2947.7474744712076,
+              49.1593870485374
+            ],
+            [
+              3748.100453739669,
+              38.79461453082446
+            ]
+          ],
+          [
+            [
+              341.5192868855417,
+              59.07251344674528
+            ],
+            [
+              2305.0491290744644,
+              59.837940150723945
+            ],
+            [
+              2947.896099263386,
+              49.441545652363196
+            ],
+            [
+              3748.3209562442185,
+              38.74951710881659
+            ]
+          ]
+        ],
+        "lpc_hz": [
+          341.6924251560449,
+          2305.126278903071,
+          2947.7771037501925
+        ],
+        "modal_response_peaks_hz": [
+          293.0,
+          2268.0,
+          2947.0,
+          3745.0
+        ],
+        "oral_fraction": [
+          0.9840584099684674,
+          0.015591411262965921,
+          0.9917238067369044,
+          0.008843385990529966,
+          0.9995516298368321,
+          0.9995525012428564,
+          0.0007824786860499174,
+          0.9993359207192548
+        ],
+        "tail_rms": 0.012212335091182205,
+        "wav": "nd-i.wav"
+      },
+      "target_hz": [
+        290.0,
+        2250.0,
+        2950.0
+      ],
+      "tube_err_percent": [
+        22.4,
+        2.6,
+        -0.1
+      ],
+      "tube_tract": {
+        "f0_hz": 137.93103448275863,
+        "lpc_hz": [
+          354.97027262885797,
+          2307.6498720530058,
+          2948.4013734391897
+        ],
+        "tube_peaks_hz": [
+          292.96875,
+          2267.578125,
+          2950.927734375,
+          3750.732421875
+        ]
+      },
+      "vowel": "i"
+    },
+    {
+      "articulation": [
+        0.475,
+        0.975,
+        0.025,
+        0.0
+      ],
+      "nd_err_percent": [
+        17.6,
+        2.5,
+        1.3
+      ],
+      "nd_world": {
+        "f0_hz": 134.8314606741573,
+        "ledger": {
+          "controlWork": -0.00001908077625073941,
+          "cumulativeClosureResidual": 7.416289804496046e-14,
+          "disposal": 8.459244459893963e-9,
+          "finalEnergy": 3.0000752799782138,
+          "frames": 67200,
+          "globalClosureResidual": -2.4424906541753444e-14,
+          "initialEnergy": 3.0,
+          "internalLoss": 0.13029492369454454,
+          "maximumFrameResidual": 8.881784197001252e-16,
+          "maximumLocalResidual": 8.881784197001252e-16,
+          "moveControlWork": -0.00001908077625073941,
+          "moves": 138,
+          "planDigest": "sha256:5617b467134488c2747538b8899abffb7f659356a40eacaeb44f21b62921419c",
+          "radiation": 0.0001857725184121252,
+          "sourceWork": 0.1305750569674453,
+          "valveRetunes": 0,
+          "valveWork": 0.0
+        },
+        "lowest_modes_hz": [
+          301.9146425684972,
+          706.0335111319802,
+          849.5975302944295,
+          2407.776656267942,
+          3227.49241164535,
+          3957.409438984412,
+          4233.255626798485,
+          5163.191141359304
+        ],
+        "lpc_frames": [
+          [
+            [
+              364.8997011355061,
+              65.71832350127087
+            ],
+            [
+              718.6771860805403,
+              229.21883234018154
+            ],
+            [
+              2351.924499623886,
+              337.91360309548935
+            ],
+            [
+              2617.1898341171172,
+              568.4220012131511
+            ]
+          ],
+          [
+            [
+              364.41218013754707,
+              65.57403517870364
+            ],
+            [
+              717.2062144615275,
+              225.3580736495411
+            ],
+            [
+              2380.0667460942163,
+              326.5705170395615
+            ],
+            [
+              2565.9989201018793,
+              601.7403302205938
+            ]
+          ],
+          [
+            [
+              364.5535088090032,
+              65.60196246127524
+            ],
+            [
+              717.0317842849072,
+              225.15319862345964
+            ],
+            [
+              2380.149285485967,
+              326.35290878605815
+            ],
+            [
+              2565.215406367654,
+              603.773084697622
+            ]
+          ]
+        ],
+        "lpc_hz": [
+          364.5535088090032,
+          717.2062144615275,
+          2380.0667460942163
+        ],
+        "modal_response_peaks_hz": [
+          304.0,
+          699.0,
+          2413.0,
+          3223.0
+        ],
+        "oral_fraction": [
+          0.9773243927702963,
+          0.9337645136572961,
+          0.08852170453193388,
+          0.004491559673999027,
+          0.9924589732863444,
+          0.007767531503064199,
+          0.9969049224072563,
+          0.9817189389341398
+        ],
+        "tail_rms": 0.03556328372168869,
+        "wav": "nd-u.wav"
+      },
+      "target_hz": [
+        310.0,
+        700.0,
+        2350.0
+      ],
+      "tube_err_percent": [
+        15.7,
+        13.3,
+        -1.7
+      ],
+      "tube_tract": {
+        "f0_hz": 134.45378151260505,
+        "lpc_hz": [
+          358.67386270854246,
+          792.9767182794466,
+          2308.9725109301617
+        ],
+        "tube_peaks_hz": [
+          304.6875,
+          702.392578125,
+          2397.216796875,
+          3227.783203125
+        ]
+      },
+      "vowel": "u"
+    }
+  ]
+}

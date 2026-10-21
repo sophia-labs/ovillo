@@ -127,6 +127,9 @@ impl World {
                         0.0
                     }
                 }
+                ConstitutiveBodyControls::ModalSpace(controls) => {
+                    controls.body.sanitized().radiation_fraction
+                }
             },
         )
     }
@@ -162,6 +165,11 @@ impl World {
         let mut space_exchange_into_bodies = 0.0;
         let mut space_metric_residual = 0.0;
         for index in 0..self.bodies.len() {
+            // An N-D body whose port weights are all exactly zero exchanges
+            // nothing (every angle is 0): skip the no-op. Legacy bodies always run it.
+            if self.space_port_inert[index] {
+                continue;
+            }
             let exchange = self
                 .space
                 .exchange_port(
@@ -184,12 +192,30 @@ impl World {
             .map_err(|error| WorldError::Space(error.to_string()))?;
         self.last_space_frame = space_frame;
         internal_loss += space_frame.internal_loss;
+        if self.pending_disposal_internal != 0.0 {
+            internal_loss += std::mem::take(&mut self.pending_disposal_internal);
+        }
         local_residual = local_residual
             .max(space_frame.coupling_metric_residual.abs())
             .max(space_frame.closure_residual.abs());
 
         let mut radiation = space_frame.radiation;
+        if self.pending_disposal_radiation != 0.0 {
+            radiation += std::mem::take(&mut self.pending_disposal_radiation);
+        }
         for index in 0..self.bodies.len() {
+            if let Some(space) = self.bodies[index].space_body_mut() {
+                let (radiated, residual) = space
+                    .radiate(radiation_fraction(index), &mut self.body_radiation[index])
+                    .map_err(|error| WorldError::Body {
+                        id: self.body_ids[index].clone(),
+                        message: error.to_string(),
+                    })?;
+                self.body_emissions[index] = self.body_radiation[index].first().copied().unwrap_or(0.0);
+                radiation += radiated;
+                local_residual = local_residual.max(residual.abs());
+                continue;
+            }
             let emitted = self.bodies[index]
                 .radiate(radiation_fraction(index))
                 .map_err(|error| WorldError::Body {

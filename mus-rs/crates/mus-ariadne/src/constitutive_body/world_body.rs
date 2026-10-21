@@ -10,6 +10,9 @@ impl WorldBody {
             BodyConstitutionSpec::LocalMedium { boundary } => Ok(Self::LocalMedium(
                 LocalMediumWorldBody::try_new(sample_rate_hz, boundary)?,
             )),
+            BodyConstitutionSpec::ModalSpace { body } => {
+                Ok(Self::ModalSpace(SpaceBody::try_new(sample_rate_hz, body)?))
+            }
         }
     }
 
@@ -18,6 +21,7 @@ impl WorldBody {
         match self {
             Self::Modal(body) => body.total_stored_energy(),
             Self::LocalMedium(body) => body.total_stored_energy(),
+            Self::ModalSpace(body) => body.total_stored_energy(),
         }
     }
 
@@ -26,6 +30,7 @@ impl WorldBody {
         match self {
             Self::Modal(body) => body.material_stored_energy(),
             Self::LocalMedium(body) => body.material_stored_energy(),
+            Self::ModalSpace(body) => body.material_stored_energy(),
         }
     }
 
@@ -34,6 +39,7 @@ impl WorldBody {
         match self {
             Self::Modal(body) => body.reservoir_energy(),
             Self::LocalMedium(body) => body.reservoir_energy(),
+            Self::ModalSpace(body) => body.reservoir_energy(),
         }
     }
 
@@ -41,7 +47,7 @@ impl WorldBody {
     pub(crate) fn configuration_amount(&self) -> Option<f64> {
         match self {
             Self::Modal(body) => Some(body.configuration_amount()),
-            Self::LocalMedium(_) => None,
+            Self::LocalMedium(_) | Self::ModalSpace(_) => None,
         }
     }
 
@@ -53,13 +59,14 @@ impl WorldBody {
                 displacement: [0.0; MODE_COUNT],
                 momentum: *body.momentum(),
             },
+            Self::ModalSpace(body) => body.field_state(),
         }
     }
 
     #[must_use]
     pub(crate) fn local_medium_state(&self) -> Option<&LocalMediumState> {
         match self {
-            Self::Modal(_) => None,
+            Self::Modal(_) | Self::ModalSpace(_) => None,
             Self::LocalMedium(body) => Some(body.state()),
         }
     }
@@ -69,6 +76,7 @@ impl WorldBody {
         match self {
             Self::Modal(body) => body.momentum(),
             Self::LocalMedium(body) => body.momentum(),
+            Self::ModalSpace(body) => body.momentum(),
         }
     }
 
@@ -76,6 +84,7 @@ impl WorldBody {
         match self {
             Self::Modal(body) => body.momentum_mut(),
             Self::LocalMedium(body) => body.momentum_mut(),
+            Self::ModalSpace(body) => body.momentum_mut(),
         }
     }
 
@@ -98,6 +107,15 @@ impl WorldBody {
             (Self::LocalMedium(body), ConstitutiveBodyControls::LocalMedium(controls)) => {
                 body.process_local(controls)
             }
+            (Self::ModalSpace(body), ConstitutiveBodyControls::ModalSpace(controls)) => {
+                let frame = body.process_local(controls, returning_space_activity)?;
+                Ok(WorldBodyLocalFrame {
+                    source_work: frame.source_work,
+                    internal_loss: frame.internal_loss,
+                    closure_residual: frame.closure_residual,
+                    local_residual: frame.local_residual,
+                })
+            }
             _ => Err(ConstitutiveBodyError::ControlKindMismatch),
         }
     }
@@ -116,6 +134,15 @@ impl WorldBody {
                 })
             }
             Self::LocalMedium(body) => body.radiate(fraction),
+            Self::ModalSpace(body) => {
+                let mut emitted = Vec::with_capacity(4);
+                let (radiation, residual) = body.radiate(fraction, &mut emitted)?;
+                Ok(WorldBodyRadiationFrame {
+                    emitted,
+                    radiation,
+                    residual,
+                })
+            }
         }
     }
 
@@ -125,8 +152,26 @@ impl WorldBody {
     ) -> Result<BodyReconfigurationFrame, ConstitutiveBodyError> {
         match self {
             Self::Modal(body) => Ok(body.set_configuration_amount(amount)?),
-            Self::LocalMedium(_) => Err(ConstitutiveBodyError::UnsupportedReconfiguration),
+            Self::LocalMedium(_) | Self::ModalSpace(_) => {
+                Err(ConstitutiveBodyError::UnsupportedReconfiguration)
+            }
         }
     }
 }
 
+
+impl WorldBody {
+    pub(crate) fn space_body(&self) -> Option<&SpaceBody> {
+        match self {
+            Self::ModalSpace(body) => Some(body),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn space_body_mut(&mut self) -> Option<&mut SpaceBody> {
+        match self {
+            Self::ModalSpace(body) => Some(body),
+            _ => None,
+        }
+    }
+}

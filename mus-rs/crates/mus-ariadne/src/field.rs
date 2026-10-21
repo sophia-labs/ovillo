@@ -190,6 +190,35 @@ impl<const N: usize> ModalMetricWaveField<N> {
         }
     }
 
+    /// Scale each mode's `(q, p)` by its own retain factor in `[0, 1]` and
+    /// return the energy each mode gave up (`removed[k]`, joules). Used for
+    /// mode-diagonal radiation computed from a configuration; the caller books
+    /// what was removed.
+    pub(crate) fn damp_modes(&mut self, retain: &[f64; N], removed: &mut [f64; N]) -> MetricLossFrame {
+        let energy_before = self.stored_energy();
+        for index in 0..N {
+            let before = 0.5
+                * self.dt
+                * (self.state.momentum[index] * self.state.momentum[index]
+                    + (self.omega[index] * self.state.displacement[index]).powi(2));
+            self.state.displacement[index] *= retain[index];
+            self.state.momentum[index] *= retain[index];
+            let after = 0.5
+                * self.dt
+                * (self.state.momentum[index] * self.state.momentum[index]
+                    + (self.omega[index] * self.state.displacement[index]).powi(2));
+            removed[index] = before - after;
+        }
+        let energy_after = self.stored_energy();
+        let loss = energy_before - energy_after;
+        MetricLossFrame {
+            energy_before,
+            energy_after,
+            loss,
+            residual: energy_after - energy_before + loss,
+        }
+    }
+
     /// Remove one normalized material-flow projection as radiation. Potential
     /// energy is untouched; the removed kinetic component is booked exactly.
     pub fn radiate(
