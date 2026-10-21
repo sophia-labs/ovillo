@@ -171,8 +171,9 @@ export class GuitarScene {
     // ---- the top: real mode shapes at their real energies
     const ampRow = sample_row(d.modes.amp, this.t0, this.hop, t);
     const sumNow = ampRow.reduce((a, v) => a + v, 0);
-    const zmax = 0.034; // the loudest moment of the window swings 34 mm (exaggerated)
-    const gain = sumNow > 0 ? (zmax / this.maxAmpSum) * Math.sqrt(this.maxAmpSum / sumNow) : 0;
+    const zmax = 0.045; // the loudest moment of the window swings 45 mm (exaggerated)
+    // drawn size grows as the 0.4 power of the summed amplitudes (quiet moments stay visible)
+    const gain = sumNow > 0 ? (zmax / this.maxAmpSum) * (this.maxAmpSum / sumNow) ** 0.6 : 0;
     const coef = ampRow.map((a, m) => gain * a * Math.cos(2 * Math.PI * this.fvis[m] * t + 0.7 * d.modes.chosen[m]));
     const topLv = level(at(d.top), this.max.top, 45);
     const T = this.top.begin();

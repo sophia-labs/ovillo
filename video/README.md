@@ -60,8 +60,8 @@ factor 2 and downscaled with lanczos.
 Follows `blender/README.md`'s rules. The top's lines are the sum of its real coupled
 mode shapes (the visual anatomy's 72; the 24 with most energy in the window), each at
 its real energy (displacement `sqrt(2E)/omega`, high modes lifted by `(f/f0)^0.6`); the
-swing's tempo (`0.45 sqrt(f/f0)` Hz) is invented and its size is compressed (square root
-of the summed amplitudes; the window's loudest moment is drawn at 34 mm). Each string
+swing's tempo (`0.45 sqrt(f/f0)` Hz) is invented and its size is compressed (the 0.4 power
+of the summed amplitudes; the window's loudest moment is drawn at 45 mm). Each string
 glows and swings with its body's stored energy over its current speaking length (the
 stop the tab names; the 7.5 Hz shimmer is invented). Amber marks are the touches at the
 hand's pluck point (diamond: thumb; circle: fingers; at the fret for hammer-ons,
