@@ -189,9 +189,9 @@ impl World {
             }
             let exchange = self
                 .space
-                .exchange_port(
+                .exchange_compiled_port(
                     self.bodies[index].momentum_mut(),
-                    &self.space_ports[index],
+                    &mut self.compiled_ports[index],
                     controls.space,
                 )
                 .map_err(|error| WorldError::Space(error.to_string()))?;

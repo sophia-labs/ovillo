@@ -130,6 +130,11 @@ impl World {
         let space = SharedSpace::try_new(sample_rate_hz, shared_space)
             .map_err(|error| WorldError::Space(error.to_string()))?;
         let body_count = bodies.len();
+        let compiled_ports = space_ports
+            .iter()
+            .map(crate::shared_space::CompiledSpacePort::compile)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| WorldError::Space(error.to_string()))?;
         let space_port_inert = bodies
             .iter()
             .zip(&space_ports)
@@ -140,6 +145,7 @@ impl World {
             .collect();
         Ok(Self {
             space_port_inert,
+            compiled_ports,
             legacy_plan,
             constitutive_plan,
             world_name,

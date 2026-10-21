@@ -54,6 +54,8 @@ pub struct World {
     pub(super) disposal_total: f64,
     /// Per body: an N-D body (or a hammer) whose shared-space port weights are all zero.
     pub(super) space_port_inert: Vec<bool>,
+    /// Per body: its port, unit directions taken once (`exchange_compiled_port`).
+    pub(super) compiled_ports: Vec<crate::shared_space::CompiledSpacePort>,
     /// Hammers and the wires each strikes (empty unless the plan declares hammers).
     pub(super) hammers: Vec<hammer::HammerBinding>,
     /// Source work and contact loss booked between frames by `strike_hammer`

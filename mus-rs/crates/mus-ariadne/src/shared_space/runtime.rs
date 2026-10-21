@@ -53,6 +53,27 @@ impl DelayCourse {
     }
 }
 
+/// A body's port with its unit directions taken once at construction, and
+/// each course's last rotation `(angle bits, sin, cos)`.
+#[derive(Debug, Clone)]
+pub(crate) struct CompiledSpacePort {
+    directions: [[f64; MODE_COUNT]; SPACE_COURSES],
+    weights: [f64; SPACE_COURSES],
+    rotations: [(u64, f64, f64); SPACE_COURSES],
+}
+
+impl CompiledSpacePort {
+    pub(crate) fn compile(port: &SpacePortSpec) -> Result<Self, SharedSpaceError> {
+        let mut directions = [[0.0; MODE_COUNT]; SPACE_COURSES];
+        for course in 0..SPACE_COURSES {
+            directions[course] = normalized(port.body_directions[course])
+                .map_err(|_| SharedSpaceError::InvalidDirection { name: "body port", index: course })?;
+        }
+        // NaN bits never equal a computed angle's: the first exchange computes every rotation.
+        Ok(Self { directions, weights: port.coupling_weights, rotations: [(f64::NAN.to_bits(), 0.0, 1.0); SPACE_COURSES] })
+    }
+}
+
 /// One fixed-capacity delayed field shared by all body ports in a `World`.
 #[derive(Debug, Clone)]
 pub(crate) struct SharedSpace {
@@ -198,6 +219,54 @@ impl SharedSpace {
                 * finite(port.coupling_weights[course]);
             let (after, head_after) = givens(before, self.heads[course], angle);
             add_projection(body_momentum, &direction, after - before);
+            self.heads[course] = head_after;
+            signed_into_body += 0.5 * self.dt * (after * after - before * before);
+            maximum_abs_angle = maximum_abs_angle.max(angle.abs());
+        }
+        let energy_after = kinetic(body_momentum, self.dt) + kinetic(&self.heads, self.dt);
+        Ok(SharedSpaceExchange {
+            signed_into_body,
+            metric_residual: energy_after - energy_before,
+            maximum_abs_angle,
+        })
+    }
+
+    /// `exchange_port` with the port's unit directions normalized once and
+    /// each course's rotation kept while its angle is unchanged: the same
+    /// arithmetic in the same order, so every result is bit for bit
+    /// `exchange_port`'s.
+    pub(crate) fn exchange_compiled_port(
+        &mut self,
+        body_momentum: &mut [f64; MODE_COUNT],
+        port: &mut CompiledSpacePort,
+        controls: SharedSpaceControls,
+    ) -> Result<SharedSpaceExchange, SharedSpaceError> {
+        if !self.frame_open {
+            return Err(SharedSpaceError::FrameNotOpen);
+        }
+        if body_momentum.iter().any(|value| !value.is_finite()) {
+            return Err(SharedSpaceError::NonFiniteState);
+        }
+        let controls = controls.sanitized();
+        let energy_before = kinetic(body_momentum, self.dt) + kinetic(&self.heads, self.dt);
+        let mut signed_into_body = 0.0;
+        let mut maximum_abs_angle = 0.0_f64;
+        for course in 0..SPACE_COURSES {
+            let direction = &port.directions[course];
+            let before = dot(body_momentum, direction);
+            let angle = TAU
+                * (2.0 + 190.0 * controls.coupling * controls.coupling)
+                / self.sample_rate_hz
+                * finite(port.weights[course]);
+            let rotation = &mut port.rotations[course];
+            if rotation.0 != angle.to_bits() {
+                let (sin_angle, cos_angle) = angle.sin_cos();
+                *rotation = (angle.to_bits(), sin_angle, cos_angle);
+            }
+            let (_, sin_angle, cos_angle) = *rotation;
+            let head = self.heads[course];
+            let (after, head_after) = (cos_angle * before - sin_angle * head, sin_angle * before + cos_angle * head);
+            add_projection(body_momentum, direction, after - before);
             self.heads[course] = head_after;
             signed_into_body += 0.5 * self.dt * (after * after - before * before);
             maximum_abs_angle = maximum_abs_angle.max(angle.abs());

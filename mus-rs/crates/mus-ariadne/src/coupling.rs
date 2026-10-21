@@ -7,7 +7,6 @@
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
 
-use mus_watsn::givens;
 
 use crate::body::Body;
 use crate::constitutive_body::WorldBody;
@@ -87,6 +86,9 @@ struct CompiledDirectCoupling {
     right_direction: [f64; MODE_COUNT],
     rate_hz: f64,
     weight: f64,
+    /// The last rotation `(angle bits, sin, cos)`: `givens` recomputes
+    /// `sin_cos` of the same angle every sample; keeping it changes no bit.
+    rotation: (u64, f64, f64),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -191,7 +193,7 @@ impl CouplingNetwork {
         }
         let dt = sample_rate_hz.recip();
         let mut frame = CouplingFrame::default();
-        for (index, edge) in self.edges.iter().enumerate() {
+        for (index, edge) in self.edges.iter_mut().enumerate() {
             let (left_body, right_body) = two_mut(bodies, edge.left_body, edge.right_body)
                 .ok_or_else(|| CouplingError::RepeatedBody(edge.id.clone()))?;
             let left_projection = dot(left_body.coupled_momentum(), &edge.left_direction);
@@ -200,7 +202,16 @@ impl CouplingNetwork {
                 return Err(CouplingError::NonFiniteState);
             }
             let angle = TAU * edge.rate_hz * dt * edge.weight * controls.scale;
-            let (next_left, next_right) = givens(left_projection, right_projection, angle);
+            if edge.rotation.0 != angle.to_bits() {
+                let (sin_angle, cos_angle) = angle.sin_cos();
+                edge.rotation = (angle.to_bits(), sin_angle, cos_angle);
+            }
+            // `mus_watsn::givens`, with the rotation kept.
+            let (_, sin_angle, cos_angle) = edge.rotation;
+            let (next_left, next_right) = (
+                cos_angle * left_projection - sin_angle * right_projection,
+                sin_angle * left_projection + cos_angle * right_projection,
+            );
             add_projection(
                 left_body.coupled_momentum_mut(),
                 &edge.left_direction,
@@ -279,6 +290,7 @@ fn compile_edge(
             .ok_or_else(|| CouplingError::InvalidDirection(spec.id.clone()))?,
         rate_hz: spec.rate_hz,
         weight: spec.weight,
+        rotation: (f64::NAN.to_bits(), 0.0, 1.0),
     })
 }
 

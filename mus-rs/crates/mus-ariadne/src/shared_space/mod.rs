@@ -6,7 +6,7 @@ mod types;
 pub use types::{
     SharedSpaceControls, SharedSpaceError, SharedSpaceExchange, SharedSpaceFrame,
 };
-pub(crate) use runtime::SharedSpace;
+pub(crate) use runtime::{CompiledSpacePort, SharedSpace};
 
 #[cfg(test)]
 mod tests;

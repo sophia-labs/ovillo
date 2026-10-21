@@ -970,12 +970,11 @@ impl SpaceBody {
                     emitted.push(0.0);
                     return Ok((0.0, 0.0));
                 }
-                let frame = self
-                    .field
-                    .radiate(&laws.radiation_direction, fraction)
-                    .map_err(|m| SpaceBodyError::Field(m.to_owned()))?;
-                emitted.push(frame.emitted_coordinate);
-                Ok((frame.radiation, frame.residual))
+                // The direction was made unit at construction; the World's
+                // ledger measures the frame.
+                let (coordinate, radiation) = self.field.radiate_unit(&laws.radiation_direction, fraction);
+                emitted.push(coordinate);
+                Ok((radiation, 0.0))
             }
             Laws::Network(laws) => {
                 // DC-correct air: radiation through the radiating volumes'

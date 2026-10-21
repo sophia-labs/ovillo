@@ -324,6 +324,18 @@ impl<const N: usize> ModalMetricWaveField<N> {
         })
     }
 
+    /// `radiate` along a direction already of unit length, without the
+    /// diagnostic energy sums: returns `(emitted coordinate, radiation)`.
+    pub(crate) fn radiate_unit(&mut self, direction: &[f64; N], fraction: f64) -> (f64, f64) {
+        let projection = dot(&self.state.momentum, direction);
+        let emitted_coordinate = fraction.sqrt() * projection;
+        let removal = 1.0 - (1.0 - fraction).sqrt();
+        for (momentum, direction) in self.state.momentum.iter_mut().zip(direction) {
+            *momentum -= removal * direction * projection;
+        }
+        (emitted_coordinate, 0.5 * self.dt * emitted_coordinate * emitted_coordinate)
+    }
+
     /// Normalized generalized effort conjugate to a finite-aperture momentum
     /// projection. This is used for compliant-boundary synchronization only;
     /// it is not itself an unbooked source of work.
