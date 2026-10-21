@@ -142,9 +142,25 @@ pub struct EnergyTrace {
     pub loss_frames: Vec<Vec<f32>>,
     pub edges: Vec<String>,
     pub bridge_frames: Vec<Vec<f32>>,
+    /// The World's own books at each hop (`World::receipt`, cumulative from the start of the
+    /// render, f64), one row per hop in `ledger_columns` order. The last row is the receipt's.
+    pub ledger_columns: Vec<&'static str>,
+    pub ledger_frames: Vec<[f64; 8]>,
     /// Every touch the score made, as it reached the world.
     pub touches: Vec<TouchRecord>,
 }
+
+/// Column names of [`EnergyTrace::ledger_frames`].
+pub const LEDGER_COLUMNS: [&str; 8] = [
+    "sourceWork",
+    "controlWork",
+    "internalLoss",
+    "radiation",
+    "initialEnergy",
+    "currentEnergy",
+    "cumulativeClosureResidual",
+    "maximumFrameResidual",
+];
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -516,6 +532,8 @@ pub fn render(
             loss_frames: Vec::new(),
             edges: (0..edges).map(|e| world.coupling_id(e).unwrap_or("?").to_owned()).collect(),
             bridge_frames: Vec::new(),
+            ledger_columns: LEDGER_COLUMNS.to_vec(),
+            ledger_frames: Vec::new(),
             touches: touches
                 .iter()
                 .map(|t| TouchRecord {
@@ -615,6 +633,17 @@ pub fn render(
                 trace.radiation_frames.push(take(&mut radiation_acc));
                 trace.loss_frames.push(take(&mut loss_acc));
                 trace.bridge_frames.push(take(&mut bridge_acc));
+                let books = world.receipt();
+                trace.ledger_frames.push([
+                    books.source_work,
+                    books.control_work,
+                    books.internal_loss,
+                    books.radiation,
+                    books.initial_energy,
+                    books.current_energy,
+                    books.cumulative_closure_residual,
+                    books.maximum_frame_residual,
+                ]);
             }
         }
         buffers.mix_one(start, &left, &right, inst.send, OBSERVATION_GAIN * db_to_gain(inst.gain_db), None);
