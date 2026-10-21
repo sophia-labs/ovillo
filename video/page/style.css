@@ -67,6 +67,7 @@ header .world { color: var(--dim); }
 .mus { position: absolute; border-top: 2px solid var(--line); padding-top: 10px; font-size: 20px; line-height: 1.42; color: var(--dim); }
 .mus .hd { font-size: 17px; letter-spacing: 0.12em; color: var(--dim); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mus .ln { white-space: pre-wrap; word-break: break-word; }
+.mus.dense { font-size: 18px; line-height: 1.32; }
 .mus .ln .vo { color: var(--line); }
 .mus .tk { color: #8b948c; }
 .mus .tk.now { color: var(--warn); }
@@ -123,3 +124,4 @@ body.v16x9 #card .tag { font-size: 32px; margin-top: 24px; }
 body.v16x9 #card .rule { font-size: 26px; margin-top: 44px; }
 body.v16x9 #card .url { font-size: 44px; margin-top: 18px; }
 body.v16x9 #card .lic { font-size: 26px; margin-top: 36px; }
+body.v16x9 .mus.dense { top: 885px; height: 185px; }

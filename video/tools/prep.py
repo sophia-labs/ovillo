@@ -315,15 +315,28 @@ def prep_tract(seg, root):
 
 
 def read_piano_notes(path):
-    """onset sec, midi note, velocity, release (sec): the piano World's notes table."""
+    """The piano World's notes table: onset (s), midi, velocity, release (s), by header name
+    (piano-demo-notes.tsv: onset_s, midi, name, velocity_m_s, release_s, contact_ms, peak_force_n,
+    staff); a table without those names is read by position (onset, midi, velocity, release)."""
     rows = []
     with open(path) as fh:
         reader = csv.reader(fh, delimiter="\t")
         header = next(reader)
+        col = lambda *names: next((header.index(n) for n in names if n in header), None)
+        i_on, i_midi = col("onset_s", "onset") or 0, col("midi") or 1
+        i_vel, i_rel = col("velocity_m_s", "velocity", "vel"), col("release_s", "release")
+        i_vel = 2 if i_vel is None else i_vel
+        i_rel = 3 if i_rel is None else i_rel
+        i_staff, i_name = col("staff"), col("name")
         for r in reader:
             if not r or r[0].startswith("#"):
                 continue
-            rows.append(dict(onset=float(r[0]), midi=int(float(r[1])), velocity=float(r[2]), release=float(r[3])))
+            row = dict(onset=float(r[i_on]), midi=int(float(r[i_midi])), velocity=float(r[i_vel]), release=float(r[i_rel]))
+            if i_staff is not None:
+                row["staff"] = r[i_staff]
+            if i_name is not None:
+                row["name"] = r[i_name]
+            rows.append(row)
     return header, rows
 
 
@@ -383,6 +396,8 @@ def prep_piano(seg, root):
                                                     "controlWork", "internalLoss", "radiation", "boardRadiation",
                                                     "stringRadiation", "cumulativeClosureResidual", "maximumFrameResidual")}
         out["receipt"]["renderDigest"] = r.get("renderDigest")
+        out["keys"] = [dict(name=k["name"], strings=k["strings"], fundamentalHz=k["fundamentalHz"],
+                            inharmonicity=k["inharmonicity"], damped=k["damped"]) for k in aw.get("keys", [])]
     if seg.get("score"):
         touches = [dict(seconds=s_["seconds"], hand=s_.get("staff", ""), string=0, fret=0) for s_ in tr["strikes"]]
         out["bars"] = mus_bars(root / seg["score"], seg["bars"][0], seg["bars"][1], touches)

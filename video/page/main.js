@@ -70,6 +70,7 @@ function drawHud(e, model) {
     ? `<div class="row">${model.ledger.map((c) => `<div class="c"><div class="k">${esc(c.k)}</div><div class="v ${c.c ?? ''}">${esc(c.v)}</div></div>`).join('')}</div>`
       + (model.foot ? `<div class="foot">${model.foot}</div>` : '')
     : '';
+  $('h-mus').classList.toggle('dense', !!model.mus && model.mus.lines.length > 3);
   $('h-mus').innerHTML = model.mus
     ? `<div class="hd">${esc(model.mus.hd)}</div>` + model.mus.lines.map((ln) =>
       `<div class="ln">${ln.map((p) => `<span class="${p.cls ?? ''}">${esc(p.t)}</span>`).join('')}</div>`).join('')

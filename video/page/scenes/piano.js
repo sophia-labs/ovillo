@@ -47,6 +47,10 @@ export class PianoScene {
     const vmax = Math.max(...data.notes.map((n) => n.velocity));
     this.vscale = vmax > 1.5 ? 1 / 127 : 1;
     this.played = [...new Set(data.notes.map((n) => n.midi))].sort((a, b) => a - b);
+    // strings per key (the receipt's choirs), by the notes' key names
+    const choir = Object.fromEntries((data.keys ?? []).map((k) => [k.name, k.strings]));
+    this.choir = {};
+    for (const n of data.notes) this.choir[n.midi] = choir[n.name] ?? 1;
     this.energy = energyAdapter(data.energy, data.receipt, data.window);
     this.layout();
   }
@@ -105,7 +109,11 @@ export class PianoScene {
           lv = Math.max(lv, n.velocity * this.vscale * Math.exp(-age / (held ? 2.5 : 0.25)) * 0.6);
         }
       }
-      St.seg(V(x, 0.04, 0.02), V(x, 0.06 + L, 0.02), lv > 0.01 ? C.world : C.line, (0.25 + 0.75 * lv) * fadeIn);
+      const nc = this.choir[m] ?? 1;
+      for (let c = 0; c < nc; c++) {
+        const dx = (c - (nc - 1) / 2) * 0.0035;
+        St.seg(V(x + dx, 0.04, 0.02), V(x + dx, 0.06 + L, 0.02), lv > 0.01 ? C.world : C.line, (0.25 + 0.75 * lv) * fadeIn);
+      }
       // hammer: rest 18 mm under the string; it reaches the string at the onset
       let lift = 0;
       for (const n of d.notes) if (n.midi === m) {
@@ -123,7 +131,10 @@ export class PianoScene {
     const placeholder = d.placeholder;
     return {
       flag: placeholder ? 'PLACEHOLDER · SILENT' : null,
-      readouts: [{ k: 'KEYS DOWN', v: active.length ? active.slice(-4).join(' ') : '–' }],
+      readouts: [{ k: 'KEYS DOWN', v: active.length ? active.slice(-4).join(' ') : '–' }].concat(placeholder ? [] : (() => {
+        const last = [...(d.energy?.strikes ?? [])].reverse().find((s) => s.seconds <= t + 1e-6);
+        return last ? [{ k: 'HAMMER', v: `${last.hammerVelocity.toFixed(2)} m/s` }, { k: 'FELT CONTACT', v: `${last.contactMs.toFixed(2)} ms`, c: 'd' }] : [];
+      })()),
       chain: placeholder ? ['HAMMERS', 'STRINGS', 'SOUNDBOARD', 'ROOM'].map((k) => ({ k, c: 'd', lv: 0, pk: 0, v: 'no World yet' })) : this.energy.chain(t),
       caption: this.seg.caption,
       ledger: placeholder
@@ -196,9 +207,10 @@ function energyAdapter(e, receipt, window) {
     },
     foot: (t) => {
       const last = [...e.strikes].reverse().find((s) => s.seconds <= t + 1e-6);
-      const felt = last && !last.refused ? `last strike ${last.name}: hammer ${last.hammerVelocity.toFixed(2)} m/s, felt ${last.contactMs.toFixed(1)} ms` : 'no strike yet';
+      const n = e.strikes.filter((s) => s.seconds <= t + 1e-6).length;
+      const worst = e.ledger ? e.ledger[idx(t)][e.ledgerColumns.indexOf('maximumFrameResidual')] : receipt?.maximumFrameResidual;
       const books = e.ledger ? '' : ' · books: the receipt, whole render';
-      return `${felt} · worst frame ${receipt ? fmtJ(receipt.maximumFrameResidual, 2) : '–'}${books}`;
+      return `${n} strikes so far · worst frame ${worst !== undefined ? fmtJ(worst, 2) : '–'} · board ${receipt ? (100 * receipt.boardRadiation / receipt.radiation).toFixed(2) : '–'} % of radiation (receipt)${books}`;
     },
   };
 }

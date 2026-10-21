@@ -44,16 +44,18 @@
       "seconds": 8.5,
       "index": "02",
       "title": "PIANO",
-      "subtitle": "PLACEHOLDER · the Ariadne piano World is not rendered yet",
-      "world": "keys, felt hammers, strings, a soundboard",
-      "placeholder": true,
-      "audio": null,
+      "subtitle": "Prelude in C major, BWV 846 (J. S. Bach) · the opening",
+      "world": "piano-v1 · felt hammers, stiff wires, dampers, a ribbed soundboard",
+      "placeholder": false,
+      "audio": "data/piano/piano-demo.wav",
       "window": [0.0, 8.5],
       "fadeIn": 0.0,
-      "fadeOut": 0.3,
-      "events": "placeholder/piano-demo-notes.PLACEHOLDER.tsv",
-      "energy": null,
-      "receipt": null,
+      "fadeOut": 0.4,
+      "events": "data/piano/piano-demo-notes.tsv",
+      "energy": "data/piano/piano-demo-energy.json",
+      "receipt": "data/piano/piano-demo-receipt.json",
+      "score": "data/piano/prelude-c-major.mus",
+      "bars": [1, 3],
       "real": {
         "dir": "~/dev/ovillo-piano-20261021/ovillo/renders",
         "audio": "piano-demo.wav",
@@ -61,8 +63,8 @@
         "events": "piano-demo-notes.tsv",
         "energy": "piano-demo-energy.json"
       },
-      "caption": "PLACEHOLDER: silent, synthetic notes. Not a render.",
-      "why": "Waiting for the Ariadne piano World (branch ariadne/piano-world-v1-20261021)."
+      "caption": "Felt hammers strike stiff wires; the soundboard does 99.98 % of the radiating.",
+      "why": "The opening of the Ariadne piano's demo score (bars 1-2 and half of bar 3, from the first strike), faded over 0.4 s."
     },
     {
       "id": "trombone",
