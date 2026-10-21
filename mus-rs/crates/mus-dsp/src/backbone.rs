@@ -155,9 +155,7 @@ impl ProtectedBackbone {
         let retired =
             state_energy(&self.state) + self.bridge_imag.iter().map(|v| v * v).sum::<f64>();
         self.state = [Complex64::ZERO; BACKBONE_MODES];
-        for value in &mut self.bridge_imag {
-            *value = 0.0;
-        }
+        self.bridge_imag.fill(0.0);
         self.frame.retired += retired;
         retired
     }

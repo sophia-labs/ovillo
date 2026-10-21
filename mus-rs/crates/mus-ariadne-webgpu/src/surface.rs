@@ -3,7 +3,7 @@ use crate::primitive::{
 };
 use crate::types::{ObserverImpulse2D, WaveSheetParams};
 use serde::{Deserialize, Serialize};
-use std::mem::size_of;
+use std::mem::size_of_val;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WaveSurfaceConfig {
@@ -64,7 +64,7 @@ impl WaveSurface2D {
         self.wave.encode(queue, encoder, parameters)?;
         Ok(SurfaceStepReceipt {
             impulse_count: self.impulses.impulse_count(),
-            upload_bytes: (impulses.len() * size_of::<ObserverImpulse2D>()) as u64,
+            upload_bytes: size_of_val(impulses) as u64,
             dispatch_workgroups: [
                 self.config.width.div_ceil(16),
                 self.config.height.div_ceil(16),

@@ -25,6 +25,7 @@ use crate::util::{midi_to_hz, require_f64, require_f64_opt, with_context};
 use crate::RenderError;
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum SourceStep {
     Rendered(Vec<f32>),
     /// A registered MUS-T program executed inside one persistent string

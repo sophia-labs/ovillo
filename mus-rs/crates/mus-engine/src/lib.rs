@@ -157,12 +157,14 @@ pub fn sha256_bytes(bytes: &[u8]) -> String {
 /// `1..=(to-from+1)` so the walk (which iterates `1..=n_bars`) sees them at
 /// their original relative positions. The full range reproduces the input
 /// map/content unchanged (start of bar 1 is already zero).
+type BarContent = BTreeMap<u32, BTreeMap<String, String>>;
+
 fn slice_bars(
     full: layout::BarMap,
-    content: &BTreeMap<u32, BTreeMap<String, String>>,
+    content: &BarContent,
     from: u32,
     to: u32,
-) -> Result<(layout::BarMap, BTreeMap<u32, BTreeMap<String, String>>, u32), RenderError> {
+) -> Result<(layout::BarMap, BarContent, u32), RenderError> {
     let n = full.bars.len() as u32;
     if from == 0 || to < from || to > n {
         return Err(RenderError::Invalid(format!(

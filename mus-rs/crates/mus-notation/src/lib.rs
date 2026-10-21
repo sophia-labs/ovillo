@@ -529,12 +529,9 @@ mod tests {
             "a chord is positioned whole or not at all"
         );
         assert!(parse_token("A3e").unwrap().tab.is_empty());
-        assert_eq!(
-            serde_json::to_string(&parse_token("A3e").unwrap())
-                .unwrap()
-                .contains("tab"),
-            false
-        );
+        assert!(!serde_json::to_string(&parse_token("A3e").unwrap())
+            .unwrap()
+            .contains("tab"));
     }
     use serde::Deserialize;
 

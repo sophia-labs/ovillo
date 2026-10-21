@@ -726,7 +726,7 @@ pub fn render(
             for (e, acc) in bridge_acc.iter_mut().enumerate() {
                 *acc += world.coupling_last_exchange_into_left(e).unwrap_or(0.0);
             }
-            if (k - start) % hop == 0 {
+            if (k - start).is_multiple_of(hop) {
                 let mut row: Vec<f32> = (0..bodies.len())
                     .map(|i| world.body_material_energy(i).unwrap_or(0.0) as f32)
                     .collect();
@@ -735,8 +735,8 @@ pub fn render(
                 let mut modes = Vec::with_capacity(24 * box_bodies.len());
                 for (b, &i) in box_bodies.iter().enumerate() {
                     if let Some(state) = world.body_state(i) {
-                        for m in 0..MODE_COUNT {
-                            let (p, x) = (state.momentum[m], omega[b][m] * state.displacement[m]);
+                        for (m, &w) in omega[b].iter().enumerate().take(MODE_COUNT) {
+                            let (p, x) = (state.momentum[m], w * state.displacement[m]);
                             modes.push((0.5 * dt * (p * p + x * x)) as f32);
                         }
                     }

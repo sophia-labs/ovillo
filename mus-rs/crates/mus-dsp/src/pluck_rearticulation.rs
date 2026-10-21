@@ -260,6 +260,8 @@ impl RearticulatedStringVoice {
         }
     }
 
+    // The ring index addresses the waves, the strings and the phase offsets.
+    #[allow(clippy::needless_range_loop)]
     fn scatter_weave_unobserved(&mut self) {
         let phase_offsets = &self.phase_offsets;
         let course_count_f64 = self.course_count_f64;

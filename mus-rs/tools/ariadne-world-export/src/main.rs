@@ -386,7 +386,7 @@ fn usage() -> String {
 fn exact_rate(sample_rate_hz: u32, target_hz: u32) -> Result<(u32, u64), String> {
     let rate = (1..=target_hz)
         .rev()
-        .find(|candidate| sample_rate_hz % candidate == 0)
+        .find(|candidate| sample_rate_hz.is_multiple_of(*candidate))
         .ok_or_else(|| "material clock has no positive observation-rate divisor".to_owned())?;
     Ok((rate, u64::from(sample_rate_hz / rate)))
 }

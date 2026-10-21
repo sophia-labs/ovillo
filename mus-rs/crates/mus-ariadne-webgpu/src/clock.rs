@@ -143,8 +143,8 @@ impl OpticalClock {
 
     #[must_use]
     pub fn material_tick_for_step(&self, step: u64) -> u64 {
-        (((step as u128) * (self.material_rate_hz as u128) + (self.optical_rate_hz as u128 - 1))
-            / self.optical_rate_hz as u128)
+        ((step as u128) * (self.material_rate_hz as u128))
+            .div_ceil(self.optical_rate_hz as u128)
             .min(u64::MAX as u128) as u64
     }
 

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use mus_ariadne::{ObservationSource, WorldObservationChannel, WorldObservationProgram, WorldPlan};
 use mus_observation::{
