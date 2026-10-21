@@ -1,19 +1,10 @@
 use crate::coupling::CouplingControls;
 use crate::shared_space::SharedSpaceControls;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct WorldControls {
     pub space: SharedSpaceControls,
     pub direct_coupling: CouplingControls,
-}
-
-impl Default for WorldControls {
-    fn default() -> Self {
-        Self {
-            space: SharedSpaceControls::default(),
-            direct_coupling: CouplingControls::default(),
-        }
-    }
 }
 
 impl WorldControls {

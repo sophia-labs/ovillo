@@ -172,6 +172,7 @@ pub(crate) struct SpaceLocalFrame {
     pub local_residual: f64,
 }
 
+#[allow(clippy::large_enum_variant)]
 enum ModalMap {
     Multilinear(MultilinearMap),
     StiffString(crate::configuration::StiffStringSpec),
@@ -309,12 +310,9 @@ impl SpaceBody {
                 let field = ModalMetricWaveField::try_new(sample_rate_hz, frame.metric().runtime())
                     .map_err(|m| SpaceBodyError::Field(m.to_owned()))?;
                 let valve_node = network.node(valve.tube, valve.section);
-                let valve = FlowValve::try_new(
-                    sample_rate_hz,
-                    network_spec.air_density_kg_m3,
-                    valve.clone(),
-                )
-                .map_err(|m| SpaceBodyError::Law(m.to_owned()))?;
+                let valve =
+                    FlowValve::try_new(sample_rate_hz, network_spec.air_density_kg_m3, *valve)
+                        .map_err(|m| SpaceBodyError::Law(m.to_owned()))?;
                 let ends = network.end_nodes().len();
                 if ends > 4 {
                     return Err(SpaceBodyError::InvalidSpec(

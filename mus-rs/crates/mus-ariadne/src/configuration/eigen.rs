@@ -10,6 +10,10 @@
 //! it costs about `4/3 n^3 + 30 n^2 + 2 r n^2` flops instead of the `~7 n^3`
 //! of a full eigenvector accumulation.
 
+// Index loops are kept on purpose: one index addresses several arrays at once
+// (matrix rows, modal columns, per-node coefficients), as in law/*.rs.
+#![allow(clippy::needless_range_loop)]
+
 /// Reusable workspace for one matrix size and one requested rank.
 #[derive(Debug, Clone)]
 pub(crate) struct SymmetricEigen {

@@ -104,7 +104,6 @@ pub struct WorldObservationProgram {
 }
 
 impl WorldObservationProgram {
-    #[must_use]
     pub fn new(
         plan: &WorldPlan,
         cadence_ticks: u64,
@@ -232,16 +231,15 @@ fn validate_source(
                 return Err(ObservationProgramError::InvalidSpaceCourse(*course));
             }
         }
-        ObservationSource::CouplingExchangeIntoLeft { coupling_id } => {
+        ObservationSource::CouplingExchangeIntoLeft { coupling_id }
             if !plan
                 .direct_couplings
                 .iter()
-                .any(|coupling| coupling.id == *coupling_id)
-            {
-                return Err(ObservationProgramError::UnknownCoupling(
-                    coupling_id.clone(),
-                ));
-            }
+                .any(|coupling| coupling.id == *coupling_id) =>
+        {
+            return Err(ObservationProgramError::UnknownCoupling(
+                coupling_id.clone(),
+            ));
         }
         _ => {}
     }

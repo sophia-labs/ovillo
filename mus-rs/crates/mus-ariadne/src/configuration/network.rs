@@ -36,6 +36,10 @@
 //!   (the same matching `ovillo-tract` uses); per-mode rate
 //!   `sigma_k = G phi_k(n)^2 / 2`.
 
+// Index loops are kept on purpose: one index addresses several arrays at once
+// (matrix rows, modal columns, per-node coefficients), as in law/*.rs.
+#![allow(clippy::needless_range_loop)]
+
 use serde::{Deserialize, Serialize};
 
 use crate::field::MetricFieldState;
@@ -729,14 +733,6 @@ impl TubeNetwork {
             .map(|t| t.base_log_area_m2.len() - 1)
             .sum();
         Some((internal + index, self.offsets[branch.branch]))
-    }
-
-    pub(crate) fn density(&self) -> f64 {
-        self.spec.air_density_kg_m3
-    }
-
-    pub(crate) fn speed_of_sound(&self) -> f64 {
-        self.spec.speed_of_sound_m_s
     }
 
     pub(crate) fn end_nodes(&self) -> &[usize] {

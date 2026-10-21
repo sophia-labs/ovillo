@@ -156,6 +156,7 @@ impl ConfigurationPath {
         interpolate_configuration(self.left, self.right, amount)
     }
 
+    #[cfg(test)]
     fn validate(&self, sample_rate_hz: f64) -> Result<(), SpecError> {
         if self.coordinate.trim().is_empty()
             || self.left_name.trim().is_empty()
@@ -181,6 +182,7 @@ pub struct TransportSpec {
 }
 
 impl TransportSpec {
+    #[cfg(test)]
     fn validate(self) -> Result<(), SpecError> {
         for pair_index in 0..TRANSPORT_PAIRS {
             let (left, right) = self.pairs[pair_index];
@@ -214,6 +216,7 @@ pub struct SpaceSpec {
 }
 
 impl SpaceSpec {
+    #[cfg(test)]
     fn validate(self) -> Result<(), SpecError> {
         for course in 0..SPACE_COURSES {
             let delay = self.delays_seconds[course];
@@ -244,6 +247,7 @@ pub struct RadiationSpec {
 }
 
 impl RadiationSpec {
+    #[cfg(test)]
     fn validate(self) -> Result<(), SpecError> {
         if !self.observation_scale.is_finite() || !(0.01..=64.0).contains(&self.observation_scale) {
             return Err(SpecError::new(
@@ -261,6 +265,7 @@ pub struct ReservoirSpec {
 }
 
 impl ReservoirSpec {
+    #[cfg(test)]
     fn validate(self) -> Result<(), SpecError> {
         if !self.capacity.is_finite() || self.capacity <= 0.0 {
             return Err(SpecError::new(
@@ -287,6 +292,7 @@ pub struct WorldSpec {
 }
 
 impl WorldSpec {
+    #[cfg(test)]
     pub fn validate(&self) -> Result<(), SpecError> {
         if self.schema_version != WORLD_SPEC_SCHEMA_VERSION {
             return Err(SpecError::new(
@@ -324,6 +330,7 @@ impl WorldSpec {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn digest(&self) -> Result<String, SpecError> {
         self.validate()?;
         digest_json(self)

@@ -190,30 +190,6 @@ impl<const N: usize> ModalMetricWaveField<N> {
         }
     }
 
-    /// Scale each mode's momentum `p` only by its retain factor; `removed[k]`
-    /// is the energy each mode gave up.
-    pub(crate) fn damp_momentum_modes(
-        &mut self,
-        retain: &[f64; N],
-        removed: &mut [f64; N],
-    ) -> MetricLossFrame {
-        let energy_before = self.stored_energy();
-        for index in 0..N {
-            let before = 0.5 * self.dt * self.state.momentum[index] * self.state.momentum[index];
-            self.state.momentum[index] *= retain[index];
-            removed[index] =
-                before - 0.5 * self.dt * self.state.momentum[index] * self.state.momentum[index];
-        }
-        let energy_after = self.stored_energy();
-        let loss = energy_before - energy_after;
-        MetricLossFrame {
-            energy_before,
-            energy_after,
-            loss,
-            residual: energy_after - energy_before + loss,
-        }
-    }
-
     /// Exact rotation only, without the diagnostic energy sums (the caller's
     /// ledger measures the world's energy).
     pub(crate) fn propagate_lean(&mut self) {
@@ -228,6 +204,8 @@ impl<const N: usize> ModalMetricWaveField<N> {
     }
 
     /// `damp_displacement` booking the loss per mode in one pass.
+    // One index addresses the state, the retain factors and the frequencies.
+    #[allow(clippy::needless_range_loop)]
     pub(crate) fn damp_displacement_lean(&mut self, retain: &[f64; N]) -> f64 {
         let mut loss = 0.0;
         for index in 0..N {
@@ -239,8 +217,8 @@ impl<const N: usize> ModalMetricWaveField<N> {
         loss
     }
 
-    /// `damp_momentum_modes` without the whole-field sums: `removed[k]` per
-    /// mode, their sum returned.
+    /// Scale each mode's momentum `p` only by its retain factor, without the
+    /// whole-field sums: `removed[k]` per mode, their sum returned.
     pub(crate) fn damp_momentum_lean(&mut self, retain: &[f64; N], removed: &mut [f64; N]) -> f64 {
         let mut loss = 0.0;
         for index in 0..N {
@@ -258,8 +236,8 @@ impl<const N: usize> ModalMetricWaveField<N> {
     /// column momenta). Returns the energy removed.
     pub(crate) fn damp_displacement(&mut self, retain: &[f64; N]) -> MetricLossFrame {
         let energy_before = self.stored_energy();
-        for index in 0..N {
-            self.state.displacement[index] *= retain[index];
+        for (displacement, retain) in self.state.displacement.iter_mut().zip(retain) {
+            *displacement *= retain;
         }
         let energy_after = self.stored_energy();
         let loss = energy_before - energy_after;
