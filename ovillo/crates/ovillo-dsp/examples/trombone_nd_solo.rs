@@ -13,8 +13,15 @@
 //! and `trombone-nd-<piece>.energy.json`: the World's stored energy every 10 ms
 //! (air, lips; the lungs apart) in mus-engine's `mus.ariadne.energy-trace.v1`
 //! shape, with the note starts as touches (`trombone_nd::EnergyTrace`).
+//!
+//! A third argument `trace` also writes `...-trace.json`
+//! (`ovillo.trombone-nd-trace.v1`): every 10 ms, the player's controls, the
+//! lips (the valve's flow and half-gap), the bore's stored energy, the lungs,
+//! the World's own books (`World::receipt`), and the RMS pressure of every
+//! bore volume, all read through non-loading observers. The WAV is the same
+//! with or without it (compare its digest).
 
-use ovillo_dsp::trombone_nd::{EnergyTrace, TromboneNd, OUTPUT_SCALE, PLAN_JSON};
+use ovillo_dsp::trombone_nd::{Breath, EnergyTrace, TromboneNd, OUTPUT_SCALE, PLAN_JSON};
 use ovillo_dsp::trombone_nd_player::{perform, place, ModeTable, Placement, Skill};
 use ovillo_dsp::trombone_player::{hz_of, Art, Note, DIM, FALL, RIP, SCOOP, SWELL, VIB};
 
@@ -156,11 +163,15 @@ fn main() {
     let breaths = perform(&table, &skill, &notes, &placed, sr, 2.5);
     tw.set_slide_now(breaths[0].slide_m).expect("slide");
     let mut audio = Vec::with_capacity(breaths.len());
-    let mut trace = EnergyTrace::new(sr);
+    let mut energy = EnergyTrace::new(sr);
+    let mut trace = (args.get(3).map(String::as_str) == Some("trace")).then(|| Trace::new(&tw, sr));
     let t0 = std::time::Instant::now();
     for b in &breaths {
         audio.push(tw.tick(*b).expect("the World stepped"));
-        trace.observe(&tw);
+        energy.observe(&tw);
+        if let Some(trace) = trace.as_mut() {
+            trace.sample(&tw, b, *audio.last().unwrap());
+        }
     }
     let took = t0.elapsed().as_secs_f64();
     let seconds = breaths.len() as f64 / sr;
@@ -190,7 +201,7 @@ fn main() {
         })
         .collect();
     let body = tw.world().body_id(0).unwrap_or("trombone").to_owned();
-    std::fs::write(out_dir.join(format!("{stem}.energy.json")), serde_json::to_string(&trace.to_json(&body, touches)).unwrap()).unwrap();
+    std::fs::write(out_dir.join(format!("{stem}.energy.json")), serde_json::to_string(&energy.to_json(&body, touches)).unwrap()).unwrap();
     let r = tw.world().receipt();
     let m = tw.moves();
     let peak = audio.iter().fold(0.0f64, |a, v| a.max(v.abs()));
@@ -214,10 +225,134 @@ fn main() {
         "moves": m,
     });
     std::fs::write(out_dir.join(format!("{stem}-receipt.json")), serde_json::to_string_pretty(&receipt).unwrap()).unwrap();
+    if let Some(trace) = trace {
+        let path = out_dir.join(format!("{stem}-trace.json"));
+        std::fs::write(&path, serde_json::to_string(&trace.finish(&tw, &piece)).unwrap()).unwrap();
+        println!("wrote {}", path.display());
+    }
     println!("{piece}: {seconds:.1} s in {took:.2} s wall ({:.2}x real time), peak {:.2} dBFS", seconds / took, 20.0 * peak.log10());
     println!("ledger: source {:.6e} control {:.6e} (slide {:.6e} disposal {:.3e}, lips {:.6e}) loss {:.6e} radiation {:.6e}",
         r.source_work, r.control_work, m.slide_work, m.slide_disposal, m.lip_work, r.internal_loss, r.radiation);
     println!("closure: cumulative {:.3e} global {:.3e} max frame {:.3e} over {} frames", r.cumulative_closure_residual, r.global_closure_residual, r.maximum_frame_residual, r.sample_frames);
     println!("partials: {:?}", placed.iter().map(|p| p.partial).collect::<Vec<_>>());
     println!("wrote {}", wav.display());
+}
+
+/// Every 10 ms of the performance, read from the World without loading it.
+struct Trace {
+    hop: usize,
+    n: usize,
+    nodes: usize,
+    // accumulators over the current hop
+    pressure_sq: Vec<f64>,
+    pressure_count: usize,
+    flow_sum: f64,
+    flow_max: f64,
+    gap_min: f64,
+    gap_max: f64,
+    emission_sq: f64,
+    count: usize,
+    rows: Vec<Vec<f64>>,
+    pressure_rms: Vec<Vec<f32>>,
+    areas_m2: Vec<f64>,
+}
+
+const TRACE_COLUMNS: [&str; 19] = [
+    "t", "slideM", "mouth", "lipHz", "supplyPa", "flowMeanM3s", "flowMaxM3s", "halfGapMinM", "halfGapMaxM",
+    "boreEnergyJ", "lipEnergyJ", "lungsJ", "emissionRms", "sourceWork", "controlWork", "internalLoss", "radiation",
+    "cumulativeClosureResidual", "maximumFrameResidual",
+];
+
+impl Trace {
+    fn new(tw: &TromboneNd, sr: f64) -> Self {
+        let body = tw.world().space_body(0).expect("the trombone body");
+        let areas_m2 = body.network_areas_m2().expect("a tube network").to_vec();
+        let nodes = areas_m2.len();
+        Self {
+            hop: (0.01 * sr) as usize,
+            n: 0,
+            nodes,
+            pressure_sq: vec![0.0; nodes],
+            pressure_count: 0,
+            flow_sum: 0.0,
+            flow_max: 0.0,
+            gap_min: f64::INFINITY,
+            gap_max: f64::NEG_INFINITY,
+            emission_sq: 0.0,
+            count: 0,
+            rows: Vec::new(),
+            pressure_rms: Vec::new(),
+            areas_m2,
+        }
+    }
+
+    fn sample(&mut self, tw: &TromboneNd, b: &Breath, heard: f64) {
+        let body = tw.world().space_body(0).expect("the trombone body");
+        let o = body.observation();
+        self.flow_sum += o.valve.flow_m3_s;
+        self.flow_max = self.flow_max.max(o.valve.flow_m3_s);
+        self.gap_min = self.gap_min.min(o.valve_half_gap_m);
+        self.gap_max = self.gap_max.max(o.valve_half_gap_m);
+        self.emission_sq += heard * heard;
+        self.count += 1;
+        if self.n % 4 == 0 {
+            for (i, acc) in self.pressure_sq.iter_mut().enumerate() {
+                let p = body.node_pressure(i).unwrap_or(0.0);
+                *acc += p * p;
+            }
+            self.pressure_count += 1;
+        }
+        self.n += 1;
+        if self.n % self.hop == 0 {
+            let r = tw.world().receipt();
+            let c = self.count.max(1) as f64;
+            self.rows.push(vec![
+                self.n as f64 / (self.hop as f64 * 100.0),
+                tw.slide(),
+                b.mouth,
+                b.lip_hz,
+                o.valve.supply_pressure_pa,
+                self.flow_sum / c,
+                self.flow_max,
+                self.gap_min,
+                self.gap_max,
+                body.field_energy(),
+                o.valve_energy,
+                body.reservoir_energy(),
+                (self.emission_sq / c).sqrt(),
+                r.source_work,
+                r.control_work,
+                r.internal_loss,
+                r.radiation,
+                r.cumulative_closure_residual,
+                r.maximum_frame_residual,
+            ]);
+            let pc = self.pressure_count.max(1) as f64;
+            self.pressure_rms.push(self.pressure_sq.iter().map(|s| (s / pc).sqrt() as f32).collect());
+            self.pressure_sq.iter_mut().for_each(|s| *s = 0.0);
+            self.pressure_count = 0;
+            self.flow_sum = 0.0;
+            self.flow_max = 0.0;
+            self.gap_min = f64::INFINITY;
+            self.gap_max = f64::NEG_INFINITY;
+            self.emission_sq = 0.0;
+            self.count = 0;
+        }
+    }
+
+    fn finish(self, tw: &TromboneNd, piece: &str) -> serde_json::Value {
+        let r = tw.world().receipt();
+        serde_json::json!({
+            "schema": "ovillo.trombone-nd-trace.v1",
+            "piece": piece,
+            "planDigest": r.plan_digest,
+            "hopSeconds": 0.01,
+            "nodes": self.nodes,
+            "areasM2": self.areas_m2,
+            "columns": TRACE_COLUMNS,
+            "rows": self.rows,
+            "pressureRmsPa": self.pressure_rms,
+            "initialEnergy": r.initial_energy,
+        })
+    }
 }

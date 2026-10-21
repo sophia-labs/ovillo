@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ovillo release video</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "/vendor/three/build/three.module.js",
+  "three/addons/": "/vendor/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="frame">
+  <canvas id="gl"></canvas>
+  <div id="labels"></div>
+  <div id="hud" hidden>
+    <header>
+      <div class="idx"><span id="h-idx"></span><span class="of"> / 04</span></div>
+      <div class="name" id="h-name"></div>
+      <div class="sub" id="h-sub"></div>
+      <div class="world" id="h-world"></div>
+    </header>
+    <div class="flag" id="h-flag" hidden></div>
+    <div class="readouts" id="h-readouts"></div>
+    <div class="chain" id="h-chain"></div>
+    <div class="caption" id="h-caption"></div>
+    <div class="ledger" id="h-ledger"></div>
+    <div class="mus" id="h-mus"></div>
+  </div>
+  <div id="card" hidden></div>
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>

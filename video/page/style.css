@@ -1,0 +1,127 @@
+/* The video's panel: the site's instrument-CRT language (black field, thin
+   rules, one monospace face, colour is meaning), at video sizes. */
+:root {
+  --bg: #000;
+  --bezel: #0b0d0f;
+  --line: #2c343c;
+  --text: #c9d1c9;
+  --dim: #6d776f;
+  --on: #62d26f;
+  --warn: #ffb000;
+  --world: #ff9d3b;
+  --blue: #5aa0ff;
+  --pink: #ff8fa6;
+  --rose: #fda4af;
+  --font: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #000; color: var(--text); font-family: var(--font); overflow: hidden; }
+#frame { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #000; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#labels { position: absolute; inset: 0; pointer-events: none; }
+#labels .lab { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font-size: 17px; letter-spacing: 0.08em; color: var(--dim); }
+#labels .lab.l { transform: translate(0, -50%); }
+#labels .lab.r { transform: translate(-100%, -50%); }
+#hud, #card { position: absolute; inset: 0; pointer-events: none; }
+[hidden] { display: none !important; }
+
+.w { color: var(--world); } .b { color: var(--blue); } .a { color: var(--warn); }
+.g { color: var(--on); } .d { color: var(--dim); } .p { color: var(--pink); } .t { color: var(--text); }
+
+/* header */
+header { position: absolute; }
+header .idx { font-size: 22px; letter-spacing: 0.2em; color: var(--dim); }
+header .idx .of { color: var(--line); }
+header .name { font-weight: 700; letter-spacing: 0.16em; color: var(--text); line-height: 1.05; }
+header .sub { color: var(--text); opacity: 0.86; }
+header .world { color: var(--dim); }
+.flag { position: absolute; border: 2px solid var(--warn); color: var(--warn); font-weight: 700; letter-spacing: 0.12em; padding: 6px 12px; }
+
+/* instrument readouts (note, slide, F0 ...) */
+.readouts { position: absolute; display: grid; gap: 4px 22px; font-variant-numeric: tabular-nums; }
+.readouts .k { color: var(--dim); font-size: 18px; letter-spacing: 0.1em; }
+.readouts .v { color: var(--text); font-size: 30px; }
+
+/* the energy chain: one meter per stage */
+.chain { position: absolute; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0 14px; }
+.chain .st { position: relative; }
+.chain .st .k { font-size: 18px; letter-spacing: 0.12em; color: var(--dim); white-space: nowrap; }
+.chain .st .k i { font-style: normal; color: var(--line); margin-left: 8px; }
+.chain .st .bar { position: relative; height: 14px; margin-top: 7px; border-left: 2px solid var(--line); border-bottom: 2px solid var(--line); }
+.chain .st .bar .lv { position: absolute; left: 0; bottom: 4px; height: 4px; background: currentColor; }
+.chain .st .bar .pk { position: absolute; bottom: 0; width: 2px; height: 12px; background: currentColor; opacity: 0.6; }
+.chain .st .v { font-size: 17px; color: var(--dim); margin-top: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* caption */
+.caption { position: absolute; color: var(--text); line-height: 1.28; letter-spacing: 0.01em; }
+.caption .note { display: block; color: var(--dim); margin-top: 10px; }
+
+/* ledger */
+.ledger { position: absolute; border-top: 2px solid var(--line); padding-top: 12px; font-variant-numeric: tabular-nums; }
+.ledger .row { display: grid; gap: 0 16px; }
+.ledger .k { font-size: 17px; letter-spacing: 0.12em; color: var(--dim); white-space: nowrap; }
+.ledger .v { font-size: 27px; white-space: nowrap; }
+.ledger .foot { margin-top: 8px; font-size: 17px; color: var(--dim); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; }
+
+/* the notation that played it */
+.mus { position: absolute; border-top: 2px solid var(--line); padding-top: 10px; font-size: 20px; line-height: 1.42; color: var(--dim); }
+.mus .hd { font-size: 17px; letter-spacing: 0.12em; color: var(--dim); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mus .ln { white-space: pre-wrap; word-break: break-word; }
+.mus.dense { font-size: 18px; line-height: 1.32; }
+.mus .ln .vo { color: var(--line); }
+.mus .tk { color: #8b948c; }
+.mus .tk.now { color: var(--warn); }
+.mus .tk.past { color: var(--text); opacity: 0.8; }
+
+/* ------------------------------------------------------------ 4:5 1080x1350 */
+body.v4x5 header { left: 56px; top: 44px; right: 56px; }
+body.v4x5 header .name { font-size: 66px; margin-top: 8px; }
+body.v4x5 header .sub { font-size: 27px; margin-top: 10px; }
+body.v4x5 header .world { font-size: 21px; margin-top: 6px; }
+body.v4x5 .flag { right: 56px; top: 44px; font-size: 22px; }
+body.v4x5 .readouts { right: 56px; top: 250px; text-align: right; }
+body.v4x5 .chain { left: 56px; right: 56px; top: 866px; }
+body.v4x5 .caption { left: 56px; right: 56px; top: 956px; font-size: 37px; }
+body.v4x5 .ledger { left: 56px; right: 56px; top: 1060px; }
+body.v4x5 .ledger .row { grid-template-columns: repeat(4, auto); justify-content: space-between; }
+body.v4x5 .mus { left: 56px; right: 56px; top: 1180px; height: 146px; overflow: hidden; }
+
+/* ----------------------------------------------------------- 16:9 1920x1080 */
+body.v16x9 header { left: 64px; top: 48px; width: 1120px; }
+body.v16x9 header .name { font-size: 64px; margin-top: 8px; }
+body.v16x9 header .sub { font-size: 27px; margin-top: 10px; }
+body.v16x9 header .world { font-size: 21px; margin-top: 6px; }
+body.v16x9 .flag { left: 1290px; top: 52px; font-size: 22px; }
+body.v16x9 .readouts { left: 1290px; top: 150px; right: 64px; grid-template-columns: auto auto; justify-content: start; }
+body.v16x9 .chain { left: 1290px; right: 64px; top: 440px; grid-auto-flow: row; grid-auto-rows: auto; gap: 12px 0; }
+body.v16x9 .chain .st { display: grid; grid-template-columns: 150px 1fr 170px; align-items: center; gap: 0 14px; }
+body.v16x9 .chain .st .bar { margin-top: 0; }
+body.v16x9 .chain .st .v { margin-top: 0; text-align: right; }
+body.v16x9 .caption { left: 64px; width: 1150px; top: 914px; font-size: 36px; }
+body.v16x9 .ledger { left: 1290px; right: 64px; top: 700px; }
+body.v16x9 .ledger .row { grid-template-columns: 1fr 1fr; gap: 10px 24px; }
+body.v16x9 .ledger .foot { white-space: normal; line-height: 1.35; }
+body.v16x9 .mus { left: 1290px; right: 64px; top: 905px; height: 150px; overflow: hidden; font-size: 18px; }
+
+/* ------------------------------------------------------------------- cards */
+#card { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+#card svg.mark { display: block; }
+#card .word { font-weight: 700; letter-spacing: 0.32em; color: var(--text); margin-left: 0.32em; }
+#card .tag { color: var(--text); opacity: 0.9; }
+#card .rule { color: var(--dim); }
+#card .url { color: var(--text); letter-spacing: 0.04em; }
+#card .url.main { color: var(--on); }
+#card .lic { color: var(--dim); letter-spacing: 0.3em; border: 2px solid var(--line); padding: 6px 18px; }
+body.v4x5 #card svg.mark { width: 300px; height: 300px; margin-bottom: 40px; }
+body.v4x5 #card .word { font-size: 92px; }
+body.v4x5 #card .tag { font-size: 29px; margin-top: 30px; max-width: 1000px; line-height: 1.35; }
+body.v4x5 #card .rule { font-size: 28px; margin-top: 60px; max-width: 880px; line-height: 1.4; }
+body.v4x5 #card .url { font-size: 44px; margin-top: 22px; }
+body.v4x5 #card .lic { font-size: 28px; margin-top: 44px; }
+body.v16x9 #card svg.mark { width: 250px; height: 250px; margin-bottom: 30px; }
+body.v16x9 #card .word { font-size: 84px; }
+body.v16x9 #card .tag { font-size: 32px; margin-top: 24px; }
+body.v16x9 #card .rule { font-size: 26px; margin-top: 44px; }
+body.v16x9 #card .url { font-size: 44px; margin-top: 18px; }
+body.v16x9 #card .lic { font-size: 26px; margin-top: 36px; }
+body.v16x9 .mus.dense { top: 885px; height: 185px; }

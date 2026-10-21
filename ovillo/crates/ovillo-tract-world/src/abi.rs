@@ -364,6 +364,32 @@ pub extern "C" fn tract_snapshot() {
     });
 }
 
+/// One field of the World's own receipt (`World::receipt`), in f64 (an extra
+/// export outside the shared ABI, like `ndt_*` in `wasm.rs`; reading it loads
+/// nothing): 0 source work, 1 control work, 2 internal loss, 3 radiation,
+/// 4 initial energy, 5 current energy, 6 cumulative closure residual,
+/// 7 maximum frame residual, 8 global closure residual, 9 sample frames.
+/// Any other field, or no World, is NaN.
+#[no_mangle]
+pub extern "C" fn ndt_receipt(field: u32) -> f64 {
+    with(f64::NAN, |e| {
+        let r = e.world.world().receipt();
+        match field {
+            0 => r.source_work,
+            1 => r.control_work,
+            2 => r.internal_loss,
+            3 => r.radiation,
+            4 => r.initial_energy,
+            5 => r.current_energy,
+            6 => r.cumulative_closure_residual,
+            7 => r.maximum_frame_residual,
+            8 => r.global_closure_residual,
+            9 => r.sample_frames as f64,
+            _ => f64::NAN,
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
