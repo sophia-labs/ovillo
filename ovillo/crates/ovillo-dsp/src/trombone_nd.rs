@@ -13,8 +13,8 @@
 //! The slide is the network's `tube_length` area term.
 
 use mus_ariadne::{
-    BodyControls, ConstitutiveBodyControls, ConstitutiveWorldPlan, FlowValveControls, SpaceBodyControls, World,
-    WorldControls, WorldError,
+    BodyControls, ConstitutiveBodyControls, ConstitutiveWorldPlan, FlowValveControls, SpaceBody, SpaceBodyControls,
+    World, WorldControls, WorldError,
 };
 
 /// The compiled plan.
@@ -152,6 +152,103 @@ impl TromboneNd {
     pub fn emission(&self) -> f64 {
         self.world.body_radiation(0).map_or(0.0, |e| e.iter().sum())
     }
+
+    /// Where the World's energy is now, read off the body (reading it changes nothing).
+    #[must_use]
+    pub fn stored_energy(&self) -> StoredEnergy {
+        let body = self.world.space_body(0);
+        let air = body.map_or(0.0, SpaceBody::field_energy);
+        let material = body.map_or(0.0, SpaceBody::material_stored_energy);
+        StoredEnergy { air, lips: material - air, lungs: body.map_or(0.0, SpaceBody::reservoir_energy) }
+    }
+}
+
+/// The one body's stored energy in its three parts, in the World's own units
+/// (the receipt's joules). `air + lips` is the body's material energy;
+/// `air + lips + lungs` is everything the World stores (it has no room).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StoredEnergy {
+    /// The bore's air: the body's field (its 24 network modes).
+    pub air: f64,
+    /// The lips: the flow valve's mass and spring (material energy less the field).
+    pub lips: f64,
+    /// The lungs: the body's reservoir, which the source work refills and the valve draws on.
+    pub lungs: f64,
+}
+
+/// Hop of the energy trace, as mus-engine's steel-string trace.
+pub const ENERGY_HOP_SECONDS: f64 = 0.01;
+
+/// The energy trace a render writes beside its audio, in mus-engine's
+/// `mus.ariadne.energy-trace.v1` shape: stored energy at the first sample of
+/// every hop (as mus-engine takes it), `air` and `lips` as the channels and the
+/// `lungs` apart (they are the source's store, not the instrument's).
+#[derive(Debug, Clone, Default)]
+pub struct EnergyTrace {
+    hop: usize,
+    seen: usize,
+    frames: Vec<[f32; 2]>,
+    lungs: Vec<f32>,
+}
+
+impl EnergyTrace {
+    #[must_use]
+    pub fn new(sample_rate: f64) -> Self {
+        Self { hop: (ENERGY_HOP_SECONDS * sample_rate).round().max(1.0) as usize, ..Self::default() }
+    }
+
+    /// Call once after every `tick`.
+    pub fn observe(&mut self, tw: &TromboneNd) {
+        if self.seen % self.hop == 0 {
+            let e = tw.stored_energy();
+            self.frames.push([e.air as f32, e.lips as f32]);
+            self.lungs.push(e.lungs as f32);
+        }
+        self.seen += 1;
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.frames.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.frames.is_empty()
+    }
+
+    #[must_use]
+    pub fn frames(&self) -> &[[f32; 2]] {
+        &self.frames
+    }
+
+    #[must_use]
+    pub fn lungs(&self) -> &[f32] {
+        &self.lungs
+    }
+
+    /// The trace as JSON: `instrument` is the World's body id, `touches` the note list's starts.
+    #[must_use]
+    pub fn to_json(&self, instrument: &str, touches: Vec<serde_json::Value>) -> serde_json::Value {
+        serde_json::json!({
+            "schema": "mus.ariadne.energy-trace.v1",
+            "worlds": [{
+                "instrument": instrument,
+                "hopSeconds": ENERGY_HOP_SECONDS,
+                "startSeconds": 0.0,
+                "channels": ["air", "lips"],
+                "frames": self.frames,
+                "reservoirs": ["lungs"],
+                "reservoirFrames": self.lungs.iter().map(|v| [*v]).collect::<Vec<_>>(),
+                "parts": {
+                    "air": "the bore's air: the body's field energy (its network modes)",
+                    "lips": "the lip valve's mass and spring: the body's material energy less its field",
+                    "lungs": "the body's reservoir: the source work refills it, the valve draws on it",
+                },
+                "touches": touches,
+            }],
+        })
+    }
 }
 
 #[cfg(test)]
@@ -217,5 +314,51 @@ mod tests {
         assert!(r.maximum_frame_residual <= 1e-12, "{r:?}");
         assert!(r.cumulative_closure_residual.abs() <= 1e-15 * r.sample_frames as f64, "{r:?}");
         assert!(tw.moves().slide_moves > 0 && tw.moves().lip_retunes > 0);
+    }
+
+    /// The energy trace is the World's: at every sample air + lips is the body's
+    /// material energy and air + lips + lungs is all the World stores (nothing left
+    /// out); one frame per 10 ms hop; and reading it does not change one bit of the sound.
+    #[test]
+    fn the_energy_trace_is_the_worlds_stored_energy() {
+        let sr = 48_000.0;
+        let notes = phrase(sr);
+        let mut heard = TromboneNd::new().unwrap();
+        let mut traced = TromboneNd::new().unwrap();
+        let mut trace = EnergyTrace::new(sr);
+        let (mut most_air, mut most_lips) = (0.0f64, 0.0f64);
+        for b in &notes {
+            let a = heard.tick(*b).unwrap();
+            let t = traced.tick(*b).unwrap();
+            trace.observe(&traced);
+            assert_eq!(a.to_bits(), t.to_bits(), "reading the energy changed the sound");
+            let e = traced.stored_energy();
+            let material = traced.world().body_material_energy(0).unwrap();
+            let total = traced.world().total_stored_energy();
+            assert!((e.air + e.lips - material).abs() <= 1e-12 * (1.0 + material), "{e:?} vs material {material}");
+            assert!((e.air + e.lips + e.lungs - total).abs() <= 1e-12 * (1.0 + total), "{e:?} vs total {total}");
+            assert!(e.air >= 0.0 && e.lips >= -1e-15 && e.lungs >= 0.0, "{e:?}");
+            most_air = most_air.max(e.air);
+            most_lips = most_lips.max(e.lips);
+        }
+        assert_eq!(trace.len(), notes.len().div_ceil(480));
+        assert!(most_air > 1e-6 && most_lips > 0.0, "the phrase stores energy (air {most_air}, lips {most_lips})");
+        // the frames are the samples at k = 0, 480, 960, ...: replay and compare
+        let mut again = TromboneNd::new().unwrap();
+        for (k, b) in notes.iter().enumerate() {
+            again.tick(*b).unwrap();
+            if k % 480 == 0 {
+                let e = again.stored_energy();
+                assert_eq!(trace.frames()[k / 480], [e.air as f32, e.lips as f32]);
+                assert_eq!(trace.lungs()[k / 480], e.lungs as f32);
+            }
+        }
+        let j = trace.to_json("trombone", vec![serde_json::json!({ "seconds": 0.0, "kind": "tongue" })]);
+        let w = &j["worlds"][0];
+        assert_eq!(j["schema"], "mus.ariadne.energy-trace.v1");
+        assert_eq!(w["frames"].as_array().unwrap().len(), trace.len());
+        assert_eq!(w["reservoirFrames"].as_array().unwrap().len(), trace.len());
+        assert_eq!(w["channels"], serde_json::json!(["air", "lips"]));
+        assert_eq!(w["hopSeconds"], 0.01);
     }
 }
