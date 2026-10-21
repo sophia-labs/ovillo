@@ -11,7 +11,7 @@ cd mus-rs && cargo build --release -p mus-cli
 ./target/release/mus render ../examples/tab/steel_string_tour.mus -o tour.wav --energy trace.json
 ```
 
-Do not use `cargo ... --workspace`; it can need a newer rustc than the one installed. Test with `cargo test --release -p mus-notation -p mus-engine` and `cargo test --release -p mus-cli --test ariadne_tab --test check_report`. Known stale: `parity_expectations` and some `mus-ariadne` examples.
+Do not use `cargo ... --workspace`; it can need a newer rustc than the one installed. Test with `cargo test --release -p mus-notation -p mus-engine -p mus-wasm` and `cargo test --release -p mus-cli --test ariadne_tab --test check_report --test wasm_parity`. Known stale: `parity_expectations` and some `mus-ariadne` examples.
 
 ## Read before explaining
 
@@ -37,4 +37,4 @@ With `--json`, `mus render` prints a receipt. Look for:
 
 ## Working with the musician
 
-Ask what they want to hear, then write MUS. Run `mus check` before rendering, and read `badTokens` in the render receipt too: today `mus check` does not verify tab positions (pitch against `@string:fret`), and `mus render` reports a disagreement there. When something sounds wrong, look at the limits in the steel-string spec first; it is probably listed.
+Ask what they want to hear, then write MUS. Run `mus check` before rendering: on a tab instrument it runs the checks of `SPEC-TAB.md` §6 (position against pitch, one strike per string per instant, `ho`/`po`/`sl` on a sounding string, the fretting hand's reach, each hand filling its bar), anchored to the bar, hand and token. Read `badTokens` in the render receipt too. When something sounds wrong, look at the limits in the steel-string spec first; it is probably listed.

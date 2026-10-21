@@ -6,10 +6,16 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+default = ["soxr"]
+# libsoxr (C) for sample/voice resampling. `mus-wasm` builds without it and
+# renders Ariadne Worlds only.
+soxr = ["mus-dsp/soxr"]
+
 [dependencies]
 hound = "3.5"
 mus-ariadne = { path = "../mus-ariadne" }
-mus-dsp = { path = "../mus-dsp" }
+mus-dsp = { path = "../mus-dsp", default-features = false, features = ["full"] }
 mus-notation = { path = "../mus-notation" }
 mus-text = { path = "../mus-text" }
 regex = "1"

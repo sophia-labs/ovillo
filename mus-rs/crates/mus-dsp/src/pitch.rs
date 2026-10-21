@@ -10,6 +10,7 @@
 use std::f64::consts::PI;
 use std::path::Path;
 
+#[cfg(feature = "soxr")]
 use libsoxr::{Datatype, IOSpec, QualityFlags, QualityRecipe, QualitySpec, Soxr};
 use realfft::num_complex::Complex;
 use realfft::RealFftPlanner;
@@ -124,6 +125,7 @@ fn fix_length(x: &[f32], size: usize) -> Vec<f32> {
 /// `process` + a flushing `process(None, ..)` is libsoxr's own
 /// `soxr_oneshot()` recipe (create, process, flush, delete) — the whole
 /// buffer at once, matching librosa's non-streaming use.
+#[cfg(feature = "soxr")]
 pub(crate) fn soxr_resample(x: &[f32], in_rate: f64, out_rate: f64) -> Vec<f32> {
     if x.is_empty() {
         return Vec::new();
@@ -153,6 +155,21 @@ pub(crate) fn soxr_resample(x: &[f32], in_rate: f64, out_rate: f64) -> Vec<f32> 
         .expect("soxr: flush");
     out.truncate(odone + odone2);
     out
+}
+
+/// Built without the `soxr` feature (the wasm32 build): there is no
+/// resampler, and nothing approximates one. The Ariadne-only renderer refuses
+/// every track that would reach here before it renders, so reaching it is a
+/// bug, and it says so instead of returning different audio.
+#[cfg(not(feature = "soxr"))]
+pub(crate) fn soxr_resample(x: &[f32], in_rate: f64, out_rate: f64) -> Vec<f32> {
+    if x.is_empty() {
+        return Vec::new();
+    }
+    panic!(
+        "mus-dsp was built without the `soxr` feature: cannot resample {} samples from {in_rate} Hz to {out_rate} Hz",
+        x.len()
+    )
 }
 
 /// `librosa.resample(y, orig_sr=.., target_sr=.., res_type="soxr_hq")`:

@@ -1,0 +1,18 @@
+[package]
+name = "mus-wasm"
+version = "0.1.0"
+description = "MUS check and Ariadne-World render for the browser: a plain-C-ABI WebAssembly module a Worker instantiates from bytes"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# No libsoxr: the browser renders Ariadne Worlds only and refuses everything that would resample.
+mus-engine = { path = "../mus-engine", default-features = false }
+mus-notation = { path = "../mus-notation" }
+mus-text = { path = "../mus-text" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

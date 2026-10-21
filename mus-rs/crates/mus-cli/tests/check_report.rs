@@ -308,3 +308,67 @@ fn stable_json_key(value: &Value) -> String {
 fn pretty_json(value: &Value) -> String {
     serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
 }
+
+/// `mus check` used to report `clean: true` for a tab position that disagrees
+/// with its pitch (`C4e@2:3` sounds D4 on standard tuning), while `mus render`
+/// listed it in `badTokens`. It now runs the MUS-T checks (SPEC-TAB §6), the
+/// same reading the renderer plays, and anchors the refusal to the token.
+#[test]
+fn check_refuses_a_tab_position_that_disagrees_with_its_pitch() {
+    let score = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tab/wrong_fret.mus");
+    let output = Command::new(env!("CARGO_BIN_EXE_mus"))
+        .args(["check", score.to_str().unwrap(), "--json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["clean"], false, "{report:#}");
+    let diagnostics = report["diagnostics"].as_array().unwrap();
+    let wrong: Vec<&Value> = diagnostics.iter().filter(|d| d["code"] == "tab-position-disagrees").collect();
+    assert_eq!(wrong.len(), 1, "{diagnostics:#?}");
+    assert_eq!(wrong[0]["severity"], "error");
+    assert_eq!(wrong[0]["anchor"]["bar"], 1);
+    assert_eq!(wrong[0]["anchor"]["track"], "gt.v");
+    assert_eq!(wrong[0]["anchor"]["tokenIndex"], 0);
+    assert_eq!(wrong[0]["anchor"]["token"], "C4e@2:3");
+    assert!(wrong[0]["message"].as_str().unwrap().contains("sounds D4, not C4"));
+    // A tab instrument and its hands are played on a World; they need no samples.
+    assert!(diagnostics.iter().all(|d| d["code"] != "no-samples-for-track"), "{diagnostics:#?}");
+    let sources: Vec<&Value> = report["instruments"].as_array().unwrap().iter().map(|i| &i["source"]["kind"]).collect();
+    assert_eq!(sources, ["ariadne", "ariadne-hand", "ariadne-hand"]);
+
+    // Fixed, the same score is clean.
+    let fixed = std::fs::read_to_string(&score).unwrap().replace("C4e@2:3", "C4e@2:1");
+    let path = std::env::temp_dir().join(format!("mus-check-fixed-fret-{}.mus", std::process::id()));
+    std::fs::write(&path, fixed).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_mus"))
+        .args(["check", path.to_str().unwrap(), "--json"])
+        .output()
+        .unwrap();
+    std::fs::remove_file(&path).unwrap();
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["clean"], true, "{:#}", report["diagnostics"]);
+    assert!(report["diagnostics"].as_array().unwrap().is_empty(), "{:#}", report["diagnostics"]);
+}
+
+/// Wayfaring Stranger has stretches (frets 1 to 5 under the F chords), which
+/// SPEC-TAB §6.4 reports as warnings; neither example has a tab error.
+#[test]
+fn the_tab_examples_check_clean() {
+    for name in ["steel_string_tour.mus", "wayfaring-stranger-doc.mus"] {
+        let score = root().join("examples/tab").join(name);
+        let output = Command::new(env!("CARGO_BIN_EXE_mus"))
+            .args(["check", score.to_str().unwrap(), "--json"])
+            .output()
+            .unwrap();
+        let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(report["clean"], true, "{name}: {:#}", report["diagnostics"]);
+        let tab: Vec<&Value> = report["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|d| d["code"].as_str().is_some_and(|c| c.starts_with("tab-")) && d["severity"] == "error")
+            .collect();
+        assert!(tab.is_empty(), "{name}: {tab:#?}");
+    }
+}
