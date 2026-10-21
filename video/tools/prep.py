@@ -94,7 +94,7 @@ def mus_bars(score_path, first, last, touches):
         seconds = 4 * 60.0 / bar_tempo
         if first <= n <= last:
             voices = []
-            for vm in re.finditer(r"(gt\.\w+)=(.*?)(?=\s+gt\.\w+=|$)", body):
+            for vm in re.finditer(r"([a-z]+\.\w+)=(.*?)(?=\s+[a-z]+\.\w+=|$)", body):
                 hand, rest = vm.group(1), vm.group(2).strip()
                 toks = TOKEN.findall(rest)
                 mine = sorted({round(tc["seconds"], 4) for tc in touches
@@ -331,14 +331,62 @@ def prep_piano(seg, root):
     header, notes = read_piano_notes(root / seg["events"])
     w0, w1 = seg["window"]
     notes = [n for n in notes if n["release"] >= w0 - HISTORY_S and n["onset"] <= w1]
-    energy = None
-    if seg.get("energy") and (root / seg["energy"]).exists():
-        energy = json.loads((root / seg["energy"]).read_text())
-    receipt = None
-    if seg.get("receipt") and (root / seg["receipt"]).exists():
-        receipt = json.loads((root / seg["receipt"]).read_text())
-    return dict(kind="piano", window=[w0, w1], placeholder=bool(seg.get("placeholder")), header=header,
-                notes=notes, energy=energy, receipt=receipt)
+    out = dict(kind="piano", window=[w0, w1], placeholder=bool(seg.get("placeholder")), header=header,
+               notes=notes, energy=None, receipt=None, bars=[])
+    if not seg.get("energy"):
+        return out
+    # The Ariadne piano's trace (mus-engine ariadne_piano::PianoEnergyTrace, under mus render
+    # --energy's "worlds"): bodies "board/...", "string/<key>/<k>", "hammer/<key>", then "room".
+    e = json.loads((root / seg["energy"]).read_text())
+    tr = next(w for w in e.get("worlds", [e]) if "strikes" in w)
+    hop, start = tr["hopSeconds"], tr["startSeconds"]
+    F_all = np.asarray(tr["frames"], dtype=np.float64)
+    t_all = start + hop * np.arange(len(F_all))
+    keep = (t_all >= w0 - HISTORY_S - 1e-9) & (t_all <= w1 + 0.05)
+    ch = tr["channels"]
+    F = F_all[keep]
+    name2midi = {s_["name"]: s_["midi"] for s_ in tr["strikes"]}
+    def by_key(prefix):
+        groups = {}
+        for i, c in enumerate(ch):
+            if c.startswith(prefix):
+                m = name2midi.get(c.split("/")[1])
+                if m is not None:
+                    groups.setdefault(m, []).append(i)
+        return {str(m): rounded(F[:, idx].sum(axis=1), 5) for m, idx in groups.items()}
+    board_idx = [i for i, c in enumerate(ch) if c.startswith("board")]
+    rad = np.asarray(tr["radiationFrames"], dtype=np.float64)
+    src = np.asarray(tr["sourceFrames"], dtype=np.float64)
+    loss = np.asarray(tr["lossFrames"], dtype=np.float64)
+    bridge = np.asarray(tr["bridgeFrames"], dtype=np.float64)
+    energy = dict(
+        hop=hop, t0=float(t_all[keep][0]),
+        strings=by_key("string/"), hammers=by_key("hammer/"),
+        board=rounded(F[:, board_idx].sum(axis=1), 5),
+        room=rounded(F[:, ch.index("room")], 5),
+        radiatedW=rounded(rad[keep].sum(axis=1) / hop, 5),
+        intoBoardW=rounded(-bridge[keep].sum(axis=1) / hop, 5),
+        # running books from the trace's own per-hop flows (f32 sums: not a residual)
+        inJ=rounded(np.cumsum(src.sum(axis=1))[keep], 7), lostJ=rounded(np.cumsum(loss.sum(axis=1))[keep], 7),
+        radiatedJ=rounded(np.cumsum(rad.sum(axis=1))[keep], 7),
+        ledgerColumns=tr.get("ledgerColumns"),
+        ledger=[rounded(r, 10) for r in np.asarray(tr["ledgerFrames"])[keep]] if tr.get("ledgerFrames") else None,
+        strikes=[s_ for s_ in tr["strikes"] if w0 - HISTORY_S <= s_["seconds"] <= w1],
+        pedal=tr.get("pedal", []),
+    )
+    out["energy"] = energy
+    if seg.get("receipt"):
+        r = json.loads((root / seg["receipt"]).read_text())
+        aw = next((w for w in r.get("ariadneWorlds", []) if "keys" in w), r)
+        out["receipt"] = {k: aw.get(k) for k in ("planDigest", "strikes", "refusedStrikes", "damperFalls", "pedalSpans",
+                                                    "simulatedSeconds", "contactMsMin", "contactMsMax", "sourceWork",
+                                                    "controlWork", "internalLoss", "radiation", "boardRadiation",
+                                                    "stringRadiation", "cumulativeClosureResidual", "maximumFrameResidual")}
+        out["receipt"]["renderDigest"] = r.get("renderDigest")
+    if seg.get("score"):
+        touches = [dict(seconds=s_["seconds"], hand=s_.get("staff", ""), string=0, fret=0) for s_ in tr["strikes"]]
+        out["bars"] = mus_bars(root / seg["score"], seg["bars"][0], seg["bars"][1], touches)
+    return out
 
 
 def main(argv):

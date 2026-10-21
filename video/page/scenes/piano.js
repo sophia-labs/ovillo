@@ -9,8 +9,8 @@
 // World's energy file the strings, soundboard and ledger are its real numbers (see
 // energyAdapter below; written against the expected file, to be checked when it lands).
 import * as THREE from 'three';
-import { Strokes, PALETTE as C, level, V, planeCamera } from '../lib/draw.js';
-import { fmtJ, meter } from '../lib/hud.js';
+import { Strokes, PALETTE as C, level, sample, recentMax, V, planeCamera } from '../lib/draw.js';
+import { fmtJ, fmtW, meter } from '../lib/hud.js';
 
 const WHITE = 0.0235, KEY_L = 0.15, BLACK_W = 0.0137, BLACK_L = 0.095;
 const isBlack = (m) => [1, 3, 6, 8, 10].includes(m % 12);
@@ -47,7 +47,7 @@ export class PianoScene {
     const vmax = Math.max(...data.notes.map((n) => n.velocity));
     this.vscale = vmax > 1.5 ? 1 / 127 : 1;
     this.played = [...new Set(data.notes.map((n) => n.midi))].sort((a, b) => a - b);
-    this.energy = energyAdapter(data.energy);
+    this.energy = energyAdapter(data.energy, data.receipt, data.window);
     this.layout();
   }
 
@@ -130,7 +130,7 @@ export class PianoScene {
         ? [{ k: 'IN', v: '—', c: 'd' }, { k: 'LOST INSIDE', v: '—', c: 'd' }, { k: 'RADIATED', v: '—', c: 'd' }, { k: 'RESIDUAL', v: '—', c: 'd' }]
         : this.energy.ledger(t),
       foot: placeholder ? 'no ledger: nothing has been rendered for this segment' : this.energy.foot(t),
-      mus: {
+      mus: !placeholder && d.bars?.length ? musModel(d.bars, t) : {
         hd: placeholder ? 'NOTES · placeholder/piano-demo-notes.PLACEHOLDER.tsv (synthetic)' : 'NOTES · piano-demo-notes.tsv',
         lines: d.notes.filter((n) => n.onset <= t + 1e-6).slice(-3).map((n) => [{ t: `${n.onset.toFixed(2)} s  ${noteName(n.midi).padEnd(3)} vel ${n.velocity}  release ${n.release.toFixed(2)} s`, cls: t <= n.release ? 'tk now' : 'tk past' }]),
       },
@@ -138,8 +138,64 @@ export class PianoScene {
   }
 }
 
-// The Ariadne piano's energy file, once it exists. Until then: null.
-function energyAdapter(e) {
+function musModel(bars, t) {
+  let bar = bars[0];
+  for (const b of bars) if (b.start <= t + 1e-6) bar = b;
+  const lines = bar.voices.filter((v) => !(v.tokens.length === 1 && v.tokens[0] === '-')).map((v) => {
+    let now = -1;
+    v.onsets.forEach((o, i) => { if (o !== null && o <= t + 1e-6) now = i; });
+    return [{ t: v.hand + '=', cls: 'vo' }, ...v.tokens.map((tk, i) => ({ t: (i ? ' ' : '') + tk, cls: tk.startsWith('{') ? 'd' : i === now ? 'tk now' : v.onsets[i] !== null && v.onsets[i] < t ? 'tk past' : 'tk' }))];
+  });
+  return { hd: `MUS · prelude-c-major.mus · bar ${bar.bar}`, lines };
+}
+
+// The Ariadne piano's trace (mus-engine ariadne_piano::PianoEnergyTrace, cut by tools/prep.py):
+// per key the strings' and hammer's stored energy, the soundboard, the room, radiated power,
+// the bridge's flow into the board, the running books. Until it exists: null.
+function energyAdapter(e, receipt, window) {
   if (!e) return null;
-  throw new Error('piano energy file present: write its adapter against the real schema');
+  const at = (series, t) => sample(series, e.t0, e.hop, t);
+  const inWin = (i) => { const t = e.t0 + i * e.hop; return t >= window[0] && t <= window[1]; };
+  const maxIn = (a) => a.reduce((m, v, i) => (inWin(i) ? Math.max(m, v) : m), 0);
+  const keys = Object.keys(e.strings);
+  const n = e.board.length;
+  const sumOf = (group) => Array.from({ length: n }, (_, i) => Object.values(group).reduce((a, s) => a + s[i], 0));
+  const strings = sumOf(e.strings), hammers = sumOf(e.hammers);
+  const max = {
+    string: Math.max(...keys.map((k) => maxIn(e.strings[k]))), strings: maxIn(strings), hammers: maxIn(hammers),
+    board: maxIn(e.board), room: maxIn(e.room), rad: maxIn(e.radiatedW), into: maxIn(e.intoBoardW),
+  };
+  const idx = (t) => Math.max(0, Math.min(n - 1, Math.round((t - e.t0) / e.hop)));
+  return {
+    string: (m, t) => (e.strings[m] ? at(e.strings[m], t) : 0),
+    stringMax: max.string,
+    board: (t) => at(e.board, t),
+    boardMax: max.board,
+    chain: (t) => [
+      meter('HAMMERS', 'a', at(hammers, t), max.hammers, recentMax(hammers, e.t0, e.hop, t, 0.4), fmtJ, 50),
+      meter('STRINGS', 'w', at(strings, t), max.strings, recentMax(strings, e.t0, e.hop, t, 0.4), fmtJ, 50),
+      meter('SOUNDBOARD', 'w', at(e.board, t), max.board, recentMax(e.board, e.t0, e.hop, t, 0.4), fmtJ, 50),
+      meter('ROOM', 'b', at(e.room, t), max.room, recentMax(e.room, e.t0, e.hop, t, 0.4), fmtJ, 40),
+    ],
+    ledger: (t) => {
+      const i = idx(t);
+      if (e.ledger) {
+        const c = (k) => e.ledger[i][e.ledgerColumns.indexOf(k)];
+        return [
+          { k: 'IN (HAMMERS)', v: fmtJ(c('sourceWork')), c: 'a' }, { k: 'LOST INSIDE', v: fmtJ(c('internalLoss')), c: 'w' },
+          { k: 'RADIATED', v: fmtJ(c('radiation')), c: 'b' }, { k: 'RESIDUAL', v: fmtJ(c('cumulativeClosureResidual')), c: 'g' },
+        ];
+      }
+      return [
+        { k: 'IN (HAMMERS)', v: fmtJ(e.inJ[i]), c: 'a' }, { k: 'LOST INSIDE', v: fmtJ(e.lostJ[i]), c: 'w' },
+        { k: 'RADIATED', v: fmtJ(e.radiatedJ[i]), c: 'b' },
+        { k: 'RESIDUAL (RECEIPT)', v: receipt ? fmtJ(receipt.cumulativeClosureResidual) : '–', c: 'g' },
+      ];
+    },
+    foot: (t) => {
+      const last = [...e.strikes].reverse().find((s) => s.seconds <= t + 1e-6);
+      const felt = last && !last.refused ? `last strike ${last.name}: hammer ${last.hammerVelocity.toFixed(2)} m/s, felt ${last.contactMs.toFixed(1)} ms` : 'no strike yet';
+      return `${felt} · worst frame ${receipt ? fmtJ(receipt.maximumFrameResidual, 2) : '–'} (receipt)`;
+    },
+  };
 }
