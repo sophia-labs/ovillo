@@ -70,6 +70,19 @@ impl ObservationSource {
         }
     }
 
+    /// Whether a channel of `channel` type can record this source: its own
+    /// type, or `F32` for an `F64` source (the bound runtime accumulates in
+    /// f64 and narrows once, on emission).
+    #[must_use]
+    pub const fn admits_channel_type(&self, channel: ScalarType) -> bool {
+        matches!(
+            (self.scalar_type(), channel),
+            (ScalarType::U64, ScalarType::U64)
+                | (ScalarType::F64, ScalarType::F64)
+                | (ScalarType::F64, ScalarType::F32)
+        )
+    }
+
     #[must_use]
     pub const fn is_increment(&self) -> bool {
         matches!(
@@ -147,7 +160,10 @@ impl WorldObservationProgram {
         }
         self.schema()?.validate()?;
         for (index, observed) in self.channels.iter().enumerate() {
-            if observed.channel.scalar_type != observed.source.scalar_type() {
+            if !observed
+                .source
+                .admits_channel_type(observed.channel.scalar_type)
+            {
                 return Err(ObservationProgramError::ScalarTypeMismatch { index });
             }
             if matches!(observed.channel.aggregation, Aggregation::IntervalDelta)
@@ -288,7 +304,7 @@ pub enum ObservationProgramError {
     UnrepresentableClock(f64),
     #[error("observation cadence must be at least one material tick")]
     InvalidCadence,
-    #[error("observation channel {index} scalar type does not match its source")]
+    #[error("observation channel {index} scalar type cannot record its source")]
     ScalarTypeMismatch { index: usize },
     #[error("invalid aggregation for {channel:?}: {reason}")]
     InvalidAggregation {

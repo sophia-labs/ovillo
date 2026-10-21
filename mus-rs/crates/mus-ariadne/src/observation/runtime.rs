@@ -556,6 +556,50 @@ mod tests {
     }
 
     #[test]
+    fn f32_channels_narrow_f64_sources_and_nothing_else_converts() {
+        let plan = WorldPlan::string_brass_v1(48_000.0);
+        let mut narrowed = channel(
+            "space.energy",
+            ObservationSource::SpaceStoredEnergy,
+            Aggregation::Instant,
+        );
+        narrowed.channel.scalar_type = ScalarType::F32;
+        let program = WorldObservationProgram::new(&plan, 1, vec![narrowed]).unwrap();
+        let mut binding = BoundObservationProgram::compile(&program, &plan).unwrap();
+        let mut world = World::from_plan(plan.clone()).unwrap();
+        let mut body_controls = vec![BodyControls::default()];
+        body_controls[0].source_wave = 0.7;
+        let frame = world
+            .process_sample(
+                &body_controls,
+                crate::shared_world::WorldControls::default(),
+            )
+            .unwrap();
+        let mut values = vec![ObservationValue::F32(0.0); 1];
+        assert!(binding
+            .observe_sample_into(1, &world, &frame, &mut values)
+            .unwrap());
+        assert_eq!(
+            values[0],
+            ObservationValue::F32(world.space_stored_energy() as f32)
+        );
+
+        for (source, scalar_type) in [
+            (ObservationSource::Tick, ScalarType::F64),
+            (ObservationSource::Tick, ScalarType::F32),
+            (ObservationSource::SpaceStoredEnergy, ScalarType::U64),
+        ] {
+            let mut refused = channel("refused", source, Aggregation::Instant);
+            refused.channel.scalar_type = scalar_type;
+            refused.channel.interpolation = Interpolation::Step;
+            assert!(matches!(
+                WorldObservationProgram::new(&plan, 1, vec![refused]),
+                Err(ObservationProgramError::ScalarTypeMismatch { index: 0 })
+            ));
+        }
+    }
+
+    #[test]
     fn observer_reads_do_not_load_the_world() {
         let plan = WorldPlan::string_brass_v1(48_000.0);
         let program = WorldObservationProgram::new(
