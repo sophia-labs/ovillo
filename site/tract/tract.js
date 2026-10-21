@@ -13,14 +13,19 @@ const L = {
   MUSCLE: 13, IMPACT: 14, TRACT_CTRL: 15, FOLD_CTRL: 16, WALL: 17, JET: 18, FOLD_LOSS: 19,
   RAD_LIPS: 20, RAD_NOSE: 21, FRAMES: 22, MAX_RES: 23, GLOBAL_RES: 24, CUM_RES: 25,
   CUR_INDEX: 26, CUR_DIAM: 27, CUR_LIPS: 28, CUR_VELUM: 29, CUR_PITCH: 30, CUR_TENSE: 31, CUR_BREATH: 32,
-  GESTURE: 33, SAFETY: 34, NONFINITE: 35, IMPACTS: 36, CYCLE: 40, AREAS: 72, PRMS: 136, NASAL: 200, LEN: 248,
+  GESTURE: 33, SAFETY: 34, NONFINITE: 35, IMPACTS: 36, TURB: 37, CLOSS: 38, MAX_RE: 39,
+  CYCLE: 40, AREAS: 72, PRMS: 136, NASAL: 200, CONS: 248, MIN_AP: 258, MIN_AP_POS: 259, DECIMATE: 260, LEN: 264,
 };
+const TOUCH_SLOTS = [1, 2, 3, 4];
+const ORAL_FRONT = 0.44; // constrictions go forward of the velum
 // Tongue centre range along the tract (TractAnatomy::adult_v0).
 const TONGUE_BACK = 0.24, TONGUE_FRONT = 0.80, VELUM_POS = 0.40;
 const PARAM = { index: 0, diameter: 1, lips: 2, velum: 3, pitch: 4, tense: 5, breath: 6, asp: 7 };
 
 const query = new URLSearchParams(location.search);
 const MUTE = query.has('mute');
+const TV = query.get('tv') === '1';
+if (TV) document.body.classList.add('tv');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = (id) => document.getElementById(id);
 
@@ -33,9 +38,12 @@ let dspLoad = null;
 let wasmRtf = null;
 let audio = null; // { ctx, node, gain }
 const controls = { index: 0.5, diameter: 0.3, lips: 0.6, velum: 0.35, pitch: 120, tense: 0.6, breath: 0.55, asp: 0.15 };
+const vib = { rate: 5.5, depth: 0, wobble: 0.3 };
+const constrictions = new Map(); // slot -> { position, degree }
 
 // A silent World on the main thread drives the pictures before START (and
 // measures the wasm real-time factor). After START the worklet's World does.
+let decimate = 1;
 const silent = {
   x: null,
   carry: 0,
@@ -44,8 +52,12 @@ const silent = {
     this.x = inst.exports;
     this.x.tract_init(48000);
     this.bench();
-    this.x.tract_init(48000);
+    // Light mode (the World at half rate, upsampled) on slow devices, or on request.
+    const lite = query.get('lite');
+    decimate = lite === '1' ? 2 : lite === '0' ? 1 : (wasmRtf < (TV ? 5 : 2.5) ? 2 : 1);
+    this.x.tract_init_decimated(48000, decimate);
     for (const [k, v] of Object.entries(controls)) this.x.tract_set(PARAM[k], v);
+    this.x.tract_vibrato(vib.rate, vib.depth, vib.wobble);
   },
   bench() {
     const x = this.x;
@@ -53,9 +65,9 @@ const silent = {
     x.tract_gesture(0);
     for (let i = 0; i < 40; i++) x.tract_process(128);
     // Best of three thirds of a second of audio (a busy machine preempts).
-    const blocks = 125;
+    const blocks = TV ? 60 : 125;
     let best = Infinity;
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < (TV ? 1 : 3); k++) {
       const t0 = performance.now();
       for (let i = 0; i < blocks; i++) x.tract_process(128);
       best = Math.min(best, performance.now() - t0);
@@ -64,7 +76,10 @@ const silent = {
   },
   run(dtMs) {
     if (!this.x || audio) return;
-    this.carry += (48000 * Math.min(dtMs, 60)) / 1000;
+    // Before START this World only feeds the pictures: on a slow device it
+    // runs in slow motion rather than starve the page.
+    const share = wasmRtf ? Math.min(1, (wasmRtf * decimate) / 4) : 1;
+    this.carry += (48000 * share * Math.min(dtMs, 60)) / 1000;
     let budget = Math.min(Math.floor(this.carry), 4096);
     this.carry -= budget;
     while (budget > 0) { const n = Math.min(budget, 512); this.x.tract_process(n); budget -= n; }
@@ -78,6 +93,8 @@ function send(msg) {
   const x = silent.x;
   if (!x) return;
   if (msg.type === 'set') x.tract_set(msg.param, msg.value);
+  else if (msg.type === 'constrict') x.tract_constrict(msg.slot, msg.position, msg.degree);
+  else if (msg.type === 'vibrato') x.tract_vibrato(msg.rate, msg.depth, msg.wobble);
   else if (msg.type === 'preset') x.tract_preset(msg.id);
   else if (msg.type === 'gesture') x.tract_gesture(msg.id);
   else if (msg.type === 'impact') x.tract_impact(msg.position, msg.energy);
@@ -90,8 +107,10 @@ async function startAudio() {
   const node = new AudioWorkletNode(ctx, 'tract', {
     numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
     // The World as the player has it now, applied before the first quantum.
-    processorOptions: { bytes: wasmBytes.slice(0), init: [
+    processorOptions: { bytes: wasmBytes.slice(0), decimate, init: [
       ...Object.entries(controls).map(([k, v]) => ({ type: 'set', param: PARAM[k], value: v })),
+      { type: 'vibrato', rate: vib.rate, depth: vib.depth, wobble: vib.wobble },
+      ...[...constrictions].map(([slot, c]) => ({ type: 'constrict', slot, position: c.position, degree: c.degree })),
       ...(activeGesture !== null ? [{ type: 'gesture', id: activeGesture }] : []),
     ] },
   });
@@ -100,16 +119,34 @@ async function startAudio() {
   node.connect(gain).connect(ctx.destination);
   node.port.onmessage = (e) => {
     const m = e.data;
-    if (m.type === 'state') { state = m.state; dspLoad = m.load; }
+    if (m.type === 'state') { if (audio) { state = m.state; dspLoad = m.load; } }
     else if (m.type === 'error') console.error('tract worklet:', m.message);
   };
-  audio = { ctx, node, gain };
-  applyMaster();
-  await ctx.resume();
+  pendingAudio = { ctx, node, gain };
+  // The worklet World takes over only once sound is actually running (a
+  // browser may hold the context suspended until a gesture); until then the
+  // silent World keeps the pictures alive, and the hand-over replays the
+  // player's current controls.
+  const goLive = () => {
+    if (audio || ctx.state !== 'running') return;
+    audio = pendingAudio;
+    for (const [k, v] of Object.entries(controls)) node.port.postMessage({ type: 'set', param: PARAM[k], value: v });
+    node.port.postMessage({ type: 'vibrato', rate: vib.rate, depth: vib.depth, wobble: vib.wobble });
+    for (const [slot, c] of constrictions) node.port.postMessage({ type: 'constrict', slot, position: c.position, degree: c.degree });
+    if (activeGesture !== null) node.port.postMessage({ type: 'gesture', id: activeGesture });
+    applyMaster();
+    $('cover').hidden = true;
+  };
+  ctx.addEventListener('statechange', goLive);
+  ctx.resume().then(goLive, () => {});
+  goLive();
 }
+let pendingAudio = null;
+// ?mute=1 is a hard lock (for testing): nothing unmutes it.
+let muted = MUTE;
 function applyMaster() {
   if (!audio) return;
-  const v = MUTE ? 0 : Number($('s-master').value) ** 2;
+  const v = (MUTE || muted) ? 0 : Number($('s-master').value) ** 2;
   audio.gain.gain.setTargetAtTime(v, audio.ctx.currentTime, 0.05);
 }
 
@@ -188,8 +225,11 @@ function wetNormalMap() {
 
 // ------------------------------------------------------------- scene ------
 const canvas = $('gl');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !TV, alpha: false, powerPreference: 'high-performance' });
+// On a TV the organ is drawn at CSS pixels (ratio 1), lowered further when the
+// audio worklet gets busy; elsewhere up to 2.
+let pixelRatio = TV ? 1 : Math.min(devicePixelRatio, 2);
+renderer.setPixelRatio(pixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -209,10 +249,13 @@ const sheen = new THREE.PointLight(0xffffff, 60, 40, 1.6); scene.add(sheen);
 
 const normalMap = wetNormalMap();
 const clipFront = [new THREE.Plane(new THREE.Vector3(0, 0, -1), 0.02)];
-const flesh = (color, rough, extra = {}) => new THREE.MeshPhysicalMaterial({
-  color, roughness: rough, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.16, sheen: 0.6, sheenColor: new THREE.Color(0xffc2cf), sheenRoughness: 0.45,
-  normalMap, normalScale: new THREE.Vector2(0.32, 0.32), side: THREE.DoubleSide, ...extra,
-});
+const flesh = (color, rough, extra = {}) => TV
+  // Cheaper on a TV: no clearcoat or sheen layers.
+  ? new THREE.MeshStandardMaterial({ color, roughness: Math.max(0.25, rough - 0.1), metalness: 0, normalMap, normalScale: new THREE.Vector2(0.3, 0.3), side: THREE.DoubleSide, ...(extra.clippingPlanes ? { clippingPlanes: extra.clippingPlanes } : {}) })
+  : new THREE.MeshPhysicalMaterial({
+    color, roughness: rough, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.16, sheen: 0.6, sheenColor: new THREE.Color(0xffc2cf), sheenRoughness: 0.45,
+    normalMap, normalScale: new THREE.Vector2(0.32, 0.32), side: THREE.DoubleSide, ...extra,
+  });
 const matShell = flesh(0xe57d90, 0.5);
 const matPalate = flesh(0xf09aaa, 0.46);
 const matTongue = flesh(0xd4506c, 0.32, { sheenColor: new THREE.Color(0xff9fb4), clearcoatRoughness: 0.1 });
@@ -270,7 +313,7 @@ const glowTex = (() => {
 })();
 const orbColors = [0xbff3ff, 0xd9c8ff, 0xc9ffd8, 0xfff0b8];
 let orbHits = 0;
-function fireOrb(ray) {
+function fireOrb(ray, straight = false) {
   const r = 0.32 + Math.random() * 0.3;
   const color = orbColors[Math.floor(Math.random() * orbColors.length)];
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), new THREE.MeshPhysicalMaterial({ color, emissive: color, emissiveIntensity: 0.3, roughness: 0.1, clearcoat: 1, transmission: 0.2, thickness: 0.5 }));
@@ -280,7 +323,18 @@ function fireOrb(ray) {
   mesh.position.copy(origin);
   scene.add(mesh);
   const speed = 26 + Math.random() * 8;
-  orbs.push({ mesh, r, v: ray.direction.clone().multiplyScalar(speed).add(new THREE.Vector3(0, 2.2, 0)), age: 0, stuck: null, speed });
+  // A thrown orb arcs; one fired from the remote flies straight at the tongue.
+  const v = ray.direction.clone().multiplyScalar(speed);
+  if (!straight) v.add(new THREE.Vector3(0, 2.2, 0));
+  orbs.push({ mesh, r, v, age: 0, stuck: null, speed, straight });
+}
+// Aim an orb at the tongue (for the TV remote's SPACE).
+function fireOrbAtTongue() {
+  const s = TONGUE_BACK + state[L.CUR_INDEX] * (TONGUE_FRONT - TONGUE_BACK);
+  const w = wall(s), d = lastShape ? lastShape[Math.round(s * (ROWS - 1))] : 1.5;
+  const aim = new THREE.Vector3(w.x - w.nx * (d + 0.4), w.y - w.ny * (d + 0.4), 0);
+  const dir = aim.clone().sub(camera.position).normalize();
+  fireOrb(new THREE.Ray(camera.position.clone(), dir), true);
 }
 function splash(at, color) {
   for (let i = 0; i < 7; i++) {
@@ -447,7 +501,7 @@ function updateOrbs(dt) {
     const steps = 4;
     for (let sIdx = 0; sIdx < steps; sIdx++) {
       const h = dt / steps;
-      o.v.y -= 9.8 * 0.6 * h;
+      if (!o.straight) o.v.y -= 9.8 * 0.6 * h;
       o.mesh.position.addScaledVector(o.v, h);
       const p = o.mesh.position;
       if (p.z - o.r <= 0.05 && p.z > -SHELL_Z) {
@@ -510,6 +564,10 @@ canvas.addEventListener('pointerdown', (ev) => {
     gesture3d = 'pinch'; pinchStart = Math.hypot(a.x - b.x, a.y - b.y); pinchR = orbit.r; return;
   }
   if (mode === 'shoot') { fireOrb(rayAt(ev)); gesture3d = 'orbit-shot'; return; }
+  if (mode === 'touch') {
+    const slot = freeSlot();
+    if (slot !== null && touchFromPoint(ev, slot)) { touchSlots.set(ev.pointerId, slot); gesture3d = 'touch'; return; }
+  }
   gesture3d = tongueFromPoint(ev) ? 'tongue' : 'orbit';
 });
 canvas.addEventListener('pointermove', (ev) => {
@@ -521,23 +579,60 @@ canvas.addEventListener('pointermove', (ev) => {
     const [a, b] = [...pointers.values()];
     orbit.r = Math.min(48, Math.max(16, pinchR * pinchStart / Math.max(20, Math.hypot(a.x - b.x, a.y - b.y))));
   } else if (gesture3d === 'tongue') tongueFromPoint(ev);
+  else if (gesture3d === 'touch' && touchSlots.has(ev.pointerId)) touchFromPoint(ev, touchSlots.get(ev.pointerId));
   else if (gesture3d === 'orbit') {
     orbit.az = Math.min(1.35, Math.max(-1.35, orbit.az - dx * 0.006));
     orbit.el = Math.min(1.0, Math.max(-0.35, orbit.el + dy * 0.005));
   }
 });
-const endPointer = (ev) => { pointers.delete(ev.pointerId); if (pointers.size === 0) gesture3d = null; };
+const endPointer = (ev) => {
+  pointers.delete(ev.pointerId);
+  if (touchSlots.has(ev.pointerId)) { releaseSlot(touchSlots.get(ev.pointerId)); touchSlots.delete(ev.pointerId); }
+  if (pointers.size === 0) gesture3d = null;
+};
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('wheel', (ev) => { ev.preventDefault(); orbit.r = Math.min(48, Math.max(16, orbit.r * (1 + ev.deltaY * 0.001))); }, { passive: false });
 function setMode(m) {
   mode = m;
-  $('m-drag').setAttribute('aria-pressed', String(m === 'drag'));
-  $('m-shoot').setAttribute('aria-pressed', String(m === 'shoot'));
-  $('hint').textContent = m === 'shoot' ? 'tap to throw an orb · where it lands, the wall is knocked and dented' : 'drag the tongue · drag elsewhere to turn';
+  for (const id of ['drag', 'touch', 'shoot']) $('m-' + id).setAttribute('aria-pressed', String(m === id));
+  $('hint').textContent = m === 'shoot' ? 'tap to throw an orb · where it lands, the wall is knocked and dented'
+    : m === 'touch' ? 'press on the roof of the mouth to constrict · closer to the roof, tighter · let go and it opens'
+    : 'drag the tongue · drag elsewhere to turn';
 }
 $('m-drag').onclick = () => setMode('drag');
+$('m-touch').onclick = () => setMode('touch');
 $('m-shoot').onclick = () => setMode('shoot');
+
+// ------------------------------------------------------ constrictions ---
+// Touch slots 1..4 (slot 0 belongs to the consonant gestures). A press places
+// a constriction; releasing lets the wall return (configuration transport,
+// its work on the books).
+const touchSlots = new Map(); // pointerId -> slot
+function freeSlot() {
+  const used = new Set([...touchSlots.values()]);
+  for (const s of TOUCH_SLOTS) if (!used.has(s)) return s;
+  return null;
+}
+function placeSlot(slot, position, degree) {
+  stopGestureUi();
+  const c = { position: Math.min(1, Math.max(ORAL_FRONT, position)), degree: Math.min(1, Math.max(0, degree)) };
+  constrictions.set(slot, c);
+  send({ type: 'constrict', slot, position: c.position, degree: c.degree });
+}
+function releaseSlot(slot) {
+  constrictions.delete(slot);
+  send({ type: 'constrict', slot, position: 0, degree: -1 });
+}
+function touchFromPoint(ev, slot) {
+  const hit = new THREE.Vector3();
+  if (!rayAt(ev).intersectPlane(midPlane, hit)) return false;
+  const loc = locate(hit.x, hit.y);
+  if (!loc || loc.s < ORAL_FRONT) return false;
+  const inward = Math.max(0, -loc.q);
+  placeSlot(slot, loc.s, 1 - inward / 2.2);
+  return true;
+}
 
 // ------------------------------------------------- the 2D cross-section --
 const sec = $('section2d'), sctx = sec.getContext('2d');
@@ -553,10 +648,40 @@ function secToTongue(ev) {
   const diam = 1 - (fy - 0.30) / 0.6;
   setTongue(Math.min(1, Math.max(0, index)), Math.min(1, Math.max(0, diam)));
 }
-sec.addEventListener('pointerdown', (ev) => { sec.setPointerCapture(ev.pointerId); secDrag = true; secToTongue(ev); });
-sec.addEventListener('pointermove', (ev) => { if (secDrag) secToTongue(ev); });
-sec.addEventListener('pointerup', () => { secDrag = false; });
-sec.addEventListener('pointercancel', () => { secDrag = false; });
+const secTouches = new Map(); // pointerId -> slot
+function secPoint(ev) {
+  const rect = sec.getBoundingClientRect();
+  return { fx: (ev.clientX - rect.left) / rect.width, fy: (ev.clientY - rect.top) / rect.height, w: rect.width, h: rect.height };
+}
+function secToSlot(ev, slot) {
+  const { fx, fy } = secPoint(ev);
+  // At the roof line the touch closes the tract; 40% of the height below, nothing.
+  placeSlot(slot, fx, 1 - (fy - 0.30) / 0.40);
+}
+sec.addEventListener('pointerdown', (ev) => {
+  sec.setPointerCapture(ev.pointerId);
+  const { fx, fy, w, h } = secPoint(ev);
+  const hx = TONGUE_BACK + state[L.CUR_INDEX] * (TONGUE_FRONT - TONGUE_BACK), hy = 0.30 + (1 - state[L.CUR_DIAM]) * 0.6;
+  const nearHandle = Math.hypot((fx - hx) * w, (fy - hy) * h) < 26;
+  if (!nearHandle && fx >= ORAL_FRONT) {
+    const slot = freeSlot() ?? null;
+    const used = new Set([...secTouches.values()]);
+    const free = TOUCH_SLOTS.find((s) => !used.has(s) && ![...touchSlots.values()].includes(s));
+    if (free !== undefined) { secTouches.set(ev.pointerId, free); secToSlot(ev, free); return; }
+    void slot;
+  }
+  secDrag = true; secToTongue(ev);
+});
+sec.addEventListener('pointermove', (ev) => {
+  if (secTouches.has(ev.pointerId)) secToSlot(ev, secTouches.get(ev.pointerId));
+  else if (secDrag) secToTongue(ev);
+});
+const secEnd = (ev) => {
+  if (secTouches.has(ev.pointerId)) { releaseSlot(secTouches.get(ev.pointerId)); secTouches.delete(ev.pointerId); }
+  else secDrag = false;
+};
+sec.addEventListener('pointerup', secEnd);
+sec.addEventListener('pointercancel', secEnd);
 function drawSection() {
   const dpr = Math.min(devicePixelRatio, 2);
   const W = sec.clientWidth, H = sec.clientHeight;
@@ -584,6 +709,16 @@ function drawSection() {
   for (let k = 0; k <= 88; k++) { const s = k / 88, d = diameter(sample(state, L.AREAS, n, s) || 3) * scale; k === 0 ? g.moveTo(0, roof + d) : g.lineTo(s * W, roof + d); }
   g.stroke();
   g.strokeStyle = '#f3dfe2'; g.globalAlpha = 0.5; g.beginPath(); g.moveTo(0, roof); g.lineTo(W, roof); g.stroke(); g.globalAlpha = 1;
+  // Constrictions (all five slots, as the World has them now).
+  for (let k = 0; k < 5; k++) {
+    const pos = state[L.CONS + 2 * k], deg = state[L.CONS + 2 * k + 1];
+    if (!(deg > 0.001)) continue;
+    const x = pos * W, y = roof + (1 - deg) * 0.40 * H;
+    g.strokeStyle = k === 0 ? '#ffcf8a' : '#bff3ff'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(x, roof); g.lineTo(x, y); g.stroke();
+    g.fillStyle = k === 0 ? 'rgba(255,207,138,0.35)' : 'rgba(191,243,255,0.35)';
+    g.beginPath(); g.arc(x, y, 9, 0, Math.PI * 2); g.fill();
+  }
   // Tongue handle.
   const ti = state[L.CUR_INDEX], td = state[L.CUR_DIAM];
   const hx = (TONGUE_BACK + ti * (TONGUE_FRONT - TONGUE_BACK)) * W, hy = (0.30 + (1 - td) * 0.6) * H;
@@ -591,6 +726,9 @@ function drawSection() {
   g.strokeStyle = '#ffd0d8'; g.lineWidth = 2; g.beginPath(); g.arc(hx, hy, 9, 0, Math.PI * 2); g.stroke();
   g.fillStyle = '#b08f95'; g.font = '10px ui-monospace, Menlo, monospace';
   g.fillText('glottis', 4, H - 6); g.fillText('lips', W - 28, H - 6); g.fillText('nose', VELUM_POS * W + 4, 12);
+  g.globalAlpha = 0.35; g.strokeStyle = '#bff3ff'; g.setLineDash([3, 4]);
+  g.beginPath(); g.moveTo(ORAL_FRONT * W, roof); g.lineTo(ORAL_FRONT * W, H); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+  g.fillText('touch →', ORAL_FRONT * W + 4, H - 20);
   g.fillText('velum ' + (state[L.CUR_VELUM] * 100).toFixed(0) + '%', VELUM_POS * W - 30, roof + 12 + diameter(sample(state, L.AREAS, n, VELUM_POS) || 3) * scale);
 }
 
@@ -623,6 +761,15 @@ const sliders = {
   velum: ['s-velum', 'o-velum', (v) => v.toFixed(2)],
   asp: ['s-asp', 'o-asp', (v) => v.toFixed(2)],
 };
+const vibSliders = { depth: ['s-vib', 'o-vib', (v) => v.toFixed(2) + ' st'], rate: ['s-vibrate', 'o-vibrate', (v) => v.toFixed(1) + ' Hz'], wobble: ['s-wobble', 'o-wobble', (v) => v.toFixed(2)] };
+for (const [name, [sid, oid, fmt]] of Object.entries(vibSliders)) {
+  const el = $(sid), out = $(oid);
+  vib[name] = Number(el.value); out.textContent = fmt(vib[name]);
+  el.addEventListener('input', () => {
+    vib[name] = Number(el.value); out.textContent = fmt(vib[name]);
+    send({ type: 'vibrato', rate: vib.rate, depth: vib.depth, wobble: vib.wobble });
+  });
+}
 const sliderBusy = new Set();
 for (const [name, [sid, oid, fmt]] of Object.entries(sliders)) {
   const el = $(sid), out = $(oid);
@@ -634,8 +781,10 @@ for (const [name, [sid, oid, fmt]] of Object.entries(sliders)) {
   el.addEventListener('pointerdown', () => sliderBusy.add(name));
   el.addEventListener('pointerup', () => sliderBusy.delete(name));
 }
-$('o-master').textContent = MUTE ? 'muted' : Number($('s-master').value).toFixed(2);
-$('s-master').addEventListener('input', () => { $('o-master').textContent = MUTE ? 'muted' : Number($('s-master').value).toFixed(2); applyMaster(); });
+if (TV) $('s-master').value = 0.35;
+const showMaster = () => { $('o-master').textContent = muted ? 'muted' : Number($('s-master').value).toFixed(2); $('h-muted').hidden = !muted; };
+showMaster();
+$('s-master').addEventListener('input', () => { showMaster(); applyMaster(); });
 if (MUTE) $('h-muted').hidden = false;
 
 let activeGesture = null;
@@ -657,11 +806,18 @@ for (const b of document.querySelectorAll('.presets button')) {
     b.setAttribute('aria-pressed', 'true');
   });
 }
-$('start').addEventListener('click', async () => {
+async function start() {
+  if (audio) return;
   $('start').disabled = true;
-  try { await startAudio(); $('cover').hidden = true; }
-  catch (err) { console.error(err); $('start').disabled = false; $('cover').querySelector('.sub').textContent = 'audio could not start: ' + err.message; }
-});
+  try {
+    if (pendingAudio) await pendingAudio.ctx.resume();
+    else await startAudio();
+  } catch (err) {
+    console.error(err); $('start').disabled = false;
+    $('cover').querySelector('.sub').textContent = 'audio could not start: ' + err.message;
+  }
+}
+$('start').addEventListener('click', start);
 
 // Keep sliders honest while a gesture moves the World.
 function syncSliders() {
@@ -689,17 +845,19 @@ function drawReadout() {
     ['walls + folds moved', fmtJ(s[L.TRACT_CTRL] + s[L.FOLD_CTRL])],
     ['lost: walls · jet · folds', `${s[L.WALL].toFixed(3)} · ${s[L.JET].toFixed(3)} · ${s[L.FOLD_LOSS].toFixed(3)}`],
     ['radiated: lips · nose', `${(s[L.RAD_LIPS] * 1e3).toFixed(2)} · ${(s[L.RAD_NOSE] * 1e3).toFixed(2)} mJ`],
+    ['jets lost · turbulence paid', `${s[L.CLOSS].toFixed(3)} · ${s[L.TURB].toExponential(1)} J`],
+    ['narrowest · max Re', `${s[L.MIN_AP] < 1e-6 ? 'closed' : s[L.MIN_AP].toFixed(3) + ' cm²'} @ ${s[L.MIN_AP_POS].toFixed(2)} · ${s[L.MAX_RE].toFixed(0)}`],
     ['in the air now', `${(s[L.TRACT_E] * 1e6).toFixed(1)} µJ`],
     ['worst block residual', `<span class="ok">${s[L.MAX_RES].toExponential(1)} J</span>`],
     ['books, relative', `<span class="${rel < 1e-8 ? 'ok' : 'warn'}">${rel.toExponential(1)}</span>`],
     ['DSP load (worklet)', dspLoad === null ? 'not started' : `${(dspLoad * 100).toFixed(1)}%`],
     ['wasm real-time factor', wasmRtf ? `${wasmRtf.toFixed(1)}× (main thread)` : '–'],
-    ['sections oral · nasal', `${s[L.ORAL_N]} · ${s[L.NASAL_N]}`],
+    ['sections oral · nasal', `${s[L.ORAL_N]} · ${s[L.NASAL_N]}${s[L.DECIMATE] > 1 ? ' (light mode, half rate)' : ''}`],
   ];
   $('readout').innerHTML = rows.map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
   $('h-f0').textContent = s[L.F0] > 0 ? s[L.F0].toFixed(0) + ' Hz' : 'still';
   $('h-lung').textContent = (s[L.LUNG_FRACTION] * 100).toFixed(0) + '%';
-  $('h-dsp').textContent = (dspLoad === null ? '' : (dspLoad * 100).toFixed(1) + '% · ') + (wasmRtf ? wasmRtf.toFixed(1) + '× rt' : '–');
+  $('h-dsp').textContent = (dspLoad === null ? '' : (dspLoad * 100).toFixed(1) + '% · ') + (wasmRtf ? wasmRtf.toFixed(1) + '× rt' : '–') + (s[L.DECIMATE] > 1 ? ' · light' : '');
   $('h-books').textContent = s[L.MAX_RES].toExponential(0) + ' J';
 }
 
@@ -718,10 +876,19 @@ new ResizeObserver(resize).observe(stage);
 resize();
 
 await silent.init();
-let last = performance.now(), readoutAt = 0;
+let last = performance.now(), readoutAt = 0, adaptAt = 0;
+let minFrameMs = TV ? 1000 / 30 : 0;
 function frame(now) {
+  if (now - last < minFrameMs - 1) { requestAnimationFrame(frame); return; }
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
+  // On a TV, give the audio worklet room: lower the picture when it is busy.
+  if (TV && dspLoad !== null && now - adaptAt > 2000) {
+    adaptAt = now;
+    const want = dspLoad > 0.7 ? 0.6 : dspLoad < 0.45 ? 1 : pixelRatio;
+    minFrameMs = dspLoad > 0.7 ? 1000 / 24 : 1000 / 30;
+    if (want !== pixelRatio) { pixelRatio = want; renderer.setPixelRatio(pixelRatio); resize(); }
+  }
   const t = now / 1000;
   silent.run(dt * 1000);
   swingUvula(dt);
@@ -740,4 +907,61 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__tract = { get state() { return state; }, get wasmRtf() { return wasmRtf; }, get dspLoad() { return dspLoad; }, send, fireOrb: () => fireOrb(rayAt({ clientX: canvas.getBoundingClientRect().left + canvas.clientWidth * 0.55, clientY: canvas.getBoundingClientRect().top + canvas.clientHeight * 0.45 })), get hits() { return orbHits; } };
+// ------------------------------------------------- keys and TV remote ---
+const PRESET_ORDER = ['[data-preset="0"]', '[data-preset="1"]', '[data-preset="2"]', '[data-gesture="0"]', '[data-gesture="2"]',
+  '[data-gesture="3"]', '[data-gesture="4"]', '[data-gesture="7"]', '[data-gesture="10"]'];
+let presetCursor = -1;
+function pressPreset(i) {
+  presetCursor = ((i % PRESET_ORDER.length) + PRESET_ORDER.length) % PRESET_ORDER.length;
+  document.querySelector('.presets button' + PRESET_ORDER[presetCursor]).click();
+}
+function nudgeTongue(di, dd) {
+  setTongue(Math.min(1, Math.max(0, controls.index + di)), Math.min(1, Math.max(0, controls.diameter + dd)));
+}
+function handleKey(key) {
+  switch (key) {
+    case 'left': nudgeTongue(-0.05, 0); return true;
+    case 'right': nudgeTongue(0.05, 0); return true;
+    case 'up': nudgeTongue(0, 0.05); return true;
+    case 'down': nudgeTongue(0, -0.05); return true;
+    case 'ok': if (!audio) start(); else pressPreset(presetCursor + 1); return true;
+    case 'playpause':
+      if (!audio) start();
+      else if (audio.ctx.state === 'running') audio.ctx.suspend(); else audio.ctx.resume();
+      return true;
+    case 'space': case 'orb': fireOrbAtTongue(); return true;
+    case 'm': case 'mute': muted = MUTE || !muted; applyMaster(); showMaster(); return true;
+    default: {
+      const m = /^digit([1-9])$/.exec(key);
+      if (m) { pressPreset(Number(m[1]) - 1); return true; }
+      return false;
+    }
+  }
+}
+// A TV wrapper app calls this from its key handler.
+window.ovilloTV = (key) => handleKey(String(key).toLowerCase());
+const KEYMAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Enter: 'ok', ' ': 'space', Spacebar: 'space', m: 'm', M: 'm', MediaPlayPause: 'playpause' };
+window.addEventListener('keydown', (ev) => {
+  const t = ev.target;
+  const arrow = ev.key.startsWith('Arrow');
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') && (arrow || ev.key === ' ')) return; // sliders keep their keys
+  if (ev.key === 'Enter' && t && t.tagName === 'BUTTON' && !TV) return; // a focused button handles Enter itself
+  let key = KEYMAP[ev.key];
+  if (!key && /^[1-9]$/.test(ev.key)) key = 'digit' + ev.key;
+  if (key && handleKey(key)) ev.preventDefault();
+});
+if (TV) {
+  $('legend').hidden = false;
+  const tog = $('panel-toggle');
+  tog.hidden = false;
+  tog.addEventListener('click', () => {
+    const open = document.body.classList.toggle('panel-open');
+    tog.setAttribute('aria-expanded', String(open));
+    resize();
+  });
+  // Start breathing without a gesture where the browser allows it (a WebView
+  // with the media-gesture requirement off); otherwise START stays.
+  startAudio().catch((err) => console.warn('tract: autostart unavailable:', err.message));
+}
+
+window.__tract = { get state() { return state; }, get wasmRtf() { return wasmRtf; }, get dspLoad() { return dspLoad; }, get live() { return !!audio; }, get pixelRatio() { return pixelRatio; }, send, handleKey, fireOrb: () => fireOrb(rayAt({ clientX: canvas.getBoundingClientRect().left + canvas.clientWidth * 0.55, clientY: canvas.getBoundingClientRect().top + canvas.clientHeight * 0.45 })), get hits() { return orbHits; } };

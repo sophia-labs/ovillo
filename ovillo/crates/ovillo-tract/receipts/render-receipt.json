@@ -191,6 +191,55 @@
     },
     {
       "label": "design-hypothesis",
+      "name": "frication_efficiency",
+      "source": "cap; below it the share is 0.004 (M/0.1)^3 of each constriction jet's own dissipation (dipole Mach-cubed scaling, coefficient a design hypothesis)",
+      "unit": "-",
+      "value": 0.06
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "frication_reynolds",
+      "source": "onset Re = 2|U| / (nu sqrt(pi A_c)), full at 2x; value not from this repository",
+      "unit": "-",
+      "value": 3000.0
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "constriction_slit_width",
+      "source": "viscous slit resistance 12 mu dx w^2 / A_c^3 at narrow junctions",
+      "unit": "m",
+      "value": 0.015
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "constriction_width",
+      "source": "flat top of 1.2 sections plus this Gaussian shoulder",
+      "unit": "-",
+      "value": 0.022
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "constriction_close",
+      "source": "",
+      "unit": "s",
+      "value": 0.008
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "constriction_release",
+      "source": "",
+      "unit": "s",
+      "value": 0.005
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "lip_seal",
+      "source": "lip aperture goes to exactly zero below this lips value",
+      "unit": "-",
+      "value": 0.02
+    },
+    {
+      "label": "design-hypothesis",
       "name": "fold_length",
       "source": "",
       "unit": "m",
@@ -244,6 +293,13 @@
       "source": "",
       "unit": "m",
       "value": 0.0008
+    },
+    {
+      "label": "design-hypothesis",
+      "name": "abduction_boost",
+      "source": "voiceless consonants: rest gap x(1 + boost (0.3 - t)/0.3) below tenseness 0.3",
+      "unit": "-",
+      "value": 1.0
     },
     {
       "label": "design-hypothesis",
@@ -305,38 +361,439 @@
     "aspiration is a stochastic supply paid from the jet's dissipation, not a resolved turbulent flow",
     "the nasal tract's geometry is a design hypothesis; no nasal anatomy exists in this repository"
   ],
+  "consonants": [
+    {
+      "constriction_dissipation_j": 0.3529289142512224,
+      "constriction_net_loss_j": 0.3497169349304878,
+      "gesture": "sss",
+      "ledger": {
+        "breakdown": {
+          "constrictionDissipation": 0.3529289142512224,
+          "constrictionLoss": 0.3497169349304878,
+          "foldAeroWork": 0.00039954202371475793,
+          "foldControlWork": -0.00002055875958728749,
+          "foldLoss": 0.00037898326235343525,
+          "impactWork": 0.0,
+          "jetLoss": 0.06017919905426287,
+          "lungSupply": 0.5201926188390495,
+          "muscleWork": 0.461902386156617,
+          "radiationLips": 0.002449254117376668,
+          "radiationNose": 0.0,
+          "tractControlWork": -0.00022474104539632202,
+          "turbulenceWork": 0.003211979320733752,
+          "wallLoss": 0.10722196185220564
+        },
+        "controlWork": -0.0002462793389201858,
+        "cumulativeClosureResidual": 1.547029171433678e-11,
+        "finalEnergy": 2.9417097736164823,
+        "frames": 600,
+        "globalClosureResidual": 1.547251216038603e-11,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.5174970790993104,
+        "maximumFrameResidual": 3.5083047578154947e-14,
+        "nonFiniteEvents": 0,
+        "radiation": 0.002449254117376668,
+        "relativeGlobalResidual": 3.3479512796592604e-11,
+        "sourceWork": 0.461902386156617
+      },
+      "loudest_100ms_centroid_hz": 9184.298389139169,
+      "max_reynolds": 11218.94969642661,
+      "peak": 0.12218834459781647,
+      "peak_mid_tract_pressure_pa": 741.8005277205326,
+      "seconds": 1.6,
+      "turbulence_positive_j": 0.0041587930883576,
+      "turbulence_work_j": 0.003211979320733752,
+      "voiced_block_fraction": 0.21333333333333335,
+      "wav": "tract-sss.wav"
+    },
+    {
+      "constriction_dissipation_j": 0.4046325142274365,
+      "constriction_net_loss_j": 0.4017254453572494,
+      "gesture": "shh",
+      "ledger": {
+        "breakdown": {
+          "constrictionDissipation": 0.4046325142274365,
+          "constrictionLoss": 0.4017254453572494,
+          "foldAeroWork": 0.000988695643277287,
+          "foldControlWork": -0.000015585602971726274,
+          "foldLoss": 0.0009731100385249957,
+          "impactWork": 0.0,
+          "jetLoss": 0.10752250578177273,
+          "lungSupply": 0.6553300036931263,
+          "muscleWork": 0.46220822157182523,
+          "radiationLips": 0.0017245225450095226,
+          "radiationNose": 0.0,
+          "tractControlWork": -0.00022255586743233068,
+          "turbulenceWork": 0.002907068870177386,
+          "wallLoss": 0.143145292946989
+        },
+        "controlWork": -0.0002391210043406332,
+        "cumulativeClosureResidual": 1.5278001086471704e-11,
+        "finalEnergy": 2.806878223913215,
+        "frames": 600,
+        "globalClosureResidual": 1.5275780640422454e-11,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.6533663541245365,
+        "maximumFrameResidual": 3.419486915845482e-14,
+        "nonFiniteEvents": 0,
+        "radiation": 0.0017245225450095226,
+        "relativeGlobalResidual": 3.303247577405314e-11,
+        "sourceWork": 0.46220822157182523
+      },
+      "loudest_100ms_centroid_hz": 12641.805948750605,
+      "max_reynolds": 12997.301401914432,
+      "peak": 0.1258077472448349,
+      "peak_mid_tract_pressure_pa": 759.4764539745419,
+      "seconds": 1.6,
+      "turbulence_positive_j": 0.0037868472147681628,
+      "turbulence_work_j": 0.002907068870177386,
+      "voiced_block_fraction": 0.23666666666666666,
+      "wav": "tract-shh.wav"
+    },
+    {
+      "constriction_dissipation_j": 0.2228286374822008,
+      "constriction_net_loss_j": 0.2224299384213063,
+      "gesture": "fff",
+      "ledger": {
+        "breakdown": {
+          "constrictionDissipation": 0.2228286374822008,
+          "constrictionLoss": 0.2224299384213063,
+          "foldAeroWork": 0.00003878570013347546,
+          "foldControlWork": -0.00003135998826913335,
+          "foldLoss": 7.4257101211927666e-6,
+          "impactWork": 0.0,
+          "jetLoss": 0.02556738748405168,
+          "lungSupply": 0.30778903053592477,
+          "muscleWork": 0.3077890304941202,
+          "radiationLips": 0.00008751813089584128,
+          "radiationNose": 0.0,
+          "tractControlWork": -0.00013544586577631304,
+          "turbulenceWork": 0.0003986990608916919,
+          "wallLoss": 0.05952896765682751
+        },
+        "controlWork": -0.00016778538798202264,
+        "cumulativeClosureResidual": 7.8026474170656e-13,
+        "finalEnergy": 3.0000000077037177,
+        "frames": 600,
+        "globalClosureResidual": 7.820410985459603e-13,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.3075337192723067,
+        "maximumFrameResidual": 3.2862601528904634e-14,
+        "nonFiniteEvents": 0,
+        "radiation": 0.00008751813089584128,
+        "relativeGlobalResidual": 2.5394505275225207e-12,
+        "sourceWork": 0.3077890304941202
+      },
+      "loudest_100ms_centroid_hz": 17524.79017928471,
+      "max_reynolds": 10205.083900010879,
+      "peak": 0.08714297413825989,
+      "peak_mid_tract_pressure_pa": 770.5599539812408,
+      "seconds": 1.6,
+      "turbulence_positive_j": 0.0019481651305007393,
+      "turbulence_work_j": 0.0003986990608916919,
+      "voiced_block_fraction": 0.125,
+      "wav": "tract-fff.wav"
+    },
+    {
+      "constriction_dissipation_j": 0.05699557761284801,
+      "constriction_net_loss_j": 0.056798117072059576,
+      "gesture": "zzz",
+      "ledger": {
+        "breakdown": {
+          "constrictionDissipation": 0.05699557761284801,
+          "constrictionLoss": 0.056798117072059576,
+          "foldAeroWork": 0.005612507117162407,
+          "foldControlWork": -6.905079355543618e-8,
+          "foldLoss": 0.005612438066361794,
+          "impactWork": 0.0,
+          "jetLoss": 0.06236664245781324,
+          "lungSupply": 0.14764379833613162,
+          "muscleWork": 0.14764379833427071,
+          "radiationLips": 0.00016863903136639282,
+          "radiationNose": 0.0,
+          "tractControlWork": -0.00007375553628069065,
+          "turbulenceWork": 0.00019746054078846305,
+          "wallLoss": 0.02262315756738583
+        },
+        "controlWork": -0.00007480412101082233,
+        "cumulativeClosureResidual": 8.704148513061227e-14,
+        "finalEnergy": 3.000000000018355,
+        "frames": 600,
+        "globalClosureResidual": 8.215650382226158e-14,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.1474003551636204,
+        "maximumFrameResidual": 8.881784197001252e-15,
+        "nonFiniteEvents": 0,
+        "radiation": 0.00016863903136639282,
+        "relativeGlobalResidual": 5.561689757194433e-13,
+        "sourceWork": 0.14764379833427071
+      },
+      "loudest_100ms_centroid_hz": 7180.699381044775,
+      "max_reynolds": 8574.686402981564,
+      "peak": 0.05733868107199669,
+      "peak_mid_tract_pressure_pa": 513.3346726631661,
+      "seconds": 1.6,
+      "turbulence_positive_j": 0.000267971575946633,
+      "turbulence_work_j": 0.00019746054078846305,
+      "voiced_block_fraction": 0.9416666666666667,
+      "wav": "tract-zzz.wav"
+    },
+    {
+      "constriction_dissipation_j": 0.06402302676659186,
+      "constriction_net_loss_j": 0.06396149916161145,
+      "gesture": "vvv",
+      "ledger": {
+        "breakdown": {
+          "constrictionDissipation": 0.06402302676659186,
+          "constrictionLoss": 0.06396149916161145,
+          "foldAeroWork": 0.002780542557324579,
+          "foldControlWork": -6.027162444821726e-8,
+          "foldLoss": 0.0027804822856975775,
+          "impactWork": 0.0,
+          "jetLoss": 0.033711010589350394,
+          "lungSupply": 0.11645323160435982,
+          "muscleWork": 0.11645323160258544,
+          "radiationLips": 0.000019239130207259078,
+          "radiationNose": 0.0,
+          "tractControlWork": -5.31421544971721e-6,
+          "turbulenceWork": 0.00006152760498055558,
+          "wallLoss": 0.015974646399699265
+        },
+        "controlWork": -6.3540210107416725e-6,
+        "cumulativeClosureResidual": -8.881784197001252e-16,
+        "finalEnergy": 3.0000000000150067,
+        "frames": 600,
+        "globalClosureResidual": -2.220446049250313e-15,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.11642763843635864,
+        "maximumFrameResidual": 8.881784197001252e-15,
+        "nonFiniteEvents": 0,
+        "radiation": 0.000019239130207259078,
+        "relativeGlobalResidual": 1.9066236904078616e-14,
+        "sourceWork": 0.11645323160258544
+      },
+      "loudest_100ms_centroid_hz": 13235.146552253622,
+      "max_reynolds": 6360.696124123423,
+      "peak": 0.04636003449559212,
+      "peak_mid_tract_pressure_pa": 625.0781922041614,
+      "seconds": 1.6,
+      "turbulence_positive_j": 0.00035135664660432405,
+      "turbulence_work_j": 0.00006152760498055558,
+      "voiced_block_fraction": 0.9383333333333334,
+      "wav": "tract-vvv.wav"
+    },
+    {
+      "constriction_dissipation_j": 0.004651061718642393,
+      "constriction_net_loss_j": 0.004651004880328517,
+      "gesture": "pa",
+      "ledger": {
+        "breakdown": {
+          "constrictionDissipation": 0.004651061718642393,
+          "constrictionLoss": 0.004651004880328517,
+          "foldAeroWork": 0.0041324526920284935,
+          "foldControlWork": 4.960979839806128e-6,
+          "foldLoss": 0.004137413671867267,
+          "impactWork": 0.0,
+          "jetLoss": 0.047100213949926195,
+          "lungSupply": 0.07278151833591799,
+          "muscleWork": 0.0727815183336809,
+          "radiationLips": 0.0004397495682615522,
+          "radiationNose": 0.0,
+          "tractControlWork": -0.000052278793949428015,
+          "turbulenceWork": 5.683831390986471e-8,
+          "wallLoss": 0.016404838917492223
+        },
+        "controlWork": -0.000048297348046198106,
+        "cumulativeClosureResidual": 2.241318242113266e-12,
+        "finalEnergy": 3.0,
+        "frames": 600,
+        "globalClosureResidual": 2.241318242113266e-12,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.07229347141961423,
+        "maximumFrameResidual": 4.929390229335695e-14,
+        "nonFiniteEvents": 0,
+        "radiation": 0.0004397495682615522,
+        "relativeGlobalResidual": 3.0774734511316493e-11,
+        "sourceWork": 0.0727815183336809
+      },
+      "loudest_100ms_centroid_hz": 1121.5053545268222,
+      "max_reynolds": 12068.805085375392,
+      "peak": 0.10509192943572998,
+      "peak_mid_tract_pressure_pa": 1304.4245238684348,
+      "seconds": 1.6,
+      "turbulence_positive_j": 2.697532299039534e-7,
+      "turbulence_work_j": 5.683831390986471e-8,
+      "voiced_block_fraction": 0.37833333333333335,
+      "wav": "tract-pa.wav"
+    },
+    {
+      "constriction_dissipation_j": 0.0008964985100396934,
+      "constriction_net_loss_j": 0.0008964779478864431,
+      "gesture": "ta",
+      "ledger": {
+        "breakdown": {
+          "constrictionDissipation": 0.0008964985100396934,
+          "constrictionLoss": 0.0008964779478864431,
+          "foldAeroWork": 0.0036828105990071424,
+          "foldControlWork": -7.599353414376636e-6,
+          "foldLoss": 0.003675211245592373,
+          "impactWork": 0.0,
+          "jetLoss": 0.04578051431302627,
+          "lungSupply": 0.06635567905373309,
+          "muscleWork": 0.06635567905155106,
+          "radiationLips": 0.0003480129163822827,
+          "radiationNose": 0.0,
+          "tractControlWork": 0.000026930810694856004,
+          "turbulenceWork": 2.0562153247405987e-8,
+          "wallLoss": 0.015673814554190323
+        },
+        "controlWork": 0.000018351923343903107,
+        "cumulativeClosureResidual": 2.177813485104707e-12,
+        "finalEnergy": 3.0,
+        "frames": 600,
+        "globalClosureResidual": 2.1826984664130578e-12,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.06602601806069541,
+        "maximumFrameResidual": 5.062616992290714e-14,
+        "nonFiniteEvents": 0,
+        "radiation": 0.0003480129163822827,
+        "relativeGlobalResidual": 3.288482610373073e-11,
+        "sourceWork": 0.06635567905155106
+      },
+      "loudest_100ms_centroid_hz": 1215.7632669798204,
+      "max_reynolds": 11971.294710659711,
+      "peak": 0.08254306763410568,
+      "peak_mid_tract_pressure_pa": 923.4686081828143,
+      "seconds": 1.6,
+      "turbulence_positive_j": 4.973173037265809e-8,
+      "turbulence_work_j": 2.0562153247405987e-8,
+      "voiced_block_fraction": 0.35833333333333334,
+      "wav": "tract-ta.wav"
+    },
+    {
+      "constriction_dissipation_j": 0.0008010119202206142,
+      "constriction_net_loss_j": 0.0008010118672939274,
+      "gesture": "ka",
+      "ledger": {
+        "breakdown": {
+          "constrictionDissipation": 0.0008010119202206142,
+          "constrictionLoss": 0.0008010118672939274,
+          "foldAeroWork": 0.0036275439534063144,
+          "foldControlWork": -5.934573516531958e-6,
+          "foldLoss": 0.003621609379889351,
+          "impactWork": 0.0,
+          "jetLoss": 0.04499019723840883,
+          "lungSupply": 0.06404838667598976,
+          "muscleWork": 0.06404838667383501,
+          "radiationLips": 0.0003982064222479284,
+          "radiationNose": 0.0,
+          "tractControlWork": 7.768596082837201e-6,
+          "turbulenceWork": 5.2926685625035795e-11,
+          "wallLoss": 0.014238216256782222
+        },
+        "controlWork": 8.544886297290067e-7,
+        "cumulativeClosureResidual": 2.1520563109334034e-12,
+        "finalEnergy": 3.0,
+        "frames": 600,
+        "globalClosureResidual": 2.1578294706614543e-12,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.0636510347423743,
+        "maximumFrameResidual": 5.240252676230739e-14,
+        "nonFiniteEvents": 0,
+        "radiation": 0.0003982064222479284,
+        "relativeGlobalResidual": 3.3690164496843766e-11,
+        "sourceWork": 0.06404838667383501
+      },
+      "loudest_100ms_centroid_hz": 1158.6371197816086,
+      "max_reynolds": 11821.926133753765,
+      "peak": 0.10457766801118851,
+      "peak_mid_tract_pressure_pa": 1092.830856833705,
+      "seconds": 1.6,
+      "turbulence_positive_j": 1.3657537805535404e-7,
+      "turbulence_work_j": 5.2926685625035795e-11,
+      "voiced_block_fraction": 0.3566666666666667,
+      "wav": "tract-ka.wav"
+    },
+    {
+      "constriction_dissipation_j": 0.03413681054808717,
+      "constriction_net_loss_j": 0.03413764770008927,
+      "gesture": "papapa",
+      "ledger": {
+        "breakdown": {
+          "constrictionDissipation": 0.03413681054808717,
+          "constrictionLoss": 0.03413764770008927,
+          "foldAeroWork": 0.027440257838953097,
+          "foldControlWork": 0.000016431951298778794,
+          "foldLoss": 0.02745668979024682,
+          "impactWork": 0.0,
+          "jetLoss": 0.30881544235854685,
+          "lungSupply": 0.4827495411440267,
+          "muscleWork": 0.4827495411301185,
+          "radiationLips": 0.00281966496865558,
+          "radiationNose": 0.0,
+          "tractControlWork": -0.00019457271122318517,
+          "turbulenceWork": -8.371520024619723e-7,
+          "wallLoss": 0.10934097603255029
+        },
+        "controlWork": -0.0001791202938609828,
+        "cumulativeClosureResidual": 1.3885337324381908e-11,
+        "finalEnergy": 3.0000000000000706,
+        "frames": 1200,
+        "globalClosureResidual": 1.390088044672666e-11,
+        "initialEnergy": 3.0,
+        "internalLoss": 0.4797507558814328,
+        "maximumFrameResidual": 3.419486915845482e-14,
+        "nonFiniteEvents": 0,
+        "radiation": 0.00281966496865558,
+        "relativeGlobalResidual": 2.878454222563238e-11,
+        "sourceWork": 0.4827495411301185
+      },
+      "loudest_100ms_centroid_hz": 1109.7418274442348,
+      "max_reynolds": 12188.210389874364,
+      "peak": 0.11512637138366699,
+      "peak_mid_tract_pressure_pa": 1355.4320806160904,
+      "seconds": 3.2,
+      "turbulence_positive_j": 3.5387115530222994e-6,
+      "turbulence_work_j": -8.371520024619723e-7,
+      "voiced_block_fraction": 0.8783333333333333,
+      "wav": "tract-papapa.wav"
+    }
+  ],
   "credit": "after Neil Thapen's Pink Trombone (2017); implemented independently",
   "gestures": [
     {
       "gesture": "aiua",
       "ledger": {
         "breakdown": {
-          "foldAeroWork": 0.01821284797342962,
-          "foldControlWork": -1.3885440012649974e-6,
-          "foldLoss": 0.018211459429425272,
+          "constrictionDissipation": 0.01571018103208545,
+          "constrictionLoss": 0.015710383833947857,
+          "foldAeroWork": 0.017911724806420257,
+          "foldControlWork": -1.3664612106314508e-6,
+          "foldLoss": 0.01791035834520696,
           "impactWork": 0.0,
-          "jetLoss": 0.2042536276924718,
-          "lungSupply": 0.29077853712648755,
-          "muscleWork": 0.2907785371242747,
-          "radiationLips": 0.0007411555790513575,
-          "radiationNose": 0.00003789521754831014,
-          "tractControlWork": -6.400756184778542e-6,
-          "wallLoss": 0.06752563037374074
+          "jetLoss": 0.1981546820877897,
+          "lungSupply": 0.28639419513201714,
+          "muscleWork": 0.2863941951300232,
+          "radiationLips": 0.0009632185542394027,
+          "radiationNose": 1.5101050018755312e-7,
+          "tractControlWork": -6.650385937173445e-7,
+          "turbulenceWork": -2.028018626615964e-7,
+          "wallLoss": 0.05365239026646435
         },
-        "controlWork": -8.768834122619813e-6,
-        "cumulativeClosureResidual": 2.1955770534987096e-12,
-        "finalEnergy": 3.0000000000001212,
+        "controlWork": -3.0110337409250714e-6,
+        "cumulativeClosureResidual": 1.98641103565933e-12,
+        "finalEnergy": 3.0000000000001203,
         "frames": 1200,
-        "globalClosureResidual": 2.206679283744961e-12,
+        "globalClosureResidual": 1.98641103565933e-12,
         "initialEnergy": 3.0,
-        "internalLoss": 0.2899907174956381,
-        "maximumFrameResidual": 2.398081733190338e-14,
+        "internalLoss": 0.2854278145334087,
+        "maximumFrameResidual": 2.220446049250313e-14,
         "nonFiniteEvents": 0,
-        "radiation": 0.0007790507965996672,
-        "relativeGlobalResidual": 7.588636912715402e-12,
-        "sourceWork": 0.2907785371242747
+        "radiation": 0.0009633695647395902,
+        "relativeGlobalResidual": 6.935860381694802e-12,
+        "sourceWork": 0.2863941951300232
       },
-      "peak": 0.057388365268707275,
+      "peak": 0.04568823426961899,
       "seconds": 3.2,
       "wav": "tract-aiua.wav"
     },
@@ -344,32 +801,35 @@
       "gesture": "mama",
       "ledger": {
         "breakdown": {
-          "foldAeroWork": 0.01816544262215747,
-          "foldControlWork": -4.450831057787822e-6,
-          "foldLoss": 0.018160991791097928,
+          "constrictionDissipation": 0.0023697772977433174,
+          "constrictionLoss": 0.002369761165638608,
+          "foldAeroWork": 0.017739543565128957,
+          "foldControlWork": -4.401172128542004e-6,
+          "foldLoss": 0.017735142392998348,
           "impactWork": 0.0,
-          "jetLoss": 0.22570115463859933,
-          "lungSupply": 0.3095232696641393,
-          "muscleWork": 0.30952326965889565,
-          "radiationLips": 0.0010779165702850784,
-          "radiationNose": 0.00006918794499369893,
-          "tractControlWork": 0.00011304213535340986,
-          "wallLoss": 0.06462163048953724
+          "jetLoss": 0.22362145945190373,
+          "lungSupply": 0.3069209157675949,
+          "muscleWork": 0.3069209157623429,
+          "radiationLips": 0.0012896916329785456,
+          "radiationNose": 0.0000225602196755041,
+          "tractControlWork": -9.160405486107433e-6,
+          "turbulenceWork": 1.6132104701836113e-8,
+          "wallLoss": 0.06186775979286598
         },
-        "controlWork": 0.0001076117703590456,
-        "cumulativeClosureResidual": 5.25002263884744e-12,
+        "controlWork": -0.000014541111551225671,
+        "cumulativeClosureResidual": 5.254463530945941e-12,
         "finalEnergy": 3.0,
         "frames": 1800,
-        "globalClosureResidual": 5.2584603338345914e-12,
+        "globalClosureResidual": 5.269118474870993e-12,
         "initialEnergy": 3.0,
-        "internalLoss": 0.3084837769192347,
-        "maximumFrameResidual": 5.062616992290714e-14,
+        "internalLoss": 0.3055941228034067,
+        "maximumFrameResidual": 4.973799150320701e-14,
         "nonFiniteEvents": 0,
-        "radiation": 0.001147104515278779,
-        "relativeGlobalResidual": 1.6982997011026686e-11,
-        "sourceWork": 0.30952326965889565
+        "radiation": 0.001312251852654051,
+        "relativeGlobalResidual": 1.7166861491130477e-11,
+        "sourceWork": 0.3069209157623429
       },
-      "peak": 0.05932551249861717,
+      "peak": 0.05563724413514137,
       "seconds": 4.8,
       "wav": "tract-mama.wav"
     },
@@ -438,32 +898,35 @@
       ],
       "ledger": {
         "breakdown": {
-          "foldAeroWork": 0.011328674303406228,
-          "foldControlWork": 3.423061858604043e-7,
-          "foldLoss": 0.01131667102390213,
-          "impactWork": 0.0015719002587628753,
-          "jetLoss": 0.1286233595069829,
-          "lungSupply": 0.18342041210222598,
-          "muscleWork": 0.18341593246350912,
-          "radiationLips": 0.00037129838998988744,
-          "radiationNose": 0.00003166009495054725,
-          "tractControlWork": -0.000019727569289289052,
-          "wallLoss": 0.044506418289651815
+          "constrictionDissipation": 0.004563534905418072,
+          "constrictionLoss": 0.004563532362311967,
+          "foldAeroWork": 0.011951030185580917,
+          "foldControlWork": 2.784036151678102e-7,
+          "foldLoss": 0.011941200692336621,
+          "impactWork": 0.0014077915494875683,
+          "jetLoss": 0.131172385186937,
+          "lungSupply": 0.1842938405010747,
+          "muscleWork": 0.1842907964907674,
+          "radiationLips": 0.00042333610105469804,
+          "radiationNose": 0.000011359138417306646,
+          "tractControlWork": 0.000032003826797867575,
+          "turbulenceWork": 2.5431060952995754e-9,
+          "wallLoss": 0.03760544540122895
         },
-        "controlWork": -0.00002036479704000488,
-        "cumulativeClosureResidual": -1.4566126083082054e-13,
-        "finalEnergy": 3.0001180606196205,
+        "controlWork": 0.0000313026964764591,
+        "cumulativeClosureResidual": -1.7763568394002505e-14,
+        "finalEnergy": 3.00001263185443,
         "frames": 1673,
-        "globalClosureResidual": -1.341149413747189e-13,
+        "globalClosureResidual": -1.509903313490213e-14,
         "initialEnergy": 3.0,
-        "internalLoss": 0.1844464488205369,
-        "maximumFrameResidual": 8.43769498715119e-15,
+        "internalLoss": 0.18528256364281454,
+        "maximumFrameResidual": 6.661338147750939e-15,
         "nonFiniteEvents": 0,
-        "radiation": 0.0004029584849404349,
-        "relativeGlobalResidual": 7.249135074715777e-13,
-        "sourceWork": 0.18498783272227198
+        "radiation": 0.0004346952394720046,
+        "relativeGlobalResidual": 8.129565507743026e-14,
+        "sourceWork": 0.185698588040255
       },
-      "peak": 0.07716625183820724,
+      "peak": 0.07118489593267441,
       "seconds": 4.461333333333333,
       "wav": "tract-orbs.wav"
     }
@@ -478,109 +941,112 @@
   "vowels": [
     {
       "articulation": {
-        "lips": 0.56,
-        "tongue_diameter": 0.73,
-        "tongue_index": 0.06,
+        "lips": 0.61,
+        "tongue_diameter": 0.725,
+        "tongue_index": 0.065,
         "velum": 0.0
       },
       "breath": 0.6,
       "fold_tuning_hz": 120.0,
       "ledger": {
         "breakdown": {
-          "foldAeroWork": 0.008323103819607712,
+          "constrictionDissipation": 0.00038486564798243574,
+          "constrictionLoss": 0.0003848656480258999,
+          "foldAeroWork": 0.008388787867286447,
           "foldControlWork": 0.0,
-          "foldLoss": 0.008312375209789344,
+          "foldLoss": 0.008377543107837086,
           "impactWork": 0.0,
-          "jetLoss": 0.10634518170286848,
-          "lungSupply": 0.13936084752761593,
-          "muscleWork": 0.1393685186434569,
-          "radiationLips": 0.0005829516271642762,
-          "radiationNose": 0.000029078432390458533,
-          "tractControlWork": -5.362693937795708e-6,
-          "wallLoss": 0.024045375351858852
+          "jetLoss": 0.10663173314034087,
+          "lungSupply": 0.13833161240775577,
+          "muscleWork": 0.13833042222515574,
+          "radiationLips": 0.0007343632046023282,
+          "radiationNose": 1.4396110814906035e-7,
+          "tractControlWork": 7.04050917788594e-6,
+          "turbulenceWork": -4.346433975535163e-14,
+          "wallLoss": 0.022181600445544895
         },
-        "controlWork": -6.342227874371953e-6,
-        "cumulativeClosureResidual": 1.2065903831626201e-12,
-        "finalEnergy": 3.000047214092722,
+        "controlWork": 6.060975241309694e-6,
+        "cumulativeClosureResidual": 1.1355361095866101e-12,
+        "finalEnergy": 3.0000262336940464,
         "frames": 525,
-        "globalClosureResidual": 1.2110312752611208e-12,
+        "globalClosureResidual": 1.1084466677857563e-12,
         "initialEnergy": 3.0,
-        "internalLoss": 0.13870293226451677,
-        "maximumFrameResidual": 1.3322676295501878e-14,
+        "internalLoss": 0.13757574234174869,
+        "maximumFrameResidual": 1.199040866595169e-14,
         "nonFiniteEvents": 0,
-        "radiation": 0.0006120300595547352,
-        "relativeGlobalResidual": 8.689022307825843e-12,
-        "sourceWork": 0.1393685186434569
+        "radiation": 0.0007345071657104773,
+        "relativeGlobalResidual": 8.01268502814285e-12,
+        "sourceWork": 0.13833042222515574
       },
-      "measured_f0_hz": 139.1304347826087,
+      "measured_f0_hz": 138.72832369942196,
       "method": "LPC as GARGANTA _lpc_envelope_and_formants (16 kHz, pre-emphasis 0.97, Hamming, order 18, roots bw<800 Hz), median of three 50 ms frames from the last 0.4 s of a 1.4 s render; the tube column is the rigid-glottis impulse response of the same World",
       "render_lpc_formants_hz": [
-        731.0649689903347,
-        1153.7728929367336,
-        2501.0567318575468
+        744.8291018832113,
+        1147.5276365875106,
+        2528.933714934828
       ],
       "render_lpc_frames": [
         [
           {
-            "bandwidth_hz": 32.535532683210604,
-            "hz": 731.0213241408893
+            "bandwidth_hz": 37.82602030510098,
+            "hz": 744.7944547871435
           },
           {
-            "bandwidth_hz": 49.05775975626964,
-            "hz": 1153.9243159531197
+            "bandwidth_hz": 52.28609118532768,
+            "hz": 1147.5276365875106
           },
           {
-            "bandwidth_hz": 85.25188162189406,
-            "hz": 2500.980523529486
+            "bandwidth_hz": 58.32363194625504,
+            "hz": 2529.143630203641
           },
           {
-            "bandwidth_hz": 50.592987085126715,
-            "hz": 3967.631471899312
+            "bandwidth_hz": 50.356039795107094,
+            "hz": 3981.66574270084
           }
         ],
         [
           {
-            "bandwidth_hz": 32.43337610834649,
-            "hz": 731.0649689903347
+            "bandwidth_hz": 37.94754382778689,
+            "hz": 744.8985702212356
           },
           {
-            "bandwidth_hz": 48.81530147422405,
-            "hz": 1153.7728929367336
+            "bandwidth_hz": 52.48402781418177,
+            "hz": 1147.5887887220724
           },
           {
-            "bandwidth_hz": 84.35904071386075,
-            "hz": 2501.0567318575468
+            "bandwidth_hz": 58.18496422486888,
+            "hz": 2528.8428500372556
           },
           {
-            "bandwidth_hz": 50.24590336040033,
-            "hz": 3967.609573019487
+            "bandwidth_hz": 50.2757261008033,
+            "hz": 3981.970599332676
           }
         ],
         [
           {
-            "bandwidth_hz": 32.51509239948892,
-            "hz": 731.0771530743823
+            "bandwidth_hz": 37.795832830786594,
+            "hz": 744.8291018832113
           },
           {
-            "bandwidth_hz": 48.90654688900188,
-            "hz": 1153.7040388938015
+            "bandwidth_hz": 52.21679716833587,
+            "hz": 1147.4930657257803
           },
           {
-            "bandwidth_hz": 84.61328098144286,
-            "hz": 2501.1461047196503
+            "bandwidth_hz": 57.73897814784853,
+            "hz": 2528.933714934828
           },
           {
-            "bandwidth_hz": 50.45435793593323,
-            "hz": 3967.43706760897
+            "bandwidth_hz": 50.08352764563798,
+            "hz": 3981.97816099367
           }
         ]
       ],
       "render_vs_target_percent": [
-        2.966897040892212,
-        0.3280776466724843,
-        0.04226927430187061
+        4.905507307494543,
+        -0.21498812282516155,
+        1.1573485973931201
       ],
-      "tail_rms": 0.01421085187840573,
+      "tail_rms": 0.01259899241408219,
       "target_hz": [
         710.0,
         1150.0,
@@ -588,119 +1054,122 @@
       ],
       "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs VOWEL_*_MODES (GARGANTA rung-1 design profiles, not measurements)",
       "tube_resonances_hz": [
-        717.7734375,
-        1156.494140625,
-        2547.36328125,
-        4000.48828125
+        713.37890625,
+        1157.2265625,
+        2523.92578125,
+        3990.966796875
       ],
       "vowel": "a",
       "wav": "tract-a.wav"
     },
     {
       "articulation": {
-        "lips": 0.41,
-        "tongue_diameter": 0.74,
-        "tongue_index": 0.91,
+        "lips": 0.76,
+        "tongue_diameter": 0.69,
+        "tongue_index": 0.885,
         "velum": 0.0
       },
       "breath": 0.6,
       "fold_tuning_hz": 120.0,
       "ledger": {
         "breakdown": {
-          "foldAeroWork": 0.00827634531856865,
+          "constrictionDissipation": 0.0007250252539820464,
+          "constrictionLoss": 0.000725025254058761,
+          "foldAeroWork": 0.008925810258732743,
           "foldControlWork": 0.0,
-          "foldLoss": 0.008265211222301738,
+          "foldLoss": 0.008899006674119256,
           "impactWork": 0.0,
-          "jetLoss": 0.09533287353191093,
-          "lungSupply": 0.1373680190981427,
-          "muscleWork": 0.13736540871136826,
-          "radiationLips": 0.00003522573022067579,
-          "radiationNose": 5.306121439025395e-6,
-          "tractControlWork": -5.468657033091286e-6,
-          "wallLoss": 0.03370223401206921
+          "jetLoss": 0.09888320588000848,
+          "lungSupply": 0.13842037615497457,
+          "muscleWork": 0.13842011151238554,
+          "radiationLips": 0.00007465324371238525,
+          "radiationNose": 4.146588291309063e-8,
+          "tractControlWork": 6.005979532097661e-6,
+          "turbulenceWork": -7.671623481249196e-14,
+          "wallLoss": 0.029722194637173426
         },
-        "controlWork": -6.4481909696675315e-6,
-        "cumulativeClosureResidual": -8.08242361927114e-14,
-        "finalEnergy": 3.000018109902371,
+        "controlWork": 5.026445595521415e-6,
+        "cumulativeClosureResidual": -1.2434497875801753e-13,
+        "finalEnergy": 3.0001210108028955,
         "frames": 525,
-        "globalClosureResidual": -8.570921750106208e-14,
+        "globalClosureResidual": -1.3011813848606835e-13,
         "initialEnergy": 3.0,
-        "internalLoss": 0.1373003187662819,
-        "maximumFrameResidual": 6.217248937900877e-15,
+        "internalLoss": 0.13822943244535987,
+        "maximumFrameResidual": 6.661338147750939e-15,
         "nonFiniteEvents": 0,
-        "radiation": 0.00004053185165970115,
-        "relativeGlobalResidual": 6.239212269074554e-13,
-        "sourceWork": 0.13736540871136826
+        "radiation": 0.00007469470959529833,
+        "relativeGlobalResidual": 9.399892274303942e-13,
+        "sourceWork": 0.13842011151238554
       },
-      "measured_f0_hz": 137.93103448275863,
+      "measured_f0_hz": 138.328530259366,
       "method": "LPC as GARGANTA _lpc_envelope_and_formants (16 kHz, pre-emphasis 0.97, Hamming, order 18, roots bw<800 Hz), median of three 50 ms frames from the last 0.4 s of a 1.4 s render; the tube column is the rigid-glottis impulse response of the same World",
       "render_lpc_formants_hz": [
-        354.97027262885797,
-        2307.6498720530058,
-        2948.4013734391897
+        326.4368082386236,
+        2275.261567524054,
+        2959.7922672361797
       ],
       "render_lpc_frames": [
         [
           {
-            "bandwidth_hz": 64.07190757785212,
-            "hz": 354.92481243694806
+            "bandwidth_hz": 37.18041226461629,
+            "hz": 326.4368082386236
           },
           {
-            "bandwidth_hz": 45.635007320558316,
-            "hz": 2307.560727316269
+            "bandwidth_hz": 50.348156684880436,
+            "hz": 2275.261567524054
           },
           {
-            "bandwidth_hz": 48.10156519831492,
-            "hz": 2948.4013734391897
+            "bandwidth_hz": 79.30675019617635,
+            "hz": 2959.7922672361797
           },
           {
-            "bandwidth_hz": 38.525147450864296,
-            "hz": 3754.0847163713165
+            "bandwidth_hz": 47.10987103379398,
+            "hz": 3772.2017371607476
           }
         ],
         [
           {
-            "bandwidth_hz": 64.18590990981438,
-            "hz": 354.97027262885797
+            "bandwidth_hz": 37.01772513800293,
+            "hz": 326.4203361443078
           },
           {
-            "bandwidth_hz": 45.46464207603424,
-            "hz": 2307.6498720530058
+            "bandwidth_hz": 50.245766940919225,
+            "hz": 2275.293920008255
           },
           {
-            "bandwidth_hz": 47.980142230902885,
-            "hz": 2948.4721816125784
+            "bandwidth_hz": 79.2746104708549,
+            "hz": 2959.6859304011687
           },
           {
-            "bandwidth_hz": 38.46124845856308,
-            "hz": 3754.0115846625886
+            "bandwidth_hz": 47.12118619454982,
+            "hz": 3772.1881050209076
           }
         ],
         [
           {
-            "bandwidth_hz": 64.00881099144193,
-            "hz": 355.0496323348872
+            "bandwidth_hz": 37.37619750926589,
+            "hz": 326.5874434135141
           },
           {
-            "bandwidth_hz": 45.29353262308512,
-            "hz": 2307.713540821652
+            "bandwidth_hz": 50.60051449878807,
+            "hz": 2275.129339938394
           },
           {
-            "bandwidth_hz": 47.87667174312667,
-            "hz": 2948.3826029357647
+            "bandwidth_hz": 79.66052477533081,
+            "hz": 2959.801018997823
           },
           {
-            "bandwidth_hz": 38.489911091518394,
-            "hz": 3754.0002365102046
+            "bandwidth_hz": 47.33673152522752,
+            "hz": 3772.3082306164347
           }
         ]
       ],
       "render_vs_target_percent": [
-        22.403542285813092,
-        2.5622165356891453,
-        -0.05419073087492599
+        12.564416634008138,
+        1.122736334402402,
+        0.3319412622433786
       ],
-      "tail_rms": 0.006555695420280017,
+      "tail_rms": 0.004815987213298488,
       "target_hz": [
         290.0,
         2250.0,
@@ -708,119 +1177,122 @@
       ],
       "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs VOWEL_*_MODES (GARGANTA rung-1 design profiles, not measurements)",
       "tube_resonances_hz": [
-        292.96875,
-        2267.578125,
-        2950.927734375,
-        3750.732421875
+        290.0390625,
+        2257.32421875,
+        2961.181640625,
+        3763.916015625
       ],
       "vowel": "i",
       "wav": "tract-i.wav"
     },
     {
       "articulation": {
-        "lips": 0.025,
-        "tongue_diameter": 0.975,
-        "tongue_index": 0.475,
-        "velum": 0.0
+        "lips": 0.05,
+        "tongue_diameter": 0.885,
+        "tongue_index": 0.395,
+        "velum": 0.015
       },
       "breath": 0.6,
       "fold_tuning_hz": 120.0,
       "ledger": {
         "breakdown": {
-          "foldAeroWork": 0.009232279218838745,
+          "constrictionDissipation": 0.028367493792492232,
+          "constrictionLoss": 0.02836766412711422,
+          "foldAeroWork": 0.008074995578649508,
           "foldControlWork": 0.0,
-          "foldLoss": 0.009218610177046602,
+          "foldLoss": 0.008058949371788204,
           "impactWork": 0.0,
-          "jetLoss": 0.07678014407678435,
-          "lungSupply": 0.12971104602150996,
-          "muscleWork": 0.12971104510994103,
-          "radiationLips": 0.0000224654404374235,
-          "radiationNose": 9.33855777394503e-6,
-          "tractControlWork": -0.00002426339591021585,
-          "wallLoss": 0.04358488106023836
+          "jetLoss": 0.05995451596225189,
+          "lungSupply": 0.12161198498910052,
+          "muscleWork": 0.12160697343292837,
+          "radiationLips": 0.0000384817353736339,
+          "radiationNose": 2.741899185414971e-7,
+          "tractControlWork": 0.000015948494474738475,
+          "turbulenceWork": -1.7033462250589644e-7,
+          "wallLoss": 0.025045238236693943
         },
-        "controlWork": -0.000025242929846792096,
-        "cumulativeClosureResidual": 7.327471962526033e-14,
-        "finalEnergy": 3.0000703628678793,
+        "controlWork": 0.00001496896053816223,
+        "cumulativeClosureResidual": -7.149836278586008e-14,
+        "finalEnergy": 3.0001568187702503,
         "frames": 525,
-        "globalClosureResidual": 6.572520305780927e-14,
+        "globalClosureResidual": -7.593925488436071e-14,
         "initialEnergy": 3.0,
-        "internalLoss": 0.12958363531406922,
-        "maximumFrameResidual": 7.105427357601002e-15,
+        "internalLoss": 0.12142636769784823,
+        "maximumFrameResidual": 6.217248937900877e-15,
         "nonFiniteEvents": 0,
-        "radiation": 0.000031803998211368544,
-        "relativeGlobalResidual": 5.066061627850221e-13,
-        "sourceWork": 0.12971104510994103
+        "radiation": 0.00003875592529217539,
+        "relativeGlobalResidual": 6.243877822530165e-13,
+        "sourceWork": 0.12160697343292837
       },
-      "measured_f0_hz": 134.45378151260505,
+      "measured_f0_hz": 131.14754098360655,
       "method": "LPC as GARGANTA _lpc_envelope_and_formants (16 kHz, pre-emphasis 0.97, Hamming, order 18, roots bw<800 Hz), median of three 50 ms frames from the last 0.4 s of a 1.4 s render; the tube column is the rigid-glottis impulse response of the same World",
       "render_lpc_formants_hz": [
-        358.67386270854246,
-        792.9767182794466,
-        2308.9725109301617
+        358.37071564869717,
+        690.6205829766842,
+        2202.2659923950646
       ],
       "render_lpc_frames": [
         [
           {
-            "bandwidth_hz": 33.34404469495092,
-            "hz": 358.4768651270134
+            "bandwidth_hz": 39.476004374721356,
+            "hz": 358.37071564869717
           },
           {
-            "bandwidth_hz": 76.8133536807568,
-            "hz": 792.5415144622973
+            "bandwidth_hz": 31.51638894215988,
+            "hz": 690.6205829766842
           },
           {
-            "bandwidth_hz": 208.57423385983876,
-            "hz": 2310.5089888237603
+            "bandwidth_hz": 207.19537114455153,
+            "hz": 2205.613656554765
           },
           {
-            "bandwidth_hz": 319.0986479102434,
-            "hz": 3212.840486316314
+            "bandwidth_hz": 90.52709182416743,
+            "hz": 3472.7740710395715
           }
         ],
         [
           {
-            "bandwidth_hz": 33.57146276268634,
-            "hz": 358.67386270854246
+            "bandwidth_hz": 38.56805786224498,
+            "hz": 357.9150522907818
           },
           {
-            "bandwidth_hz": 77.63633294084272,
-            "hz": 792.9767182794466
+            "bandwidth_hz": 30.62137753413698,
+            "hz": 690.4143005631738
           },
           {
-            "bandwidth_hz": 208.2385679133142,
-            "hz": 2308.9725109301617
+            "bandwidth_hz": 210.06530748480588,
+            "hz": 2202.2659923950646
           },
           {
-            "bandwidth_hz": 317.55222194848534,
-            "hz": 3213.5533723969434
+            "bandwidth_hz": 91.73273490386815,
+            "hz": 3479.5859082951083
           }
         ],
         [
           {
-            "bandwidth_hz": 33.80925848341076,
-            "hz": 358.75969356821173
+            "bandwidth_hz": 43.413593078795046,
+            "hz": 360.14912540456567
           },
           {
-            "bandwidth_hz": 78.25648906362504,
-            "hz": 793.1750598784837
+            "bandwidth_hz": 35.54240582779622,
+            "hz": 692.7137735941523
           },
           {
-            "bandwidth_hz": 208.82364848941137,
-            "hz": 2305.0615926225137
+            "bandwidth_hz": 203.15994998571244,
+            "hz": 2189.092019093338
           },
           {
-            "bandwidth_hz": 314.5455342167488,
-            "hz": 3209.5305000717112
+            "bandwidth_hz": 94.96684769875165,
+            "hz": 3460.68375949228
           }
         ]
       ],
       "render_vs_target_percent": [
-        15.701246035013696,
-        13.282388325635225,
-        -1.7458505987165251
+        15.603456660870055,
+        -1.3399167176165423,
+        -6.286553515103635
       ],
-      "tail_rms": 0.013249380551990248,
+      "tail_rms": 0.010154557151181383,
       "target_hz": [
         310.0,
         700.0,
@@ -828,10 +1300,10 @@
       ],
       "target_source": "mus-rs/crates/mus-dsp/src/body_profiles.rs VOWEL_*_MODES (GARGANTA rung-1 design profiles, not measurements)",
       "tube_resonances_hz": [
-        304.6875,
-        702.392578125,
-        2397.216796875,
-        3227.783203125
+        306.884765625,
+        697.998046875,
+        2351.07421875,
+        3462.890625
       ],
       "vowel": "u",
       "wav": "tract-u.wav"

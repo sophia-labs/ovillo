@@ -44,6 +44,7 @@ fn ledger_json(w: &mut TractWorld) -> Value {
             "muscleWork": f.muscle_work, "impactWork": f.impact_work, "lungSupply": f.lung_supply, "tractControlWork": f.tract_control_work,
             "foldControlWork": f.fold_control_work, "wallLoss": f.wall_loss, "jetLoss": f.jet_loss, "foldLoss": f.fold_loss,
             "radiationLips": f.radiation_lips, "radiationNose": f.radiation_nose, "foldAeroWork": f.fold_aero_work,
+            "constrictionLoss": f.constriction_loss, "constrictionDissipation": f.constriction_dissipation, "turbulenceWork": f.turbulence_work,
         },
         "nonFiniteEvents": r.non_finite_events,
     })
@@ -122,6 +123,67 @@ fn gesture(name: &str, g: Gesture, seconds: f64, dir: &PathBuf) -> Value {
     json!({ "gesture": name, "seconds": seconds, "peak": peak, "ledger": ledger_json(&mut w), "wav": format!("tract-{name}.wav") })
 }
 
+/// A consonant gesture: WAV, ledger, turbulence vs the jets' dissipation,
+/// spectral centroid of its noisiest 100 ms, and the peak intraoral pressure.
+fn consonant(id: u32, dir: &PathBuf) -> Value {
+    let name = Gesture::NAMES[id as usize];
+    let mut w = TractWorld::new(SR);
+    let mut c = TractControls::default();
+    c.articulation = presets::ART_A;
+    w.set_controls(c);
+    w.snap_configuration();
+    w.set_gesture(Gesture::from_index(id));
+    let seconds = if id == 10 { 3.2 } else { 1.6 };
+    let mut audio = Vec::new();
+    let mut block = [0.0f32; 128];
+    let mut peak_mouth = 0.0f64;
+    let mut max_re = 0.0f64;
+    let mut voiced_blocks = 0usize;
+    let blocks = (seconds * SR / 128.0) as usize;
+    for _ in 0..blocks {
+        w.process(&mut block);
+        audio.extend_from_slice(&block);
+        let n = w.oral_sections();
+        peak_mouth = peak_mouth.max(w.oral_pressure(n / 2));
+        let r = w.readings();
+        max_re = max_re.max(r.max_reynolds);
+        if r.measured_f0_hz > 0.0 {
+            voiced_blocks += 1;
+        }
+    }
+    write_wav(&dir.join(format!("tract-{name}.wav")), &audio);
+    let x: Vec<f64> = audio.iter().map(|&v| f64::from(v)).collect();
+    // The 100 ms with the most energy.
+    let win = 4_800;
+    let (mut best, mut at) = (0.0, 0);
+    let mut k = 0;
+    while k + win <= x.len() {
+        let e: f64 = x[k..k + win].iter().map(|v| v * v).sum();
+        if e > best { best = e; at = k; }
+        k += win / 2;
+    }
+    let n = 1 << 12;
+    let db = measure::magnitude_db(&x[at..at + n.min(win)], n);
+    let (mut num, mut den) = (0.0, 0.0);
+    for (b, d) in db.iter().enumerate().skip(1) {
+        let p = 10f64.powf(d / 10.0);
+        num += p * b as f64 * SR / n as f64;
+        den += p;
+    }
+    let f = w.flows();
+    let peak = audio.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+    println!("{name}: centroid {:.0} Hz, turbulence {:.2e} J of jet dissipation {:.2e} J, max Re {:.0}, peak mid-tract pressure {:.0} Pa, voiced {:.0}% of blocks, peak {:.3}", num / den, f.turbulence_work, f.constriction_dissipation, max_re, peak_mouth, 100.0 * voiced_blocks as f64 / blocks as f64, peak);
+    json!({
+        "gesture": name, "seconds": seconds, "peak": peak, "wav": format!("tract-{name}.wav"),
+        "loudest_100ms_centroid_hz": num / den,
+        "turbulence_work_j": f.turbulence_work, "turbulence_positive_j": f.turbulence_positive,
+        "constriction_dissipation_j": f.constriction_dissipation, "constriction_net_loss_j": f.constriction_loss,
+        "max_reynolds": max_re, "peak_mid_tract_pressure_pa": peak_mouth,
+        "voiced_block_fraction": voiced_blocks as f64 / blocks as f64,
+        "ledger": ledger_json(&mut w),
+    })
+}
+
 /// Orbs: knock a silent /a/ tube, then a voiced /i/, at several places.
 fn orbs(dir: &PathBuf) -> Value {
     let mut w = TractWorld::new(SR);
@@ -164,6 +226,7 @@ fn main() {
     ];
     let mut gestures = vec![gesture("aiua", Gesture::aiua(), 3.2, &dir), gesture("mama", Gesture::mama(), 4.8, &dir)];
     gestures.push(orbs(&dir));
+    let consonants: Vec<Value> = (2..=10u32).map(|id| consonant(id, &dir)).collect();
     let doc = json!({
         "schema": "ovillo.tract.render-receipt.v0",
         "credit": "after Neil Thapen's Pink Trombone (2017); implemented independently",
@@ -176,6 +239,7 @@ fn main() {
         "anatomy": anatomy.iter().map(|p| json!({"name": p.name, "value": p.value, "unit": p.unit, "label": p.label, "source": p.source})).collect::<Vec<_>>(),
         "vowels": vowels,
         "gestures": gestures,
+        "consonants": consonants,
         "approximations": [
             "not a mus_ariadne::World instance: that runtime's bodies are 24-mode modal fields on a one-dimensional configuration path; the tract is a waveguide body built to the same constitution (state, lawful scattering, transport with receipts, one WorkLedger) in this crate",
             "plane-wave loss is frequency independent (GARGANTA's oracle has sqrt(f) wall loss)",

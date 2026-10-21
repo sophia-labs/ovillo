@@ -9,7 +9,7 @@
 //! Build: `cargo build --release --target wasm32-unknown-unknown -p ovillo-tract-wasm`
 
 use ovillo_tract::anatomy::{MAX_NASAL_SECTIONS, MAX_ORAL_SECTIONS};
-use ovillo_tract::world::CYCLE_POINTS;
+use ovillo_tract::world::{Constriction, Vibrato, CYCLE_POINTS, MAX_CONSTRICTIONS};
 use ovillo_tract::{Gesture, Preset, TractControls, TractReadings, TractWorld};
 use std::sync::Mutex;
 
@@ -55,18 +55,30 @@ pub mod layout {
     pub const SAFETY_LIMITED: usize = 34;
     pub const NON_FINITE: usize = 35;
     pub const IMPACT_COUNT: usize = 36;
+    pub const TURBULENCE_WORK_J: usize = 37;
+    pub const CONSTRICTION_LOSS_J: usize = 38;
+    pub const MAX_REYNOLDS: usize = 39;
     pub const FOLD_CYCLE_MM: usize = 40;
     pub const ORAL_AREAS_CM2: usize = 72;
     pub const ORAL_PRESSURE_RMS_PA: usize = 136;
     pub const NASAL_AREAS_CM2: usize = 200;
-    pub const LEN: usize = 248;
+    /// Five constriction slots: (position, degree) pairs.
+    pub const CONSTRICTIONS: usize = 248;
+    pub const MIN_APERTURE_CM2: usize = 258;
+    pub const MIN_APERTURE_POS: usize = 259;
+    /// Audio samples per World sample (1 full rate, 2 the light mode).
+    pub const DECIMATE: usize = 260;
+    pub const LEN: usize = 264;
 }
 
 struct Engine {
     world: TractWorld,
     out: Vec<f32>,
+    scratch: Vec<f32>,
     state: Vec<f32>,
     readings: TractReadings,
+    decimate: usize,
+    last: f32,
 }
 
 static ENGINE: Mutex<Option<Engine>> = Mutex::new(None);
@@ -84,14 +96,23 @@ fn with<R>(default: R, f: impl FnOnce(&mut Engine) -> R) -> R {
 /// Build the World at `sample_rate`. Returns the number of oral sections.
 #[no_mangle]
 pub extern "C" fn tract_init(sample_rate: f32) -> u32 {
-    let mut world = TractWorld::new(f64::from(sample_rate));
+    tract_init_decimated(sample_rate, 1)
+}
+
+/// The light mode for slow devices: the same World built at
+/// `sample_rate / decimate` (fewer, longer sections), its output linearly
+/// upsampled to `sample_rate` by the observer (non-loading). `decimate` 1 or 2.
+#[no_mangle]
+pub extern "C" fn tract_init_decimated(sample_rate: f32, decimate: u32) -> u32 {
+    let decimate = decimate.clamp(1, 2) as usize;
+    let mut world = TractWorld::new(f64::from(sample_rate) / decimate as f64);
     let mut c = TractControls::default();
     c.articulation = Preset::Rest.articulation();
     world.set_controls(c);
     world.snap_configuration();
     let readings = world.readings();
     let n = world.oral_sections() as u32;
-    let engine = Engine { world, out: vec![0.0; MAX_FRAMES], state: vec![0.0; layout::LEN], readings };
+    let engine = Engine { world, out: vec![0.0; MAX_FRAMES], scratch: vec![0.0; MAX_FRAMES], state: vec![0.0; layout::LEN], readings, decimate, last: 0.0 };
     if let Ok(mut guard) = ENGINE.lock() {
         *guard = Some(engine);
     }
@@ -120,7 +141,22 @@ pub extern "C" fn tract_state_len() -> u32 {
 pub extern "C" fn tract_process(frames: u32) -> u32 {
     with(0, |e| {
         let n = (frames as usize).min(MAX_FRAMES);
-        e.world.process(&mut e.out[..n]);
+        if e.decimate == 1 {
+            e.world.process(&mut e.out[..n]);
+        } else {
+            let m = n.div_ceil(2);
+            e.world.process(&mut e.scratch[..m]);
+            for k in 0..m {
+                let s = e.scratch[k];
+                if 2 * k < n {
+                    e.out[2 * k] = 0.5 * (e.last + s);
+                }
+                if 2 * k + 1 < n {
+                    e.out[2 * k + 1] = s;
+                }
+                e.last = s;
+            }
+        }
         n as u32
     })
 }
@@ -183,7 +219,24 @@ pub extern "C" fn tract_preset(id: u32) {
     });
 }
 
-/// Run a gesture (0 "mama" loop, 1 /a i u a/), or stop with any other id.
+/// Place (`degree` >= 0) or release (`degree` < 0) constriction `slot`
+/// (1..4 for touches; 0 is the gestures').
+#[no_mangle]
+pub extern "C" fn tract_constrict(slot: u32, position: f32, degree: f32) {
+    with((), |e| {
+        let c = if degree < 0.0 { None } else { Some(Constriction { position: f64::from(position), degree: f64::from(degree) }) };
+        e.world.set_constriction(slot as usize, c);
+    });
+}
+
+/// Fold-tension modulation: vibrato rate (Hz), depth (semitones), wobble (0..1).
+#[no_mangle]
+pub extern "C" fn tract_vibrato(rate_hz: f32, depth_semitones: f32, wobble: f32) {
+    with((), |e| e.world.set_vibrato(Vibrato { rate_hz: f64::from(rate_hz), depth_semitones: f64::from(depth_semitones), wobble: f64::from(wobble) }));
+}
+
+/// Run a gesture (0 mama loop, 1 a-i-u-a, 2 sss, 3 shh, 4 fff, 5 zzz, 6 vvv,
+/// 7 pa, 8 ta, 9 ka, 10 papapa loop), or stop with any other id.
 #[no_mangle]
 pub extern "C" fn tract_gesture(id: i32) {
     with((), |e| {
@@ -246,6 +299,16 @@ pub extern "C" fn tract_snapshot() {
         s[SAFETY_LIMITED] = r.safety_limited_frames as f32;
         s[NON_FINITE] = r.non_finite_events as f32;
         s[IMPACT_COUNT] = w.impact_count() as f32;
+        s[TURBULENCE_WORK_J] = f.turbulence_work as f32;
+        s[CONSTRICTION_LOSS_J] = f.constriction_loss as f32;
+        s[MAX_REYNOLDS] = r.max_reynolds as f32;
+        for k in 0..MAX_CONSTRICTIONS {
+            s[CONSTRICTIONS + 2 * k] = r.constrictions[k].position as f32;
+            s[CONSTRICTIONS + 2 * k + 1] = r.constrictions[k].degree as f32;
+        }
+        s[MIN_APERTURE_CM2] = (r.min_aperture_m2 * 1e4) as f32;
+        s[MIN_APERTURE_POS] = r.min_aperture_position as f32;
+        s[DECIMATE] = e.decimate as f32;
         for k in 0..CYCLE_POINTS {
             s[FOLD_CYCLE_MM + k] = (r.fold_cycle[k] * 1e3) as f32;
         }
@@ -275,12 +338,30 @@ mod tests {
         tract_impact(0.5, 1.0e-4);
         tract_process(128);
         tract_snapshot();
+        tract_constrict(1, 0.86, 0.93);
+        for _ in 0..100 {
+            tract_process(128);
+        }
+        tract_snapshot();
         let state = with(Vec::new(), |e| e.state.clone());
         assert_eq!(state[layout::ORAL_N], 44.0);
+        assert!((state[layout::CONSTRICTIONS + 3] - 0.93).abs() < 1e-3, "slot 1 degree {}", state[layout::CONSTRICTIONS + 3]);
+        assert!(state[layout::TURBULENCE_WORK_J] > 0.0, "a touch constriction hisses");
         assert!(state[layout::F0_HZ] > 80.0);
         assert!(state[layout::MAX_FRAME_RESIDUAL_J].abs() < 1e-12);
         assert!(state[layout::IMPACT_WORK_J] > 0.0);
         let out = with(Vec::new(), |e| e.out[..128].to_vec());
         assert!(out.iter().all(|v| v.is_finite()));
+        // The light mode: half-rate World, upsampled.
+        assert_eq!(tract_init_decimated(48_000.0, 2), 22);
+        tract_set(6, 0.6);
+        for _ in 0..200 {
+            assert_eq!(tract_process(128), 128);
+        }
+        tract_snapshot();
+        let state = with(Vec::new(), |e| e.state.clone());
+        assert!(state[layout::F0_HZ] > 60.0, "light mode voices: {}", state[layout::F0_HZ]);
+        assert!(state[layout::MAX_FRAME_RESIDUAL_J].abs() < 1e-12);
+        assert_eq!(state[layout::DECIMATE], 2.0);
     }
 }
