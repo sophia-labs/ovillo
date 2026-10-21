@@ -33,8 +33,14 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
+      # The default PyPI torch wheel bundles ~4 GB of CUDA libraries and ran
+      # the hosted runner out of disk. Everything here runs on the CPU
+      # (`--device cpu` is the default), so install the CPU build of the same
+      # pinned range first; pip then keeps it for `.[dev]`.
       - name: Install
-        run: python -m pip install -e '.[dev]'
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch>=2.7,<2.11'
+          python -m pip install -e '.[dev]'
       - name: Boundary guard
         run: python scripts/check_boundaries.py
       - name: Validate JSON and replay fixture
