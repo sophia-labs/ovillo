@@ -150,7 +150,6 @@ mod browser {
                     power_preference: wgpu::PowerPreference::HighPerformance,
                     force_fallback_adapter: false,
                     compatible_surface: Some(&surface),
-                    apply_limit_buckets: true,
                 })
                 .await
                 .map_err(js_error)?;
@@ -378,7 +377,7 @@ mod browser {
                 parameters,
             );
             self.queue.submit([encoder.finish()]);
-            self.queue.present(frame);
+            frame.present();
             self.presentation_frame = self.presentation_frame.saturating_add(1);
         }
     }
