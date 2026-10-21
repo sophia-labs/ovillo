@@ -28,9 +28,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      # CPU build of the pinned torch range: the default wheel's CUDA
+      # libraries (~4 GB) do not fit the hosted runner, and nothing here
+      # uses a GPU.
       - name: Install
         working-directory: extension/experiments/token-radiation-unified-world-v1
-        run: python -m pip install -e '.[dev]'
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch>=2.10'
+          python -m pip install -e '.[dev]'
       - name: Validate
         working-directory: extension/experiments/token-radiation-unified-world-v1
         run: |
