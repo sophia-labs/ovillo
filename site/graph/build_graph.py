@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Build the Ovillo graph: out/ovillo.nt (the user:rdf triples) and out/site/ (the files the triples point at).
+"""Build the Ovillo graph: out/ovillo.nt (the user:rdf triples), out/ux-config.nt (the app's layouts, for :ux:config)
+and out/site/ (the files the triples point at).
 
     uv run --with numpy --with soundfile --with rdflib python site/graph/build_graph.py \
         [--pieces <pieces.json>] [--out site/graph/out]
@@ -214,6 +215,14 @@ def main():
 
     lines = sorted(set(g.serialize(format="nt").splitlines()) - {""})
     (out / "ovillo.nt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    # The app's layouts (one LayoutDocument per route as ux:layoutJson), for the graph's :ux:config named graph:
+    # ux-config.nt is written by the Shrubbery app (`pnpm --filter @shrubbery/ovillo fixture:ux -- --stdout`), checked
+    # here to parse and to name only the app's surfaces, and loaded with `gardend load --into <...:ux:config>`.
+    ux = Graph().parse(HERE / "ux-config.nt", format="nt")
+    surfaces = sorted({str(s) for s in ux.subjects()})
+    assert surfaces and all(s.startswith(f"{BASE}/id/surface/") for s in surfaces), surfaces
+    shutil.copyfile(HERE / "ux-config.nt", out / "ux-config.nt")
     (site / "llms.txt").write_text(
         "# Ovillo\nPieces played by Ariadne Worlds (physical models of instruments and rooms), with each World's energy ledger.\n"
         "Read the graph `ovillo` with sparql_query at /mcp (read-only). Vocabulary: http://sophia.ai/ovillo#\n"
@@ -226,7 +235,7 @@ def main():
         f"<ul>{rows}</ul>\n")
     (site / "index.md").write_text("# Ovillo\n\nPieces played by Ariadne Worlds. Read the graph `ovillo` with `sparql_query` at /mcp.\n\n"
                                    + "".join(f"- {p['title']} ({p['group']}): media/{p['slug']}.mp3\n" for p in pieces))
-    print(f"{len(pieces)} pieces, {len(lines)} triples -> {out}")
+    print(f"{len(pieces)} pieces, {len(lines)} triples -> {out}; {len(ux)} :ux:config triples ({len(surfaces)} layouts)")
 
 
 if __name__ == "__main__":

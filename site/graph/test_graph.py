@@ -142,6 +142,19 @@ class GraphTests(unittest.TestCase):
         with_rad = [r for r in rows if r.radiation is not None and float(r.radiation) > 0]
         self.assertEqual(len(with_rad), 7)
 
+    def test_the_apps_layouts_for_ux_config(self):
+        """out/ux-config.nt: one ux:LayoutDocument per route of the Ovillo app, its layoutJson a LayoutDocument."""
+        import json as _json
+        from rdflib import Graph as _G, URIRef as _U
+        ux = _G().parse(OUT / "ux-config.nt", format="nt")
+        layout = _U("http://mnemosyne.dev/ux#layoutJson")
+        docs = {str(s).rsplit("/", 1)[1]: _json.loads(str(o)) for s, o in ux.subject_objects(layout)}
+        self.assertEqual(sorted(docs), ["bench", "home", "piece", "score", "tract"])
+        for route, doc in docs.items():
+            self.assertEqual(doc["schemaVersion"], 1, route)
+            self.assertEqual(doc["graphId"], "ovillo", route)
+            self.assertIn(doc["rootNodeId"], doc["nodes"], route)
+
     def test_deterministic(self):
         def tree(root):
             return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(Path(root).rglob("*")) if p.is_file()}

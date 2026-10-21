@@ -10,7 +10,7 @@ uv run --with numpy --with soundfile --with rdflib python site/graph/test_graph.
 ```
 
 `--pieces` names the catalogue (`site/scores/pieces.py` writes it; default is the 2026-10-20 session's `scores/pieces.json`), `--out` the output directory. `out/` is not committed (about 12 MB of mp3s and 168 KB of triples); the same inputs give the same bytes.
-`out/ovillo.nt` carries the vocabulary too (parsed from `ovl.ttl`), so one `gardend load` is the whole graph.
+`out/ovillo.nt` carries the vocabulary too (parsed from `ovl.ttl`), so one `gardend load` is the whole of `user:rdf`. `out/ux-config.nt` is the Shrubbery app's layouts (one `ux:LayoutDocument` per route, `ux:layoutJson`; the file `ux-config.nt` here is written by `pnpm --filter @shrubbery/ovillo fixture:ux -- --stdout`), loaded with `--into urn:mnemosyne:local:graph:ovillo:ux:config`; without it the app uses its built-in layouts and says so.
 
 Bench pieces have no receipt and no energy trace: the graph has no `ovl:receipt`, `ovl:ledger`, `ovl:energyTrace` or `ovl:renderDigest` for them (omitted, not faked); their `ovl:BenchRun` holds the engine log's numbers.
 
@@ -25,6 +25,8 @@ cd $D && (nohup bin/gardend serve --profile $D/profile --port 7792 > serve.log 2
 curl -s localhost:7792/health
 # stop (gardend flushes, then exits)
 kill $(cat $D/gardend.pid)
+# the app's layouts into :ux:config (out/ux-config.nt, from the Shrubbery app's `fixture:ux -- --stdout`)
+$D/bin/gardend load --graph ovillo --profile $D/profile --into urn:mnemosyne:local:graph:ovillo:ux:config site/graph/out/ux-config.nt
 # reload the graph after a rebuild (gardend must be stopped; the load is atomic and adds only what is new, so to replace, delete the graph's store first or make a new profile)
 $D/bin/gardend load --graph ovillo --profile $D/profile site/graph/out/ovillo.nt
 ```
