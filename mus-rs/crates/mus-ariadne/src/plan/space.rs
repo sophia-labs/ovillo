@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::configuration::{ConfigurationMapSpec, ConfigurationSpaceSpec};
 use crate::ir::{ReservoirSpec, TransportSpec, ACTIVE_RANKS, MODE_COUNT, TRANSPORT_PAIRS};
+use crate::law::aero::AeroSpec;
 use crate::law::valve::FlowValveSpec;
 
 use super::helpers::{validate_direction, validate_independent};
@@ -29,8 +30,15 @@ pub enum SpaceBodyLaws {
         transport: TransportSpec,
     },
     /// A tube network's laws: a flow valve at one volume and mode-diagonal
-    /// radiation at every radiating end. Needs a tube-network map.
-    TubeNetwork { valve: FlowValveSpec },
+    /// radiation at every radiating end. Needs a tube-network map. `aero`
+    /// (POC-3) adds the jet's separation loss, turbulence and a DC-correct
+    /// wall loss at the network's contact column; absent, the plan
+    /// serializes exactly as before and the body is linear acoustics.
+    TubeNetwork {
+        valve: FlowValveSpec,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        aero: Option<AeroSpec>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -72,7 +80,10 @@ impl SpaceBodySpec {
                     }
                 }
             }
-            (SpaceBodyLaws::TubeNetwork { valve }, ConfigurationMapSpec::TubeNetwork { network }) => {
+            (SpaceBodyLaws::TubeNetwork { valve, aero }, ConfigurationMapSpec::TubeNetwork { network }) => {
+                if let Some(aero) = aero {
+                    aero.validate().map_err(|message| PlanError::new("invalid-aero", message))?;
+                }
                 valve
                     .validate()
                     .map_err(|message| PlanError::new("invalid-flow-valve", message))?;

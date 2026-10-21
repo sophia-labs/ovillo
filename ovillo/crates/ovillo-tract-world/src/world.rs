@@ -176,6 +176,12 @@ impl TractWorldNd {
         &self.anatomy
     }
 
+    /// Cumulative energies of the tract body (valve, walls, radiation, air).
+    #[must_use]
+    pub fn totals(&self) -> mus_ariadne::SpaceTotals {
+        self.world.space_body(0).and_then(|b| b.totals()).unwrap_or_default()
+    }
+
     #[must_use]
     pub fn stats(&self) -> MoveStats {
         self.stats

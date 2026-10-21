@@ -14,7 +14,7 @@
 //! `tongue_index`, `tongue_diameter`, `lips`, `velum`, each in `[0, 1]`.
 
 use mus_ariadne::{
-    AffineSpec, AreaTermSpec, BodyConstitutionSpec, ConfigurationCoordinate, ConfigurationMapSpec,
+    AeroSpec, AffineSpec, AreaTermSpec, ContactSpec, BodyConstitutionSpec, ConfigurationCoordinate, ConfigurationMapSpec,
     ConfigurationSpaceSpec, ConnectionPolicy, ConstitutiveBodyInstanceSpec, ConstitutiveWorldPlan,
     FlowValveSpec, RadiatingEndSpec, ReservoirSpec, SpaceBodyLaws, SpaceBodySpec, TubeBranchSpec,
     TubeNetworkSpec, TubeSpec, WorldPlan, WORLD_PLAN_V3_SCHEMA_VERSION,
@@ -66,6 +66,10 @@ pub struct TractNdAnatomy {
     pub valve: FlowValveSpec,
     pub lung_capacity_j: f64,
     pub lung_refill_w: f64,
+    /// The air beyond linear acoustics (POC-3). Both `None`: linear
+    /// acoustics, and the plan is byte-identical to the checkpoint's.
+    pub contact: Option<ContactSpec>,
+    pub aero: Option<AeroSpec>,
 }
 
 impl Default for TractNdAnatomy {
@@ -123,7 +127,44 @@ impl TractNdAnatomy {
             },
             lung_capacity_j: 3.0,
             lung_refill_w: 0.30,
+            contact: None,
+            aero: None,
         }
+    }
+
+    /// The same anatomy with POC-3's air: contact at the oral tube's
+    /// narrowest column (flow aperture = unclamped area above GARGANTA's
+    /// positive-cone floor; closure is the configuration where it reaches 0,
+    /// sealed numerically at 1e-13 m²) and at the velopharyngeal port; the
+    /// jet's separation loss there; a turbulent dipole three columns
+    /// downstream; the DC-correct wall loss.
+    #[must_use]
+    pub fn with_air(mut self) -> Self {
+        self.contact = Some(ContactSpec {
+            tube: 0,
+            first_junction: 1,
+            last_junction: self.oral_sections - 2,
+            contact_area_m2: AREA_FLOOR_CM2 * 1.0e-4,
+            sealed_area_m2: 1.0e-13,
+            seal_branch_port: true,
+        });
+        self.aero = Some(AeroSpec {
+            loss_scale: 1.0,
+            // Design hypotheses, the values ovillo-tract uses on
+            // site/ovillo-demo-20261020 (fe4fb03): 0.4% of the jet's loss at
+            // Mach 0.1, scaled as M^3 (Curle's surface-dipole law gives the
+            // exponent, not the constant); Reynolds onset 3000, full 6000.
+            dipole_efficiency: 0.004,
+            reference_mach: 0.1,
+            max_efficiency: 0.05,
+            reynolds_onset: 3_000.0,
+            reynolds_full: 6_000.0,
+            kinematic_viscosity_m2_s: AIR_VISCOSITY_PA_S / AIR_DENSITY_KG_M3,
+            obstacle_offset: 3,
+            noise_seed: 0x9E37_79B9_7F4A_7C15,
+            dc_wall_loss: true,
+        });
+        self
     }
 
     /// GARGANTA's neutral log-area (cm²) as `ovillo-tract` writes it.
@@ -228,6 +269,7 @@ impl TractNdAnatomy {
                 RadiatingEndSpec { tube: 0, end_correction_ratio: self.end_correction_ratio },
                 RadiatingEndSpec { tube: 1, end_correction_ratio: self.end_correction_ratio },
             ],
+            contact: self.contact,
         }
     }
 
@@ -258,7 +300,7 @@ impl TractNdAnatomy {
                             map: ConfigurationMapSpec::TubeNetwork { network: self.network() },
                             connection,
                         },
-                        laws: SpaceBodyLaws::TubeNetwork { valve: self.valve.clone() },
+                        laws: SpaceBodyLaws::TubeNetwork { valve: self.valve, aero: self.aero },
                         reservoir: ReservoirSpec { capacity: self.lung_capacity_j },
                     },
                 },

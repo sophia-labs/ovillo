@@ -28,7 +28,7 @@ pub mod space;
 pub(crate) mod tree_eigen;
 
 pub use network::{
-    AffineSpec, AreaTermSpec, RadiatingEndSpec, TubeBranchSpec, TubeNetworkSpec, TubeSpec,
+    AffineSpec, AreaTermSpec, ContactSpec, RadiatingEndSpec, TubeBranchSpec, TubeNetworkSpec, TubeSpec,
     TUBE_NETWORK_MAX_NODES,
 };
 pub use space::{

@@ -157,6 +157,33 @@ pub struct TubeNetworkSpec {
     #[serde(default)]
     pub area_terms: Vec<AreaTermSpec>,
     pub radiating_ends: Vec<RadiatingEndSpec>,
+    /// Tissue contact (POC-3): the narrowest column's flow aperture sets its
+    /// inertance, down to a numerical seal. Absent, the plan serializes
+    /// exactly as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contact: Option<ContactSpec>,
+}
+
+/// Contact and closure as configuration. Among the columns between
+/// sections `i` and `i + 1` of `tube` (`first_junction <= i <=
+/// last_junction`), the one with the smallest flow aperture
+/// `A_f = max(min(A_i, A_(i+1)) - contact_area, 0)` (unclamped areas) is the
+/// jet column; its inertance is `rho dx / max(A_f, sealed_area)` instead of
+/// the cone-clamped one, so a closure is the configuration where `A_f = 0`:
+/// the modes are recomputed with the column sealed (the closed cavity gets a
+/// mode near 0 Hz that holds its pressure) and the move is transported and
+/// billed like any other. With `seal_branch_port`, the first branch's port
+/// column does the same with its own aperture. `sealed_area` is a numerical
+/// floor (the modes need `omega > 0`), not anatomy.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ContactSpec {
+    pub tube: usize,
+    pub first_junction: usize,
+    pub last_junction: usize,
+    pub contact_area_m2: f64,
+    pub sealed_area_m2: f64,
+    pub seal_branch_port: bool,
 }
 
 impl TubeNetworkSpec {
@@ -259,6 +286,20 @@ impl TubeNetworkSpec {
                 return bad("invalid-radiating-end", format!("radiating end {end:?} is invalid"));
             }
         }
+        if let Some(contact) = &self.contact {
+            let sections = self.tubes.get(contact.tube).map_or(0, |t| t.base_log_area_m2.len());
+            if contact.tube >= self.tubes.len()
+                || contact.first_junction > contact.last_junction
+                || contact.last_junction + 2 > sections
+                || !contact.contact_area_m2.is_finite()
+                || contact.contact_area_m2 < 0.0
+                || !contact.sealed_area_m2.is_finite()
+                || contact.sealed_area_m2 <= 0.0
+                || (contact.seal_branch_port && self.branches.is_empty())
+            {
+                return bad("invalid-contact", format!("contact {contact:?} is outside the network"));
+            }
+        }
         // Sampled band check: every corner of the box and its centre.
         let mut network = TubeNetwork::compile(self, dims);
         let mut frame = network.empty_frame();
@@ -318,6 +359,9 @@ pub(crate) struct NetworkFrame {
     pub nodes: usize,
     pub elements: usize,
     pub areas_m2: Vec<f64>,
+    /// The area family's value before the positive cone's clamp (floored at
+    /// zero): what a flow aperture sees.
+    pub unclamped_areas_m2: Vec<f64>,
     pub compliance: Vec<f64>,
     pub inertance: Vec<f64>,
     pub omega2: [f64; MODE_COUNT],
@@ -331,6 +375,12 @@ pub(crate) struct NetworkFrame {
     pub flux: Vec<f64>,
     /// Per radiating end: per-mode amplitude decay rate (1/s).
     pub radiation_sigma: Vec<[f64; MODE_COUNT]>,
+    /// With contact: the jet column's junction, element and flow aperture
+    /// (m², 0 when closed), and the sealed port's element and aperture.
+    pub jet: Option<(usize, usize, f64)>,
+    pub port: Option<(usize, f64)>,
+    /// Columns sealed at this configuration (flow aperture 0).
+    pub sealed: Vec<usize>,
     pub radiation_conductance: Vec<f64>,
 }
 
@@ -374,6 +424,8 @@ pub(crate) struct TubeNetwork {
     values: Vec<f64>,
     psi: Vec<f64>,
     log_area: Vec<f64>,
+    /// Columns whose inertance follows a flow aperture (contact).
+    column_override: Vec<(usize, f64)>,
     /// Solves certified by the warm tree path / done densely.
     pub(crate) warm_solves: u64,
     pub(crate) dense_solves: u64,
@@ -442,6 +494,7 @@ impl TubeNetwork {
         Self {
             spec: spec.clone(),
             tree,
+            column_override: Vec::with_capacity(2),
             warm_solves: 0,
             dense_solves: 0,
             nodes,
@@ -464,6 +517,35 @@ impl TubeNetwork {
         self.offsets[tube] + section
     }
 
+    pub(crate) fn contact_tube(&self) -> Option<usize> {
+        self.spec.contact.map(|c| c.tube)
+    }
+
+    pub(crate) fn tube_sections(&self, tube: usize) -> usize {
+        self.spec.tubes[tube].base_log_area_m2.len()
+    }
+
+    /// Element index of the column between sections `junction` and
+    /// `junction + 1` of `tube` (internal columns come first, tube by tube).
+    pub(crate) fn junction_element(&self, tube: usize, junction: usize) -> usize {
+        self.spec.tubes[..tube].iter().map(|t| t.base_log_area_m2.len() - 1).sum::<usize>() + junction
+    }
+
+    /// Element index and branch-side volume of branch `index`.
+    pub(crate) fn branch_element(&self, index: usize) -> Option<(usize, usize)> {
+        let branch = self.spec.branches.get(index)?;
+        let internal: usize = self.spec.tubes.iter().map(|t| t.base_log_area_m2.len() - 1).sum();
+        Some((internal + index, self.offsets[branch.branch]))
+    }
+
+    pub(crate) fn density(&self) -> f64 {
+        self.spec.air_density_kg_m3
+    }
+
+    pub(crate) fn speed_of_sound(&self) -> f64 {
+        self.spec.speed_of_sound_m_s
+    }
+
     pub(crate) fn end_nodes(&self) -> &[usize] {
         &self.end_nodes
     }
@@ -474,6 +556,7 @@ impl TubeNetwork {
             nodes: self.nodes,
             elements,
             areas_m2: vec![0.0; self.nodes],
+            unclamped_areas_m2: vec![0.0; self.nodes],
             compliance: vec![0.0; self.nodes],
             inertance: vec![0.0; elements],
             omega2: [0.0; MODE_COUNT],
@@ -483,12 +566,16 @@ impl TubeNetwork {
             psi: vec![0.0; MODE_COUNT * self.nodes],
             flux: vec![0.0; MODE_COUNT * elements],
             radiation_sigma: vec![[0.0; MODE_COUNT]; self.end_nodes.len()],
+            jet: None,
+            port: None,
+            sealed: Vec::with_capacity(8),
             radiation_conductance: vec![0.0; self.end_nodes.len()],
         }
     }
 
-    /// Areas (m²) at `point`, into `out`.
-    pub(crate) fn areas_into(&mut self, point: &[f64], out: &mut [f64]) {
+    /// Areas (m²) at `point`, into `out` (clamped into the cone) and
+    /// `unclamped` (the family's value, floored at zero).
+    pub(crate) fn areas_into(&mut self, point: &[f64], out: &mut [f64], unclamped: &mut [f64]) {
         let spec = &self.spec;
         for (n, value) in self.log_area.iter_mut().enumerate() {
             let tube = self.node_tube[n];
@@ -518,12 +605,15 @@ impl TubeNetwork {
             }
         }
         for (n, value) in out.iter_mut().enumerate().take(self.nodes) {
-            *value = self.log_area[n].exp().clamp(spec.area_floor_m2, spec.area_ceiling_m2);
+            let raw = self.log_area[n].exp();
+            unclamped[n] = raw;
+            *value = raw.clamp(spec.area_floor_m2, spec.area_ceiling_m2);
         }
         for term in &spec.area_terms {
             if let AreaTermSpec::SectionArea { tube, section, area_m2 } = term {
-                out[self.offsets[*tube] + section] =
-                    area_m2.eval(point).clamp(spec.area_floor_m2, spec.area_ceiling_m2);
+                let raw = area_m2.eval(point);
+                unclamped[self.offsets[*tube] + section] = raw.max(0.0);
+                out[self.offsets[*tube] + section] = raw.clamp(spec.area_floor_m2, spec.area_ceiling_m2);
             }
         }
     }
@@ -541,13 +631,53 @@ impl TubeNetwork {
         let rho = self.spec.air_density_kg_m3;
         let c = self.spec.speed_of_sound_m_s;
         let mut areas = std::mem::take(&mut out.areas_m2);
-        self.areas_into(point, &mut areas);
+        let mut unclamped = std::mem::take(&mut out.unclamped_areas_m2);
+        self.areas_into(point, &mut areas, &mut unclamped);
         out.areas_m2 = areas;
+        out.unclamped_areas_m2 = unclamped;
         if out.areas_m2.iter().any(|a| !a.is_finite() || *a <= 0.0) {
             return Err(NetworkError::NonFiniteGeometry);
         }
         for node in 0..n {
             out.compliance[node] = out.areas_m2[node] * self.dx[self.node_tube[node]] / (rho * c * c);
+        }
+        self.column_override.clear();
+        out.jet = None;
+        out.port = None;
+        out.sealed.clear();
+        if let Some(contact) = self.spec.contact {
+            let aperture = |node: usize| (out.unclamped_areas_m2[node] - contact.contact_area_m2).max(0.0);
+            // Every column at contact is sealed; the jet is the narrowest
+            // column (the most downstream one among sealed ties, so the
+            // seal nearest the opening is the one that releases).
+            let mut best = (f64::INFINITY, contact.first_junction);
+            for junction in contact.first_junction..=contact.last_junction {
+                let a = self.offsets[contact.tube] + junction;
+                let open = aperture(a).min(aperture(a + 1));
+                if open <= 0.0 {
+                    let element = self.junction_element(contact.tube, junction);
+                    self.column_override.push((element, contact.sealed_area_m2));
+                    out.sealed.push(element);
+                }
+                if open < best.0 || (open <= 0.0 && best.0 <= 0.0) {
+                    best = (open, junction);
+                }
+            }
+            let element = self.junction_element(contact.tube, best.1);
+            if best.0 > 0.0 {
+                self.column_override.push((element, best.0));
+            }
+            out.jet = Some((best.1, element, best.0));
+            if contact.seal_branch_port {
+                if let Some((element, node)) = self.branch_element(0) {
+                    let open = aperture(node);
+                    self.column_override.push((element, open.max(contact.sealed_area_m2)));
+                    out.port = Some((element, open));
+                    if open <= 0.0 {
+                        out.sealed.push(element);
+                    }
+                }
+            }
         }
         // Assemble S = C^-1/2 K C^-1/2 sparsely: diagonal + one entry per column.
         let mut diagonal = std::mem::take(&mut self.log_area);
@@ -565,6 +695,10 @@ impl TubeNetwork {
             if let Some(end) = element.end {
                 let radius = (a_area / std::f64::consts::PI).sqrt();
                 inertance += rho * self.spec.radiating_ends[end].end_correction_ratio * radius / a_area;
+            }
+            if let Some(&(_, column_area)) = self.column_override.iter().find(|(e, _)| *e == j) {
+                // The column at its flow aperture (a branch port has no trunk half).
+                inertance = rho * (element.half_a + element.half_b) / column_area;
             }
             out.inertance[j] = inertance;
             let ca = out.compliance[element.a];
@@ -715,6 +849,12 @@ pub(crate) fn mass_momentum_transport(
         }
         momentum[j] = acc;
     }
+    // A sealed contact carries no air: what its numerical seal accumulated
+    // (L u with L huge) is the wall's reaction, not momentum. Drop it; its
+    // energy in the old geometry (tiny, L is huge) goes to the contact.
+    for &j in &old.sealed {
+        momentum[j] = 0.0;
+    }
     let mut physical = 0.0;
     for node in 0..n {
         physical += excess[node] * excess[node] / new.compliance[node];
@@ -765,6 +905,7 @@ mod tests {
             branches: vec![],
             area_terms: vec![],
             radiating_ends: vec![RadiatingEndSpec { tube: 0, end_correction_ratio: end_correction }],
+            contact: None,
         }
     }
 
@@ -871,6 +1012,7 @@ mod warm_tests {
                 branches: vec![],
                 area_terms: vec![],
                 radiating_ends: vec![RadiatingEndSpec { tube: 0, end_correction_ratio: 0.61 }],
+                contact: None,
             }
         }
     }

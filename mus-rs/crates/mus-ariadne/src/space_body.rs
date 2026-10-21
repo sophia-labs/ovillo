@@ -23,6 +23,7 @@ use crate::ir::{MODE_COUNT, TRANSPORT_PAIRS};
 use crate::law::active::{ActiveInclusionFrame, SynchronizedActiveInclusion};
 use crate::law::aperture::CompliantApertureBoundary;
 use crate::law::transport::InternalResonanceTransport;
+use crate::law::aero::{AeroFrame, AeroRuntime, AeroTotals, Column};
 use crate::law::valve::{FlowValve, FlowValveControls, FlowValveFrame};
 use crate::plan::{SpaceBodyLaws, SpaceBodySpec};
 
@@ -97,6 +98,25 @@ pub struct SpaceBodyObservation {
     pub end_radiation: [f64; 4],
     pub frequency_hz: [f64; MODE_COUNT],
     pub t60_seconds: [f64; MODE_COUNT],
+    /// The air (POC-3), when the body declares it.
+    pub aero: AeroFrame,
+}
+
+/// Cumulative energies of a tube-network body (J).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct SpaceTotals {
+    pub reservoir_draw: f64,
+    pub valve_field_work: f64,
+    pub valve_jet_loss: f64,
+    pub fold_loss: f64,
+    pub wall_loss: f64,
+    pub radiation_by_end: [f64; 4],
+    /// `sum G_e p_e^2 dt`: what the radiating volumes' actual pressures
+    /// radiate through their conductances. The booked radiation is the
+    /// mode-diagonal law; the difference is that approximation's error
+    /// (it drains static pressure that the physical law would not).
+    pub physical_radiation_by_end: [f64; 4],
+    pub aero: AeroTotals,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -182,6 +202,11 @@ struct NetworkLaws {
     retain: [f64; MODE_COUNT],
     retain_scale: f64,
     removed: [f64; MODE_COUNT],
+    aero: Option<AeroRuntime>,
+    totals: SpaceTotals,
+    dt: f64,
+    /// DC-correct wall loss: per-mode retain factor on the column momenta.
+    wall_retain_q: [f64; MODE_COUNT],
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -244,7 +269,7 @@ impl SpaceBody {
                     }),
                 )
             }
-            (SpaceBodyLaws::TubeNetwork { valve }, ConfigurationMapSpec::TubeNetwork { network: network_spec }) => {
+            (SpaceBodyLaws::TubeNetwork { valve, aero }, ConfigurationMapSpec::TubeNetwork { network: network_spec }) => {
                 let mut network = TubeNetwork::compile(network_spec, dimensions);
                 let mut frame = network.empty_frame();
                 let next = network.empty_frame();
@@ -279,6 +304,12 @@ impl SpaceBody {
                     retain: [1.0; MODE_COUNT],
                     retain_scale: f64::NAN,
                     removed: [0.0; MODE_COUNT],
+                    aero: aero.filter(|spec| !spec.is_off()).map(|spec| {
+                        AeroRuntime::new(spec, network_spec.air_density_kg_m3, network_spec.speed_of_sound_m_s)
+                    }),
+                    totals: SpaceTotals::default(),
+                    dt,
+                    wall_retain_q: [1.0; MODE_COUNT],
                 };
                 laws.refresh_shapes();
                 (field, Laws::Network(laws))
@@ -365,8 +396,39 @@ impl SpaceBody {
             observation.valve_energy = laws.valve.stored_energy();
             observation.end_pressure_pa = laws.last_end_pressure;
             observation.end_radiation = laws.last_end_radiation;
+            if let Some(aero) = &laws.aero {
+                observation.aero = aero.last;
+            }
         }
         observation
+    }
+
+    /// Cumulative energies (`None` for a modal constitution).
+    #[must_use]
+    pub fn totals(&self) -> Option<SpaceTotals> {
+        match &self.laws {
+            Laws::Network(laws) => {
+                let mut totals = laws.totals;
+                if let Some(aero) = &laws.aero {
+                    totals.aero = aero.totals;
+                }
+                Some(totals)
+            }
+            Laws::Modal(_) => None,
+        }
+    }
+
+    /// Pressure (Pa) at a network volume, from the retained modes
+    /// (non-loading).
+    #[must_use]
+    pub fn node_pressure(&self, node: usize) -> Option<f64> {
+        let Laws::Network(laws) = &self.laws else { return None };
+        let frame = &laws.frame;
+        if node >= frame.nodes {
+            return None;
+        }
+        let momentum = self.field.momentum();
+        Some(self.dt.sqrt() * (0..MODE_COUNT).map(|k| frame.phi[k * frame.nodes + node] * momentum[k]).sum::<f64>())
     }
 
     /// The current tube-network modes (`None` for a modal constitution).
@@ -616,9 +678,27 @@ impl SpaceBody {
                     capacity,
                 );
                 laws.last_valve = valve;
+                let mut aero_loss = 0.0;
+                let mut dc_wall_loss = false;
+                if let Some(aero) = &mut laws.aero {
+                    let frame = aero.step(self.field.displacement_mut(), self.dt);
+                    // The field changed by turbulence_work - jet_loss.
+                    aero_loss = frame.jet_loss - frame.turbulence_work;
+                    dc_wall_loss = aero.spec.dc_wall_loss;
+                }
                 let propagation = self.field.propagate();
-                let field_loss = self.field.damp();
-                let loss = valve.jet_loss + valve.fold_loss + field_loss.loss;
+                let field_loss = if dc_wall_loss {
+                    self.field.damp_displacement(&laws.wall_retain_q)
+                } else {
+                    self.field.damp()
+                };
+                let loss = valve.jet_loss + valve.fold_loss + field_loss.loss + aero_loss;
+                let t = &mut laws.totals;
+                t.reservoir_draw += valve.reservoir_draw;
+                t.valve_field_work += valve.field_work;
+                t.valve_jet_loss += valve.jet_loss;
+                t.fold_loss += valve.fold_loss;
+                t.wall_loss += field_loss.loss;
                 let residual = propagation.residual.abs().max(field_loss.residual.abs());
                 (work_input, loss, residual)
             }
@@ -651,13 +731,23 @@ impl SpaceBody {
                 Ok((frame.radiation, frame.residual))
             }
             Laws::Network(laws) => {
+                // DC-correct air: radiation through the radiating volumes'
+                // conductance acts on pressure (the momentum coordinates) only,
+                // at twice the rate (same decay per mode; a steady flow out of
+                // the mouth radiates nothing).
+                let dc = laws.aero.as_ref().is_some_and(|a| a.spec.dc_wall_loss);
                 if laws.retain_scale.to_bits() != laws.radiation_scale.to_bits() {
+                    let factor = if dc { 2.0 } else { 1.0 };
                     for k in 0..MODE_COUNT {
-                        laws.retain[k] = (-laws.radiation_scale * laws.sigma_total[k] * self.dt).exp();
+                        laws.retain[k] = (-factor * laws.radiation_scale * laws.sigma_total[k] * self.dt).exp();
                     }
                     laws.retain_scale = laws.radiation_scale;
                 }
-                let loss = self.field.damp_modes(&laws.retain, &mut laws.removed);
+                let loss = if dc {
+                    self.field.damp_momentum_modes(&laws.retain, &mut laws.removed)
+                } else {
+                    self.field.damp_modes(&laws.retain, &mut laws.removed)
+                };
                 let ends = laws.end_shapes.len();
                 let sqrt_dt = self.dt.sqrt();
                 let momentum = self.field.momentum();
@@ -675,6 +765,8 @@ impl SpaceBody {
                         }
                     }
                     laws.last_end_radiation[e] = radiated;
+                    laws.totals.radiation_by_end[e] += radiated;
+                    laws.totals.physical_radiation_by_end[e] += laws.frame.radiation_conductance[e] * pressure * pressure * self.dt;
                 }
                 Ok((loss.loss, loss.residual))
             }
@@ -697,6 +789,33 @@ impl NetworkLaws {
             self.sigma_total[k] = self.frame.radiation_sigma.iter().map(|s| s[k]).sum();
         }
         self.retain_scale = f64::NAN;
+        self.refresh_air();
+    }
+
+    /// The air's columns at this configuration, from the network's contact:
+    /// the jet column and its obstacle downstream; the DC-correct wall loss.
+    fn refresh_air(&mut self) {
+        let Some(aero) = &mut self.aero else { return };
+        let frame = &self.frame;
+        aero.jet = None;
+        aero.obstacle = None;
+        aero.port_closed = frame.port.is_some_and(|(_, open)| open <= 0.0);
+        if let Some((junction, element, open)) = frame.jet {
+            let column = |e: usize| Column::new(e, &frame.flux, frame.elements, frame.inertance[e], &frame.omega2);
+            aero.jet_junction = junction;
+            aero.jet_aperture = open;
+            aero.jet = Some(column(element));
+            let tube = self.network.contact_tube().unwrap_or(0);
+            let last = self.network.tube_sections(tube) - 2;
+            let obstacle = (junction + aero.spec.obstacle_offset).min(last);
+            aero.obstacle = Some(column(self.network.junction_element(tube, obstacle)));
+        }
+        if aero.spec.dc_wall_loss {
+            for k in 0..MODE_COUNT {
+                let sigma = if frame.t60_seconds[k] < f64::MAX { 6.907_755_278_982_137 / frame.t60_seconds[k] } else { 0.0 };
+                self.wall_retain_q[k] = (-2.0 * sigma * self.dt).exp();
+            }
+        }
     }
 }
 

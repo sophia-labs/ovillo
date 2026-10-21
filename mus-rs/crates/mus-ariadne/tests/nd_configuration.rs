@@ -295,6 +295,7 @@ fn network_plan(connection: ConnectionPolicy, sample_rate: f64) -> ConstitutiveW
             RadiatingEndSpec { tube: 0, end_correction_ratio: 0.61 },
             RadiatingEndSpec { tube: 1, end_correction_ratio: 0.61 },
         ],
+        contact: None,
     };
     let coordinates = ["place", "depth", "opening", "port"]
         .iter()
@@ -303,7 +304,7 @@ fn network_plan(connection: ConnectionPolicy, sample_rate: f64) -> ConstitutiveW
     let space = SpaceBodySpec {
         anatomy_name: "branched-tube-test".into(),
         configuration_space: ConfigurationSpaceSpec { coordinates, map: ConfigurationMapSpec::TubeNetwork { network }, connection },
-        laws: SpaceBodyLaws::TubeNetwork { valve: test_valve() },
+        laws: SpaceBodyLaws::TubeNetwork { valve: test_valve(), aero: None },
         reservoir: ReservoirSpec { capacity: 3.0 },
     };
     plan.bodies[0].constitution = BodyConstitutionSpec::ModalSpace { body: space };

@@ -67,14 +67,15 @@ pub use shared_space::{
 pub use shared_trajectory::{TrajectoryBindError, TrajectoryBinding, WorldCoordinates};
 pub use shared_world::{World, WorldControls, WorldError, WorldFrame, WorldReceipt};
 pub use configuration::{
-    AffineSpec, AreaTermSpec, ConfigurationCoordinate, ConfigurationMapSpec,
+    AffineSpec, AreaTermSpec, ConfigurationCoordinate, ContactSpec, ConfigurationMapSpec,
     ConfigurationSpaceSpec, ConnectionPolicy, DisposalPolicy, RadiatingEndSpec, StiffStringSpec,
     TubeBranchSpec,
     TubeNetworkSpec, TubeSpec,
 };
+pub use law::aero::{AeroFrame, AeroSpec, AeroTotals};
 pub use law::valve::{FlowValveControls, FlowValveFrame, FlowValveSpec};
 pub use plan::{SpaceBodyLaws, SpaceBodySpec};
 pub use space_body::{
-    NetworkModes, SpaceBody, SpaceBodyControls, SpaceBodyError, SpaceBodyObservation,
+    NetworkModes, SpaceBody, SpaceBodyControls, SpaceBodyError, SpaceBodyObservation, SpaceTotals,
     SpaceReconfigurationFrame,
 };
