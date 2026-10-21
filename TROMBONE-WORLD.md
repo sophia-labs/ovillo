@@ -1,5 +1,155 @@
 # A trombone that is one Ariadne World
 
+## v1: one N-D body (branch `ariadne/trombone-world-v1-20261020`, on `poc-3-20261020`)
+
+*Needs `patches/mus-ariadne-tube-length.patch` applied to `mus-ariadne` (not
+applied on this branch, as asked). On an unpatched runtime the v1 plan refuses
+to load with a message naming the patch, and its tests skip. v0 (below)
+still builds and plays.*
+
+### What it is
+
+The World has one `modal_space` body. Plan `profiles/ariadne-trombone-v1.plan.json`
+(`ariadne-world-plan-v3`) is compiled by `mus_analysis/trombone_nd_anatomy.py`;
+its receipt sits beside it.
+
+- **Bore (map `tube_network`):** the declared tenor bore of v0 plus a declared
+  mouthpiece, as five tubes in series, 124 volumes: mouthpiece (cup, throat,
+  backbore), leadpipe, slide, bell tail, bell mouth. The runtime computes the 24
+  lowest modes of the lossless Webster network at every point. Wall loss is
+  Kirchhoff's per tube (the runtime's α is frequency independent; evaluated at
+  150 Hz). The bell mouth is the radiating end, through the runtime's conductance
+  law, booked as radiation. There is no cup body and no fitted throat weighting:
+  the lips act on the bore's own air.
+- **Slide:** the body's one coordinate, `slide_extension_m` (0 to 0.72 m per
+  leg). The slide tube's length is 1.19 m + 2x, a `tube_length` term (the patch).
+  Moves use the `mass_momentum` connection (the air state Cp, Lu is held; the
+  work is billed; energy the 24 modes cannot hold is radiated). Positions are
+  solved on the network modes: 0, 8.8, 18.0, 27.7, 38.0, 48.8, 60.1 cm.
+- **Lips:** the runtime's flow valve (`law/valve.rs`): a mass on a tension spring
+  with contact, and a Bernoulli + Poiseuille slit jet into the cup volume.
+  - The lungs are the body's reservoir. Their refill is the only source work;
+    mouth pressure is the valve's supply.
+  - Lip tension is the valve's tuning, moved with `World::set_body_valve_tuning`
+    and billed as control work.
+- **What you hear:** the World's own emission (the bell volume's pressure, Pa)
+  × `OUTPUT_SCALE` = 1/300 (set once).
+
+### The patch (`patches/mus-ariadne-tube-length.patch`, 158 lines)
+
+A trombone slide changes a tube's length. The tag's tube network fixes
+`length_m` and lets only areas depend on the coordinates, and no area function
+can remove travel time. The patch adds `AreaTermSpec::TubeLength { tube,
+length_m: AffineSpec }`: the tube's sections stretch uniformly, and `dx` and the
+column halves are recomputed per point. It is a new enum variant, so no existing
+struct literal breaks, and specs without it serialize as before. Tests in
+`configuration/network.rs`:
+- `tube_length_term_is_a_slide_on_the_quarter_wave_series`: a uniform tube's
+  modes equal the staggered grid's closed form at every length to 1e-10, and a
+  non-positive length is refused by the band check;
+- `a_slide_move_is_transported_and_old_specs_serialize_unchanged`.
+
+With it applied: mus-ariadne 60/60 lib tests and ovillo-dsp 37/37 pass.
+
+### How it was tuned (all `fit`, measured on this World)
+
+- **Bell:** Nelder-Mead on (tail, flare, s0) against this network's modes 2..8
+  (numpy port of the runtime's solve, identical to the printed digit). Four
+  starts agree: tail 0.223 m, flare exponent 0.703, s0 0.0252 m. Modes 2..8 sit
+  at -15, +3, +25, +18, -2, -13, -18 cents from n × B-flat 1.
+- **Lips:** lip-tension sweeps at fixed slide and pressure
+  (`examples/trombone_nd_probe.rs`).
+  - With the copied glottis numbers, mode 4 captured a 2x range of tension.
+  - A 1 ms mucosal delay made the sweep lock partial after partial (2..11).
+  - Mass 0.4 g with 1.5 mm thickness and an open embouchure (adduction 0.1)
+    kept low tensions from being blown open, so partial 2 locks in every
+    position.
+- **Player:** `examples/trombone_nd_calibrate.rs` plays 7,938 tongued notes
+  (partials 2-10 × 7 positions × 21 lip ratios × 6 pressures);
+  `mus_analysis/trombone_nd_player_fit.py` fits them into
+  `profiles/ariadne-trombone-v1.player.json`.
+  - Every partial 2-10 speaks in all 7 positions, at 3-6 pressures each.
+  - A written dynamic is a target level, and the player blows the pressure that
+    gives it on that cell (`ovillo-dsp/src/trombone_nd_player.rs`).
+  - Articulation is v0's: tonguing as pressure, slurs as lip moves under a
+    legato tongue, smears/scoops/falls/vibrato as slide transport.
+
+### Gates (renders `ovillo/renders/trombone-nd-*.wav`, made in a tree with the patch applied)
+
+- **T1 lawful: pass.**
+  - `trombone_nd::tests::audio_is_exactly_the_world_emission`: a second World
+    from the same plan, given the same moves and controls, emits the same
+    samples bit for bit (`to_bits`).
+  - A source scan finds no filter, oscillator or noise in the audio path.
+  - The WAV is `tick`'s output, as f32.
+- **T2 ledger: pass.** Solo, 1,629,529 frames:
+  - source (lungs) 28.116, control -0.00942 (slide -0.00941, lips -0.000009),
+    internal loss 26.626, radiation 2.137;
+  - slide disposal 2.5e-6, radiated.
+  - Bound as in v0: ≤ 1e-12 per frame and 1e-15 per frame summed. Measured:
+    largest frame 3.55e-15, cumulative -5.3e-12. Asserted in
+    `trombone_nd::tests::the_ledger_closes`.
+- **T3 it plays: pass.**
+  - Solo (v0's 36 notes): 36 of 36 on the intended partial; median |error|
+    5.7 cents, mean 6.5, max 13.7; 29 within 10 cents, all 36 within 25.
+    Partials 2-10 used.
+  - Étude (partials 2-3-4-5-6-5-4-3-2 slurred in each position): 63 of 63 on
+    the intended partial; median 8.5, max 53.3; 39 within 10, 60 within 25,
+    61 within 50.
+- **T4 brightening with loudness: fail.** Dynamics ladder, centroid/f0 over the
+  steady part as the level rises about 9 dB:
+
+  | note | centroid/f0 | Spearman |
+  |---|---|---|
+  | F3 | 3.70 → 3.22 | -1.0 |
+  | Bb3 | 2.64 → 1.82 | -0.9 |
+  | D4 | 2.35 → 1.66 | -1.0 |
+  | F4 | 1.91 → 1.83 | -0.1 |
+
+  The tone is bright (solo median centroid/f0 1.97), but it does not brighten
+  with loudness. Held 1.5 s, Bb3 stays at about 2.2 across a 15 dB range. The
+  decline in the table is attack brightness decaying faster at loud levels.
+  Neither embouchure firmness nor a harder lip contact changed the direction:
+  firmness pulled the pitch off the partial, and harder contact darkened loud
+  notes further. Real brass brightens at ff mostly through finite-amplitude wave
+  steepening in the bore. This runtime is linear acoustics (`aero` is jet loss
+  and turbulence), so that piece of runtime is what's missing.
+- **T5 cost: pass.** 48 kHz, one thread, release (load average 4-6):
+  - solo 2.44x real time (13.9 s wall / 14.4 s CPU for 33.9 s; slide moves
+    recompute modes every 16 samples while the slide moves);
+  - étude 19.0x;
+  - dynamics 41.6x.
+- **T6 musicality: partly.**
+  - Solo note-to-note level spread at the same written dynamic: median 0.7 dB,
+    max 3.5 dB (target < 12); 5.8 dB across all notes. Pass.
+  - Partials 2-6 in all 7 positions: all 35 étude cells sound the intended
+    partial; 34 of 35 are within 50 cents (partial 2 in seventh position is
+    53). Pass.
+  - Brightening on F3, Bb3, D4, F4: fail (T4).
+  - On the coordinator's measure, 50 ms frames below -60 dBFS: v0 71 %, v1
+    18 % (12 % without the final 2.5 s tail, i.e. the rests); median frame
+    -16 dBFS.
+
+### Limits
+
+- **No brightening with loudness** (above): it needs nonlinear propagation in
+  the runtime.
+- **Grid:** 124 volumes, dx 7 mm (mouthpiece) to 35 mm (bell tail) and up to
+  43 mm in a stretched slide. The grid's dispersion flattens the upper modes.
+- **Series junctions:** each joins through the downstream half-column only (the
+  runtime's branch element).
+- **Slide:** a rubber slide (all slide sections stretch), not a telescope.
+- **Lips:** copied glottis mechanics with fitted mass, thickness and delay. The
+  aerodynamic work on the lips is booked to the lungs (the runtime's declared
+  approximation).
+- **Partial 3** has the narrowest windows.
+- **Room:** none; the World is heard dry.
+
+---
+
+## v0 (history): lips and bore as two bodies (commit `6db9d41` on `ariadne/trombone-world-20261020`)
+
+
 *Branch `ariadne/trombone-world-20261020`, 2026-10-20. Under the
 [pure-physics constitution](ARIADNE-PURE-PHYSICS-CONSTITUTION.md). It replaces
 nothing: the old `ovillo_dsp::trombone` (additive buzz into a passive

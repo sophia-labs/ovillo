@@ -39,7 +39,7 @@ def pitch(x: np.ndarray, sr: float, fmin=25.0, fmax=1500.0):
     if not peaks:
         return 0.0, 0.0
     best = max(r[i] for i in peaks)
-    idx = next(i for i in peaks if r[i] >= 0.85 * best)
+    idx = next(i for i in peaks if r[i] >= best - 0.15 * abs(best))
     a, b, c = r[idx - 1], r[idx], r[idx + 1]
     den = a - 2 * b + c
     d = 0.5 * (a - c) / den if den != 0 else 0.0
@@ -55,6 +55,12 @@ def centroid(x: np.ndarray, sr: float, fmax=8000.0) -> float:
 
 
 def bore_resonances(plan: dict, slide: float) -> np.ndarray:
+    if plan.get("schema_version") == "ariadne-world-plan-v3":
+        # v1: the anatomy receipt's table of the runtime's modes against slide extension (m)
+        table = plan["_receipt"]["mode_table"]
+        x = np.array(table["extension_m"])
+        f = np.log(np.array(table["frequency_hz"]))
+        return np.exp(np.array([np.interp(slide, x, f[:, k]) for k in range(f.shape[1])]))
     bore = next(b for b in plan["bodies"] if b["id"] == "bore")["body"]["configuration_path"]
     fl = np.array(bore["left"]["metric"]["frequency_hz"])
     fr = np.array(bore["right"]["metric"]["frequency_hz"])
@@ -76,6 +82,8 @@ def analyse(wav: str, notes_tsv: str, plan_path: str):
     x, sr = sf.read(wav)
     mono = x[:, 0] if x.ndim > 1 else x
     plan = json.load(open(plan_path))
+    if plan.get("schema_version") == "ariadne-world-plan-v3":
+        plan["_receipt"] = json.load(open(plan_path.replace(".plan.json", ".receipt.json")))
     rows = []
     with open(notes_tsv) as fh:
         head = fh.readline().rstrip("\n").split("\t")
@@ -138,6 +146,19 @@ def brightness(rows):
     return out
 
 
+def level_spread(rows, min_s=0.25):
+    """Gate T6: among sustained notes (>= min_s long) written at the same dynamic,
+    the dB between the quietest and loudest; per dynamic and summarized."""
+    groups = {}
+    for r in rows:
+        if r["f"] > 0 and r["end"] - r["start"] >= min_s:
+            groups.setdefault(round(r["vel"], 2), []).append(r["rms_db"])
+    spread = {str(v): round(max(g) - min(g), 1) for v, g in sorted(groups.items()) if len(g) >= 2}
+    values = list(spread.values())
+    return dict(per_dynamic=spread, median_db=float(np.median(values)) if values else None,
+                max_db=max(values) if values else None, all_notes_db=round(max(r["rms_db"] for r in rows if r["f"] > 0) - min(r["rms_db"] for r in rows if r["f"] > 0), 1))
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("wav")
@@ -154,6 +175,7 @@ def main(argv=None) -> int:
     s = summary(rows)
     if args.brightness:
         s["brightness"] = brightness(rows)
+    s["level_spread"] = level_spread(rows)
     print(json.dumps(s, indent=1))
     if args.json:
         json.dump(dict(summary=s, notes=rows), open(args.json, "w"), indent=1)
