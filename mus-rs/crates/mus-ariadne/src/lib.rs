@@ -49,7 +49,7 @@ pub use ir::{
 pub use observation::{
     BoundObservationProgram, ListenerError, ObservationProgramError,
     ObservationRuntimeError, ObservationSource, StereoBodyTap, StereoFrame,
-    StereoListener, StereoListenerSpec, WorldObservationChannel,
+    StereoListener, StereoListenerSpec, StereoStateTap, WorldObservationChannel,
     WorldObservationProgram,
 };
 pub use performance::{WorldCostEstimate, WorldLayout};

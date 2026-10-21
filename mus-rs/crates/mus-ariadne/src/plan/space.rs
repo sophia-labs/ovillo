@@ -40,13 +40,24 @@ pub enum SpaceBodyLaws {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         aero: Option<AeroSpec>,
     },
-    /// A passive body: the modal field, its loss, and projection radiation,
-    /// with nothing that injects work; an optional felt damper can rest on it
+    /// A passive body: the modal field, its loss, and radiation, with nothing
+    /// that injects work; an optional felt damper can rest on it
     /// (`law::damper`, stiff-wire maps only). Excited only through couplings
     /// (a hammer, a bridge). Needs a multilinear, stiff-string or stiff-wire map.
+    ///
+    /// Radiation is the projection law (a fraction of the momentum along the
+    /// configured direction, the controls' `radiation_fraction`) unless
+    /// `radiation_rates_per_s` is given: then each mode radiates at its own
+    /// amplitude rate, diagonal in the modes (the modal approximation the
+    /// tube network makes; cross-radiation between modes is neglected), and
+    /// the fraction is ignored. One projection cannot radiate a band of plate
+    /// modes driven together at one frequency: their forced responses cancel
+    /// in it.
     Passive {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         damper: Option<DamperSpec>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        radiation_rates_per_s: Option<[f64; MODE_COUNT]>,
     },
 }
 
@@ -106,11 +117,18 @@ impl SpaceBodySpec {
                 }
             }
             (
-                SpaceBodyLaws::Passive { damper },
+                SpaceBodyLaws::Passive { damper, radiation_rates_per_s },
                 map @ (ConfigurationMapSpec::Multilinear { .. }
                 | ConfigurationMapSpec::StiffString { .. }
                 | ConfigurationMapSpec::StiffWire { .. }),
-            ) => match (damper, map) {
+            ) => {
+                if radiation_rates_per_s.is_some_and(|rates| rates.iter().any(|r| !r.is_finite() || *r < 0.0)) {
+                    return Err(PlanError::new(
+                        "invalid-radiation-rates",
+                        "modal radiation rates must be finite and non-negative",
+                    ));
+                }
+                match (damper, map) {
                 (None, _) => {}
                 (Some(damper), ConfigurationMapSpec::StiffWire { wire }) => damper
                     .validate(wire.speaking_length_m)
@@ -121,7 +139,8 @@ impl SpaceBodySpec {
                         "a damper pad is placed along a stiff wire",
                     ))
                 }
-            },
+                }
+            }
             _ => {
                 return Err(PlanError::new(
                     "space-body-law-map-mismatch",

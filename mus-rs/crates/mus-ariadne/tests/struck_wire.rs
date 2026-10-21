@@ -7,10 +7,11 @@
 //! Real runtime, no mocks: every test builds `mus_ariadne::World`s from plans.
 
 use mus_ariadne::{
-    BodyConstitutionSpec, BodyControls, BodyPose, ConfigurationCoordinate, ConfigurationMapSpec,
+    ApertureSpec, BodyConstitutionSpec, BodyControls, BodyPose, ConfigurationCoordinate, ConfigurationMapSpec,
     ConfigurationSpaceSpec, ConnectionPolicy, ConstitutiveBodyControls, ConstitutiveBodyInstanceSpec,
-    ConstitutiveWorldPlan, DamperSpec, HammerContactSpec, HammerSpec, ReservoirSpec, SpaceBodyControls,
-    SpaceBodyLaws, SpaceBodySpec, SpacePortSpec, StiffWireSpec, World, WorldControls, WorldPlan,
+    ConstitutiveWorldPlan, DamperSpec, DirectCouplingSpec, HammerContactSpec, HammerSpec, MetricSpec,
+    ReservoirSpec, SpaceBodyControls, SpaceBodyLaws, SpaceBodySpec, SpacePortSpec, StereoListener,
+    StereoListenerSpec, StereoStateTap, StiffWireSpec, World, WorldConfiguration, WorldControls, WorldPlan,
     MODE_COUNT, SPACE_COURSES, WORLD_PLAN_V3_SCHEMA_VERSION,
 };
 
@@ -53,7 +54,7 @@ fn wire_body(id: &str, wire: StiffWireSpec, damper: Option<DamperSpec>) -> Const
                     map: ConfigurationMapSpec::StiffWire { wire },
                     connection: ConnectionPolicy::ModalCoordinates,
                 },
-                laws: SpaceBodyLaws::Passive { damper },
+                laws: SpaceBodyLaws::Passive { damper, radiation_rates_per_s: None },
                 reservoir: ReservoirSpec { capacity: 1.0e-6 },
             },
         },
@@ -303,4 +304,80 @@ fn a_hammer_refuses_a_second_throw_while_its_felt_presses() {
     let totals = world.hammer_totals(hammer).unwrap();
     assert_eq!((totals.strikes, totals.refused_strikes), (2, 1));
     assert!(world.receipt().maximum_frame_residual < 1e-15);
+}
+
+/// A support body (24 modes, 200 Hz to 3 kHz) radiating mode by mode, bridged
+/// to a struck wire: it books exactly what its modes give up, the ledger
+/// closes, and a state-tap listener reads it without loading the world.
+#[test]
+fn a_modally_radiating_support_books_its_radiation_and_is_heard_without_loading() {
+    let frequency_hz: [f64; MODE_COUNT] = std::array::from_fn(|k| 200.0 * (15.0_f64).powf(k as f64 / 23.0));
+    let configuration = WorldConfiguration {
+        metric: MetricSpec { frequency_hz, t60_seconds: frequency_hz.map(|f| 2.2 / (0.02 * f)) },
+        aperture: ApertureSpec {
+            natural_frequency_hz: 500.0, quartic_stiffness: 0.0, asymmetry: 0.0, equilibrium_displacement: 0.0,
+            opening_bias: 0.0, damping_per_second: 50.0, source_to_aperture_rate_hz: 0.0, source_to_field_rate_hz: 0.0,
+            sweep_rate_hz: 0.0, active_rate_per_second: 0.0, active_target_momentum: 0.25,
+        },
+        radiation_direction: [1.0 / (MODE_COUNT as f64).sqrt(); MODE_COUNT],
+    };
+    let mut plan = unison_plan(1, false);
+    plan.bodies.push(ConstitutiveBodyInstanceSpec {
+        id: "support".into(),
+        constitution: BodyConstitutionSpec::ModalSpace {
+            body: SpaceBodySpec {
+                anatomy_name: "test-support".into(),
+                configuration_space: ConfigurationSpaceSpec {
+                    coordinates: vec![ConfigurationCoordinate { name: "static".into(), lower: 0.0, upper: 1.0, initial: 0.0 }],
+                    map: ConfigurationMapSpec::Multilinear { axes: vec![vec![0.0, 1.0]], anchors: vec![configuration, configuration] },
+                    connection: ConnectionPolicy::ModalCoordinates,
+                },
+                laws: SpaceBodyLaws::Passive { damper: None, radiation_rates_per_s: Some([30.0; MODE_COUNT]) },
+                reservoir: ReservoirSpec { capacity: 1.0e-6 },
+            },
+        },
+        space_port: inert_port(),
+        pose: BodyPose::default(),
+    });
+    let wire = c4_wire(1.0);
+    let weights = wire.moving_end_weights(1.0, MODE_COUNT);
+    let norm = weights.iter().map(|v| v * v).sum::<f64>().sqrt();
+    let shape: [f64; MODE_COUNT] = std::array::from_fn(|k| if k % 3 == 0 { -0.3 } else { 0.25 });
+    let shape_norm = shape.iter().map(|v| v * v).sum::<f64>().sqrt();
+    plan.direct_couplings.push(DirectCouplingSpec {
+        id: "bridge".into(),
+        left_body: "wire/0".into(),
+        right_body: "support".into(),
+        left_direction: weights.map(|v| v / norm),
+        right_direction: shape.map(|v| v / shape_norm),
+        rate_hz: norm * shape_norm / std::f64::consts::TAU,
+        weight: 1.0,
+    });
+    let support = plan.bodies.len() - 1;
+    let tap = StereoStateTap {
+        body_id: "support".into(),
+        left_displacement: std::array::from_fn(|k| (k as f64 * 0.37).sin()),
+        left_momentum: std::array::from_fn(|k| (k as f64 * 0.11).cos()),
+        right_displacement: std::array::from_fn(|k| (k as f64 * 0.53).cos()),
+        right_momentum: std::array::from_fn(|k| (k as f64 * 0.29).sin()),
+    };
+    let spec = StereoListenerSpec::for_constitutive(&plan, Vec::new(), vec![tap], 1.0).unwrap();
+    let listener = StereoListener::bind_constitutive(&spec, &plan).unwrap();
+    let (mut heard, mut quiet) = (World::from_constitutive_plan(plan.clone()).unwrap(), World::from_constitutive_plan(plan).unwrap());
+    let controls = controls(&heard);
+    let hammer = heard.body_index("hammer").unwrap();
+    heard.strike_hammer(hammer, 2.0).unwrap();
+    quiet.strike_hammer(hammer, 2.0).unwrap();
+    let (mut booked, mut loudest) = (0.0, 0.0_f64);
+    for _ in 0..9_600 {
+        let frame = heard.process_constitutive_sample(&controls, WorldControls::default()).unwrap();
+        quiet.process_constitutive_sample(&controls, WorldControls::default()).unwrap();
+        loudest = loudest.max(listener.observe(&heard, &frame).unwrap().left.abs());
+        booked += heard.body_radiation(support).unwrap().iter().map(|e| 0.5 / SAMPLE_RATE * e * e).sum::<f64>();
+    }
+    assert_eq!(heard.body_state(support), quiet.body_state(support), "listening does not load the world");
+    let receipt = heard.receipt();
+    assert!(loudest > 0.0 && booked > 1e-6 * receipt.source_work);
+    assert!((receipt.radiation - booked).abs() < 1e-12 * receipt.radiation.max(1e-30) + 1e-21, "{} vs {booked}", receipt.radiation);
+    assert!(receipt.maximum_frame_residual < 1e-15);
 }

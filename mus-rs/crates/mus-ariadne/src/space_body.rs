@@ -237,6 +237,9 @@ struct PassiveLaws {
     map: ModalMap,
     radiation_direction: [f64; MODE_COUNT],
     damper: Option<FeltDamper<MODE_COUNT>>,
+    /// Mode-diagonal radiation: per-mode momentum retain `exp(-2 sigma_k dt)`
+    /// (a velocity resistance takes amplitude at `sigma_k`), when declared.
+    radiation_retain: Option<[f64; MODE_COUNT]>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -345,7 +348,7 @@ impl SpaceBody {
                 laws.refresh_shapes();
                 (field, Laws::Network(laws))
             }
-            (SpaceBodyLaws::Passive { damper }, map_spec) => {
+            (SpaceBodyLaws::Passive { damper, radiation_rates_per_s }, map_spec) => {
                 let mut map = ModalMap::compile(map_spec, space)
                     .ok_or_else(|| SpaceBodyError::InvalidSpec("passive laws need a modal map".into()))?;
                 let configuration = map.evaluate(&point[..dimensions]);
@@ -369,6 +372,7 @@ impl SpaceBody {
                         map,
                         radiation_direction: normalize(configuration.radiation_direction)?,
                         damper,
+                        radiation_retain: radiation_rates_per_s.map(|rates| rates.map(|r| (-2.0 * r * dt).exp())),
                     }),
                 )
             }
@@ -964,8 +968,24 @@ impl SpaceBody {
                 Ok((frame.radiation, frame.residual))
             }
             Laws::Passive(laws) => {
-                let fraction = finite(fraction).clamp(0.0, 1.0);
                 emitted.clear();
+                if let Some(retain) = &laws.radiation_retain {
+                    // Each mode radiates on its own: `m_k *= retain_k`; its radiated
+                    // coordinate `e_k = m_k sqrt(1 - retain_k^2)` carries
+                    // `dt e_k^2 / 2`, the energy it gave up. Emitted: every mode's
+                    // (a listener reads the far field from the state instead).
+                    let momentum = self.field.momentum_mut();
+                    let mut radiation = 0.0;
+                    for k in 0..MODE_COUNT {
+                        let m = momentum[k];
+                        let e = m * (1.0 - retain[k] * retain[k]).sqrt();
+                        radiation += 0.5 * self.dt * e * e;
+                        emitted.push(e);
+                        momentum[k] = m * retain[k];
+                    }
+                    return Ok((radiation, 0.0));
+                }
+                let fraction = finite(fraction).clamp(0.0, 1.0);
                 if fraction == 0.0 {
                     emitted.push(0.0);
                     return Ok((0.0, 0.0));

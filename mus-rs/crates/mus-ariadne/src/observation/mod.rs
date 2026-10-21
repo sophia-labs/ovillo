@@ -10,7 +10,7 @@ mod runtime;
 
 pub use listener::{
     ListenerError, StereoBodyTap, StereoFrame, StereoListener,
-    StereoListenerSpec, STEREO_LISTENER_VERSION,
+    StereoListenerSpec, StereoStateTap, STEREO_LISTENER_VERSION,
 };
 pub use program::{
     ObservationProgramError, ObservationSource, WorldObservationChannel,
