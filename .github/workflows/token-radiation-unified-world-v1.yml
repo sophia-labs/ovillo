@@ -20,6 +20,9 @@ on:
     branches:
       - agent/token-radiation-unified-world-v1
 
+permissions:
+  contents: read
+
 jobs:
   python:
     runs-on: ubuntu-latest

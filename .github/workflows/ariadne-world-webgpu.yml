@@ -26,6 +26,9 @@ on:
       - "mus-rs/Cargo.lock"
       - ".github/workflows/ariadne-world-webgpu.yml"
 
+permissions:
+  contents: read
+
 jobs:
   native-and-wasm:
     runs-on: ubuntu-latest

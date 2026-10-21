@@ -16,6 +16,9 @@ on:
       - "extension/experiments/catalog.json"
       - ".github/workflows/token-radiation-lexical-interface-v1.yml"
 
+permissions:
+  contents: read
+
 jobs:
   cpu:
     runs-on: ubuntu-latest

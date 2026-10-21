@@ -8,6 +8,10 @@ on:
   pull_request:
     paths:
       - "mus-rs/**"
+
+permissions:
+  contents: read
+
 jobs:
   workspace:
     runs-on: ubuntu-latest

@@ -21,6 +21,9 @@ on:
       - ".github/workflows/extension-generation-3.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   python-construction:
     runs-on: ubuntu-latest

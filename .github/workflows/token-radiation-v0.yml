@@ -24,6 +24,9 @@ on:
       - "mus-rs/crates/mus-ariadne/examples/metric_radiation_proof.rs"
       - ".github/workflows/token-radiation-v0.yml"
 
+permissions:
+  contents: read
+
 jobs:
   python:
     runs-on: ubuntu-latest
