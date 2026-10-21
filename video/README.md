@@ -9,6 +9,7 @@ its WAV is the sound, its trace is the picture, its receipt is the ledger on scr
 ./build.sh                 # data (renders only what is missing), soundtrack, frames, MP4s, checks
 ./build.sh --renders       # re-render every World first
 ./build.sh --variant 4x5   # one variant: 4x5 (1080x1350, primary) or 16x9 (1920x1080)
+./build.sh --piano-at ffb2219   # the piano as released (see "Provenance"), not this checkout's
 ```
 
 Outputs: `out/ovillo-release-4x5.mp4`, `out/ovillo-release-16x9.mp4`,
@@ -16,7 +17,8 @@ Outputs: `out/ovillo-release-4x5.mp4`, `out/ovillo-release-16x9.mp4`,
 `samples/<variant>/`. Everything under `data/`, `build/`, `frames/`, `out/`,
 `samples/` is regenerated (git-ignored).
 
-Needs: Rust stable (the repo's), Node 22, pnpm, uv, ffmpeg 8 at `/usr/local/bin`,
+Needs: Rust (the release was built with rustc 1.95.0; see "Provenance" for why the version matters to the
+tract), the `wasm32-unknown-unknown` target, Node 22, pnpm, uv, ffmpeg 8 at `/usr/local/bin`,
 and Playwright's Chromium for Testing 149 (revision 1228, the one
 `playwright-core@1.61.1` pins; `pnpm exec playwright-core install chromium` if it is not
 cached). Built and checked on macOS (the panel's face is the site's `ui-monospace`,
@@ -36,7 +38,7 @@ SF Mono there).
 
 | step | tool | what it does |
 |---|---|---|
-| renders | `build.sh` | `mus render ... --energy` (guitar), `trombone_nd_solo data/trombone solo trace` (trombone), `tools/tract-render.mjs` (tract), `tools/piano-ledger.sh` + `tools/piano-sync.sh` (piano) |
+| renders | `build.sh` | `mus render ... --energy` (guitar), `trombone_nd_solo data/trombone solo trace` (trombone), `tools/tract-render.mjs` (tract), `tools/piano-render.sh [rev]` (piano) |
 | prep | `tools/prep.py` | cuts each trace to its window for the page (`build/<id>.json`), the timeline (`build/timeline.json`) |
 | soundtrack | `tools/audio.py` | sample-exact excerpts, fades, per-segment loudness match, loudnorm two-pass (`build/audio/`, receipt in `build/audio/receipt.json`) |
 | frames | `tools/capture.mjs` | `page/index.html`, `window.renderFrame(n)` for every frame, PNG screenshots at 2x (`frames/<variant>/`) |
@@ -111,23 +113,22 @@ aspiration noise, one jet (`TRACT-WORLD.md`).
 
 ### Piano
 
-The render is the piano agent's (`~/dev/ovillo-piano-20261021`, branch
-`ariadne/piano-world-v1-20261021` at `a20d520`; `mus render` of
-`examples/piano/prelude-c-major.mus` on `anatomy=piano-v1`): `piano-demo.wav` (sha256
-`011c2e4b7d716543...`, its receipt's `renderDigest`), its receipt and notes table.
-Its trace books the hammer throws outside the per-hop source flows, so for a running
-ledger `tools/piano-ledger.sh` re-renders the same committed score on
-`site/video-piano-ledger-20261021` (that commit plus `ffb2219`, which only adds
-`ledgerFrames`, `World::receipt` every 10 ms) and refuses unless the WAV is
-bit-identical to the demo's; `tools/piano-sync.sh` then copies the demo files and that
-trace into `data/piano/` with `SOURCE.txt` (branch, commits, sha256s).
+`tools/piano-render.sh [rev]` renders `examples/piano/prelude-c-major.mus` (`anatomy=piano-v1`)
+into `data/piano/`: `mus render` writes the WAV, its receipt and its energy trace, and the
+`mus-engine` example `piano_world` writes the notes table; `SOURCE.txt` names the tree and
+the sha256 of every file. With no `rev` it is this checkout's piano; with one, the piano at that
+commit (`git archive <rev>` into `.cache/`, built there). The trace carries `ledgerFrames`
+(`World::receipt` every 10 ms): the hammer throws are booked outside the per-hop source
+flows, so a running ledger needs the World's own books.
 
 On screen: 88 keys (a key is down from onset to release in the notes table; its
 hammer is drawn reaching the string at the onset and falling back, a drawing timed by
 the table), every played key's choir of strings lit by its string bodies' stored energy,
 the soundboard's bridge lit by the 14 board bodies' energy, the grand's case a drawing.
 Readouts: the last strike's hammer velocity and felt contact time (the trace's strikes).
-Caption: board radiation 0.010972 J of 0.010974 J radiated (the receipt).
+Caption: board radiation 0.010972 J of 0.010974 J radiated (the released piano's receipt, `a20d520`).
+The current piano's receipt says 0.019257 J of 0.019258 J (99.99 %): a rebuild from this
+checkout should update the caption in `manifest.json` to its own receipt.
 `placeholder/piano-demo-notes.PLACEHOLDER.tsv` and the placeholder path in
 `page/scenes/piano.js` were the silent stand-in used before the World existed.
 
@@ -141,3 +142,45 @@ excerpt goes through a look-ahead limiter at -2.5 dBFS (recorded in
 the whole track (-16 LUFS, -1.5 dBTP) and stays linear. The guitar's WAV is
 `mus render`'s output: the World's listener into the engine's dry bus (send 0, so no
 reverb), its 28 Hz high-pass and master stage.
+
+## Provenance
+
+The released MP4s are not committed (`out/` is ignored). Built on 2026-10-21 (macOS, x86_64):
+
+| file | sha256 |
+|---|---|
+| `out/ovillo-release-4x5.mp4` | `b064ba0426c0e65444396a36e83fcf3c3b124d6efce1a1915021f57f334342f3` |
+| `out/ovillo-release-16x9.mp4` | `c38841f9e95645df6e02ea77a42081e632d58b59ee369e3d8d5cf9d9ae98d534` |
+| `build/audio/soundtrack.wav` | `944f7c0ac787ff10373e4967469b77ae5544d20810d10da178adc2dc75edca07` |
+
+- The page and the tools: `video/` at `434eaec`. The MP4s were assembled after it and before
+  `96c000b`, which changed only `build.sh` and this README and added `tools/piano-ledger.sh` (since
+  replaced by `tools/piano-render.sh`).
+- The Worlds, built with the machine's default toolchain, rustc 1.95.0 (the tract's take reproduces
+  only with it; see below):
+  - guitar: `examples/tab/wayfaring-stranger-doc.mus` on `fc016dd` (WAV sha256
+    `9759473617875482d0ec86a278c9b85450d166fe1fda02dabefb4fbed8aaa27d`, its `renderDigest`);
+  - piano: rendered at `a20d520` (`piano-demo.wav` sha256
+    `011c2e4b7d716543c458e4e1ceeda8f1789354d5c83fe0b9e336e5855bdb77e5`), its picture's trace
+    re-rendered at `ffb2219`, which is `a20d520` plus the read-only `ledgerFrames` and renders the
+    same WAV;
+  - trombone: `trombone_nd_solo <dir> solo trace` on `0091a9a` (WAV sha256
+    `66021535a1c6a5965bdaf11c24e66ac0e706a7dff2141f21ebb4d97ad2be9191`);
+  - tract: `tools/tract-render.mjs` on `ovillo-tract-world` at `277283e` (WAV sha256
+    `a983cbbeabd2623a46a7e50be596d9ac66e89caab8bcfdf1f319f84190f8cce5`).
+
+**The piano changed after the release.** `77db03d` and `9374486` (mode-diagonal radiation from the
+soundboard, heard at two far-field points) changed its sound: on this checkout the demo renders
+sha256 `997ce53b9a61f5d62881dad00f75ddb2dc8c3cf4c74eed2e7005e9f9a9bdc643`, so a plain `./build.sh`
+on a fresh clone makes a video with the current piano. The released piano is reproduced by
+`git archive a20d520` (its `mus render` gives `011c2e4b...`); `./build.sh --piano-at ffb2219`
+(that is, `tools/piano-render.sh ffb2219`) does it with the ledger the picture shows.
+
+Checked on 2026-10-21 from the merged `main` (frames and MP4s not re-rendered): with
+`tools/piano-render.sh ffb2219`, the piano's WAV, notes table, energy trace and score are
+byte-identical to the release's (the receipt differs in `wallSeconds` only), and `tools/prep.py`
+and `tools/audio.py` give the release's `build/*.json` and `soundtrack.wav` byte for byte. On
+`main` the guitar's and the trombone's WAVs and traces are the release's; so is the tract's take
+when its wasm is built with rustc 1.95.0, while rustc 1.99.1's wasm renders a different take
+(sha256 `d08b03f726157ff9194ed25dfed2037981d355b2252475414bd2de5b1da6fc60`), the same at
+`96c000b`: the tract's wasm build is not bit-stable across compiler versions.

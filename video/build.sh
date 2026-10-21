@@ -2,7 +2,9 @@
 # Rebuild the Ovillo release video from the Worlds' renders.
 #
 #   ./build.sh                    renders (only those missing), prep, soundtrack, frames, MP4s, checks
-#   ./build.sh --renders          re-render every World first (mus render, trombone, tract, piano trace)
+#   ./build.sh --renders          re-render every World first (mus render, trombone, tract, piano)
+#   ./build.sh --piano-at <rev>   the piano rendered at commit <rev> (git archive), not this checkout's;
+#                                 the released MP4's is ffb2219 (README.md, "Provenance")
 #   ./build.sh --variant 4x5      one variant (4x5 | 16x9 | all; default all)
 #   ./build.sh --dpr 2 --jobs 3   capture supersampling and parallel pages (defaults 2 and 3)
 #   ./build.sh --no-capture       stop after the soundtrack (data and audio only)
@@ -14,10 +16,11 @@ here="$(cd "$(dirname "$0")" && pwd)"
 repo="$(cd "$here/.." && pwd)"
 cd "$here"
 
-renders=0 variant=all dpr=2 jobs=3 capture=1
+renders=0 variant=all dpr=2 jobs=3 capture=1 piano_at=
 while [ $# -gt 0 ]; do
   case "$1" in
     --renders) renders=1 ;;
+    --piano-at) piano_at=$2; shift ;;
     --variant) variant=$2; shift ;;
     --dpr) dpr=$2; shift ;;
     --jobs) jobs=$2; shift ;;
@@ -35,9 +38,9 @@ step "tools: mus CLI, trombone example, tract World wasm"
 (cd "$repo/mus-rs" && cargo build --release -p mus-cli)
 (cd "$repo/ovillo" && cargo build --release -p ovillo-dsp --example trombone_nd_solo)
 (cd "$repo/ovillo" && cargo build --release --target wasm32-unknown-unknown -p ovillo-tract-world)
-MUS="$repo/mus-rs/target/release/mus"
-TBN="$repo/ovillo/target/release/examples/trombone_nd_solo"
-WASM="$repo/ovillo/target/wasm32-unknown-unknown/release/ovillo_tract_world.wasm"
+MUS="${CARGO_TARGET_DIR:-$repo/mus-rs/target}/release/mus"
+TBN="${CARGO_TARGET_DIR:-$repo/ovillo/target}/release/examples/trombone_nd_solo"
+WASM="${CARGO_TARGET_DIR:-$repo/ovillo/target}/wasm32-unknown-unknown/release/ovillo_tract_world.wasm"
 
 step "renders"
 mkdir -p data/guitar data/trombone data/tract
@@ -57,10 +60,8 @@ if [ $renders = 1 ] || [ ! -f data/tract/tract-frames.json ]; then
   echo "tract: tools/tract-render.mjs (audio and geometry from one run)"
   node tools/tract-render.mjs "$WASM" data/tract --check-observers
 fi
-python3 tools/piano-status.py
-if [ $renders = 1 ] || [ ! -f data/piano/piano-demo-energy.json ]; then
-  echo "piano: the demo render from the piano branch, its trace re-rendered with the World's books"
-  tools/piano-ledger.sh
+if [ $renders = 1 ] || [ -n "$piano_at" ] || [ ! -f data/piano/piano-demo-energy.json ]; then
+  tools/piano-render.sh $piano_at
 fi
 
 step "prep (build/*.json)"
