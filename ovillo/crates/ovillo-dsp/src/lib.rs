@@ -10,4 +10,6 @@ pub mod player;
 pub mod rig;
 pub mod score;
 pub mod trombone;
+pub mod trombone_player;
+pub mod trombone_world;
 pub mod weave;
