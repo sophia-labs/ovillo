@@ -1,0 +1,12 @@
+# score: Piano probe: dampers
+# summary: 3 bars / 1 piano / ~0.2 min — C4 held 3.5 s; C4 let go after 0.5 s; C4 let go after 0.5 s under the pedal
+# tempo: 60    time: 4/4    bars: 3
+
+# instruments:
+#   pn   = grand piano (treble, anatomy=piano-v1)
+#   pn.r = right hand (treble)
+#   pn.ped = sustain pedal (perc, pedal=sustain)
+
+bar 1: pn.r={mf} C4h.. Rs  pn.ped=-
+bar 2: pn.r=C4e Re Rq Rh  pn.ped=-
+bar 3: pn.r=C4e Re Rq Rh  pn.ped=Rs Xh..

@@ -165,7 +165,11 @@ pub fn collect(
 ) -> Result<(Vec<TabInstrument>, Vec<String>), RenderError> {
     let mut found = Vec::new();
     let mut owned = Vec::new();
-    for base in instruments.iter().filter(|i| i.params.contains_key("anatomy")) {
+    // A piano's anatomy is not a tab instrument's (`ariadne_piano`).
+    for base in instruments
+        .iter()
+        .filter(|i| i.params.get("anatomy").is_some_and(|a| !crate::ariadne_piano::is_piano_anatomy(a)))
+    {
         let invalid = |msg: String| RenderError::Invalid(format!("{}: {msg}", base.abbrev));
         let anatomy = base.params["anatomy"].trim().to_owned();
         let text = if anatomy == "steel-string-v0" {
@@ -619,7 +623,7 @@ pub fn render(
         }
         buffers.mix_one(start, &left, &right, inst.send, OBSERVATION_GAIN * db_to_gain(inst.gain_db), None);
         let r = world.receipt();
-        stats.ariadne_worlds.push(AriadneWorldReceipt {
+        stats.ariadne_worlds.push(crate::AriadneReceipt::Tab(AriadneWorldReceipt {
             instrument: inst.abbrev.clone(),
             anatomy: inst.anatomy.clone(),
             plan_digest: world.plan_digest().to_owned(),
@@ -637,8 +641,8 @@ pub fn render(
             radiation: r.radiation,
             cumulative_closure_residual: r.cumulative_closure_residual,
             maximum_frame_residual: r.maximum_frame_residual,
-        });
-        stats.ariadne_energy.push(trace);
+        }));
+        stats.ariadne_energy.push(crate::AriadneTrace::Tab(trace));
     }
     Ok(())
 }

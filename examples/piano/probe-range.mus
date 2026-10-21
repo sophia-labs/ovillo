@@ -1,0 +1,15 @@
+# score: Piano probe: pitch across the range
+# summary: 7 bars / 1 piano / ~0.5 min — every third semitone C3..C6, mezzo-forte, each held 1.5 s and damped
+# tempo: 60    time: 4/4    bars: 7
+
+# instruments:
+#   pn   = grand piano (treble, anatomy=piano-v1)
+#   pn.r = right hand (treble)
+
+bar 1: pn.r={mf} C3q. Re Eb3q. Re
+bar 2: pn.r=F#3q. Re A3q. Re
+bar 3: pn.r=C4q. Re Eb4q. Re
+bar 4: pn.r=F#4q. Re A4q. Re
+bar 5: pn.r=C5q. Re Eb5q. Re
+bar 6: pn.r=F#5q. Re A5q. Re
+bar 7: pn.r=C6q. Re Rh

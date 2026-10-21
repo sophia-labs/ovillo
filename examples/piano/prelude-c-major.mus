@@ -1,0 +1,20 @@
+# score: Prelude in C major, BWV 846 (J. S. Bach), bars 1-4
+# summary: 4 bars / 1 piano, 3 staves and the sustain pedal / ~0.27 min — the Ariadne piano's demo
+# tempo: 72    time: 4/4    key: C    bars: 4
+# master: rms=-24
+
+# text @b1: each half bar: the bass held, the tenor entering a sixteenth later and held, the right hand's figure twice
+# text @b1: the pedal changes with each bar's harmony, a moment after the downbeat (syncopated pedalling)
+# text @b4: the last chord is held three beats past the bar and let go with the pedal
+
+# instruments:
+#   pn   = grand piano (treble, anatomy=piano-v1)
+#   pn.l = left hand, bass (bass)
+#   pn.t = left hand, tenor (bass)
+#   pn.r = right hand (treble)
+#   pn.ped = sustain pedal (perc, pedal=sustain)
+
+bar 1: pn.l={mp} C4h C4h  pn.t={p} Rs E4e.~q Rs E4e.~q  pn.r={mp} Re G4s C5s E5s G4s C5s E5s Re G4s C5s E5s G4s C5s E5s  pn.ped=Xw
+bar 2: pn.l=C4h C4h  pn.t=Rs D4e.~q Rs D4e.~q  pn.r=Re A4s D5s F5s A4s D5s F5s Re A4s D5s F5s A4s D5s F5s  pn.ped=Xw
+bar 3: pn.l=B3h B3h  pn.t=Rs D4e.~q Rs D4e.~q  pn.r=Re G4s D5s F5s G4s D5s F5s Re G4s D5s F5s G4s D5s F5s  pn.ped=Xw
+bar 4: pn.l=C4h C4w~q  pn.t=Rs E4e.~q Rs E4e.~q~h.  pn.r=Re G4s C5s E5s G4s C5s E5s Re G4s C5s E5s G4s C5s E5s  pn.ped=Xw~h.
