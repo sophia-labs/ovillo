@@ -1,6 +1,5 @@
 use crate::primitive::{
-    ImpulseRasterConfig, ObserverImpulseRaster2D, PrimitiveError, WaveSheet2D,
-    WaveSheetConfig,
+    ImpulseRasterConfig, ObserverImpulseRaster2D, PrimitiveError, WaveSheet2D, WaveSheetConfig,
 };
 use crate::types::{ObserverImpulse2D, WaveSheetParams};
 use serde::{Deserialize, Serialize};

@@ -123,7 +123,11 @@ impl SharedSpace {
 
     #[cfg(test)]
     pub(crate) fn longest_line(&self) -> usize {
-        self.lines.iter().map(|line| line.data.len()).max().unwrap_or(0)
+        self.lines
+            .iter()
+            .map(|line| line.data.len())
+            .max()
+            .unwrap_or(0)
     }
 
     /// The stored energy re-summed cell by cell, as it was computed before the
@@ -192,8 +196,7 @@ impl SharedSpace {
                 }
             })?;
             let before = dot(body_momentum, &direction);
-            let angle = TAU
-                * (2.0 + 190.0 * controls.coupling * controls.coupling)
+            let angle = TAU * (2.0 + 190.0 * controls.coupling * controls.coupling)
                 / self.sample_rate_hz
                 * finite(port.coupling_weights[course]);
             let (after, head_after) = givens(before, self.heads[course], angle);
@@ -238,8 +241,7 @@ impl SharedSpace {
         let after_loss = kinetic(&self.heads, self.dt);
         let internal_loss = before_loss - after_loss;
 
-        let fraction = (0.000_05 + 0.018 * controls.radiation * controls.radiation)
-            .clamp(0.0, 1.0);
+        let fraction = (0.000_05 + 0.018 * controls.radiation * controls.radiation).clamp(0.0, 1.0);
         let left_before = dot(&self.heads, &self.radiation_left);
         let right_before = dot(&self.heads, &self.radiation_right);
         let retained = (1.0 - fraction).sqrt();
@@ -311,11 +313,7 @@ fn kinetic<const N: usize>(values: &[f64; N], dt: f64) -> f64 {
 }
 
 #[inline]
-fn add_projection<const N: usize>(
-    state: &mut [f64; N],
-    direction: &[f64; N],
-    amount: f64,
-) {
+fn add_projection<const N: usize>(state: &mut [f64; N], direction: &[f64; N], amount: f64) {
     for (value, basis) in state.iter_mut().zip(direction) {
         *value += amount * basis;
     }

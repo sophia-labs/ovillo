@@ -5,8 +5,8 @@ use mus_ariadne_webgpu::ObserverImpulse2D;
 use mus_observation::{ObservationFrame, ObservationSchema, ObservationValue};
 
 use crate::plan::{
-    BodyOpticalSpec, CouplingOpticalSpec, OpticalConstitutionPlan,
-    OpticalPlanError, SharedFieldOpticalSpec,
+    BodyOpticalSpec, CouplingOpticalSpec, OpticalConstitutionPlan, OpticalPlanError,
+    SharedFieldOpticalSpec,
 };
 
 #[derive(Debug, Clone)]
@@ -83,9 +83,7 @@ impl OpticalPacketCompiler {
         let couplings = plan
             .couplings
             .iter()
-            .map(|coupling| {
-                bind_coupling(coupling, world, &body_positions, &channel_indices)
-            })
+            .map(|coupling| bind_coupling(coupling, world, &body_positions, &channel_indices))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             physical_world_digest: plan.physical_world_digest.clone(),
@@ -258,10 +256,7 @@ fn bind_coupling(
     })
 }
 
-fn channel(
-    channels: &BTreeMap<&str, usize>,
-    id: &str,
-) -> Result<usize, OpticalCompileError> {
+fn channel(channels: &BTreeMap<&str, usize>, id: &str) -> Result<usize, OpticalCompileError> {
     channels
         .get(id)
         .copied()
@@ -357,9 +352,9 @@ mod tests {
             compiler.compile_values_into(&values, &mut packets).unwrap(),
             compiler.packet_count()
         );
-        assert!(packets.iter().all(|packet| {
-            packet.position_radius.is_finite() && packet.channels.is_finite()
-        }));
+        assert!(packets
+            .iter()
+            .all(|packet| { packet.position_radius.is_finite() && packet.channels.is_finite() }));
     }
 
     #[test]

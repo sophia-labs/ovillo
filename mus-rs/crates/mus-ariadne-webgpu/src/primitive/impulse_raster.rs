@@ -54,10 +54,7 @@ pub struct ObserverImpulseRaster2D {
 }
 
 impl ObserverImpulseRaster2D {
-    pub fn new(
-        device: &wgpu::Device,
-        config: ImpulseRasterConfig,
-    ) -> Result<Self, PrimitiveError> {
+    pub fn new(device: &wgpu::Device, config: ImpulseRasterConfig) -> Result<Self, PrimitiveError> {
         let config = config.validate()?;
         let target = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Ariadne observer impulse target"),

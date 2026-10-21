@@ -238,7 +238,9 @@ fn validate_state_metric(
         return Err(MetricRadiationError::DimensionMismatch);
     }
     if state.iter().any(|value| !value.is_finite())
-        || metric.iter().any(|value| !value.is_finite() || *value <= 0.0)
+        || metric
+            .iter()
+            .any(|value| !value.is_finite() || *value <= 0.0)
     {
         return Err(MetricRadiationError::InvalidState);
     }
@@ -336,9 +338,6 @@ mod tests {
             },
             2,
         );
-        assert!(matches!(
-            result,
-            Err(MetricRadiationError::InvalidPlan(_))
-        ));
+        assert!(matches!(result, Err(MetricRadiationError::InvalidPlan(_))));
     }
 }

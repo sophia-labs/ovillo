@@ -5,9 +5,8 @@ use mus_ariadne::law::medium::{
 use mus_ariadne::{
     BodyConstitutionSpec, BodyPose, ConstitutiveBodyControls, ConstitutiveBodyInstanceSpec,
     ConstitutiveWorldPlan, LocalMediumBodyControls, LocalMediumBoundarySpec,
-    LocalMediumPortInputBinding, LocalMediumPortOutputBinding, SharedSpaceControls,
-    SpacePortSpec, World, WorldControls, WorldPlan, WORLD_PLAN_V3_SCHEMA_VERSION,
-    MODE_COUNT,
+    LocalMediumPortInputBinding, LocalMediumPortOutputBinding, SharedSpaceControls, SpacePortSpec,
+    World, WorldControls, WorldPlan, MODE_COUNT, WORLD_PLAN_V3_SCHEMA_VERSION,
 };
 
 fn direction(index: usize) -> [f64; MODE_COUNT] {

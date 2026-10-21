@@ -96,9 +96,7 @@ impl LocalMediumPlan {
                 "local-medium name must be nonempty".to_owned(),
             ));
         }
-        if !self.sample_rate_hz.is_finite()
-            || !(1.0..=1_000_000.0).contains(&self.sample_rate_hz)
-        {
+        if !self.sample_rate_hz.is_finite() || !(1.0..=1_000_000.0).contains(&self.sample_rate_hz) {
             return Err(LocalMediumError::InvalidPlan(
                 "sample_rate_hz must be finite in [1, 1_000_000]".to_owned(),
             ));
@@ -306,7 +304,11 @@ impl LocalConstitutiveMedium {
         plan.validate()?;
         let state = LocalMediumState {
             wave: plan.sites.iter().map(|site| site.initial_wave).collect(),
-            evidence: plan.sites.iter().map(|site| site.initial_evidence).collect(),
+            evidence: plan
+                .sites
+                .iter()
+                .map(|site| site.initial_evidence)
+                .collect(),
             reservoir: plan
                 .sites
                 .iter()
@@ -540,7 +542,8 @@ impl LocalConstitutiveMedium {
             let left_before = self.state.evidence[left];
             let right_before = self.state.evidence[right];
             let mass_before = left_before + right_before;
-            let evidence_energy_before = 0.5 * (left_before * left_before + right_before * right_before);
+            let evidence_energy_before =
+                0.5 * (left_before * left_before + right_before * right_before);
             let mix = (edge.evidence_rate_per_second * self.dt).clamp(0.0, 0.5);
             self.state.evidence[left] = (1.0 - mix) * left_before + mix * right_before;
             self.state.evidence[right] = mix * left_before + (1.0 - mix) * right_before;
@@ -548,8 +551,7 @@ impl LocalConstitutiveMedium {
             let evidence_energy_after = 0.5
                 * (self.state.evidence[left] * self.state.evidence[left]
                     + self.state.evidence[right] * self.state.evidence[right]);
-            positive_mass_residual =
-                positive_mass_residual.max((mass_after - mass_before).abs());
+            positive_mass_residual = positive_mass_residual.max((mass_after - mass_before).abs());
             transport_loss += (evidence_energy_before - evidence_energy_after).max(0.0);
         }
 
@@ -558,21 +560,16 @@ impl LocalConstitutiveMedium {
             let site = &self.plan.sites[index];
             let wave_before =
                 0.5 * site.wave_metric * self.state.wave[index] * self.state.wave[index];
-            let evidence_before =
-                0.5 * self.state.evidence[index] * self.state.evidence[index];
+            let evidence_before = 0.5 * self.state.evidence[index] * self.state.evidence[index];
             let reservoir_before = self.state.reservoir[index];
 
-            self.state.wave[index] *=
-                (-0.5 * site.wave_decay_per_second * self.dt).exp();
-            self.state.evidence[index] *=
-                (-0.5 * site.evidence_decay_per_second * self.dt).exp();
-            self.state.reservoir[index] *=
-                (-site.reservoir_leak_per_second * self.dt).exp();
+            self.state.wave[index] *= (-0.5 * site.wave_decay_per_second * self.dt).exp();
+            self.state.evidence[index] *= (-0.5 * site.evidence_decay_per_second * self.dt).exp();
+            self.state.reservoir[index] *= (-site.reservoir_leak_per_second * self.dt).exp();
 
             let wave_after =
                 0.5 * site.wave_metric * self.state.wave[index] * self.state.wave[index];
-            let evidence_after =
-                0.5 * self.state.evidence[index] * self.state.evidence[index];
+            let evidence_after = 0.5 * self.state.evidence[index] * self.state.evidence[index];
             let reservoir_after = self.state.reservoir[index];
             passive_loss += (wave_before + evidence_before + reservoir_before
                 - wave_after
@@ -601,11 +598,7 @@ impl LocalConstitutiveMedium {
     }
 
     fn ensure_finite_state(&self) -> Result<(), LocalMediumError> {
-        if self
-            .state
-            .wave
-            .iter()
-            .any(|value| !value.is_finite())
+        if self.state.wave.iter().any(|value| !value.is_finite())
             || self
                 .state
                 .evidence

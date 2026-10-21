@@ -13,9 +13,8 @@ mod runtime;
 
 pub use compiler::{OpticalCompileError, OpticalPacketCompiler};
 pub use plan::{
-    canonical_optical_observation_program, BodyOpticalSpec,
-    CouplingOpticalSpec, OpticalBounds2, OpticalConstitutionPlan,
-    OpticalPlanError, OpticalSurfaceSpec, SharedFieldOpticalSpec,
+    canonical_optical_observation_program, BodyOpticalSpec, CouplingOpticalSpec, OpticalBounds2,
+    OpticalConstitutionPlan, OpticalPlanError, OpticalSurfaceSpec, SharedFieldOpticalSpec,
     OPTICAL_CONSTITUTION_VERSION,
 };
 pub use runtime::{OpticalAdvanceReceipt, OpticalRuntimeError, WorldOpticalSurface};

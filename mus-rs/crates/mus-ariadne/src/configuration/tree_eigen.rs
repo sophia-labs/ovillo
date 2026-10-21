@@ -139,7 +139,11 @@ impl TreeEigen {
         }
         for &c in self.order.iter().rev() {
             let p = self.parent[c];
-            let upstream = if p == ROOT { 0.0 } else { self.off[c] * self.y[p] };
+            let upstream = if p == ROOT {
+                0.0
+            } else {
+                self.off[c] * self.y[p]
+            };
             self.y[c] = (self.y[c] - upstream) / self.pivot[c];
         }
     }
@@ -232,10 +236,12 @@ impl TreeEigen {
             *slot = i;
         }
         let values_ref = &self.scratch_values;
-        self.index.sort_by(|&a, &b| values_ref[a].total_cmp(&values_ref[b]));
+        self.index
+            .sort_by(|&a, &b| values_ref[a].total_cmp(&values_ref[b]));
         for (to, &from) in self.index.iter().enumerate() {
             values[to] = self.scratch_values[from];
-            vectors[to * n..(to + 1) * n].copy_from_slice(&self.scratch_vectors[from * n..(from + 1) * n]);
+            vectors[to * n..(to + 1) * n]
+                .copy_from_slice(&self.scratch_vectors[from * n..(from + 1) * n]);
         }
         // Distinct, and orthonormal after one modified Gram-Schmidt pass that
         // must not move any vector by more than roundoff-level amounts.

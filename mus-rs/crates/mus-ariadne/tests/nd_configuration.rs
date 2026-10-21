@@ -9,21 +9,25 @@ use mus_ariadne::{
     ConfigurationMapSpec, ConfigurationSpaceSpec, ConnectionPolicy, ConstitutiveBodyControls,
     ConstitutiveWorldPlan, DisposalPolicy, FlowValveControls, FlowValveSpec, RadiatingEndSpec,
     ReservoirSpec, SpaceBodyControls, SpaceBodyLaws, SpaceBodySpec, StiffStringSpec,
-    TubeBranchSpec, TubeNetworkSpec, TubeSpec, World, WorldConfiguration, WorldControls,
-    WorldPlan, MODE_COUNT,
+    TubeBranchSpec, TubeNetworkSpec, TubeSpec, World, WorldConfiguration, WorldControls, WorldPlan,
+    MODE_COUNT,
 };
 
 fn repo_file(relative: &str) -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..").join(relative)
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../..")
+        .join(relative)
 }
 
 fn steel_string_plan() -> WorldPlan {
-    let text = std::fs::read_to_string(repo_file("profiles/ariadne-steel-string-v0.plan.json")).unwrap();
+    let text =
+        std::fs::read_to_string(repo_file("profiles/ariadne-steel-string-v0.plan.json")).unwrap();
     serde_json::from_str(&text).unwrap()
 }
 
 fn steel_string_receipt() -> serde_json::Value {
-    let text = std::fs::read_to_string(repo_file("profiles/ariadne-steel-string-v0.receipt.json")).unwrap();
+    let text = std::fs::read_to_string(repo_file("profiles/ariadne-steel-string-v0.receipt.json"))
+        .unwrap();
     serde_json::from_str(&text).unwrap()
 }
 
@@ -72,7 +76,9 @@ fn one_dimensional_space_body_is_bitwise_the_legacy_body() {
     let v2 = steel_string_plan();
     let legacy_plan = ConstitutiveWorldPlan::from_modal_v2(v2.clone()).unwrap();
     let mut twin_plan = legacy_plan.clone();
-    let BodyConstitutionSpec::Modal { body } = &twin_plan.bodies[0].constitution else { panic!() };
+    let BodyConstitutionSpec::Modal { body } = &twin_plan.bodies[0].constitution else {
+        panic!()
+    };
     let twin = one_dimensional_twin(body);
     twin_plan.bodies[0].constitution = BodyConstitutionSpec::ModalSpace { body: twin };
     let mut legacy = World::from_constitutive_plan(legacy_plan).unwrap();
@@ -84,28 +90,51 @@ fn one_dimensional_space_body_is_bitwise_the_legacy_body() {
             let amount = frets[(sample / 6_000) % frets.len()] / 12.0;
             let a = legacy.set_body_configuration_index(0, amount).unwrap();
             let b = nd.set_body_configuration_point(0, &[amount]).unwrap();
-            assert_eq!(a.total_control_work.to_bits(), b.control_work.to_bits(), "sample {sample}");
+            assert_eq!(
+                a.total_control_work.to_bits(),
+                b.control_work.to_bits(),
+                "sample {sample}"
+            );
         }
-        let mut legacy_controls = vec![ConstitutiveBodyControls::Modal(BodyControls::default()); bodies];
+        let mut legacy_controls =
+            vec![ConstitutiveBodyControls::Modal(BodyControls::default()); bodies];
         let mut nd_controls = legacy_controls.clone();
         let source = pluck(sample);
-        legacy_controls[0] = ConstitutiveBodyControls::Modal(BodyControls { source_wave: source, radiation_fraction: 2.0e-6, ..Default::default() });
-        nd_controls[0] = ConstitutiveBodyControls::ModalSpace(SpaceBodyControls {
-            body: BodyControls { source_wave: source, radiation_fraction: 2.0e-6, ..Default::default() },
+        legacy_controls[0] = ConstitutiveBodyControls::Modal(BodyControls {
+            source_wave: source,
+            radiation_fraction: 2.0e-6,
             ..Default::default()
         });
-        let fa = legacy.process_constitutive_sample(&legacy_controls, WorldControls::default()).unwrap();
-        let fb = nd.process_constitutive_sample(&nd_controls, WorldControls::default()).unwrap();
+        nd_controls[0] = ConstitutiveBodyControls::ModalSpace(SpaceBodyControls {
+            body: BodyControls {
+                source_wave: source,
+                radiation_fraction: 2.0e-6,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        let fa = legacy
+            .process_constitutive_sample(&legacy_controls, WorldControls::default())
+            .unwrap();
+        let fb = nd
+            .process_constitutive_sample(&nd_controls, WorldControls::default())
+            .unwrap();
         assert_eq!(fa, fb, "frame differs at sample {sample}");
         for index in 0..bodies {
-            assert_eq!(legacy.body_radiation(index).unwrap(), nd.body_radiation(index).unwrap());
+            assert_eq!(
+                legacy.body_radiation(index).unwrap(),
+                nd.body_radiation(index).unwrap()
+            );
         }
     }
     for index in 0..bodies {
         assert_eq!(legacy.body_state(index), nd.body_state(index));
     }
     let (ra, rb) = (legacy.receipt(), nd.receipt());
-    assert_eq!(ra.cumulative_closure_residual.to_bits(), rb.cumulative_closure_residual.to_bits());
+    assert_eq!(
+        ra.cumulative_closure_residual.to_bits(),
+        rb.cumulative_closure_residual.to_bits()
+    );
     assert_eq!(ra.control_work.to_bits(), rb.control_work.to_bits());
     assert_eq!(ra.radiation.to_bits(), rb.radiation.to_bits());
 }
@@ -143,9 +172,19 @@ fn stiff_string_law_reproduces_the_plan_anchors_and_measures_the_interpolation_f
             let computed = law.configuration_at(&[frets]);
             for n in 0..MODE_COUNT {
                 let rel = computed.metric.frequency_hz[n] / anchor.metric.frequency_hz[n] - 1.0;
-                assert!(rel.abs() < 1e-12, "string {} fret {frets} partial {}: {rel:e}", 6 - index, n + 1);
+                assert!(
+                    rel.abs() < 1e-12,
+                    "string {} fret {frets} partial {}: {rel:e}",
+                    6 - index,
+                    n + 1
+                );
                 let rel_t60 = computed.metric.t60_seconds[n] / anchor.metric.t60_seconds[n] - 1.0;
-                assert!(rel_t60.abs() < 1e-9, "t60 string {} partial {}: {rel_t60:e}", 6 - index, n + 1);
+                assert!(
+                    rel_t60.abs() < 1e-9,
+                    "t60 string {} partial {}: {rel_t60:e}",
+                    6 - index,
+                    n + 1
+                );
             }
         }
         let mut row = Vec::new();
@@ -153,7 +192,10 @@ fn stiff_string_law_reproduces_the_plan_anchors_and_measures_the_interpolation_f
             let legacy = path.configuration_at(fret as f64 / 12.0);
             let computed = law.configuration_at(&[fret as f64]);
             let cents: Vec<f64> = (0..MODE_COUNT)
-                .map(|n| 1200.0 * (legacy.metric.frequency_hz[n] / computed.metric.frequency_hz[n]).log2())
+                .map(|n| {
+                    1200.0
+                        * (legacy.metric.frequency_hz[n] / computed.metric.frequency_hz[n]).log2()
+                })
                 .collect();
             worst = worst.max(cents.iter().fold(0.0_f64, |m, c| m.max(c.abs())));
             row.push((fret, cents[0], cents[11], cents[23]));
@@ -161,22 +203,44 @@ fn stiff_string_law_reproduces_the_plan_anchors_and_measures_the_interpolation_f
         println!(
             "string {}: (fret, cents sharp of the law at partial 1, 12, 24) {:?}",
             6 - index,
-            row.iter().map(|(f, a, b, c)| (*f, (a * 100.0).round() / 100.0, (b * 10.0).round() / 10.0, (c * 10.0).round() / 10.0)).collect::<Vec<_>>()
+            row.iter()
+                .map(|(f, a, b, c)| (
+                    *f,
+                    (a * 100.0).round() / 100.0,
+                    (b * 10.0).round() / 10.0,
+                    (c * 10.0).round() / 10.0
+                ))
+                .collect::<Vec<_>>()
         );
         if index == 0 {
             let fret5 = row[4];
             // Closed form for B0 = 2.193e-4 at fret 5: 11.2 and 31.8 cents.
-            assert!((fret5.2 - 11.2).abs() < 0.3, "low E fret 5 partial 12: {}", fret5.2);
-            assert!((fret5.3 - 31.8).abs() < 0.5, "low E fret 5 partial 24: {}", fret5.3);
-            assert!(fret5.1.abs() < 0.1, "fundamental stays within 0.1 cent: {}", fret5.1);
+            assert!(
+                (fret5.2 - 11.2).abs() < 0.3,
+                "low E fret 5 partial 12: {}",
+                fret5.2
+            );
+            assert!(
+                (fret5.3 - 31.8).abs() < 0.5,
+                "low E fret 5 partial 24: {}",
+                fret5.3
+            );
+            assert!(
+                fret5.1.abs() < 0.1,
+                "fundamental stays within 0.1 cent: {}",
+                fret5.1
+            );
         }
     }
     println!("worst interpolation error over strings, frets 1-11, partials 1-24: {worst:.2} cents");
 }
 
 fn multilinear_4d_plan(sample_rate: f64) -> ConstitutiveWorldPlan {
-    let mut plan = ConstitutiveWorldPlan::from_modal_v2(WorldPlan::string_brass_v1(sample_rate)).unwrap();
-    let BodyConstitutionSpec::Modal { body } = &plan.bodies[0].constitution else { panic!() };
+    let mut plan =
+        ConstitutiveWorldPlan::from_modal_v2(WorldPlan::string_brass_v1(sample_rate)).unwrap();
+    let BodyConstitutionSpec::Modal { body } = &plan.bodies[0].constitution else {
+        panic!()
+    };
     let body = body.clone();
     let (left, right) = (body.configuration_path.left, body.configuration_path.right);
     // 16 anchors: corner c gets a configuration between the two ends, detuned
@@ -201,13 +265,21 @@ fn multilinear_4d_plan(sample_rate: f64) -> ConstitutiveWorldPlan {
         .collect();
     let coordinates = ["a", "b", "c", "d"]
         .iter()
-        .map(|name| ConfigurationCoordinate { name: (*name).into(), lower: 0.0, upper: 1.0, initial: 0.5 })
+        .map(|name| ConfigurationCoordinate {
+            name: (*name).into(),
+            lower: 0.0,
+            upper: 1.0,
+            initial: 0.5,
+        })
         .collect();
     let space = SpaceBodySpec {
         anatomy_name: "four-d-multilinear".into(),
         configuration_space: ConfigurationSpaceSpec {
             coordinates,
-            map: ConfigurationMapSpec::Multilinear { axes: vec![vec![0.0, 1.0]; 4], anchors },
+            map: ConfigurationMapSpec::Multilinear {
+                axes: vec![vec![0.0, 1.0]; 4],
+                anchors,
+            },
             connection: ConnectionPolicy::ModalCoordinates,
         },
         laws: SpaceBodyLaws::Modal {
@@ -246,10 +318,15 @@ fn random_walk_in_a_four_dimensional_multilinear_space_closes_the_ledger() {
             world.set_body_configuration_point(0, &point).unwrap();
         }
         let controls = [ConstitutiveBodyControls::ModalSpace(SpaceBodyControls {
-            body: BodyControls { source_wave: pluck(sample), ..Default::default() },
+            body: BodyControls {
+                source_wave: pluck(sample),
+                ..Default::default()
+            },
             ..Default::default()
         })];
-        world.process_constitutive_sample(&controls, WorldControls::default()).unwrap();
+        world
+            .process_constitutive_sample(&controls, WorldControls::default())
+            .unwrap();
         energy_scale = energy_scale.max(world.total_stored_energy());
     }
     let receipt = world.receipt();
@@ -268,7 +345,8 @@ fn random_walk_in_a_four_dimensional_multilinear_space_closes_the_ledger() {
 /// A small branched tube network over 4 coordinates (constriction depth and
 /// place, end opening, branch port), driven by a flow valve.
 fn network_plan(connection: ConnectionPolicy, sample_rate: f64) -> ConstitutiveWorldPlan {
-    let mut plan = ConstitutiveWorldPlan::from_modal_v2(WorldPlan::string_brass_v1(sample_rate)).unwrap();
+    let mut plan =
+        ConstitutiveWorldPlan::from_modal_v2(WorldPlan::string_brass_v1(sample_rate)).unwrap();
     let oral = 28;
     let nasal = 14;
     let network = TubeNetworkSpec {
@@ -277,34 +355,88 @@ fn network_plan(connection: ConnectionPolicy, sample_rate: f64) -> ConstitutiveW
         area_floor_m2: 2.5e-6,
         area_ceiling_m2: 1.8e-3,
         tubes: vec![
-            TubeSpec { id: "oral".into(), length_m: 0.16, base_log_area_m2: vec![(3.0e-4f64).ln(); oral], attenuation_np_per_m: 0.45 },
-            TubeSpec { id: "nasal".into(), length_m: 0.11, base_log_area_m2: vec![(1.0e-4f64).ln(); nasal], attenuation_np_per_m: 1.6 },
+            TubeSpec {
+                id: "oral".into(),
+                length_m: 0.16,
+                base_log_area_m2: vec![(3.0e-4f64).ln(); oral],
+                attenuation_np_per_m: 0.45,
+            },
+            TubeSpec {
+                id: "nasal".into(),
+                length_m: 0.11,
+                base_log_area_m2: vec![(1.0e-4f64).ln(); nasal],
+                attenuation_np_per_m: 1.6,
+            },
         ],
-        branches: vec![TubeBranchSpec { trunk: 0, trunk_section: 11, branch: 1 }],
+        branches: vec![TubeBranchSpec {
+            trunk: 0,
+            trunk_section: 11,
+            branch: 1,
+        }],
         area_terms: vec![
             AreaTermSpec::Gaussian {
                 tube: 0,
-                amplitude: AffineSpec { constant: 0.5, terms: vec![(1, -3.5)] },
-                center: AffineSpec { constant: 0.25, terms: vec![(0, 0.55)] },
+                amplitude: AffineSpec {
+                    constant: 0.5,
+                    terms: vec![(1, -3.5)],
+                },
+                center: AffineSpec {
+                    constant: 0.25,
+                    terms: vec![(0, 0.55)],
+                },
                 width: 0.1,
             },
-            AreaTermSpec::LogScaleGaussian { tube: 0, scale: AffineSpec { constant: 0.0, terms: vec![(2, 1.5)] }, floor: 1e-3, center: 0.965, width: 0.045 },
-            AreaTermSpec::SectionArea { tube: 1, section: 0, area_m2: AffineSpec { constant: 0.0, terms: vec![(3, 1.0e-4)] } },
+            AreaTermSpec::LogScaleGaussian {
+                tube: 0,
+                scale: AffineSpec {
+                    constant: 0.0,
+                    terms: vec![(2, 1.5)],
+                },
+                floor: 1e-3,
+                center: 0.965,
+                width: 0.045,
+            },
+            AreaTermSpec::SectionArea {
+                tube: 1,
+                section: 0,
+                area_m2: AffineSpec {
+                    constant: 0.0,
+                    terms: vec![(3, 1.0e-4)],
+                },
+            },
         ],
         radiating_ends: vec![
-            RadiatingEndSpec { tube: 0, end_correction_ratio: 0.61 },
-            RadiatingEndSpec { tube: 1, end_correction_ratio: 0.61 },
+            RadiatingEndSpec {
+                tube: 0,
+                end_correction_ratio: 0.61,
+            },
+            RadiatingEndSpec {
+                tube: 1,
+                end_correction_ratio: 0.61,
+            },
         ],
         contact: None,
     };
     let coordinates = ["place", "depth", "opening", "port"]
         .iter()
-        .map(|name| ConfigurationCoordinate { name: (*name).into(), lower: 0.0, upper: 1.0, initial: 0.5 })
+        .map(|name| ConfigurationCoordinate {
+            name: (*name).into(),
+            lower: 0.0,
+            upper: 1.0,
+            initial: 0.5,
+        })
         .collect();
     let space = SpaceBodySpec {
         anatomy_name: "branched-tube-test".into(),
-        configuration_space: ConfigurationSpaceSpec { coordinates, map: ConfigurationMapSpec::TubeNetwork { network }, connection },
-        laws: SpaceBodyLaws::TubeNetwork { valve: test_valve(), aero: None },
+        configuration_space: ConfigurationSpaceSpec {
+            coordinates,
+            map: ConfigurationMapSpec::TubeNetwork { network },
+            connection,
+        },
+        laws: SpaceBodyLaws::TubeNetwork {
+            valve: test_valve(),
+            aero: None,
+        },
         reservoir: ReservoirSpec { capacity: 3.0 },
     };
     plan.bodies[0].constitution = BodyConstitutionSpec::ModalSpace { body: space };
@@ -344,7 +476,10 @@ fn quiet_world_controls() -> WorldControls {
 
 fn voiced(supply: f64) -> [ConstitutiveBodyControls; 1] {
     [ConstitutiveBodyControls::ModalSpace(SpaceBodyControls {
-        body: BodyControls { work_input: 0.3, ..Default::default() },
+        body: BodyControls {
+            work_input: 0.3,
+            ..Default::default()
+        },
         valve: FlowValveControls { supply },
         radiation_scale: 1.0,
         node_source: None,
@@ -357,7 +492,9 @@ fn voiced(supply: f64) -> [ConstitutiveBodyControls; 1] {
 #[test]
 fn random_walk_in_a_four_dimensional_tube_network_closes_the_ledger() {
     for connection in [
-        ConnectionPolicy::MassMomentum { disposal: DisposalPolicy::Dissipate },
+        ConnectionPolicy::MassMomentum {
+            disposal: DisposalPolicy::Dissipate,
+        },
         ConnectionPolicy::ModalCoordinates,
     ] {
         let mut world = World::from_constitutive_plan(network_plan(connection, 48_000.0)).unwrap();
@@ -371,7 +508,9 @@ fn random_walk_in_a_four_dimensional_tube_network_closes_the_ledger() {
                 }
                 world.set_body_configuration_point(0, &point).unwrap();
             }
-            world.process_constitutive_sample(&voiced(0.6), quiet_world_controls()).unwrap();
+            world
+                .process_constitutive_sample(&voiced(0.6), quiet_world_controls())
+                .unwrap();
             energy_scale = energy_scale.max(world.total_stored_energy());
         }
         let receipt = world.receipt();
@@ -382,7 +521,11 @@ fn random_walk_in_a_four_dimensional_tube_network_closes_the_ledger() {
         );
         assert!(receipt.radiation > 0.0 && receipt.control_work != 0.0);
         // The reservoir (3 J) dominates the stored energy; bound against it.
-        assert!(receipt.cumulative_closure_residual.abs() < 1e-11 * energy_scale, "{}", receipt.cumulative_closure_residual);
+        assert!(
+            receipt.cumulative_closure_residual.abs() < 1e-11 * energy_scale,
+            "{}",
+            receipt.cumulative_closure_residual
+        );
         assert!(receipt.maximum_frame_residual < 1e-13 * energy_scale);
     }
 }
@@ -394,14 +537,25 @@ fn random_walk_in_a_four_dimensional_tube_network_closes_the_ledger() {
 /// A loop traversed while the field rings bills its net work under either.
 #[test]
 fn closed_loops_report_their_net_work() {
-    let corners = [[0.5, 0.5, 0.5, 0.5], [0.9, 0.5, 0.5, 0.5], [0.9, 0.9, 0.5, 0.5], [0.5, 0.9, 0.9, 0.5], [0.5, 0.5, 0.9, 0.9], [0.5, 0.5, 0.5, 0.5]];
+    let corners = [
+        [0.5, 0.5, 0.5, 0.5],
+        [0.9, 0.5, 0.5, 0.5],
+        [0.9, 0.9, 0.5, 0.5],
+        [0.5, 0.9, 0.9, 0.5],
+        [0.5, 0.5, 0.9, 0.9],
+        [0.5, 0.5, 0.5, 0.5],
+    ];
     for connection in [
         ConnectionPolicy::ModalCoordinates,
-        ConnectionPolicy::MassMomentum { disposal: DisposalPolicy::Dissipate },
+        ConnectionPolicy::MassMomentum {
+            disposal: DisposalPolicy::Dissipate,
+        },
     ] {
         let mut world = World::from_constitutive_plan(network_plan(connection, 48_000.0)).unwrap();
         for _ in 0..4_800 {
-            world.process_constitutive_sample(&voiced(0.6), quiet_world_controls()).unwrap();
+            world
+                .process_constitutive_sample(&voiced(0.6), quiet_world_controls())
+                .unwrap();
         }
         let state_before = world.body_state(0).unwrap();
         let field_before = world.space_body(0).unwrap().field_energy();
@@ -412,7 +566,9 @@ fn closed_loops_report_their_net_work() {
             let from = world.body_configuration_point(0).unwrap().to_vec();
             for step in 1..=20 {
                 let t = step as f64 / 20.0;
-                let p: Vec<f64> = (0..4).map(|i| from[i] + t * (corner[i] - from[i])).collect();
+                let p: Vec<f64> = (0..4)
+                    .map(|i| from[i] + t * (corner[i] - from[i]))
+                    .collect();
                 let frame = world.set_body_configuration_point(0, &p).unwrap();
                 work += frame.control_work;
                 disposal += frame.disposal;
@@ -428,14 +584,20 @@ fn closed_loops_report_their_net_work() {
         println!(
             "instantaneous loop ({connection:?}): net work {work:.6e} J, disposal {disposal:.6e} J, field {field_before:.6e} -> {field_after:.6e} J, state returned {returned}, |dm| {distance:.3e}"
         );
-        assert!((field_after - field_before - (work - disposal)).abs() < 1e-14 * field_before.max(1e-30) + 1e-24);
+        assert!(
+            (field_after - field_before - (work - disposal)).abs()
+                < 1e-14 * field_before.max(1e-30) + 1e-24
+        );
         match connection {
             ConnectionPolicy::ModalCoordinates => {
                 assert!(work.abs() < 1e-13 * field_before);
                 assert_eq!(disposal, 0.0);
             }
             ConnectionPolicy::MassMomentum { .. } => {
-                assert!(work.abs() > 0.0 || disposal > 0.0, "a curved connection should not return for free");
+                assert!(
+                    work.abs() > 0.0 || disposal > 0.0,
+                    "a curved connection should not return for free"
+                );
             }
         }
         // The same loop while the field rings: billed, books closed.
@@ -445,10 +607,17 @@ fn closed_loops_report_their_net_work() {
             let from = world.body_configuration_point(0).unwrap().to_vec();
             for step in 1..=40 {
                 let t = step as f64 / 40.0;
-                let p: Vec<f64> = (0..4).map(|i| from[i] + t * (corner[i] - from[i])).collect();
-                work_dyn += world.set_body_configuration_point(0, &p).unwrap().control_work;
+                let p: Vec<f64> = (0..4)
+                    .map(|i| from[i] + t * (corner[i] - from[i]))
+                    .collect();
+                work_dyn += world
+                    .set_body_configuration_point(0, &p)
+                    .unwrap()
+                    .control_work;
                 for _ in 0..32 {
-                    world.process_constitutive_sample(&voiced(0.6), quiet_world_controls()).unwrap();
+                    world
+                        .process_constitutive_sample(&voiced(0.6), quiet_world_controls())
+                        .unwrap();
                 }
             }
         }
@@ -466,7 +635,12 @@ fn closed_loops_report_their_net_work() {
 /// move with the coordinates (a sanity check, not a formant claim).
 #[test]
 fn tube_network_modes_move_with_every_coordinate() {
-    let plan = network_plan(ConnectionPolicy::MassMomentum { disposal: DisposalPolicy::Dissipate }, 48_000.0);
+    let plan = network_plan(
+        ConnectionPolicy::MassMomentum {
+            disposal: DisposalPolicy::Dissipate,
+        },
+        48_000.0,
+    );
     let mut world = World::from_constitutive_plan(plan).unwrap();
     let base = world.space_body(0).unwrap().frequencies_hz();
     for axis in 0..4 {
@@ -474,8 +648,14 @@ fn tube_network_modes_move_with_every_coordinate() {
         p[axis] = 0.95;
         world.set_body_configuration_point(0, &p).unwrap();
         let moved = world.space_body(0).unwrap().frequencies_hz();
-        let change = (0..6).map(|k| (moved[k] / base[k]).ln().abs()).fold(0.0, f64::max);
-        println!("axis {axis}: lowest 6 modes {:?} -> {:?}", base[..6].iter().map(|f| f.round()).collect::<Vec<_>>(), moved[..6].iter().map(|f| f.round()).collect::<Vec<_>>());
+        let change = (0..6)
+            .map(|k| (moved[k] / base[k]).ln().abs())
+            .fold(0.0, f64::max);
+        println!(
+            "axis {axis}: lowest 6 modes {:?} -> {:?}",
+            base[..6].iter().map(|f| f.round()).collect::<Vec<_>>(),
+            moved[..6].iter().map(|f| f.round()).collect::<Vec<_>>()
+        );
         assert!(change > 1e-3, "axis {axis} did not move the modes");
         world.set_body_configuration_point(0, &[0.5; 4]).unwrap();
     }

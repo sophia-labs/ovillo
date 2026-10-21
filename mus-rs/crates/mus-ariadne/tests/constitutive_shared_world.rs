@@ -5,11 +5,10 @@ use mus_ariadne::law::medium::{
 };
 use mus_ariadne::{
     BodyConstitutionSpec, BodyControls, BodyPose, ConstitutiveBodyControls,
-    ConstitutiveBodyInstanceSpec,
-    ConstitutiveWorldPlan, LocalMediumBodyControls, LocalMediumBoundarySpec,
-    LocalMediumPortInputBinding, LocalMediumPortOutputBinding, SharedSpaceControls,
-    SharedSpaceSpec, SpacePortSpec, World, WorldControls,
-    WORLD_PLAN_V3_SCHEMA_VERSION, MODE_COUNT, SPACE_COURSES,
+    ConstitutiveBodyInstanceSpec, ConstitutiveWorldPlan, LocalMediumBodyControls,
+    LocalMediumBoundarySpec, LocalMediumPortInputBinding, LocalMediumPortOutputBinding,
+    SharedSpaceControls, SharedSpaceSpec, SpacePortSpec, World, WorldControls, MODE_COUNT,
+    SPACE_COURSES, WORLD_PLAN_V3_SCHEMA_VERSION,
 };
 
 fn direction(index: usize) -> [f64; MODE_COUNT] {
@@ -171,7 +170,10 @@ fn run(predictive_port_enabled: bool) -> (f64, f64) {
         .iter()
         .map(|value| value.abs())
         .sum::<f64>();
-    (predictive_wave, world.receipt().global_closure_residual.abs())
+    (
+        predictive_wave,
+        world.receipt().global_closure_residual.abs(),
+    )
 }
 
 #[test]
@@ -179,8 +181,14 @@ fn local_media_share_the_canonical_world_field_and_ledger() {
     let (connected, connected_residual) = run(true);
     let (isolated, isolated_residual) = run(false);
     assert!(connected > 1.0e-7, "connected={connected:e}");
-    assert!(connected > isolated + 1.0e-7, "connected={connected:e} isolated={isolated:e}");
-    assert!(connected_residual < 1.0e-8, "residual={connected_residual:e}");
+    assert!(
+        connected > isolated + 1.0e-7,
+        "connected={connected:e} isolated={isolated:e}"
+    );
+    assert!(
+        connected_residual < 1.0e-8,
+        "residual={connected_residual:e}"
+    );
     assert!(isolated_residual < 1.0e-8, "residual={isolated_residual:e}");
 }
 
@@ -194,9 +202,7 @@ fn constitutive_world_plan_is_content_addressed() {
 #[test]
 fn embedded_local_observers_are_refused_from_physical_world_identity() {
     let mut plan = plan(true);
-    let BodyConstitutionSpec::LocalMedium { boundary } =
-        &mut plan.bodies[0].constitution
-    else {
+    let BodyConstitutionSpec::LocalMedium { boundary } = &mut plan.bodies[0].constitution else {
         panic!("fixture body must be a local medium");
     };
     boundary.medium.observers.push(LocalMediumObserverSpec {

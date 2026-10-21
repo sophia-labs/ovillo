@@ -203,8 +203,7 @@ impl WorldCostEstimate {
         }
         let shared_space_rotations = body_count * SPACE_COURSES;
         let direct_coupling_rotations = plan.direct_couplings.len();
-        dot_product_terms += 3 * SPACE_COURSES
-            + 2 * direct_coupling_rotations * MODE_COUNT;
+        dot_product_terms += 3 * SPACE_COURSES + 2 * direct_coupling_rotations * MODE_COUNT;
         Self::assemble(
             body_count,
             modal_rotations,

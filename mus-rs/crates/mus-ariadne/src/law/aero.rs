@@ -134,7 +134,13 @@ pub(crate) struct Column {
 }
 
 impl Column {
-    pub(crate) fn new(element: usize, flux: &[f64], elements: usize, inertance: f64, omega2: &[f64; MODE_COUNT]) -> Self {
+    pub(crate) fn new(
+        element: usize,
+        flux: &[f64],
+        elements: usize,
+        inertance: f64,
+        omega2: &[f64; MODE_COUNT],
+    ) -> Self {
         let mut read = [0.0; MODE_COUNT];
         let mut gain = [0.0; MODE_COUNT];
         let mut kappa = 0.0;
@@ -224,7 +230,11 @@ impl AeroRuntime {
                 // ubar + x |ubar| ubar = u, x = scale rho dt kappa / (4 A^2).
                 let x = spec.loss_scale * self.density * dt * jet.kappa / (4.0 * area * area);
                 let y = x * u.abs();
-                let ubar = if y < 1.0e-12 { u * (1.0 - y) } else { u.signum() * ((1.0 + 4.0 * y).sqrt() - 1.0) / (2.0 * x) };
+                let ubar = if y < 1.0e-12 {
+                    u * (1.0 - y)
+                } else {
+                    u.signum() * ((1.0 + 4.0 * y).sqrt() - 1.0) / (2.0 * x)
+                };
                 let d_lambda = 2.0 * (ubar - u) / jet.kappa;
                 jet.push(q, d_lambda, sqrt_dt);
                 frame.jet_flow_m3_s = ubar;
@@ -234,9 +244,14 @@ impl AeroRuntime {
                 frame.jet_speed_m_s = speed;
                 frame.mach = speed / self.speed_of_sound;
                 frame.reynolds = speed * diameter / spec.kinematic_viscosity_m2_s;
-                let ramp = ((frame.reynolds - spec.reynolds_onset) / (spec.reynolds_full - spec.reynolds_onset)).clamp(0.0, 1.0);
+                let ramp = ((frame.reynolds - spec.reynolds_onset)
+                    / (spec.reynolds_full - spec.reynolds_onset))
+                    .clamp(0.0, 1.0);
                 let ramp = ramp * ramp * (3.0 - 2.0 * ramp);
-                frame.efficiency = (spec.dipole_efficiency * (frame.mach / spec.reference_mach).powi(3)).min(spec.max_efficiency) * ramp;
+                frame.efficiency = (spec.dipole_efficiency
+                    * (frame.mach / spec.reference_mach).powi(3))
+                .min(spec.max_efficiency)
+                    * ramp;
                 let budget = frame.efficiency * frame.jet_loss;
                 let available = self.credit + frame.jet_loss;
                 if let (Some(obstacle), true) = (self.obstacle, budget > 0.0) {

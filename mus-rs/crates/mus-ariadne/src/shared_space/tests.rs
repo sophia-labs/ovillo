@@ -5,11 +5,7 @@ use crate::plan::{SharedSpaceSpec, SpacePortSpec};
 #[test]
 fn several_ports_exchange_with_one_persistent_field() {
     let spec = WorldSpec::string_brass_v1().space;
-    let mut space = SharedSpace::try_new(
-        96_000.0,
-        SharedSpaceSpec::from_space_spec(spec),
-    )
-    .unwrap();
+    let mut space = SharedSpace::try_new(96_000.0, SharedSpaceSpec::from_space_spec(spec)).unwrap();
     let port = SpacePortSpec::from_space_spec(spec);
     let mut left = [0.0; crate::ir::MODE_COUNT];
     let mut right = [0.0; crate::ir::MODE_COUNT];
@@ -63,7 +59,11 @@ fn running_stored_energy_tracks_the_exact_sum_over_many_laps() {
         seed ^= seed << 17;
         (seed >> 11) as f64 / (1u64 << 53) as f64 * 2.0 - 1.0
     };
-    let controls = SharedSpaceControls { coupling: 0.9, decay: 0.7, radiation: 0.3 };
+    let controls = SharedSpaceControls {
+        coupling: 0.9,
+        decay: 0.7,
+        radiation: 0.3,
+    };
     let mut worst = 0.0_f64;
     for frame in 0..(3 * longest + 17) {
         let mut momentum = [0.0; crate::ir::MODE_COUNT];
@@ -76,7 +76,11 @@ fn running_stored_energy_tracks_the_exact_sum_over_many_laps() {
         space.begin_frame().unwrap();
         let exchange = space.exchange_port(&mut momentum, &port, controls).unwrap();
         space
-            .finish_frame(controls, exchange.signed_into_body, exchange.metric_residual)
+            .finish_frame(
+                controls,
+                exchange.signed_into_body,
+                exchange.metric_residual,
+            )
             .unwrap();
         let exact = space.stored_energy_exact();
         let running = space.stored_energy();

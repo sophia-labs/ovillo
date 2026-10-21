@@ -58,24 +58,16 @@ pub enum SharedSpaceError {
 impl std::fmt::Display for SharedSpaceError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InvalidSampleRate => {
-                formatter.write_str("invalid shared-space sample rate")
-            }
+            Self::InvalidSampleRate => formatter.write_str("invalid shared-space sample rate"),
             Self::InvalidDelay { course } => {
                 write!(formatter, "invalid delay for shared-space course {course}")
             }
             Self::InvalidDirection { name, index } => {
                 write!(formatter, "invalid {name} direction at index {index}")
             }
-            Self::FrameAlreadyOpen => {
-                formatter.write_str("shared-space frame is already open")
-            }
-            Self::FrameNotOpen => {
-                formatter.write_str("shared-space frame is not open")
-            }
-            Self::NonFiniteState => {
-                formatter.write_str("shared-space state became non-finite")
-            }
+            Self::FrameAlreadyOpen => formatter.write_str("shared-space frame is already open"),
+            Self::FrameNotOpen => formatter.write_str("shared-space frame is not open"),
+            Self::NonFiniteState => formatter.write_str("shared-space state became non-finite"),
         }
     }
 }

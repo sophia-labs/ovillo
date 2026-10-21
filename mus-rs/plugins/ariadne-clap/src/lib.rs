@@ -9,8 +9,8 @@ use std::sync::Arc;
 use mus_ariadne::law::active::ActiveInclusionControls;
 use mus_ariadne::law::transport::ResonantTransportControls;
 use mus_ariadne::{
-    BodyControls, SharedSpaceControls, StereoListener, StereoListenerSpec, World,
-    WorldControls, WorldPlan, WorldReceipt,
+    BodyControls, SharedSpaceControls, StereoListener, StereoListenerSpec, World, WorldControls,
+    WorldPlan, WorldReceipt,
 };
 use nice_plug::prelude::*;
 
@@ -157,7 +157,12 @@ impl Default for AriadneParams {
                 .with_value_to_string(formatters::v2s_f32_rounded(3))
         };
         Self {
-            organization: slow("Material Organization", defaults.material_organization as f32, 0.0, 1.0),
+            organization: slow(
+                "Material Organization",
+                defaults.material_organization as f32,
+                0.0,
+                1.0,
+            ),
             source_coupling: linear("Source Coupling", defaults.source_coupling as f32, 0.0, 4.0),
             work_input: linear("Work Input", defaults.work_input as f32, 0.0, 1.0),
             active_coupling: linear("Active Material", defaults.active_coupling as f32, 0.0, 1.0),
@@ -271,10 +276,10 @@ impl Default for AriadneEngine {
 impl AriadneEngine {
     pub fn new(sample_rate_hz: f64) -> Result<Self, String> {
         let plan = WorldPlan::string_brass_v1(sample_rate_hz);
-        let listener_spec = StereoListenerSpec::all_bodies(&plan, 1.0)
-            .map_err(|error| error.to_string())?;
-        let listener = StereoListener::bind(&listener_spec, &plan)
-            .map_err(|error| error.to_string())?;
+        let listener_spec =
+            StereoListenerSpec::all_bodies(&plan, 1.0).map_err(|error| error.to_string())?;
+        let listener =
+            StereoListener::bind(&listener_spec, &plan).map_err(|error| error.to_string())?;
         let world = World::from_plan(plan).map_err(|error| error.to_string())?;
         Ok(Self {
             body_controls: vec![BodyControls::default(); world.body_count()],
@@ -343,7 +348,10 @@ impl AriadneEngine {
         let observed = self
             .world
             .set_body_configuration_index(0, controls.material_organization)
-            .and_then(|_| self.world.process_sample(&self.body_controls, world_controls))
+            .and_then(|_| {
+                self.world
+                    .process_sample(&self.body_controls, world_controls)
+            })
             .and_then(|frame| {
                 self.listener
                     .observe(&self.world, &frame)
@@ -518,17 +526,15 @@ impl Plugin for AriadneClap {
             };
             let input_left = *left;
             if let Some(right) = channels.next() {
-                let frame = self
-                    .engine
-                    .process_sample(input_left, *right, self.params.next_controls());
+                let frame =
+                    self.engine
+                        .process_sample(input_left, *right, self.params.next_controls());
                 *left = frame.left;
                 *right = frame.right;
             } else {
-                let frame = self.engine.process_sample(
-                    input_left,
-                    input_left,
-                    self.params.next_controls(),
-                );
+                let frame =
+                    self.engine
+                        .process_sample(input_left, input_left, self.params.next_controls());
                 *left = 0.5 * (frame.left + frame.right);
             }
         }
@@ -559,7 +565,11 @@ nice_plug::nice_export_vst3!(AriadneClap);
 
 #[inline]
 fn finite(value: f64) -> f64 {
-    if value.is_finite() { value } else { 0.0 }
+    if value.is_finite() {
+        value
+    } else {
+        0.0
+    }
 }
 
 #[inline]

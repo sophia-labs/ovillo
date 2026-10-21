@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::ir::{
-    ConfigurationPath, ReservoirSpec, SpaceSpec, TransportSpec, WorldSpec,
-    ACTIVE_RANKS, MODE_COUNT, SPACE_COURSES,
+    ConfigurationPath, ReservoirSpec, SpaceSpec, TransportSpec, WorldSpec, ACTIVE_RANKS,
+    MODE_COUNT, SPACE_COURSES,
 };
 
 use super::WORLD_PLAN_SCHEMA_VERSION;

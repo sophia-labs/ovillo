@@ -6,9 +6,7 @@ use crate::ir::MODE_COUNT;
 use crate::plan::WorldPlan;
 use crate::shared_world::{World, WorldFrame};
 
-use super::program::{
-    ObservationProgramError, ObservationSource, WorldObservationProgram,
-};
+use super::program::{ObservationProgramError, ObservationSource, WorldObservationProgram};
 
 #[derive(Debug, Clone)]
 enum BoundSource {
@@ -26,7 +24,10 @@ enum BoundSource {
     BodyEmission(usize),
     BodySourceWork(usize),
     BodyInternalLoss(usize),
-    BodyPosition { body: usize, axis: usize },
+    BodyPosition {
+        body: usize,
+        axis: usize,
+    },
     BodyDisplacementProjection {
         body: usize,
         direction: [f64; MODE_COUNT],
@@ -108,7 +109,12 @@ impl ChannelAccumulator {
                 *count = count.saturating_add(1);
                 Ok(())
             }
-            (Self::U64 { last, peak, count, .. }, RawValue::U64(value)) => {
+            (
+                Self::U64 {
+                    last, peak, count, ..
+                },
+                RawValue::U64(value),
+            ) => {
                 *last = value;
                 *peak = (*peak).max(value);
                 *count = count.saturating_add(1);
@@ -139,7 +145,11 @@ impl ChannelAccumulator {
                     Aggregation::Mean => *sum / n,
                     Aggregation::Rms => (*sum_squares / n).sqrt(),
                     Aggregation::Peak => {
-                        if *count == 0 { 0.0 } else { *peak }
+                        if *count == 0 {
+                            0.0
+                        } else {
+                            *peak
+                        }
                     }
                     Aggregation::MaximumAbsolute => *maximum_absolute,
                 };
@@ -207,10 +217,7 @@ impl BoundObservationProgram {
             .channels
             .iter()
             .map(|channel| {
-                ChannelAccumulator::new(
-                    channel.channel.scalar_type,
-                    channel.channel.aggregation,
-                )
+                ChannelAccumulator::new(channel.channel.scalar_type, channel.channel.aggregation)
             })
             .collect();
         Ok(Self {
@@ -435,11 +442,15 @@ fn evaluate(
             .and_then(|pose| pose.position.get(*axis).copied())
             .ok_or(ObservationRuntimeError::BoundIndex)?,
         BoundSource::BodyDisplacementProjection { body, direction } => {
-            let state = world.body_state(*body).ok_or(ObservationRuntimeError::BoundIndex)?;
+            let state = world
+                .body_state(*body)
+                .ok_or(ObservationRuntimeError::BoundIndex)?;
             dot(&state.displacement, direction)
         }
         BoundSource::BodyMomentumProjection { body, direction } => {
-            let state = world.body_state(*body).ok_or(ObservationRuntimeError::BoundIndex)?;
+            let state = world
+                .body_state(*body)
+                .ok_or(ObservationRuntimeError::BoundIndex)?;
             dot(&state.momentum, direction)
         }
         BoundSource::SpaceStoredEnergy => world.space_stored_energy(),
@@ -468,7 +479,9 @@ fn initial_value(raw: RawValue, scalar_type: ScalarType) -> ObservationValue {
     }
 }
 
-fn normalize(mut direction: [f64; MODE_COUNT]) -> Result<[f64; MODE_COUNT], ObservationRuntimeError> {
+fn normalize(
+    mut direction: [f64; MODE_COUNT],
+) -> Result<[f64; MODE_COUNT], ObservationRuntimeError> {
     let norm = direction
         .iter()
         .map(|value| value * value)
@@ -484,7 +497,10 @@ fn normalize(mut direction: [f64; MODE_COUNT]) -> Result<[f64; MODE_COUNT], Obse
 }
 
 fn dot<const N: usize>(left: &[f64; N], right: &[f64; N]) -> f64 {
-    left.iter().zip(right).map(|(left, right)| left * right).sum()
+    left.iter()
+        .zip(right)
+        .map(|(left, right)| left * right)
+        .sum()
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -512,14 +528,16 @@ pub enum ObservationRuntimeError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::observation::program::WorldObservationChannel;
-    use mus_observation::{
-        Aggregation, ChannelSpec, ClaimDomain, Interpolation, ScalarType,
-    };
     use crate::body::BodyControls;
+    use crate::observation::program::WorldObservationChannel;
     use crate::plan::WorldPlan;
+    use mus_observation::{Aggregation, ChannelSpec, ClaimDomain, Interpolation, ScalarType};
 
-    fn channel(id: &str, source: ObservationSource, aggregation: Aggregation) -> WorldObservationChannel {
+    fn channel(
+        id: &str,
+        source: ObservationSource,
+        aggregation: Aggregation,
+    ) -> WorldObservationChannel {
         WorldObservationChannel {
             channel: ChannelSpec {
                 id: id.to_owned(),

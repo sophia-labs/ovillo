@@ -8,20 +8,20 @@ mod constitutive;
 mod helpers;
 mod preset;
 mod space;
-mod types;
-mod validate;
 #[cfg(test)]
 mod tests;
+mod types;
+mod validate;
 
 pub use constitutive::{
     BodyConstitutionSpec, ConstitutiveBodyInstanceSpec, ConstitutiveWorldPlan,
-    LocalMediumBoundarySpec, LocalMediumPortInputBinding,
-    LocalMediumPortOutputBinding, WORLD_PLAN_V3_SCHEMA_VERSION,
+    LocalMediumBoundarySpec, LocalMediumPortInputBinding, LocalMediumPortOutputBinding,
+    WORLD_PLAN_V3_SCHEMA_VERSION,
 };
 pub use space::{SpaceBodyLaws, SpaceBodySpec};
 pub use types::{
-    BodyInstanceSpec, BodyPose, BodySpec, DirectCouplingSpec, SharedSpaceSpec,
-    SpacePortSpec, WorldPlan,
+    BodyInstanceSpec, BodyPose, BodySpec, DirectCouplingSpec, SharedSpaceSpec, SpacePortSpec,
+    WorldPlan,
 };
 
 pub const WORLD_PLAN_SCHEMA_VERSION: &str = "ariadne-world-plan-v2";

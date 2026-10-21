@@ -5,8 +5,8 @@ use crate::body::{Body, BodyControls, BodyError, BodyLocalFrame, BodyReconfigura
 use crate::field::MetricFieldState;
 use crate::ir::MODE_COUNT;
 use crate::law::medium::{
-    LocalConstitutiveMedium, LocalMediumError, LocalMediumInputFrame,
-    LocalMediumSourceDrive, LocalMediumState,
+    LocalConstitutiveMedium, LocalMediumError, LocalMediumInputFrame, LocalMediumSourceDrive,
+    LocalMediumState,
 };
 use crate::plan::{BodyConstitutionSpec, LocalMediumBoundarySpec, PlanError};
 use crate::space_body::{SpaceBody, SpaceBodyControls, SpaceBodyError};
@@ -145,7 +145,6 @@ pub(crate) struct LocalMediumWorldBody {
     inputs: Vec<CompiledInputBinding>,
     outputs: Vec<CompiledOutputBinding>,
 }
-
 
 include!("constitutive_body/local_medium.rs");
 include!("constitutive_body/world_body.rs");

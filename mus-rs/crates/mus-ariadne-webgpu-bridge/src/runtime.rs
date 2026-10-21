@@ -1,7 +1,7 @@
 use mus_ariadne::WorldPlan;
 use mus_ariadne_webgpu::{
-    ObserverImpulse2D, OpticalClock, OpticalClockError, SurfaceStepReceipt,
-    WaveSheetParams, WaveSurface2D, WaveSurfaceConfig,
+    ObserverImpulse2D, OpticalClock, OpticalClockError, SurfaceStepReceipt, WaveSheetParams,
+    WaveSurface2D, WaveSurfaceConfig,
 };
 use mus_observation::{ObservationFrame, ObservationSchema, ObservationValue};
 
@@ -182,7 +182,9 @@ impl WorldOpticalSurface {
                 next: material_tick,
             });
         }
-        let packet_count = self.compiler.compile_values_into(values, &mut self.packets)?;
+        let packet_count = self
+            .compiler
+            .compile_values_into(values, &mut self.packets)?;
         let reset = self.encode_pending_reset(encoder);
         let receipt: SurfaceStepReceipt = self.surface.encode(
             queue,

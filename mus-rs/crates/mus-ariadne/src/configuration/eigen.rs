@@ -46,7 +46,10 @@ pub(crate) enum EigenError {
 
 impl SymmetricEigen {
     pub(crate) fn new(n: usize, rank: usize) -> Self {
-        assert!(rank <= n && n >= 2, "eigen workspace needs 1 <= rank <= n, n >= 2");
+        assert!(
+            rank <= n && n >= 2,
+            "eigen workspace needs 1 <= rank <= n, n >= 2"
+        );
         Self {
             n,
             rank,
@@ -157,7 +160,11 @@ impl SymmetricEigen {
                 continue;
             }
             let mu = (x0 * x0 + sigma).sqrt();
-            let v0 = if x0 <= 0.0 { x0 - mu } else { -sigma / (x0 + mu) };
+            let v0 = if x0 <= 0.0 {
+                x0 - mu
+            } else {
+                -sigma / (x0 + mu)
+            };
             let beta = 2.0 * v0 * v0 / (sigma + v0 * v0);
             // Normalize v so v[k+1] = 1.
             for i in k + 2..n {
@@ -187,10 +194,18 @@ impl SymmetricEigen {
             }
             // A22 -= v w^T + w v^T (full square, keeps symmetry).
             for i in k + 1..n {
-                let vi = if i == k + 1 { 1.0 } else { self.work[i * n + k] };
+                let vi = if i == k + 1 {
+                    1.0
+                } else {
+                    self.work[i * n + k]
+                };
                 let wi = self.w[i];
                 for j in k + 1..n {
-                    let vj = if j == k + 1 { 1.0 } else { self.work[j * n + k] };
+                    let vj = if j == k + 1 {
+                        1.0
+                    } else {
+                        self.work[j * n + k]
+                    };
                     self.work[i * n + j] -= vi * self.w[j] + wi * vj;
                 }
             }
@@ -215,7 +230,8 @@ impl SymmetricEigen {
         self.factor(shift, scale);
         // Deterministic start vector without special structure.
         for i in 0..n {
-            self.y[i] = 1.0 + 0.5 * ((i as f64 + 1.0) * 0.618_033_988_749_895 * (k as f64 + 1.3)).sin();
+            self.y[i] =
+                1.0 + 0.5 * ((i as f64 + 1.0) * 0.618_033_988_749_895 * (k as f64 + 1.3)).sin();
         }
         // Cluster: earlier eigenvalues within this gap get orthogonalized out.
         let cluster_tol = 1.0e-9 * scale;
@@ -251,7 +267,11 @@ impl SymmetricEigen {
         for i in 0..n - 1 {
             let below = self.off_diagonal[i];
             let next_d = self.diagonal[i + 1] - shift;
-            let next_s1 = if i + 1 < n - 1 { self.off_diagonal[i + 1] } else { 0.0 };
+            let next_s1 = if i + 1 < n - 1 {
+                self.off_diagonal[i + 1]
+            } else {
+                0.0
+            };
             if cur_d.abs() >= below.abs() {
                 let pivot = if cur_d == 0.0 { tiny } else { cur_d };
                 let l = below / pivot;
@@ -273,7 +293,11 @@ impl SymmetricEigen {
                 cur_s1 = -l * next_s1;
             }
         }
-        self.u0[n - 1] = if cur_d.abs() < tiny { tiny.copysign(if cur_d == 0.0 { 1.0 } else { cur_d }) } else { cur_d };
+        self.u0[n - 1] = if cur_d.abs() < tiny {
+            tiny.copysign(if cur_d == 0.0 { 1.0 } else { cur_d })
+        } else {
+            cur_d
+        };
         self.u1[n - 1] = 0.0;
         self.u2[n - 1] = 0.0;
     }
@@ -444,7 +468,8 @@ mod tests {
         let mut vectors = vec![0.0; 10 * n];
         solver.lowest(&a, &mut values, &mut vectors).unwrap();
         for (k, value) in values.iter().enumerate() {
-            let exact = 2.0 - 2.0 * ((k as f64 + 1.0) * std::f64::consts::PI / (n as f64 + 1.0)).cos();
+            let exact =
+                2.0 - 2.0 * ((k as f64 + 1.0) * std::f64::consts::PI / (n as f64 + 1.0)).cos();
             assert!((value - exact).abs() < 1.0e-13, "k={k}: {value} vs {exact}");
         }
     }

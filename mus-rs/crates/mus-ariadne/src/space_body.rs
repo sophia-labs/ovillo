@@ -12,18 +12,20 @@
 //! A move books its control work exactly; with the mass-momentum connection
 //! it also books the energy the retained modes cannot hold (disposal).
 
-use crate::configuration::network::{mass_momentum_transport, NetworkError, NetworkFrame, TubeNetwork};
+use crate::body::BodyControls;
+use crate::configuration::network::{
+    mass_momentum_transport, NetworkError, NetworkFrame, TubeNetwork,
+};
 use crate::configuration::space::MultilinearMap;
 use crate::configuration::{
     ConfigurationMapSpec, ConnectionPolicy, DisposalPolicy, MAX_CONFIGURATION_DIMENSIONS,
 };
-use crate::body::BodyControls;
 use crate::field::{MetricFieldState, ModalMetricWaveField};
 use crate::ir::{MODE_COUNT, TRANSPORT_PAIRS};
 use crate::law::active::{ActiveInclusionFrame, SynchronizedActiveInclusion};
+use crate::law::aero::{AeroFrame, AeroRuntime, AeroTotals, Column};
 use crate::law::aperture::CompliantApertureBoundary;
 use crate::law::transport::InternalResonanceTransport;
-use crate::law::aero::{AeroFrame, AeroRuntime, AeroTotals, Column};
 use crate::law::valve::{FlowValve, FlowValveControls, FlowValveFrame};
 use crate::plan::{SpaceBodyLaws, SpaceBodySpec};
 
@@ -144,7 +146,9 @@ impl std::fmt::Display for SpaceBodyError {
             Self::Network(m) => write!(f, "tube network: {m}"),
             Self::Field(m) => write!(f, "N-D body field: {m}"),
             Self::Law(m) => write!(f, "N-D body law: {m}"),
-            Self::DisposalRejected => f.write_str("move refused: its disposal exceeds the reject tolerance"),
+            Self::DisposalRejected => {
+                f.write_str("move refused: its disposal exceeds the reject tolerance")
+            }
             Self::UnsupportedOperation(m) => write!(f, "unsupported on this constitution: {m}"),
             Self::NonFiniteState => f.write_str("N-D body entered a non-finite state"),
         }
@@ -244,27 +248,43 @@ impl SpaceBody {
         point[..dimensions].copy_from_slice(&space.initial_point());
         let dt = sample_rate_hz.recip();
         let (field, laws) = match (&spec.laws, &space.map) {
-            (SpaceBodyLaws::Modal { source_direction, active_directions, transport }, map_spec @ (ConfigurationMapSpec::Multilinear { .. } | ConfigurationMapSpec::StiffString { .. })) => {
+            (
+                SpaceBodyLaws::Modal {
+                    source_direction,
+                    active_directions,
+                    transport,
+                },
+                map_spec @ (ConfigurationMapSpec::Multilinear { .. }
+                | ConfigurationMapSpec::StiffString { .. }),
+            ) => {
                 let mut map = match map_spec {
                     ConfigurationMapSpec::Multilinear { axes, anchors } => {
                         ModalMap::Multilinear(MultilinearMap::compile(axes, anchors))
                     }
-                    ConfigurationMapSpec::StiffString { string } => ModalMap::StiffString(string.clone()),
+                    ConfigurationMapSpec::StiffString { string } => {
+                        ModalMap::StiffString(string.clone())
+                    }
                     ConfigurationMapSpec::TubeNetwork { .. } => unreachable!(),
                 };
                 let configuration = map.evaluate(&point[..dimensions]);
-                let field = ModalMetricWaveField::try_new(sample_rate_hz, configuration.metric.runtime())
-                    .map_err(|m| SpaceBodyError::Field(m.to_owned()))?;
+                let field =
+                    ModalMetricWaveField::try_new(sample_rate_hz, configuration.metric.runtime())
+                        .map_err(|m| SpaceBodyError::Field(m.to_owned()))?;
                 let aperture = CompliantApertureBoundary::try_new(
                     sample_rate_hz,
                     configuration.aperture.runtime(),
                     *source_direction,
                 )
                 .map_err(|e| SpaceBodyError::Law(e.to_string()))?;
-                let active = SynchronizedActiveInclusion::try_new(sample_rate_hz, *active_directions)
-                    .map_err(|e| SpaceBodyError::Law(e.to_string()))?;
-                let transport = InternalResonanceTransport::try_new(sample_rate_hz, transport.pairs, transport.weights)
-                    .map_err(|e| SpaceBodyError::Law(e.to_string()))?;
+                let active =
+                    SynchronizedActiveInclusion::try_new(sample_rate_hz, *active_directions)
+                        .map_err(|e| SpaceBodyError::Law(e.to_string()))?;
+                let transport = InternalResonanceTransport::try_new(
+                    sample_rate_hz,
+                    transport.pairs,
+                    transport.weights,
+                )
+                .map_err(|e| SpaceBodyError::Law(e.to_string()))?;
                 (
                     field,
                     Laws::Modal(ModalLaws {
@@ -276,7 +296,12 @@ impl SpaceBody {
                     }),
                 )
             }
-            (SpaceBodyLaws::TubeNetwork { valve, aero }, ConfigurationMapSpec::TubeNetwork { network: network_spec }) => {
+            (
+                SpaceBodyLaws::TubeNetwork { valve, aero },
+                ConfigurationMapSpec::TubeNetwork {
+                    network: network_spec,
+                },
+            ) => {
                 let mut network = TubeNetwork::compile(network_spec, dimensions);
                 let mut frame = network.empty_frame();
                 let next = network.empty_frame();
@@ -284,11 +309,17 @@ impl SpaceBody {
                 let field = ModalMetricWaveField::try_new(sample_rate_hz, frame.metric().runtime())
                     .map_err(|m| SpaceBodyError::Field(m.to_owned()))?;
                 let valve_node = network.node(valve.tube, valve.section);
-                let valve = FlowValve::try_new(sample_rate_hz, network_spec.air_density_kg_m3, valve.clone())
-                    .map_err(|m| SpaceBodyError::Law(m.to_owned()))?;
+                let valve = FlowValve::try_new(
+                    sample_rate_hz,
+                    network_spec.air_density_kg_m3,
+                    valve.clone(),
+                )
+                .map_err(|m| SpaceBodyError::Law(m.to_owned()))?;
                 let ends = network.end_nodes().len();
                 if ends > 4 {
-                    return Err(SpaceBodyError::InvalidSpec("at most four radiating ends".into()));
+                    return Err(SpaceBodyError::InvalidSpec(
+                        "at most four radiating ends".into(),
+                    ));
                 }
                 let excess = vec![0.0; frame.nodes];
                 let momentum = vec![0.0; frame.elements];
@@ -312,7 +343,11 @@ impl SpaceBody {
                     retain_scale: f64::NAN,
                     removed: [0.0; MODE_COUNT],
                     aero: aero.filter(|spec| !spec.is_off()).map(|spec| {
-                        AeroRuntime::new(spec, network_spec.air_density_kg_m3, network_spec.speed_of_sound_m_s)
+                        AeroRuntime::new(
+                            spec,
+                            network_spec.air_density_kg_m3,
+                            network_spec.speed_of_sound_m_s,
+                        )
                     }),
                     totals: SpaceTotals::default(),
                     dt,
@@ -321,7 +356,11 @@ impl SpaceBody {
                 laws.refresh_shapes();
                 (field, Laws::Network(laws))
             }
-            _ => return Err(SpaceBodyError::InvalidSpec("laws and map do not match".into())),
+            _ => {
+                return Err(SpaceBodyError::InvalidSpec(
+                    "laws and map do not match".into(),
+                ))
+            }
         };
         Ok(Self {
             reservoir_energy: spec.reservoir.capacity,
@@ -415,7 +454,10 @@ impl SpaceBody {
     #[must_use]
     pub fn valve_gap_and_reynolds(&self) -> (f64, f64) {
         match &self.laws {
-            Laws::Network(laws) => (laws.valve.half_gap_m(), laws.aero.as_ref().map_or(0.0, |a| a.last.reynolds)),
+            Laws::Network(laws) => (
+                laws.valve.half_gap_m(),
+                laws.aero.as_ref().map_or(0.0, |a| a.last.reynolds),
+            ),
             Laws::Modal(_) => (0.0, 0.0),
         }
     }
@@ -438,7 +480,9 @@ impl SpaceBody {
     /// Mode shapes `phi_k(node)` at a network volume (non-loading).
     #[must_use]
     pub fn node_shape(&self, node: usize) -> Option<[f64; MODE_COUNT]> {
-        let Laws::Network(laws) = &self.laws else { return None };
+        let Laws::Network(laws) = &self.laws else {
+            return None;
+        };
         (node < laws.frame.nodes).then(|| laws.frame.shape_at(node))
     }
 
@@ -446,19 +490,28 @@ impl SpaceBody {
     /// (non-loading).
     #[must_use]
     pub fn node_pressure(&self, node: usize) -> Option<f64> {
-        let Laws::Network(laws) = &self.laws else { return None };
+        let Laws::Network(laws) = &self.laws else {
+            return None;
+        };
         let frame = &laws.frame;
         if node >= frame.nodes {
             return None;
         }
         let momentum = self.field.momentum();
-        Some(self.dt.sqrt() * (0..MODE_COUNT).map(|k| frame.phi[k * frame.nodes + node] * momentum[k]).sum::<f64>())
+        Some(
+            self.dt.sqrt()
+                * (0..MODE_COUNT)
+                    .map(|k| frame.phi[k * frame.nodes + node] * momentum[k])
+                    .sum::<f64>(),
+        )
     }
 
     /// The current tube-network modes (`None` for a modal constitution).
     #[must_use]
     pub fn network_modes(&self) -> Option<NetworkModes> {
-        let Laws::Network(laws) = &self.laws else { return None };
+        let Laws::Network(laws) = &self.laws else {
+            return None;
+        };
         let frame = &laws.frame;
         let mut modes = NetworkModes {
             frequency_hz: frame.frequency_hz,
@@ -468,7 +521,11 @@ impl SpaceBody {
         };
         let first_tube_nodes = self.spec_first_tube_nodes();
         for k in 0..MODE_COUNT {
-            modes.wall_sigma[k] = if frame.t60_seconds[k] < f64::MAX { 6.907_755_278_982_137 / frame.t60_seconds[k] } else { 0.0 };
+            modes.wall_sigma[k] = if frame.t60_seconds[k] < f64::MAX {
+                6.907_755_278_982_137 / frame.t60_seconds[k]
+            } else {
+                0.0
+            };
             let mut first = 0.0;
             let mut total = 0.0;
             for node in 0..frame.nodes {
@@ -489,7 +546,9 @@ impl SpaceBody {
 
     fn spec_first_tube_nodes(&self) -> usize {
         match &self.spec.configuration_space.map {
-            ConfigurationMapSpec::TubeNetwork { network } => network.tubes[0].base_log_area_m2.len(),
+            ConfigurationMapSpec::TubeNetwork { network } => {
+                network.tubes[0].base_log_area_m2.len()
+            }
             _ => 0,
         }
     }
@@ -511,7 +570,9 @@ impl SpaceBody {
     ) -> Result<SpaceReconfigurationFrame, SpaceBodyError> {
         let dims = self.dimensions;
         let mut target = [0.0; MAX_CONFIGURATION_DIMENSIONS];
-        self.spec.configuration_space.clamp_into(point, &mut target[..dims]);
+        self.spec
+            .configuration_space
+            .clamp_into(point, &mut target[..dims]);
         let mut frame = SpaceReconfigurationFrame {
             dimensions: dims,
             point_before: self.point,
@@ -546,7 +607,12 @@ impl SpaceBody {
                 frame.state_displacement = field.state_displacement + aperture.state_displacement;
             }
             Laws::Network(laws) => {
-                let NetworkLaws { network, frame: current, next, .. } = laws;
+                let NetworkLaws {
+                    network,
+                    frame: current,
+                    next,
+                    ..
+                } = laws;
                 network.compute(&target[..dims], Some(current), next)?;
                 let energy_before = self.field.stored_energy();
                 let state_before = self.field.state();
@@ -581,7 +647,8 @@ impl SpaceBody {
                         let energy_after = self.field.stored_energy();
                         let truncated = (moved.physical_energy_after - energy_after).max(0.0);
                         if disposal == DisposalPolicy::Reject
-                            && truncated > 1.0e-9 * energy_before.max(moved.physical_energy_after) + 1.0e-300
+                            && truncated
+                                > 1.0e-9 * energy_before.max(moved.physical_energy_after) + 1.0e-300
                         {
                             self.field
                                 .set_configuration(previous_configuration)
@@ -619,7 +686,9 @@ impl SpaceBody {
     pub fn retune_valve(&mut self, tuning_hz: f64, adduction: f64) -> Result<f64, SpaceBodyError> {
         match &mut self.laws {
             Laws::Network(laws) => Ok(laws.valve.retune(tuning_hz, adduction)),
-            Laws::Modal(_) => Err(SpaceBodyError::UnsupportedOperation("this body has no flow valve")),
+            Laws::Modal(_) => Err(SpaceBodyError::UnsupportedOperation(
+                "this body has no flow valve",
+            )),
         }
     }
 
@@ -652,7 +721,11 @@ impl SpaceBody {
                     .field
                     .aperture_effort(&aperture_direction)
                     .map_err(|m| SpaceBodyError::Field(m.to_owned()))?;
-                let aperture = laws.aperture.process(self.field.momentum_mut(), field_effort, body_controls.source_wave);
+                let aperture = laws.aperture.process(
+                    self.field.momentum_mut(),
+                    field_effort,
+                    body_controls.source_wave,
+                );
                 if aperture.non_finite_input {
                     return Err(SpaceBodyError::NonFiniteState);
                 }
@@ -676,13 +749,18 @@ impl SpaceBody {
                     return Err(SpaceBodyError::NonFiniteState);
                 }
                 let displacement = *self.field.displacement();
-                let transport = laws.transport.process(&displacement, self.field.momentum_mut(), body_controls.transport);
+                let transport = laws.transport.process(
+                    &displacement,
+                    self.field.momentum_mut(),
+                    body_controls.transport,
+                );
                 if transport.non_finite_state {
                     return Err(SpaceBodyError::NonFiniteState);
                 }
                 let propagation = self.field.propagate();
                 let field_loss = self.field.damp();
-                let source = work_input + aperture.source_boundary_work + aperture.active_source_work;
+                let source =
+                    work_input + aperture.source_boundary_work + aperture.active_source_work;
                 let loss = aperture.internal_loss + active.dissipated_work + field_loss.loss;
                 let residual = [
                     aperture.closure_residual,
@@ -756,7 +834,10 @@ impl SpaceBody {
             }
         };
         let energy_after = self.total_stored_energy();
-        if !energy_after.is_finite() || !self.reservoir_energy.is_finite() || self.reservoir_energy < -1.0e-15 {
+        if !energy_after.is_finite()
+            || !self.reservoir_energy.is_finite()
+            || self.reservoir_energy < -1.0e-15
+        {
             return Err(SpaceBodyError::NonFiniteState);
         }
         Ok(SpaceLocalFrame {
@@ -767,15 +848,34 @@ impl SpaceBody {
         })
     }
 
-    fn process_local_lean(&mut self, controls: &SpaceBodyControls) -> Result<SpaceLocalFrame, SpaceBodyError> {
+    fn process_local_lean(
+        &mut self,
+        controls: &SpaceBodyControls,
+    ) -> Result<SpaceLocalFrame, SpaceBodyError> {
         let capacity = self.spec.reservoir.capacity;
-        let refill = if controls.body.work_input.is_finite() { controls.body.work_input.clamp(0.0, 1.0) } else { 0.0 };
+        let refill = if controls.body.work_input.is_finite() {
+            controls.body.work_input.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
         let gap = (capacity - self.reservoir_energy).max(0.0);
         let work_input = (refill * self.dt).min(gap);
         self.reservoir_energy += work_input;
-        let Laws::Network(laws) = &mut self.laws else { unreachable!() };
-        laws.radiation_scale = if controls.radiation_scale.is_finite() { controls.radiation_scale.max(0.0) } else { 0.0 };
-        let valve = laws.valve.process(self.field.momentum_mut(), &laws.valve_shape, controls.valve, &mut self.reservoir_energy, capacity);
+        let Laws::Network(laws) = &mut self.laws else {
+            unreachable!()
+        };
+        laws.radiation_scale = if controls.radiation_scale.is_finite() {
+            controls.radiation_scale.max(0.0)
+        } else {
+            0.0
+        };
+        let valve = laws.valve.process(
+            self.field.momentum_mut(),
+            &laws.valve_shape,
+            controls.valve,
+            &mut self.reservoir_energy,
+            capacity,
+        );
         laws.last_valve = valve;
         let mut knock = 0.0;
         if let Some((node, flow)) = controls.node_source {
@@ -797,7 +897,11 @@ impl SpaceBody {
                 laws.totals.knock_work += knock;
             }
         }
-        let aero = laws.aero.as_mut().expect("lean path has air").step(self.field.displacement_mut(), self.dt);
+        let aero = laws
+            .aero
+            .as_mut()
+            .expect("lean path has air")
+            .step(self.field.displacement_mut(), self.dt);
         self.field.propagate_lean();
         let wall = self.field.damp_displacement_lean(&laws.wall_retain_q);
         let t = &mut laws.totals;
@@ -806,12 +910,16 @@ impl SpaceBody {
         t.valve_jet_loss += valve.jet_loss;
         t.fold_loss += valve.fold_loss;
         t.wall_loss += wall;
-        if !self.reservoir_energy.is_finite() || self.reservoir_energy < -1.0e-15 || self.field.momentum().iter().any(|v| !v.is_finite()) {
+        if !self.reservoir_energy.is_finite()
+            || self.reservoir_energy < -1.0e-15
+            || self.field.momentum().iter().any(|v| !v.is_finite())
+        {
             return Err(SpaceBodyError::NonFiniteState);
         }
         Ok(SpaceLocalFrame {
             source_work: work_input + knock,
-            internal_loss: valve.jet_loss + valve.fold_loss + wall + aero.jet_loss - aero.turbulence_work,
+            internal_loss: valve.jet_loss + valve.fold_loss + wall + aero.jet_loss
+                - aero.turbulence_work,
             closure_residual: 0.0,
             local_residual: 0.0,
         })
@@ -821,7 +929,11 @@ impl SpaceBody {
     /// configured direction (the legacy law). Tube network: the computed
     /// per-mode radiation, scaled by the last controls' `radiation_scale`;
     /// `fraction` is ignored. Returns `(emitted, radiation, residual)`.
-    pub(crate) fn radiate(&mut self, fraction: f64, emitted: &mut Vec<f64>) -> Result<(f64, f64), SpaceBodyError> {
+    pub(crate) fn radiate(
+        &mut self,
+        fraction: f64,
+        emitted: &mut Vec<f64>,
+    ) -> Result<(f64, f64), SpaceBodyError> {
         match &mut self.laws {
             Laws::Modal(laws) => {
                 let frame = self
@@ -841,13 +953,19 @@ impl SpaceBody {
                 if laws.retain_scale.to_bits() != laws.radiation_scale.to_bits() {
                     let factor = if dc { 2.0 } else { 1.0 };
                     for k in 0..MODE_COUNT {
-                        laws.retain[k] = (-factor * laws.radiation_scale * laws.sigma_total[k] * self.dt).exp();
+                        laws.retain[k] =
+                            (-factor * laws.radiation_scale * laws.sigma_total[k] * self.dt).exp();
                     }
                     laws.retain_scale = laws.radiation_scale;
                 }
                 let loss = if dc {
-                    let loss = self.field.damp_momentum_lean(&laws.retain, &mut laws.removed);
-                    crate::field::MetricLossFrame { loss, ..Default::default() }
+                    let loss = self
+                        .field
+                        .damp_momentum_lean(&laws.retain, &mut laws.removed);
+                    crate::field::MetricLossFrame {
+                        loss,
+                        ..Default::default()
+                    }
                 } else {
                     self.field.damp_modes(&laws.retain, &mut laws.removed)
                 };
@@ -857,7 +975,8 @@ impl SpaceBody {
                 emitted.clear();
                 for e in 0..ends {
                     let shape = &laws.end_shapes[e];
-                    let pressure = sqrt_dt * (0..MODE_COUNT).map(|k| shape[k] * momentum[k]).sum::<f64>();
+                    let pressure =
+                        sqrt_dt * (0..MODE_COUNT).map(|k| shape[k] * momentum[k]).sum::<f64>();
                     laws.last_end_pressure[e] = pressure;
                     emitted.push(pressure);
                     let mut radiated = 0.0;
@@ -869,7 +988,8 @@ impl SpaceBody {
                     }
                     laws.last_end_radiation[e] = radiated;
                     laws.totals.radiation_by_end[e] += radiated;
-                    laws.totals.physical_radiation_by_end[e] += laws.frame.radiation_conductance[e] * pressure * pressure * self.dt;
+                    laws.totals.physical_radiation_by_end[e] +=
+                        laws.frame.radiation_conductance[e] * pressure * pressure * self.dt;
                 }
                 Ok((loss.loss, loss.residual))
             }
@@ -904,7 +1024,15 @@ impl NetworkLaws {
         aero.obstacle = None;
         aero.port_closed = frame.port.is_some_and(|(_, open)| open <= 0.0);
         if let Some((junction, element, open)) = frame.jet {
-            let column = |e: usize| Column::new(e, &frame.flux, frame.elements, frame.inertance[e], &frame.omega2);
+            let column = |e: usize| {
+                Column::new(
+                    e,
+                    &frame.flux,
+                    frame.elements,
+                    frame.inertance[e],
+                    &frame.omega2,
+                )
+            };
             aero.jet_junction = junction;
             aero.jet_aperture = open;
             aero.jet = Some(column(element));
@@ -915,7 +1043,11 @@ impl NetworkLaws {
         }
         if aero.spec.dc_wall_loss {
             for k in 0..MODE_COUNT {
-                let sigma = if frame.t60_seconds[k] < f64::MAX { 6.907_755_278_982_137 / frame.t60_seconds[k] } else { 0.0 };
+                let sigma = if frame.t60_seconds[k] < f64::MAX {
+                    6.907_755_278_982_137 / frame.t60_seconds[k]
+                } else {
+                    0.0
+                };
                 self.wall_retain_q[k] = (-2.0 * sigma * self.dt).exp();
             }
         }
@@ -925,9 +1057,15 @@ impl NetworkLaws {
 /// The legacy `Body` normalizes the (already normalized) interpolated
 /// direction once more; do the same so a 1-D space is bitwise a legacy body.
 fn normalize(mut direction: [f64; MODE_COUNT]) -> Result<[f64; MODE_COUNT], SpaceBodyError> {
-    let norm = direction.iter().map(|value| value * value).sum::<f64>().sqrt();
+    let norm = direction
+        .iter()
+        .map(|value| value * value)
+        .sum::<f64>()
+        .sqrt();
     if !norm.is_finite() || norm <= 1.0e-12 {
-        return Err(SpaceBodyError::Law("radiation direction must be finite and nondegenerate".into()));
+        return Err(SpaceBodyError::Law(
+            "radiation direction must be finite and nondegenerate".into(),
+        ));
     }
     for value in &mut direction {
         *value /= norm;

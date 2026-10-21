@@ -48,7 +48,9 @@ fn python_and_rust_metric_radiation_replay_identically() {
     assert_eq!(aperture.digest(), fixture.plan_sha256);
 
     let mut loading_state = fixture.state.clone();
-    let loading = aperture.radiate(&mut loading_state, &fixture.metric).unwrap();
+    let loading = aperture
+        .radiate(&mut loading_state, &fixture.metric)
+        .unwrap();
     assert_vector_close(&loading_state, &fixture.loading.state_after);
     assert_vector_close(&loading.emitted, &fixture.loading.emitted);
     assert_close(loading.storage_before, fixture.loading.storage_before);
@@ -57,19 +59,13 @@ fn python_and_rust_metric_radiation_replay_identically() {
         loading.projected_intensity,
         fixture.loading.projected_intensity,
     );
-    assert_close(
-        loading.booked_radiation,
-        fixture.loading.booked_radiation,
-    );
+    assert_close(loading.booked_radiation, fixture.loading.booked_radiation);
     assert_close(loading.residual, fixture.loading.residual);
 
     let nonloading = aperture.observe(&fixture.state, &fixture.metric).unwrap();
     assert_vector_close(&fixture.state, &fixture.nonloading.state_after);
     assert_vector_close(&nonloading.emitted, &fixture.nonloading.emitted);
-    assert_close(
-        nonloading.storage_before,
-        fixture.nonloading.storage_before,
-    );
+    assert_close(nonloading.storage_before, fixture.nonloading.storage_before);
     assert_close(nonloading.storage_after, fixture.nonloading.storage_after);
     assert_close(
         nonloading.projected_intensity,

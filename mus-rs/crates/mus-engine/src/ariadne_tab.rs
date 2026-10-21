@@ -16,7 +16,9 @@ use std::path::Path;
 use mus_ariadne::{
     BodyControls, StereoListener, StereoListenerSpec, World, WorldControls, WorldPlan, MODE_COUNT,
 };
-use mus_notation::{expand_pattern_repetitions, parse_token, split_attached_dynamics, tokenize_bar_content};
+use mus_notation::{
+    expand_pattern_repetitions, parse_token, split_attached_dynamics, tokenize_bar_content,
+};
 use mus_text::ProposalInstrument;
 use serde::Serialize;
 
@@ -26,7 +28,8 @@ use crate::util::{dyn_db, note_to_midi, ART_GAIN};
 use crate::{RenderError, RenderStats};
 
 /// `anatomy=steel-string-v0`: the dreadnought compiled by `mus_analysis.steel_string_anatomy`.
-const STEEL_STRING_V0: &str = include_str!("../../../../profiles/ariadne-steel-string-v0.plan.json");
+const STEEL_STRING_V0: &str =
+    include_str!("../../../../profiles/ariadne-steel-string-v0.plan.json");
 /// A unit hand gesture reaches the string through the plan's reciprocal contact
 /// port (a gentle 80 Hz exchange, so the port does not damp a ringing string);
 /// this scales the gesture to a pluck of ordinary loudness.
@@ -165,13 +168,17 @@ pub fn collect(
 ) -> Result<(Vec<TabInstrument>, Vec<String>), RenderError> {
     let mut found = Vec::new();
     let mut owned = Vec::new();
-    for base in instruments.iter().filter(|i| i.params.contains_key("anatomy")) {
+    for base in instruments
+        .iter()
+        .filter(|i| i.params.contains_key("anatomy"))
+    {
         let invalid = |msg: String| RenderError::Invalid(format!("{}: {msg}", base.abbrev));
         let anatomy = base.params["anatomy"].trim().to_owned();
         let text = if anatomy == "steel-string-v0" {
             STEEL_STRING_V0.to_owned()
         } else {
-            std::fs::read_to_string(score_dir.join(&anatomy)).map_err(|e| invalid(format!("anatomy {anatomy}: {e}")))?
+            std::fs::read_to_string(score_dir.join(&anatomy))
+                .map_err(|e| invalid(format!("anatomy {anatomy}: {e}")))?
         };
         let plan: WorldPlan =
             serde_json::from_str(&text).map_err(|e| invalid(format!("anatomy {anatomy}: {e}")))?;
@@ -182,12 +189,26 @@ pub fn collect(
                 .collect::<Result<_, _>>()?,
             None => STANDARD_TUNING.to_vec(),
         };
-        let string_bodies = plan.bodies.iter().filter(|b| b.id.starts_with("string/")).count();
+        let string_bodies = plan
+            .bodies
+            .iter()
+            .filter(|b| b.id.starts_with("string/"))
+            .count();
         if tuning.len() != string_bodies {
-            return Err(invalid(format!("tuning has {} courses, the anatomy has {string_bodies} strings", tuning.len())));
+            return Err(invalid(format!(
+                "tuning has {} courses, the anatomy has {string_bodies} strings",
+                tuning.len()
+            )));
         }
-        let number = |key: &str, default: f64, params: &BTreeMap<String, String>| -> Result<f64, RenderError> {
-            params.get(key).map_or(Ok(default), |v| v.trim().parse::<f64>().map_err(|_| invalid(format!("{key}={v}"))))
+        let number = |key: &str,
+                      default: f64,
+                      params: &BTreeMap<String, String>|
+         -> Result<f64, RenderError> {
+            params.get(key).map_or(Ok(default), |v| {
+                v.trim()
+                    .parse::<f64>()
+                    .map_err(|_| invalid(format!("{key}={v}")))
+            })
         };
         let prefix = format!("{}.", base.abbrev);
         let hands = instruments
@@ -252,12 +273,18 @@ fn performance(
         let mut cur_dyn = "mf".to_string();
         let mut count = 0_u32;
         for b in 1..=n_bars {
-            let Some(content) = bar_content.get(&b).and_then(|m| m.get(abbr)) else { continue };
+            let Some(content) = bar_content.get(&b).and_then(|m| m.get(abbr)) else {
+                continue;
+            };
             if content.trim().is_empty() || content.trim() == "-" {
                 continue;
             }
-            let Some(timing) = bar_map.bars.get(&b) else { continue };
-            let tokens = split_attached_dynamics(&expand_pattern_repetitions(&tokenize_bar_content(content)));
+            let Some(timing) = bar_map.bars.get(&b) else {
+                continue;
+            };
+            let tokens = split_attached_dynamics(&expand_pattern_repetitions(
+                &tokenize_bar_content(content),
+            ));
             let mut q = 0.0_f64;
             for tk in &tokens {
                 let Some(ev) = parse_token(tk) else {
@@ -282,7 +309,9 @@ fn performance(
                 let seconds = timing.start_s + warp(q, swing_unit_ql, swing_r) * timing.spq;
                 q += ev.ql;
                 if ev.tab.len() != ev.midis.len() {
-                    stats.bad.push(format!("b{b} {abbr}: {tk} (a tab instrument's notes need @string:fret)"));
+                    stats.bad.push(format!(
+                        "b{b} {abbr}: {tk} (a tab instrument's notes need @string:fret)"
+                    ));
                     continue;
                 }
                 let flag = |f: &str| ev.flags.iter().any(|x| x == f);
@@ -295,16 +324,31 @@ fn performance(
                 } else {
                     TouchKind::Pluck
                 };
-                let art: f64 = ev.flags.iter().filter_map(|f| ART_GAIN.iter().find(|(n, _)| *n == f).map(|(_, d)| *d)).sum();
-                let gain = ev.params.get("gain").and_then(|g| g.parse::<f64>().ok()).unwrap_or(0.0);
+                let art: f64 = ev
+                    .flags
+                    .iter()
+                    .filter_map(|f| ART_GAIN.iter().find(|(n, _)| *n == f).map(|(_, d)| *d))
+                    .sum();
+                let gain = ev
+                    .params
+                    .get("gain")
+                    .and_then(|g| g.parse::<f64>().ok())
+                    .unwrap_or(0.0);
                 for (midi, at) in ev.midis.iter().zip(&ev.tab) {
                     let string = at.string as usize;
                     if string == 0 || string > inst.open.len() {
-                        stats.bad.push(format!("b{b} {abbr}: {tk} (no string {string})"));
+                        stats
+                            .bad
+                            .push(format!("b{b} {abbr}: {tk} (no string {string})"));
                         continue;
                     }
-                    let harmonic = if flag("harm") { harmonic_offset(at.fret) } else { None };
-                    let expected = inst.open[string - 1] + inst.capo + harmonic.unwrap_or(at.fret as f64);
+                    let harmonic = if flag("harm") {
+                        harmonic_offset(at.fret)
+                    } else {
+                        None
+                    };
+                    let expected =
+                        inst.open[string - 1] + inst.capo + harmonic.unwrap_or(at.fret as f64);
                     if (midi - expected).abs() > 0.01 {
                         stats.bad.push(format!(
                             "b{b} {abbr}: {tk} (string {string} fret {} sounds midi {expected}, not {midi})",
@@ -331,14 +375,25 @@ fn performance(
 }
 
 fn midi_name(midi: f64) -> String {
-    const NAMES: [&str; 12] = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+    const NAMES: [&str; 12] = [
+        "C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B",
+    ];
     let m = midi.round() as i64;
-    format!("{}{}", NAMES[m.rem_euclid(12) as usize], m.div_euclid(12) - 1)
+    format!(
+        "{}{}",
+        NAMES[m.rem_euclid(12) as usize],
+        m.div_euclid(12) - 1
+    )
 }
 
 /// The mean mode frequency of body `index` as built.
 fn world_plan_band(plan: &WorldPlan, index: usize) -> f64 {
-    let f = &plan.bodies[index].body.configuration_path.left.metric.frequency_hz;
+    let f = &plan.bodies[index]
+        .body
+        .configuration_path
+        .left
+        .metric
+        .frequency_hz;
     f.iter().sum::<f64>() / f.len() as f64
 }
 
@@ -358,15 +413,30 @@ fn harmonic_offset(fret: u8) -> Option<f64> {
 /// Fold each string's hand into its body: where it is plucked (the source
 /// direction is the modal shape at the pluck point), how hard the contact is,
 /// and how much a resting palm damps it. The law matches `steel_string_anatomy.py`.
-fn apply_hands(plan: &mut WorldPlan, inst: &TabInstrument, touches: &[Touch]) -> Vec<StringHandReceipt> {
+fn apply_hands(
+    plan: &mut WorldPlan,
+    inst: &TabInstrument,
+    touches: &[Touch],
+) -> Vec<StringHandReceipt> {
     let mut receipts = Vec::new();
     for body in plan.bodies.iter_mut() {
-        let Some(number) = body.id.strip_prefix("string/").and_then(|n| n.parse::<usize>().ok()) else { continue };
+        let Some(number) = body
+            .id
+            .strip_prefix("string/")
+            .and_then(|n| n.parse::<usize>().ok())
+        else {
+            continue;
+        };
         let mut votes = vec![0_usize; inst.hands.len()];
         for t in touches.iter().filter(|t| t.string == number) {
             votes[t.hand] += 1;
         }
-        let hand = votes.iter().enumerate().filter(|(_, &v)| v > 0).max_by_key(|(_, &v)| v).map(|(h, _)| &inst.hands[h]);
+        let hand = votes
+            .iter()
+            .enumerate()
+            .filter(|(_, &v)| v > 0)
+            .max_by_key(|(_, &v)| v)
+            .map(|(h, _)| &inst.hands[h]);
         let (pos, pick, pm) = hand.map_or((0.18, 0.4, 0.0), |h| (h.pos, h.pick, h.pm));
         let source: [f64; MODE_COUNT] = std::array::from_fn(|i| {
             let n = i as f64 + 1.0;
@@ -419,7 +489,15 @@ pub fn render(
     let n_total = buffers.dry[0].len();
     for inst in instruments {
         let world_err = |e: String| RenderError::Invalid(format!("{} world: {e}", inst.abbrev));
-        let touches = performance(inst, bar_map, bar_content, n_bars, swing_unit_ql, swing_r, stats);
+        let touches = performance(
+            inst,
+            bar_map,
+            bar_content,
+            n_bars,
+            swing_unit_ql,
+            swing_r,
+            stats,
+        );
         if touches.is_empty() {
             continue;
         }
@@ -431,14 +509,22 @@ pub fn render(
             )));
         }
         let strings = apply_hands(&mut plan, inst, &touches);
-        let listener_spec = StereoListenerSpec::all_bodies(&plan, 1.0).map_err(|e| world_err(e.to_string()))?;
-        let listener = StereoListener::bind(&listener_spec, &plan).map_err(|e| world_err(e.to_string()))?;
+        let listener_spec =
+            StereoListenerSpec::all_bodies(&plan, 1.0).map_err(|e| world_err(e.to_string()))?;
+        let listener =
+            StereoListener::bind(&listener_spec, &plan).map_err(|e| world_err(e.to_string()))?;
         let mut world = World::from_plan(plan).map_err(|e| world_err(e.to_string()))?;
-        let bodies: Vec<String> = (0..world.body_count()).map(|i| world.body_id(i).unwrap_or("?").to_owned()).collect();
+        let bodies: Vec<String> = (0..world.body_count())
+            .map(|i| world.body_id(i).unwrap_or("?").to_owned())
+            .collect();
         let string_body: BTreeMap<usize, usize> = bodies
             .iter()
             .enumerate()
-            .filter_map(|(i, id)| id.strip_prefix("string/").and_then(|n| n.parse().ok()).map(|n| (n, i)))
+            .filter_map(|(i, id)| {
+                id.strip_prefix("string/")
+                    .and_then(|n| n.parse().ok())
+                    .map(|n| (n, i))
+            })
             .collect();
         let mut controls: Vec<BodyControls> = bodies
             .iter()
@@ -455,7 +541,7 @@ pub fn render(
 
         // ---- the performance, as per-sample actions on the world
         let start = ((touches[0].seconds - FRET_LEAD_SECONDS).max(0.0) * sample_rate) as usize;
-        let mut amount: BTreeMap<usize, f64> = BTreeMap::new();  // current stop per string, in frets
+        let mut amount: BTreeMap<usize, f64> = BTreeMap::new(); // current stop per string, in frets
         let mut stops: Vec<(usize, usize, f64, usize)> = Vec::new(); // (sample, string, target fret, ramp samples)
         let mut pulses: Vec<(usize, usize, f64, usize)> = Vec::new(); // (sample, string, amplitude, width samples)
         let mut counts = [0_usize; 4];
@@ -463,14 +549,21 @@ pub fn render(
             let at = (t.seconds * sample_rate) as usize;
             let hand = &inst.hands[t.hand];
             // The string slips off a fingertip in a few tenths of a millisecond, off a pick in less.
-            let width = ((PULSE_PICK_SECONDS + PULSE_FLESH_SECONDS * (1.0 - hand.pick)) * sample_rate).max(3.0) as usize;
-            let amp = PLUCK_SCALE * db_to_gain(t.db + 11.0);  // mezzo-forte is a unit gesture
+            let width = ((PULSE_PICK_SECONDS + PULSE_FLESH_SECONDS * (1.0 - hand.pick))
+                * sample_rate)
+                .max(3.0) as usize;
+            let amp = PLUCK_SCALE * db_to_gain(t.db + 11.0); // mezzo-forte is a unit gesture
             let fretted = inst.capo + t.fret;
             let previous = *amount.get(&t.string).unwrap_or(&inst.capo);
             match t.kind {
                 TouchKind::Pluck => {
                     if (fretted - previous).abs() > 1e-9 {
-                        stops.push((at.saturating_sub((FRET_LEAD_SECONDS * sample_rate) as usize), t.string, fretted, 1));
+                        stops.push((
+                            at.saturating_sub((FRET_LEAD_SECONDS * sample_rate) as usize),
+                            t.string,
+                            fretted,
+                            1,
+                        ));
                     }
                     pulses.push((at, t.string, amp, width));
                     counts[0] += 1;
@@ -486,7 +579,12 @@ pub fn render(
                     counts[2] += 1;
                 }
                 TouchKind::Slide => {
-                    stops.push((at, t.string, fretted, (SLIDE_SECONDS * sample_rate) as usize));
+                    stops.push((
+                        at,
+                        t.string,
+                        fretted,
+                        (SLIDE_SECONDS * sample_rate) as usize,
+                    ));
                     counts[3] += 1;
                 }
             }
@@ -496,25 +594,47 @@ pub fn render(
         pulses.sort_by_key(|p| p.0);
 
         let hop = (ENERGY_HOP_SECONDS * sample_rate) as usize;
-        let box_bodies: Vec<usize> = (0..bodies.len()).filter(|&i| bodies[i].starts_with("box")).collect();
+        let box_bodies: Vec<usize> = (0..bodies.len())
+            .filter(|&i| bodies[i].starts_with("box"))
+            .collect();
         let omega: Vec<Vec<f64>> = box_bodies
             .iter()
-            .map(|&i| inst.plan.bodies[i].body.configuration_path.left.metric.frequency_hz.iter().map(|f| 2.0 * PI * f).collect())
+            .map(|&i| {
+                inst.plan.bodies[i]
+                    .body
+                    .configuration_path
+                    .left
+                    .metric
+                    .frequency_hz
+                    .iter()
+                    .map(|f| 2.0 * PI * f)
+                    .collect()
+            })
             .collect();
         let edges = world.coupling_count();
         let mut trace = EnergyTrace {
             instrument: inst.abbrev.clone(),
             hop_seconds: ENERGY_HOP_SECONDS,
             start_seconds: start as f64 / sample_rate,
-            channels: bodies.iter().cloned().chain(std::iter::once("room".to_owned())).collect(),
+            channels: bodies
+                .iter()
+                .cloned()
+                .chain(std::iter::once("room".to_owned()))
+                .collect(),
             frames: Vec::new(),
             mode_bodies: box_bodies.iter().map(|&i| bodies[i].clone()).collect(),
-            mode_frequency_hz: omega.iter().flatten().map(|w| (w / (2.0 * PI)) as f32).collect(),
+            mode_frequency_hz: omega
+                .iter()
+                .flatten()
+                .map(|w| (w / (2.0 * PI)) as f32)
+                .collect(),
             mode_frames: Vec::new(),
             source_frames: Vec::new(),
             radiation_frames: Vec::new(),
             loss_frames: Vec::new(),
-            edges: (0..edges).map(|e| world.coupling_id(e).unwrap_or("?").to_owned()).collect(),
+            edges: (0..edges)
+                .map(|e| world.coupling_id(e).unwrap_or("?").to_owned())
+                .collect(),
             bridge_frames: Vec::new(),
             touches: touches
                 .iter()
@@ -535,8 +655,11 @@ pub fn render(
                 .collect(),
         };
         let dt = 1.0 / sample_rate;
-        let (mut source_acc, mut radiation_acc, mut loss_acc) =
-            (vec![0.0_f64; bodies.len()], vec![0.0_f64; bodies.len()], vec![0.0_f64; bodies.len()]);
+        let (mut source_acc, mut radiation_acc, mut loss_acc) = (
+            vec![0.0_f64; bodies.len()],
+            vec![0.0_f64; bodies.len()],
+            vec![0.0_f64; bodies.len()],
+        );
         let mut bridge_acc = vec![0.0_f64; edges];
         let mut left = vec![0.0_f32; n_total.saturating_sub(start)];
         let mut right = vec![0.0_f32; left.len()];
@@ -556,7 +679,9 @@ pub fn render(
                 let x = ((k - s0 + 1) as f64 / len as f64).min(1.0);
                 let frets = from + (to - from) * x;
                 if let Some(&body) = string_body.get(&string) {
-                    world.set_body_configuration_index(body, (frets / 12.0).clamp(0.0, 1.0)).map_err(|e| world_err(e.to_string()))?;
+                    world
+                        .set_body_configuration_index(body, (frets / 12.0).clamp(0.0, 1.0))
+                        .map_err(|e| world_err(e.to_string()))?;
                 }
                 current.insert(string, frets);
                 if x >= 1.0 {
@@ -579,12 +704,17 @@ pub fn render(
                     return false;
                 }
                 if let Some(&body) = string_body.get(&string) {
-                    controls[body].source_wave += amp * 0.5 * (1.0 - (2.0 * PI * i as f64 / width as f64).cos());
+                    controls[body].source_wave +=
+                        amp * 0.5 * (1.0 - (2.0 * PI * i as f64 / width as f64).cos());
                 }
                 true
             });
-            let frame = world.process_sample(&controls, WorldControls::default()).map_err(|e| world_err(e.to_string()))?;
-            let heard = listener.observe(&world, &frame).map_err(|e| world_err(e.to_string()))?;
+            let frame = world
+                .process_sample(&controls, WorldControls::default())
+                .map_err(|e| world_err(e.to_string()))?;
+            let heard = listener
+                .observe(&world, &frame)
+                .map_err(|e| world_err(e.to_string()))?;
             left[k - start] = heard.left as f32;
             right[k - start] = heard.right as f32;
             for i in 0..bodies.len() {
@@ -597,7 +727,9 @@ pub fn render(
                 *acc += world.coupling_last_exchange_into_left(e).unwrap_or(0.0);
             }
             if (k - start) % hop == 0 {
-                let mut row: Vec<f32> = (0..bodies.len()).map(|i| world.body_material_energy(i).unwrap_or(0.0) as f32).collect();
+                let mut row: Vec<f32> = (0..bodies.len())
+                    .map(|i| world.body_material_energy(i).unwrap_or(0.0) as f32)
+                    .collect();
                 row.push(world.space_stored_energy() as f32);
                 trace.frames.push(row);
                 let mut modes = Vec::with_capacity(24 * box_bodies.len());
@@ -610,14 +742,23 @@ pub fn render(
                     }
                 }
                 trace.mode_frames.push(modes);
-                let take = |acc: &mut Vec<f64>| -> Vec<f32> { acc.iter_mut().map(|v| std::mem::take(v) as f32).collect() };
+                let take = |acc: &mut Vec<f64>| -> Vec<f32> {
+                    acc.iter_mut().map(|v| std::mem::take(v) as f32).collect()
+                };
                 trace.source_frames.push(take(&mut source_acc));
                 trace.radiation_frames.push(take(&mut radiation_acc));
                 trace.loss_frames.push(take(&mut loss_acc));
                 trace.bridge_frames.push(take(&mut bridge_acc));
             }
         }
-        buffers.mix_one(start, &left, &right, inst.send, OBSERVATION_GAIN * db_to_gain(inst.gain_db), None);
+        buffers.mix_one(
+            start,
+            &left,
+            &right,
+            inst.send,
+            OBSERVATION_GAIN * db_to_gain(inst.gain_db),
+            None,
+        );
         let r = world.receipt();
         stats.ariadne_worlds.push(AriadneWorldReceipt {
             instrument: inst.abbrev.clone(),
@@ -650,7 +791,13 @@ mod tests {
     #[test]
     fn swing_warp_matches_the_grid_and_carries_sixteenths() {
         let (unit, r) = (0.5, 0.64);
-        for (q, want) in [(0.0, 0.0), (0.5, 0.64), (1.0, 1.0), (1.5, 1.64), (3.5, 3.64)] {
+        for (q, want) in [
+            (0.0, 0.0),
+            (0.5, 0.64),
+            (1.0, 1.0),
+            (1.5, 1.64),
+            (3.5, 3.64),
+        ] {
             assert!((warp(q, unit, r) - want).abs() < 1e-12, "{q}");
             assert!((warp(q, unit, r) - crate::layout::swung(q, unit, r)).abs() < 1e-12);
         }

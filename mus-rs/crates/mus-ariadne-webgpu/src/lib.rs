@@ -23,8 +23,8 @@ pub use clock::{OpticalClock, OpticalClockError};
 pub use law::{Cadence, Domain, LawClass, PrimitiveDescriptor, SpatialSupport, ZeroLaw};
 pub use presentation::{PresentationParams, WorldPresenter};
 pub use primitive::{
-    GpuPrimitive, ImpulseRasterConfig, ObserverImpulseRaster2D, PrimitiveError,
-    WaveSheet2D, WaveSheetConfig,
+    GpuPrimitive, ImpulseRasterConfig, ObserverImpulseRaster2D, PrimitiveError, WaveSheet2D,
+    WaveSheetConfig,
 };
 pub use surface::{SurfaceStepReceipt, WaveSurface2D, WaveSurfaceConfig};
 pub use telemetry::{PerformanceReceipt, QualityGovernor, QualityLevel};

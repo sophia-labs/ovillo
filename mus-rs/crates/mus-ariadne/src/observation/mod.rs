@@ -9,11 +9,11 @@ mod program;
 mod runtime;
 
 pub use listener::{
-    ListenerError, StereoBodyTap, StereoFrame, StereoListener,
-    StereoListenerSpec, STEREO_LISTENER_VERSION,
+    ListenerError, StereoBodyTap, StereoFrame, StereoListener, StereoListenerSpec,
+    STEREO_LISTENER_VERSION,
 };
 pub use program::{
-    ObservationProgramError, ObservationSource, WorldObservationChannel,
-    WorldObservationProgram, WORLD_OBSERVATION_PROGRAM_VERSION,
+    ObservationProgramError, ObservationSource, WorldObservationChannel, WorldObservationProgram,
+    WORLD_OBSERVATION_PROGRAM_VERSION,
 };
 pub use runtime::{BoundObservationProgram, ObservationRuntimeError};

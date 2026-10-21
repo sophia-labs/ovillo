@@ -76,14 +76,20 @@ pub(super) struct BoundFrame {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TrajectoryBindError {
     Compile(String),
-    ClockMismatch { program_hz: u32, world_hz: u32 },
+    ClockMismatch {
+        program_hz: u32,
+        world_hz: u32,
+    },
     UnknownCoordinate(String),
     UnknownBody(String),
     CoordinateStateMismatch {
         expected_bodies: usize,
         actual_bodies: usize,
     },
-    SampleMovedBackward { current: u64, requested: u64 },
+    SampleMovedBackward {
+        current: u64,
+        requested: u64,
+    },
     World(String),
 }
 
@@ -111,7 +117,9 @@ impl std::fmt::Display for TrajectoryBindError {
                 formatter,
                 "trajectory cursor cannot move backward from {current} to {requested}"
             ),
-            Self::World(message) => write!(formatter, "World rejected trajectory update: {message}"),
+            Self::World(message) => {
+                write!(formatter, "World rejected trajectory update: {message}")
+            }
         }
     }
 }

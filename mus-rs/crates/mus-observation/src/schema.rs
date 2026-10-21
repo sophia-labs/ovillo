@@ -100,9 +100,7 @@ impl ObservationSchema {
 
     pub fn validate(&self) -> Result<(), SchemaError> {
         if self.schema_version != OBSERVATION_SCHEMA_VERSION {
-            return Err(SchemaError::UnsupportedVersion(
-                self.schema_version.clone(),
-            ));
+            return Err(SchemaError::UnsupportedVersion(self.schema_version.clone()));
         }
         validate_digest("physical_world_digest", &self.physical_world_digest)?;
         if self.sample_rate_hz == 0 {
@@ -128,9 +126,7 @@ impl ObservationSchema {
             if matches!(channel.scalar_type, ScalarType::U64)
                 && matches!(channel.interpolation, Interpolation::Linear)
             {
-                return Err(SchemaError::IntegerLinearInterpolation(
-                    channel.id.clone(),
-                ));
+                return Err(SchemaError::IntegerLinearInterpolation(channel.id.clone()));
             }
         }
         Ok(())
@@ -224,12 +220,8 @@ mod tests {
             Aggregation::Instant,
             Interpolation::Step,
         );
-        let duplicate = ObservationSchema::new(
-            digest(),
-            48_000,
-            800,
-            vec![channel.clone(), channel],
-        );
+        let duplicate =
+            ObservationSchema::new(digest(), 48_000, 800, vec![channel.clone(), channel]);
         assert!(matches!(
             duplicate.validate(),
             Err(SchemaError::DuplicateChannel(_))

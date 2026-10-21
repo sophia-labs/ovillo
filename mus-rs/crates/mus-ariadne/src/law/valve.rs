@@ -143,9 +143,17 @@ pub struct FlowValve {
 }
 
 impl FlowValve {
-    pub fn try_new(sample_rate_hz: f64, density: f64, spec: FlowValveSpec) -> Result<Self, &'static str> {
+    pub fn try_new(
+        sample_rate_hz: f64,
+        density: f64,
+        spec: FlowValveSpec,
+    ) -> Result<Self, &'static str> {
         spec.validate()?;
-        if !density.is_finite() || density <= 0.0 || !sample_rate_hz.is_finite() || sample_rate_hz <= 0.0 {
+        if !density.is_finite()
+            || density <= 0.0
+            || !sample_rate_hz.is_finite()
+            || sample_rate_hz <= 0.0
+        {
             return Err("flow valve needs a positive density and clock");
         }
         let mut valve = Self {
@@ -205,16 +213,27 @@ impl FlowValve {
         self.damping = 2.0 * self.spec.damping_ratio * m * omega;
         self.contact_damping = 2.0 * self.spec.contact_damping_ratio * m * omega;
         self.rest = self.spec.rest_half_gap_open_m
-            * (self.spec.rest_half_gap_closed_m / self.spec.rest_half_gap_open_m).powf(self.adduction);
+            * (self.spec.rest_half_gap_closed_m / self.spec.rest_half_gap_open_m)
+                .powf(self.adduction);
     }
 
     /// Retune tension and adduction at fixed fold state; returns the control
     /// work (the change of stored energy).
     pub fn retune(&mut self, tuning_hz: f64, adduction: f64) -> f64 {
-        let tuning = if tuning_hz.is_finite() { tuning_hz } else { self.tuning_hz };
+        let tuning = if tuning_hz.is_finite() {
+            tuning_hz
+        } else {
+            self.tuning_hz
+        };
         let tuning = tuning.clamp(self.spec.min_tuning_hz, self.spec.max_tuning_hz);
-        let adduction = if adduction.is_finite() { adduction.clamp(0.0, 1.0) } else { self.adduction };
-        if tuning.to_bits() == self.tuning_hz.to_bits() && adduction.to_bits() == self.adduction.to_bits() {
+        let adduction = if adduction.is_finite() {
+            adduction.clamp(0.0, 1.0)
+        } else {
+            self.adduction
+        };
+        if tuning.to_bits() == self.tuning_hz.to_bits()
+            && adduction.to_bits() == self.adduction.to_bits()
+        {
             return 0.0;
         }
         let before = self.stored_energy();
@@ -227,7 +246,11 @@ impl FlowValve {
     /// Supply pressure the reservoir delivers at `supply` (sags when low).
     #[must_use]
     pub fn supply_pressure(&self, supply: f64, reservoir: f64, capacity: f64) -> f64 {
-        let supply = if supply.is_finite() { supply.clamp(0.0, 1.0) } else { 0.0 };
+        let supply = if supply.is_finite() {
+            supply.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
         let sag = (reservoir / (self.spec.sag_fraction * capacity)).clamp(0.0, 1.0);
         supply * self.spec.max_supply_pressure_pa * sag
     }
@@ -263,7 +286,8 @@ impl FlowValve {
             0.0
         } else {
             let kappa = self.density / (2.0 * amin * amin);
-            let viscous = 12.0 * s.air_viscosity_pa_s * s.thickness_m * s.length_m * s.length_m / (amin * amin * amin);
+            let viscous = 12.0 * s.air_viscosity_pa_s * s.thickness_m * s.length_m * s.length_m
+                / (amin * amin * amin);
             let z = z_field + viscous;
             let root = (z * z + 4.0 * kappa * delta.abs()).sqrt();
             2.0 * delta / (z + root)

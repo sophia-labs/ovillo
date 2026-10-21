@@ -16,8 +16,8 @@ use crate::law::medium::LocalMediumPlan;
 
 use super::helpers::{validate_direction, validate_id};
 use super::{
-    BodyPose, BodySpec, DirectCouplingSpec, PlanError, SharedSpaceSpec, SpacePortSpec,
-    WorldPlan, MAX_BODY_INSTANCES, MAX_DIRECT_COUPLINGS,
+    BodyPose, BodySpec, DirectCouplingSpec, PlanError, SharedSpaceSpec, SpacePortSpec, WorldPlan,
+    MAX_BODY_INSTANCES, MAX_DIRECT_COUPLINGS,
 };
 
 pub const WORLD_PLAN_V3_SCHEMA_VERSION: &str = "ariadne-world-plan-v3";
@@ -76,12 +76,18 @@ pub struct LocalMediumBoundarySpec {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum BodyConstitutionSpec {
-    Modal { body: BodySpec },
-    LocalMedium { boundary: LocalMediumBoundarySpec },
+    Modal {
+        body: BodySpec,
+    },
+    LocalMedium {
+        boundary: LocalMediumBoundarySpec,
+    },
     /// A body with an N-dimensional configuration space
     /// (`SPECS/ariadne/ND-CONFIGURATION.md`). Additive: the two variants above
     /// serialize exactly as before.
-    ModalSpace { body: super::SpaceBodySpec },
+    ModalSpace {
+        body: super::SpaceBodySpec,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -138,7 +144,10 @@ impl LocalMediumBoundarySpec {
                 "boundary reservoir values must be finite, non-negative, and within capacity",
             ));
         }
-        validate_direction("local-medium radiation direction", &self.radiation_direction)?;
+        validate_direction(
+            "local-medium radiation direction",
+            &self.radiation_direction,
+        )?;
         for (index, binding) in self.inputs.iter().enumerate() {
             if binding.source >= self.medium.sources.len() {
                 return Err(PlanError::new(

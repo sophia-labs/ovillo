@@ -43,8 +43,8 @@ use crate::ir::{MetricSpec, MODE_COUNT};
 use crate::plan::PlanError;
 
 use super::eigen::{EigenError, SymmetricEigen};
-use super::tree_eigen::TreeEigen;
 use super::space::ConfigurationSpaceSpec;
+use super::tree_eigen::TreeEigen;
 
 /// Largest network (volumes) a body may declare.
 pub const TUBE_NETWORK_MAX_NODES: usize = 128;
@@ -72,7 +72,9 @@ impl AffineSpec {
     pub fn eval(&self, point: &[f64]) -> f64 {
         self.terms
             .iter()
-            .fold(self.constant, |acc, &(index, coefficient)| acc + coefficient * point[index])
+            .fold(self.constant, |acc, &(index, coefficient)| {
+                acc + coefficient * point[index]
+            })
     }
 
     fn validate(&self, dims: usize) -> bool {
@@ -150,10 +152,7 @@ pub enum AreaTermSpec {
     /// a slide. Compliances and inertances follow `dx`; under the
     /// mass-momentum connection the air state `C p`, `L u` is held across the
     /// move and the work billed, as for any other change of `C` and `L`.
-    TubeLength {
-        tube: usize,
-        length_m: AffineSpec,
-    },
+    TubeLength { tube: usize, length_m: AffineSpec },
 }
 
 /// The last volume of `tube` radiates to the outside.
@@ -227,7 +226,11 @@ impl TubeNetworkSpec {
     /// Global volume index of `(tube, section)`.
     #[must_use]
     pub fn node(&self, tube: usize, section: usize) -> usize {
-        self.tubes[..tube].iter().map(|t| t.base_log_area_m2.len()).sum::<usize>() + section
+        self.tubes[..tube]
+            .iter()
+            .map(|t| t.base_log_area_m2.len())
+            .sum::<usize>()
+            + section
     }
 
     pub(crate) fn validate(
@@ -244,19 +247,31 @@ impl TubeNetworkSpec {
             ("area_ceiling_m2", self.area_ceiling_m2),
         ] {
             if !value.is_finite() || value <= 0.0 {
-                return bad("invalid-tube-network-constant", format!("{name} must be finite and positive"));
+                return bad(
+                    "invalid-tube-network-constant",
+                    format!("{name} must be finite and positive"),
+                );
             }
         }
         if self.area_floor_m2 >= self.area_ceiling_m2 {
-            return bad("invalid-tube-network-cone", "area floor must be below the ceiling".into());
+            return bad(
+                "invalid-tube-network-cone",
+                "area floor must be below the ceiling".into(),
+            );
         }
         if self.tubes.is_empty() {
-            return bad("empty-tube-network", "a tube network needs at least one tube".into());
+            return bad(
+                "empty-tube-network",
+                "a tube network needs at least one tube".into(),
+            );
         }
         let mut ids = std::collections::BTreeSet::new();
         for tube in &self.tubes {
             if tube.id.trim().is_empty() || !ids.insert(tube.id.as_str()) {
-                return bad("invalid-tube-id", format!("tube ids must be unique and nonempty: {:?}", tube.id));
+                return bad(
+                    "invalid-tube-id",
+                    format!("tube ids must be unique and nonempty: {:?}", tube.id),
+                );
             }
             if !tube.length_m.is_finite()
                 || tube.length_m <= 0.0
@@ -265,7 +280,13 @@ impl TubeNetworkSpec {
                 || !tube.attenuation_np_per_m.is_finite()
                 || tube.attenuation_np_per_m < 0.0
             {
-                return bad("invalid-tube", format!("tube {:?} needs length > 0, >= 2 finite sections, attenuation >= 0", tube.id));
+                return bad(
+                    "invalid-tube",
+                    format!(
+                        "tube {:?} needs length > 0, >= 2 finite sections, attenuation >= 0",
+                        tube.id
+                    ),
+                );
             }
         }
         let nodes = self.node_count();
@@ -291,40 +312,100 @@ impl TubeNetworkSpec {
             attached[branch.branch] = true;
         }
         if attached.iter().any(|a| !a) {
-            return bad("disconnected-tube-network", "every tube must be attached to the tree".into());
+            return bad(
+                "disconnected-tube-network",
+                "every tube must be attached to the tree".into(),
+            );
         }
         for term in &self.area_terms {
             let ok = match term {
-                AreaTermSpec::Gaussian { tube, amplitude, center, width } => {
-                    *tube < self.tubes.len() && amplitude.validate(dims) && center.validate(dims) && width.is_finite() && *width > 0.0
+                AreaTermSpec::Gaussian {
+                    tube,
+                    amplitude,
+                    center,
+                    width,
+                } => {
+                    *tube < self.tubes.len()
+                        && amplitude.validate(dims)
+                        && center.validate(dims)
+                        && width.is_finite()
+                        && *width > 0.0
                 }
-                AreaTermSpec::LogScaleGaussian { tube, scale, floor, center, width } => {
-                    *tube < self.tubes.len() && scale.validate(dims) && floor.is_finite() && *floor > 0.0 && center.is_finite() && width.is_finite() && *width > 0.0
+                AreaTermSpec::LogScaleGaussian {
+                    tube,
+                    scale,
+                    floor,
+                    center,
+                    width,
+                } => {
+                    *tube < self.tubes.len()
+                        && scale.validate(dims)
+                        && floor.is_finite()
+                        && *floor > 0.0
+                        && center.is_finite()
+                        && width.is_finite()
+                        && *width > 0.0
                 }
-                AreaTermSpec::SectionArea { tube, section, area_m2 } => {
-                    *tube < self.tubes.len() && *section < self.tubes[*tube].base_log_area_m2.len() && area_m2.validate(dims)
+                AreaTermSpec::SectionArea {
+                    tube,
+                    section,
+                    area_m2,
+                } => {
+                    *tube < self.tubes.len()
+                        && *section < self.tubes[*tube].base_log_area_m2.len()
+                        && area_m2.validate(dims)
                 }
-                AreaTermSpec::Constriction { tube, position, degree, half_width, shoulder_width } => {
-                    *tube < self.tubes.len() && position.validate(dims) && degree.validate(dims)
-                        && half_width.is_finite() && *half_width >= 0.0 && shoulder_width.is_finite() && *shoulder_width > 0.0
+                AreaTermSpec::Constriction {
+                    tube,
+                    position,
+                    degree,
+                    half_width,
+                    shoulder_width,
+                } => {
+                    *tube < self.tubes.len()
+                        && position.validate(dims)
+                        && degree.validate(dims)
+                        && half_width.is_finite()
+                        && *half_width >= 0.0
+                        && shoulder_width.is_finite()
+                        && *shoulder_width > 0.0
                 }
-                AreaTermSpec::TubeLength { tube, length_m } => *tube < self.tubes.len() && length_m.validate(dims),
+                AreaTermSpec::TubeLength { tube, length_m } => {
+                    *tube < self.tubes.len() && length_m.validate(dims)
+                }
             };
             if !ok {
-                return bad("invalid-area-term", format!("area term {term:?} is outside the network or the space"));
+                return bad(
+                    "invalid-area-term",
+                    format!("area term {term:?} is outside the network or the space"),
+                );
             }
         }
         if self.radiating_ends.is_empty() {
-            return bad("closed-tube-network", "at least one radiating end is required (the network must open to the outside)".into());
+            return bad(
+                "closed-tube-network",
+                "at least one radiating end is required (the network must open to the outside)"
+                    .into(),
+            );
         }
         let mut seen = std::collections::BTreeSet::new();
         for end in &self.radiating_ends {
-            if end.tube >= self.tubes.len() || !seen.insert(end.tube) || !end.end_correction_ratio.is_finite() || end.end_correction_ratio < 0.0 {
-                return bad("invalid-radiating-end", format!("radiating end {end:?} is invalid"));
+            if end.tube >= self.tubes.len()
+                || !seen.insert(end.tube)
+                || !end.end_correction_ratio.is_finite()
+                || end.end_correction_ratio < 0.0
+            {
+                return bad(
+                    "invalid-radiating-end",
+                    format!("radiating end {end:?} is invalid"),
+                );
             }
         }
         if let Some(contact) = &self.contact {
-            let sections = self.tubes.get(contact.tube).map_or(0, |t| t.base_log_area_m2.len());
+            let sections = self
+                .tubes
+                .get(contact.tube)
+                .map_or(0, |t| t.base_log_area_m2.len());
             if contact.tube >= self.tubes.len()
                 || contact.first_junction > contact.last_junction
                 || contact.last_junction + 2 > sections
@@ -334,7 +415,10 @@ impl TubeNetworkSpec {
                 || contact.sealed_area_m2 <= 0.0
                 || (contact.seal_branch_port && self.branches.is_empty())
             {
-                return bad("invalid-contact", format!("contact {contact:?} is outside the network"));
+                return bad(
+                    "invalid-contact",
+                    format!("contact {contact:?} is outside the network"),
+                );
             }
         }
         // Sampled band check: every corner of the box and its centre (up to
@@ -343,7 +427,11 @@ impl TubeNetworkSpec {
         let mut network = TubeNetwork::compile(self, dims);
         let mut frame = network.empty_frame();
         let mut point = vec![0.0; dims];
-        let samples = if dims <= 8 { (1usize << dims) + 1 } else { 3 + 2 * dims };
+        let samples = if dims <= 8 {
+            (1usize << dims) + 1
+        } else {
+            3 + 2 * dims
+        };
         for sample in 0..samples {
             for (axis, coordinate) in space.coordinates.iter().enumerate() {
                 let centre = 0.5 * (coordinate.lower + coordinate.upper);
@@ -362,7 +450,15 @@ impl TubeNetworkSpec {
                         2 => coordinate.upper,
                         k => {
                             let (a, upper) = ((k - 3) / 2, (k - 3) % 2 == 1);
-                            if a == axis { if upper { coordinate.upper } else { coordinate.lower } } else { centre }
+                            if a == axis {
+                                if upper {
+                                    coordinate.upper
+                                } else {
+                                    coordinate.lower
+                                }
+                            } else {
+                                centre
+                            }
                         }
                     }
                 };
@@ -377,9 +473,12 @@ impl TubeNetworkSpec {
                     network.compute(&point, None, &mut frame).map_err(|error| {
                         PlanError::new("tube-network-modes", format!("at {point:?}: {error:?}"))
                     })?;
-                    frame.metric().runtime_check(sample_rate_hz).map_err(|message| {
-                        PlanError::new("tube-network-band", format!("at {point:?}: {message}"))
-                    })?;
+                    frame
+                        .metric()
+                        .runtime_check(sample_rate_hz)
+                        .map_err(|message| {
+                            PlanError::new("tube-network-band", format!("at {point:?}: {message}"))
+                        })?;
                 }
             }
         }
@@ -553,7 +652,10 @@ impl TubeNetwork {
             });
         }
         let nodes = node_tube.len();
-        let edges: Vec<(usize, usize)> = elements.iter().filter_map(|e| e.b.map(|b| (e.a, b))).collect();
+        let edges: Vec<(usize, usize)> = elements
+            .iter()
+            .filter_map(|e| e.b.map(|b| (e.a, b)))
+            .collect();
         let tree = TreeEigen::new(nodes, MODE_COUNT, &edges);
         Self {
             spec: spec.clone(),
@@ -584,7 +686,12 @@ impl TubeNetwork {
     }
 
     /// Band check by inertia (`None` when the network is not a tree).
-    pub(crate) fn check_band(&mut self, point: &[f64], frame: &mut NetworkFrame, max_omega2: f64) -> Option<bool> {
+    pub(crate) fn check_band(
+        &mut self,
+        point: &[f64],
+        frame: &mut NetworkFrame,
+        max_omega2: f64,
+    ) -> Option<bool> {
         self.tree.as_ref()?;
         self.band_probe = Some(max_omega2);
         self.band_result = None;
@@ -605,13 +712,22 @@ impl TubeNetwork {
     /// Element index of the column between sections `junction` and
     /// `junction + 1` of `tube` (internal columns come first, tube by tube).
     pub(crate) fn junction_element(&self, tube: usize, junction: usize) -> usize {
-        self.spec.tubes[..tube].iter().map(|t| t.base_log_area_m2.len() - 1).sum::<usize>() + junction
+        self.spec.tubes[..tube]
+            .iter()
+            .map(|t| t.base_log_area_m2.len() - 1)
+            .sum::<usize>()
+            + junction
     }
 
     /// Element index and branch-side volume of branch `index`.
     pub(crate) fn branch_element(&self, index: usize) -> Option<(usize, usize)> {
         let branch = self.spec.branches.get(index)?;
-        let internal: usize = self.spec.tubes.iter().map(|t| t.base_log_area_m2.len() - 1).sum();
+        let internal: usize = self
+            .spec
+            .tubes
+            .iter()
+            .map(|t| t.base_log_area_m2.len() - 1)
+            .sum();
         Some((internal + index, self.offsets[branch.branch]))
     }
 
@@ -691,35 +807,61 @@ impl TubeNetwork {
         }
         for term in &spec.area_terms {
             match term {
-                AreaTermSpec::Gaussian { tube, amplitude, center, width } => {
+                AreaTermSpec::Gaussian {
+                    tube,
+                    amplitude,
+                    center,
+                    width,
+                } => {
                     let amplitude = amplitude.eval(point);
                     let center = center.eval(point);
                     let start = self.offsets[*tube];
                     let end = start + spec.tubes[*tube].base_log_area_m2.len();
                     for n in start..end {
-                        self.log_area[n] += amplitude * gaussian(self.node_position[n], center, *width);
+                        self.log_area[n] +=
+                            amplitude * gaussian(self.node_position[n], center, *width);
                     }
                 }
-                AreaTermSpec::LogScaleGaussian { tube, scale, floor, center, width } => {
+                AreaTermSpec::LogScaleGaussian {
+                    tube,
+                    scale,
+                    floor,
+                    center,
+                    width,
+                } => {
                     let amplitude = scale.eval(point).max(*floor).ln();
                     let start = self.offsets[*tube];
                     let end = start + spec.tubes[*tube].base_log_area_m2.len();
                     for n in start..end {
-                        self.log_area[n] += amplitude * gaussian(self.node_position[n], *center, *width);
+                        self.log_area[n] +=
+                            amplitude * gaussian(self.node_position[n], *center, *width);
                     }
                 }
-                AreaTermSpec::SectionArea { .. } | AreaTermSpec::Constriction { .. } | AreaTermSpec::TubeLength { .. } => {}
+                AreaTermSpec::SectionArea { .. }
+                | AreaTermSpec::Constriction { .. }
+                | AreaTermSpec::TubeLength { .. } => {}
             }
         }
         for (n, value) in out.iter_mut().enumerate().take(self.nodes) {
             let mut raw = self.log_area[n].exp();
             for term in &spec.area_terms {
-                if let AreaTermSpec::Constriction { tube, position, degree, half_width, shoulder_width } = term {
+                if let AreaTermSpec::Constriction {
+                    tube,
+                    position,
+                    degree,
+                    half_width,
+                    shoulder_width,
+                } = term
+                {
                     if self.node_tube[n] == *tube {
                         let d = degree.eval(point).clamp(0.0, 1.0);
                         if d > 0.0 {
                             let dist = (self.node_position[n] - position.eval(point)).abs();
-                            let bump = if dist <= *half_width { 1.0 } else { (-0.5 * ((dist - half_width) / shoulder_width).powi(2)).exp() };
+                            let bump = if dist <= *half_width {
+                                1.0
+                            } else {
+                                (-0.5 * ((dist - half_width) / shoulder_width).powi(2)).exp()
+                            };
                             raw *= (1.0 - d * bump).max(0.0);
                         }
                     }
@@ -729,10 +871,16 @@ impl TubeNetwork {
             *value = raw.clamp(spec.area_floor_m2, spec.area_ceiling_m2);
         }
         for term in &spec.area_terms {
-            if let AreaTermSpec::SectionArea { tube, section, area_m2 } = term {
+            if let AreaTermSpec::SectionArea {
+                tube,
+                section,
+                area_m2,
+            } = term
+            {
                 let raw = area_m2.eval(point);
                 unclamped[self.offsets[*tube] + section] = raw.max(0.0);
-                out[self.offsets[*tube] + section] = raw.clamp(spec.area_floor_m2, spec.area_ceiling_m2);
+                out[self.offsets[*tube] + section] =
+                    raw.clamp(spec.area_floor_m2, spec.area_ceiling_m2);
             }
         }
     }
@@ -759,7 +907,8 @@ impl TubeNetwork {
             return Err(NetworkError::NonFiniteGeometry);
         }
         for node in 0..n {
-            out.compliance[node] = out.areas_m2[node] * self.dx[self.node_tube[node]] / (rho * c * c);
+            out.compliance[node] =
+                out.areas_m2[node] * self.dx[self.node_tube[node]] / (rho * c * c);
         }
         self.column_override.clear();
         out.jet = None;
@@ -794,7 +943,8 @@ impl TubeNetwork {
                     let open = aperture(node);
                     if unclamped[node] < floor || open <= 0.0 {
                         let e = &self.elements[element];
-                        self.column_override.push((element, -(rho * e.half_b / half(node))));
+                        self.column_override
+                            .push((element, -(rho * e.half_b / half(node))));
                     }
                     out.port = Some((element, open));
                     if open <= 0.0 {
@@ -803,7 +953,8 @@ impl TubeNetwork {
                 }
             }
         } else if let Some(contact) = self.spec.contact {
-            let aperture = |node: usize| (out.unclamped_areas_m2[node] - contact.contact_area_m2).max(0.0);
+            let aperture =
+                |node: usize| (out.unclamped_areas_m2[node] - contact.contact_area_m2).max(0.0);
             // Every column at contact is sealed; the jet is the narrowest
             // column (the most downstream one among sealed ties, so the
             // seal nearest the opening is the one that releases).
@@ -828,7 +979,8 @@ impl TubeNetwork {
             if contact.seal_branch_port {
                 if let Some((element, node)) = self.branch_element(0) {
                     let open = aperture(node);
-                    self.column_override.push((element, open.max(contact.sealed_area_m2)));
+                    self.column_override
+                        .push((element, open.max(contact.sealed_area_m2)));
                     out.port = Some((element, open));
                     if open <= 0.0 {
                         out.sealed.push(element);
@@ -851,7 +1003,8 @@ impl TubeNetwork {
             }
             if let Some(end) = element.end {
                 let radius = (a_area / std::f64::consts::PI).sqrt();
-                inertance += rho * self.spec.radiating_ends[end].end_correction_ratio * radius / a_area;
+                inertance +=
+                    rho * self.spec.radiating_ends[end].end_correction_ratio * radius / a_area;
             }
             if let Some(&(_, value)) = self.column_override.iter().find(|(e, _)| *e == j) {
                 inertance = if value < 0.0 {
@@ -906,7 +1059,9 @@ impl TubeNetwork {
             }
             for (j, element) in self.elements.iter().enumerate() {
                 if let Some(b) = element.b {
-                    let off = -1.0 / (out.inertance[j] * (out.compliance[element.a] * out.compliance[b]).sqrt());
+                    let off = -1.0
+                        / (out.inertance[j]
+                            * (out.compliance[element.a] * out.compliance[b]).sqrt());
                     self.matrix[element.a * n + b] += off;
                     self.matrix[b * n + element.a] += off;
                 }
@@ -933,7 +1088,9 @@ impl TubeNetwork {
             }
             if let Some(previous) = previous {
                 let overlap: f64 = (0..n)
-                    .map(|node| out.compliance[node] * out.phi[k * n + node] * previous.phi[k * n + node])
+                    .map(|node| {
+                        out.compliance[node] * out.phi[k * n + node] * previous.phi[k * n + node]
+                    })
                     .sum();
                 if overlap < 0.0 {
                     for node in 0..n {
@@ -943,7 +1100,16 @@ impl TubeNetwork {
                 }
             } else {
                 // Deterministic sign: positive at the first volume with weight.
-                let lead = (0..n).map(|node| out.phi[k * n + node]).find(|v| v.abs() > 1e-9 * out.phi[k * n..(k + 1) * n].iter().fold(0.0_f64, |m, v| m.max(v.abs()))).unwrap_or(1.0);
+                let lead = (0..n)
+                    .map(|node| out.phi[k * n + node])
+                    .find(|v| {
+                        v.abs()
+                            > 1e-9
+                                * out.phi[k * n..(k + 1) * n]
+                                    .iter()
+                                    .fold(0.0_f64, |m, v| m.max(v.abs()))
+                    })
+                    .unwrap_or(1.0);
                 if lead < 0.0 {
                     for node in 0..n {
                         out.phi[k * n + node] = -out.phi[k * n + node];
@@ -969,13 +1135,18 @@ impl TubeNetwork {
                 kinetic += element.alpha * f * f / out.inertance[j];
             }
             let sigma = 0.5 * c * (potential + kinetic / omega2);
-            out.t60_seconds[k] = if sigma > 0.0 { LN_1000 / sigma } else { f64::MAX };
+            out.t60_seconds[k] = if sigma > 0.0 {
+                LN_1000 / sigma
+            } else {
+                f64::MAX
+            };
         }
         for (e, &node) in self.end_nodes.iter().enumerate() {
             let area = out.areas_m2[node];
             let radius = (area / std::f64::consts::PI).sqrt();
             let tube = self.node_tube[node];
-            let column = 0.5 * self.dx[tube] + self.spec.radiating_ends[e].end_correction_ratio * radius;
+            let column =
+                0.5 * self.dx[tube] + self.spec.radiating_ends[e].end_correction_ratio * radius;
             let conductance = area * radius * radius / (4.0 * rho * c * column * column);
             out.radiation_conductance[e] = conductance;
             for k in 0..MODE_COUNT {
@@ -1061,9 +1232,16 @@ fn gaussian(x: f64, center: f64, width: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::configuration::space::{ConfigurationCoordinate, ConfigurationMapSpec, ConnectionPolicy};
+    use crate::configuration::space::{
+        ConfigurationCoordinate, ConfigurationMapSpec, ConnectionPolicy,
+    };
 
-    pub(crate) fn uniform_tube(sections: usize, length_m: f64, area_m2: f64, end_correction: f64) -> TubeNetworkSpec {
+    pub(crate) fn uniform_tube(
+        sections: usize,
+        length_m: f64,
+        area_m2: f64,
+        end_correction: f64,
+    ) -> TubeNetworkSpec {
         TubeNetworkSpec {
             speed_of_sound_m_s: 343.0,
             air_density_kg_m3: 1.204,
@@ -1077,7 +1255,10 @@ mod tests {
             }],
             branches: vec![],
             area_terms: vec![],
-            radiating_ends: vec![RadiatingEndSpec { tube: 0, end_correction_ratio: end_correction }],
+            radiating_ends: vec![RadiatingEndSpec {
+                tube: 0,
+                end_correction_ratio: end_correction,
+            }],
             contact: None,
         }
     }
@@ -1110,8 +1291,13 @@ mod tests {
         let n = frame.nodes;
         for k in 0..MODE_COUNT {
             for l in 0..MODE_COUNT {
-                let dot: f64 = (0..n).map(|i| frame.compliance[i] * frame.phi[k * n + i] * frame.phi[l * n + i]).sum();
-                assert!((dot - if k == l { 1.0 } else { 0.0 }).abs() < 1e-10, "{k},{l}: {dot}");
+                let dot: f64 = (0..n)
+                    .map(|i| frame.compliance[i] * frame.phi[k * n + i] * frame.phi[l * n + i])
+                    .sum();
+                assert!(
+                    (dot - if k == l { 1.0 } else { 0.0 }).abs() < 1e-10,
+                    "{k},{l}: {dot}"
+                );
             }
         }
     }
@@ -1121,14 +1307,26 @@ mod tests {
         let mut spec = uniform_tube(40, 0.16, 3.0e-4, 0.61);
         spec.area_terms.push(AreaTermSpec::Gaussian {
             tube: 0,
-            amplitude: AffineSpec { constant: 0.0, terms: vec![(0, -2.0)] },
+            amplitude: AffineSpec {
+                constant: 0.0,
+                terms: vec![(0, -2.0)],
+            },
             center: AffineSpec::constant(0.6),
             width: 0.1,
         });
         let space = ConfigurationSpaceSpec {
-            coordinates: vec![ConfigurationCoordinate { name: "c".into(), lower: 0.0, upper: 1.0, initial: 0.0 }],
-            map: ConfigurationMapSpec::TubeNetwork { network: spec.clone() },
-            connection: ConnectionPolicy::MassMomentum { disposal: super::super::space::DisposalPolicy::Dissipate },
+            coordinates: vec![ConfigurationCoordinate {
+                name: "c".into(),
+                lower: 0.0,
+                upper: 1.0,
+                initial: 0.0,
+            }],
+            map: ConfigurationMapSpec::TubeNetwork {
+                network: spec.clone(),
+            },
+            connection: ConnectionPolicy::MassMomentum {
+                disposal: super::super::space::DisposalPolicy::Dissipate,
+            },
         };
         space.validate(48_000.0).unwrap();
         let mut network = TubeNetwork::compile(&spec, 1);
@@ -1148,14 +1346,25 @@ mod tests {
         mass_momentum_transport(&a, &b, dt, &mut state, &mut excess, &mut momentum);
         for k in 0..MODE_COUNT {
             assert!((state.momentum[k] - before.momentum[k]).abs() < 1e-9);
-            assert!((state.displacement[k] - before.displacement[k]).abs() < 1e-9 / a.omega2[k].sqrt());
+            assert!(
+                (state.displacement[k] - before.displacement[k]).abs() < 1e-9 / a.omega2[k].sqrt()
+            );
         }
         // A real move: physical energy after >= retained energy after (Bessel).
         let mut c = network.empty_frame();
         network.compute(&[0.8], Some(&b), &mut c).unwrap();
         let moved = mass_momentum_transport(&b, &c, dt, &mut state, &mut excess, &mut momentum);
-        let retained: f64 = 0.5 * dt * (0..MODE_COUNT).map(|k| state.momentum[k].powi(2) + c.omega2[k] * state.displacement[k].powi(2)).sum::<f64>();
-        assert!(moved.physical_energy_after >= retained * (1.0 - 1e-12), "{} < {}", moved.physical_energy_after, retained);
+        let retained: f64 = 0.5
+            * dt
+            * (0..MODE_COUNT)
+                .map(|k| state.momentum[k].powi(2) + c.omega2[k] * state.displacement[k].powi(2))
+                .sum::<f64>();
+        assert!(
+            moved.physical_energy_after >= retained * (1.0 - 1e-12),
+            "{} < {}",
+            moved.physical_energy_after,
+            retained
+        );
     }
     /// A `TubeLength` term is a slide: at every point the uniform tube's modes
     /// are the staggered grid's quarter-wave series for that length.
@@ -1163,7 +1372,13 @@ mod tests {
     fn tube_length_term_is_a_slide_on_the_quarter_wave_series() {
         let sections = 64;
         let mut spec = uniform_tube(sections, 0.17, 3.0e-4, 0.0);
-        spec.area_terms.push(AreaTermSpec::TubeLength { tube: 0, length_m: AffineSpec { constant: 0.17, terms: vec![(0, 0.10)] } });
+        spec.area_terms.push(AreaTermSpec::TubeLength {
+            tube: 0,
+            length_m: AffineSpec {
+                constant: 0.17,
+                terms: vec![(0, 0.10)],
+            },
+        });
         let mut network = TubeNetwork::compile(&spec, 1);
         let mut frame = network.empty_frame();
         for &x in &[0.0, 0.37, 1.0, 0.0] {
@@ -1174,18 +1389,38 @@ mod tests {
                 let continuum = (2.0 * k as f64 + 1.0) * 343.0 / (4.0 * length);
                 let wavenumber = std::f64::consts::TAU * continuum / 343.0;
                 let dispersion = (wavenumber * dx / 2.0).sin() / (wavenumber * dx / 2.0);
-                assert!((frame.frequency_hz[k] / (continuum * dispersion) - 1.0).abs() < 1e-10, "x {x} mode {k}");
+                assert!(
+                    (frame.frequency_hz[k] / (continuum * dispersion) - 1.0).abs() < 1e-10,
+                    "x {x} mode {k}"
+                );
             }
             // compliance follows the stretched sections
-            assert!((frame.compliance.iter().sum::<f64>() - 3.0e-4 * length / (1.204 * 343.0 * 343.0)).abs() < 1e-18);
+            assert!(
+                (frame.compliance.iter().sum::<f64>() - 3.0e-4 * length / (1.204 * 343.0 * 343.0))
+                    .abs()
+                    < 1e-18
+            );
         }
         // a length that is not positive anywhere in the box is refused by the band check
         let mut bad = uniform_tube(sections, 0.17, 3.0e-4, 0.0);
-        bad.area_terms.push(AreaTermSpec::TubeLength { tube: 0, length_m: AffineSpec { constant: 0.17, terms: vec![(0, -0.2)] } });
+        bad.area_terms.push(AreaTermSpec::TubeLength {
+            tube: 0,
+            length_m: AffineSpec {
+                constant: 0.17,
+                terms: vec![(0, -0.2)],
+            },
+        });
         let space = ConfigurationSpaceSpec {
-            coordinates: vec![ConfigurationCoordinate { name: "slide".into(), lower: 0.0, upper: 1.0, initial: 0.0 }],
+            coordinates: vec![ConfigurationCoordinate {
+                name: "slide".into(),
+                lower: 0.0,
+                upper: 1.0,
+                initial: 0.0,
+            }],
             map: ConfigurationMapSpec::TubeNetwork { network: bad },
-            connection: ConnectionPolicy::MassMomentum { disposal: super::super::space::DisposalPolicy::Dissipate },
+            connection: ConnectionPolicy::MassMomentum {
+                disposal: super::super::space::DisposalPolicy::Dissipate,
+            },
         };
         assert!(space.validate(48_000.0).is_err());
     }
@@ -1196,9 +1431,17 @@ mod tests {
     #[test]
     fn a_slide_move_is_transported_and_old_specs_serialize_unchanged() {
         let plain = uniform_tube(40, 0.16, 3.0e-4, 0.61);
-        assert!(!serde_json::to_string(&plain).unwrap().contains("tube_length"));
+        assert!(!serde_json::to_string(&plain)
+            .unwrap()
+            .contains("tube_length"));
         let mut spec = plain;
-        spec.area_terms.push(AreaTermSpec::TubeLength { tube: 0, length_m: AffineSpec { constant: 0.16, terms: vec![(0, 0.08)] } });
+        spec.area_terms.push(AreaTermSpec::TubeLength {
+            tube: 0,
+            length_m: AffineSpec {
+                constant: 0.16,
+                terms: vec![(0, 0.08)],
+            },
+        });
         let mut network = TubeNetwork::compile(&spec, 1);
         let mut a = network.empty_frame();
         let mut b = network.empty_frame();
@@ -1219,9 +1462,16 @@ mod tests {
         }
         let mut c = network.empty_frame();
         network.compute(&[0.5], Some(&b), &mut c).unwrap();
-        assert!(c.frequency_hz[0] < b.frequency_hz[0] * 0.85, "a longer tube is lower");
+        assert!(
+            c.frequency_hz[0] < b.frequency_hz[0] * 0.85,
+            "a longer tube is lower"
+        );
         let moved = mass_momentum_transport(&b, &c, dt, &mut state, &mut excess, &mut momentum);
-        let retained: f64 = 0.5 * dt * (0..MODE_COUNT).map(|k| state.momentum[k].powi(2) + c.omega2[k] * state.displacement[k].powi(2)).sum::<f64>();
+        let retained: f64 = 0.5
+            * dt
+            * (0..MODE_COUNT)
+                .map(|k| state.momentum[k].powi(2) + c.omega2[k] * state.displacement[k].powi(2))
+                .sum::<f64>();
         assert!(moved.physical_energy_after >= retained * (1.0 - 1e-12));
         assert!(moved.physical_energy_after.is_finite() && retained > 0.0);
     }
@@ -1233,11 +1483,38 @@ mod warm_tests {
 
     fn branched() -> TubeNetworkSpec {
         let mut spec = tests_support::uniform(30, 0.16, 3.0e-4);
-        spec.tubes.push(TubeSpec { id: "side".into(), length_m: 0.1, base_log_area_m2: vec![(1.0e-4f64).ln(); 16], attenuation_np_per_m: 1.0 });
-        spec.branches.push(TubeBranchSpec { trunk: 0, trunk_section: 12, branch: 1 });
-        spec.radiating_ends.push(RadiatingEndSpec { tube: 1, end_correction_ratio: 0.61 });
-        spec.area_terms.push(AreaTermSpec::Gaussian { tube: 0, amplitude: AffineSpec { constant: 0.0, terms: vec![(0, -3.0)] }, center: AffineSpec::constant(0.7), width: 0.1 });
-        spec.area_terms.push(AreaTermSpec::SectionArea { tube: 1, section: 0, area_m2: AffineSpec { constant: 2.5e-6, terms: vec![(1, 1.0e-4)] } });
+        spec.tubes.push(TubeSpec {
+            id: "side".into(),
+            length_m: 0.1,
+            base_log_area_m2: vec![(1.0e-4f64).ln(); 16],
+            attenuation_np_per_m: 1.0,
+        });
+        spec.branches.push(TubeBranchSpec {
+            trunk: 0,
+            trunk_section: 12,
+            branch: 1,
+        });
+        spec.radiating_ends.push(RadiatingEndSpec {
+            tube: 1,
+            end_correction_ratio: 0.61,
+        });
+        spec.area_terms.push(AreaTermSpec::Gaussian {
+            tube: 0,
+            amplitude: AffineSpec {
+                constant: 0.0,
+                terms: vec![(0, -3.0)],
+            },
+            center: AffineSpec::constant(0.7),
+            width: 0.1,
+        });
+        spec.area_terms.push(AreaTermSpec::SectionArea {
+            tube: 1,
+            section: 0,
+            area_m2: AffineSpec {
+                constant: 2.5e-6,
+                terms: vec![(1, 1.0e-4)],
+            },
+        });
         spec
     }
 
@@ -1249,10 +1526,18 @@ mod warm_tests {
                 air_density_kg_m3: 1.204,
                 area_floor_m2: 2.5e-6,
                 area_ceiling_m2: 1.8e-3,
-                tubes: vec![TubeSpec { id: "t".into(), length_m, base_log_area_m2: vec![area_m2.ln(); sections], attenuation_np_per_m: 0.45 }],
+                tubes: vec![TubeSpec {
+                    id: "t".into(),
+                    length_m,
+                    base_log_area_m2: vec![area_m2.ln(); sections],
+                    attenuation_np_per_m: 0.45,
+                }],
                 branches: vec![],
                 area_terms: vec![],
-                radiating_ends: vec![RadiatingEndSpec { tube: 0, end_correction_ratio: 0.61 }],
+                radiating_ends: vec![RadiatingEndSpec {
+                    tube: 0,
+                    end_correction_ratio: 0.61,
+                }],
                 contact: None,
             }
         }
@@ -1274,19 +1559,25 @@ mod warm_tests {
             let t = step as f64 / 400.0;
             let point = [t, (2.0 * t).min(1.0)];
             let mut warm = warm_net.empty_frame();
-            warm_net.compute(&point, Some(&previous), &mut warm).unwrap();
+            warm_net
+                .compute(&point, Some(&previous), &mut warm)
+                .unwrap();
             let mut dense = dense_net.empty_frame();
             dense_net.compute(&point, None, &mut dense).unwrap();
             let n = warm.nodes;
             for k in 0..MODE_COUNT {
                 worst_f = worst_f.max((warm.frequency_hz[k] / dense.frequency_hz[k] - 1.0).abs());
-                let dot: f64 = (0..n).map(|i| warm.psi[k * n + i] * dense.psi[k * n + i]).sum();
+                let dot: f64 = (0..n)
+                    .map(|i| warm.psi[k * n + i] * dense.psi[k * n + i])
+                    .sum();
                 worst_shape = worst_shape.max(1.0 - dot.abs());
             }
             let mut orth = 0.0_f64;
             for k in 0..MODE_COUNT {
                 for l in 0..k {
-                    let dot: f64 = (0..n).map(|i| warm.psi[k * n + i] * warm.psi[l * n + i]).sum();
+                    let dot: f64 = (0..n)
+                        .map(|i| warm.psi[k * n + i] * warm.psi[l * n + i])
+                        .sum();
                     orth = orth.max(dot.abs());
                 }
             }
@@ -1295,7 +1586,10 @@ mod warm_tests {
         }
         println!("warm {} dense-fallback {} | worst relative frequency {worst_f:e}, worst 1-|<psi_w,psi_d>| {worst_shape:e}, worst warm orthogonality {worst_orth:e}", warm_net.warm_solves, warm_net.dense_solves);
         assert!(worst_orth < 1e-12, "{worst_orth}");
-        assert!(warm_net.warm_solves > 300, "warm path should certify most steps");
+        assert!(
+            warm_net.warm_solves > 300,
+            "warm path should certify most steps"
+        );
         assert!(worst_f < 1e-11, "{worst_f}");
         assert!(worst_shape < 1e-10, "{worst_shape}");
     }

@@ -4,8 +4,8 @@ use crate::plan::WorldPlan;
 use crate::shared_world::World;
 
 use super::types::{
-    BodyCoordinate, BoundFrame, BoundUpdate, CoordinateId, TrajectoryBindError,
-    TrajectoryBinding, WorldCoordinate, WorldCoordinates,
+    BodyCoordinate, BoundFrame, BoundUpdate, CoordinateId, TrajectoryBindError, TrajectoryBinding,
+    WorldCoordinate, WorldCoordinates,
 };
 
 impl TrajectoryBinding {
@@ -191,21 +191,13 @@ fn apply_update(
                 }
                 BodyCoordinate::SourceWave => controls.source_wave = value,
                 BodyCoordinate::WorkInput => controls.work_input = value.clamp(0.0, 1.0),
-                BodyCoordinate::ActiveCoupling => {
-                    controls.active_coupling = value.clamp(0.0, 1.0)
-                }
+                BodyCoordinate::ActiveCoupling => controls.active_coupling = value.clamp(0.0, 1.0),
                 BodyCoordinate::ActiveDrive => controls.active.drive = value.clamp(0.0, 1.5),
-                BodyCoordinate::ActiveHeadroom => {
-                    controls.active.headroom = value.clamp(0.02, 1.0)
-                }
-                BodyCoordinate::ActiveSustain => {
-                    controls.active.sustain = value.clamp(0.0, 1.0)
-                }
+                BodyCoordinate::ActiveHeadroom => controls.active.headroom = value.clamp(0.02, 1.0),
+                BodyCoordinate::ActiveSustain => controls.active.sustain = value.clamp(0.0, 1.0),
                 BodyCoordinate::ActiveSag => controls.active.sag = value.clamp(0.0, 1.0),
                 BodyCoordinate::ActiveBloom => controls.active.bloom = value.clamp(0.0, 1.0),
-                BodyCoordinate::ActiveFeedback => {
-                    controls.active.feedback = value.clamp(0.0, 1.0)
-                }
+                BodyCoordinate::ActiveFeedback => controls.active.feedback = value.clamp(0.0, 1.0),
                 BodyCoordinate::ActiveSpace => controls.active.space = value.clamp(0.0, 1.0),
                 BodyCoordinate::TransportInterlace => {
                     controls.transport.interlace = value.clamp(0.0, 1.0)
@@ -222,9 +214,7 @@ fn apply_update(
             WorldCoordinate::SpaceCoupling => {
                 coordinates.world.space.coupling = value.clamp(0.0, 1.0)
             }
-            WorldCoordinate::SpaceDecay => {
-                coordinates.world.space.decay = value.clamp(0.0, 1.0)
-            }
+            WorldCoordinate::SpaceDecay => coordinates.world.space.decay = value.clamp(0.0, 1.0),
             WorldCoordinate::SpaceRadiation => {
                 coordinates.world.space.radiation = value.clamp(0.0, 1.0)
             }

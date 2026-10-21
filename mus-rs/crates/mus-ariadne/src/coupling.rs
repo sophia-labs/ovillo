@@ -58,14 +58,19 @@ impl std::fmt::Display for CouplingError {
             Self::Plan(message) => write!(formatter, "invalid coupling plan: {message}"),
             Self::UnknownBody(id) => write!(formatter, "coupling references unknown body {id:?}"),
             Self::InvalidDirection(id) => {
-                write!(formatter, "coupling {id:?} has a degenerate aperture direction")
+                write!(
+                    formatter,
+                    "coupling {id:?} has a degenerate aperture direction"
+                )
             }
             Self::RepeatedBody(id) => write!(formatter, "coupling {id:?} joins a body to itself"),
             Self::BodyCountMismatch { expected, actual } => write!(
                 formatter,
                 "coupling network expected {expected} bodies, received {actual}"
             ),
-            Self::NonFiniteState => formatter.write_str("coupling encountered non-finite body state"),
+            Self::NonFiniteState => {
+                formatter.write_str("coupling encountered non-finite body state")
+            }
         }
     }
 }
@@ -211,7 +216,8 @@ impl CouplingNetwork {
                 &edge.right_direction,
                 next_right - right_projection,
             );
-            let left_exchange = 0.5 * dt * (next_left * next_left - left_projection * left_projection);
+            let left_exchange =
+                0.5 * dt * (next_left * next_left - left_projection * left_projection);
             let residual = 0.5
                 * dt
                 * (next_left * next_left + next_right * next_right
@@ -296,7 +302,11 @@ fn two_mut<T>(slice: &mut [T], left: usize, right: usize) -> Option<(&mut T, &mu
 }
 
 fn normalize<const N: usize>(mut direction: [f64; N]) -> Option<[f64; N]> {
-    let norm = direction.iter().map(|value| value * value).sum::<f64>().sqrt();
+    let norm = direction
+        .iter()
+        .map(|value| value * value)
+        .sum::<f64>()
+        .sqrt();
     if !norm.is_finite() || norm <= 1.0e-12 {
         return None;
     }
@@ -308,7 +318,10 @@ fn normalize<const N: usize>(mut direction: [f64; N]) -> Option<[f64; N]> {
 
 #[inline]
 fn dot<const N: usize>(left: &[f64; N], right: &[f64; N]) -> f64 {
-    left.iter().zip(right).map(|(left, right)| left * right).sum()
+    left.iter()
+        .zip(right)
+        .map(|(left, right)| left * right)
+        .sum()
 }
 
 #[inline]
@@ -320,7 +333,11 @@ fn add_projection<const N: usize>(state: &mut [f64; N], direction: &[f64; N], am
 
 #[inline]
 fn finite(value: f64) -> f64 {
-    if value.is_finite() { value } else { 0.0 }
+    if value.is_finite() {
+        value
+    } else {
+        0.0
+    }
 }
 
 #[cfg(test)]

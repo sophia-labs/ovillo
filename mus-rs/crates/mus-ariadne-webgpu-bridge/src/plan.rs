@@ -1,11 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use mus_ariadne::{
-    ObservationSource, WorldObservationChannel, WorldObservationProgram, WorldPlan,
-};
+use mus_ariadne::{ObservationSource, WorldObservationChannel, WorldObservationProgram, WorldPlan};
 use mus_observation::{
-    Aggregation, ChannelSpec, ClaimDomain, Interpolation, ObservationSchema,
-    ScalarType,
+    Aggregation, ChannelSpec, ClaimDomain, Interpolation, ObservationSchema, ScalarType,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -68,11 +65,9 @@ impl OpticalBounds2 {
     #[must_use]
     pub fn normalize(self, position: [f64; 2]) -> [f32; 2] {
         [
-            ((position[0] as f32 - self.minimum[0])
-                / (self.maximum[0] - self.minimum[0]))
+            ((position[0] as f32 - self.minimum[0]) / (self.maximum[0] - self.minimum[0]))
                 .clamp(0.0, 1.0),
-            ((position[1] as f32 - self.minimum[1])
-                / (self.maximum[1] - self.minimum[1]))
+            ((position[1] as f32 - self.minimum[1]) / (self.maximum[1] - self.minimum[1]))
                 .clamp(0.0, 1.0),
         ]
     }
@@ -273,9 +268,7 @@ impl OpticalConstitutionPlan {
             validate_visual(coupling.radius, coupling.color)?;
             require_channel(&coupling.exchange_channel, &channels)?;
         }
-        if self.surface.maximum_impulses
-            < self.bodies.len() + self.couplings.len() + 1
-        {
+        if self.surface.maximum_impulses < self.bodies.len() + self.couplings.len() + 1 {
             return Err(OpticalPlanError::InsufficientImpulseCapacity);
         }
         Ok(())
@@ -431,7 +424,11 @@ pub fn canonical_optical_observation_program(
             },
         ));
     }
-    Ok(WorldObservationProgram::new(world, cadence_ticks, channels)?)
+    Ok(WorldObservationProgram::new(
+        world,
+        cadence_ticks,
+        channels,
+    )?)
 }
 
 fn observed(
@@ -477,10 +474,7 @@ fn palette(index: usize) -> [f32; 3] {
     COLORS[index % COLORS.len()]
 }
 
-fn require_channel(
-    channel: &str,
-    channels: &BTreeSet<&str>,
-) -> Result<(), OpticalPlanError> {
+fn require_channel(channel: &str, channels: &BTreeSet<&str>) -> Result<(), OpticalPlanError> {
     if channels.contains(channel) {
         Ok(())
     } else {

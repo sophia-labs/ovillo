@@ -519,11 +519,22 @@ mod tests {
         assert_eq!((tied.ql, tied.tab[0].fret), (2.5, 0));
         let chord = parse_token("<A3@3:2 C4@2:1 E4@1:0>q[acc]").unwrap();
         assert_eq!(chord.midis, vec![57.0, 60.0, 64.0]);
-        assert_eq!(chord.tab.iter().map(|t| t.string).collect::<Vec<_>>(), vec![3, 2, 1]);
+        assert_eq!(
+            chord.tab.iter().map(|t| t.string).collect::<Vec<_>>(),
+            vec![3, 2, 1]
+        );
         let partial = parse_token("<A3@3:2 C4>q").unwrap();
-        assert!(partial.tab.is_empty(), "a chord is positioned whole or not at all");
+        assert!(
+            partial.tab.is_empty(),
+            "a chord is positioned whole or not at all"
+        );
         assert!(parse_token("A3e").unwrap().tab.is_empty());
-        assert_eq!(serde_json::to_string(&parse_token("A3e").unwrap()).unwrap().contains("tab"), false);
+        assert_eq!(
+            serde_json::to_string(&parse_token("A3e").unwrap())
+                .unwrap()
+                .contains("tab"),
+            false
+        );
     }
     use serde::Deserialize;
 

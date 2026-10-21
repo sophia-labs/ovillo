@@ -89,11 +89,8 @@ impl World {
         let mut source_work = 0.0;
         let mut internal_loss = 0.0;
         let mut local_residual = 0.0_f64;
-        for (index, (body, body_control)) in self
-            .bodies
-            .iter_mut()
-            .zip(body_controls.iter())
-            .enumerate()
+        for (index, (body, body_control)) in
+            self.bodies.iter_mut().zip(body_controls.iter()).enumerate()
         {
             let frame = body
                 .process_local(body_control, returning_space_activity)
@@ -163,7 +160,15 @@ impl World {
         // touches the shared space: it stays exactly at rest, so skip it.
         if self.space_port_inert.iter().all(|inert| *inert) {
             self.last_space_frame = Default::default();
-            return self.finish_without_space(energy_start, control_work, source_work, internal_loss, local_residual, radiation_fraction, coupling);
+            return self.finish_without_space(
+                energy_start,
+                control_work,
+                source_work,
+                internal_loss,
+                local_residual,
+                radiation_fraction,
+                coupling,
+            );
         }
         self.space
             .begin_frame()
@@ -217,7 +222,8 @@ impl World {
                         id: self.body_ids[index].clone(),
                         message: error.to_string(),
                     })?;
-                self.body_emissions[index] = self.body_radiation[index].first().copied().unwrap_or(0.0);
+                self.body_emissions[index] =
+                    self.body_radiation[index].first().copied().unwrap_or(0.0);
                 radiation += radiated;
                 local_residual = local_residual.max(residual.abs());
                 continue;
@@ -286,7 +292,9 @@ impl World {
         }
         let mut radiation = std::mem::take(&mut self.pending_disposal_radiation);
         for index in 0..self.bodies.len() {
-            let space = self.bodies[index].space_body_mut().expect("inert ports belong to N-D bodies");
+            let space = self.bodies[index]
+                .space_body_mut()
+                .expect("inert ports belong to N-D bodies");
             let (radiated, residual) = space
                 .radiate(radiation_fraction(index), &mut self.body_radiation[index])
                 .map_err(|error| WorldError::Body {

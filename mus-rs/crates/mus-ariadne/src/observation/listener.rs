@@ -26,10 +26,7 @@ pub struct StereoListenerSpec {
 }
 
 impl StereoListenerSpec {
-    pub fn all_bodies(
-        plan: &WorldPlan,
-        output_scale: f64,
-    ) -> Result<Self, ListenerError> {
+    pub fn all_bodies(plan: &WorldPlan, output_scale: f64) -> Result<Self, ListenerError> {
         let body_taps = plan
             .bodies
             .iter()
@@ -71,13 +68,10 @@ impl StereoListenerSpec {
         if !self.output_scale.is_finite() || !(0.0..=64.0).contains(&self.output_scale) {
             return Err(ListenerError::InvalidScale);
         }
-        if !self.space_left_projection.is_finite()
-            || !self.space_right_projection.is_finite()
-        {
+        if !self.space_left_projection.is_finite() || !self.space_right_projection.is_finite() {
             return Err(ListenerError::NonFiniteProjection);
         }
-        let mut nonzero = self.space_left_projection != 0.0
-            || self.space_right_projection != 0.0;
+        let mut nonzero = self.space_left_projection != 0.0 || self.space_right_projection != 0.0;
         for tap in &self.body_taps {
             if !plan.bodies.iter().any(|body| body.id == tap.body_id) {
                 return Err(ListenerError::UnknownBody(tap.body_id.clone()));
@@ -222,11 +216,9 @@ mod tests {
     #[test]
     fn listening_does_not_load_the_world() {
         let plan = WorldPlan::string_brass_v1(48_000.0);
-        let listener = StereoListener::bind(
-            &StereoListenerSpec::all_bodies(&plan, 6.0).unwrap(),
-            &plan,
-        )
-        .unwrap();
+        let listener =
+            StereoListener::bind(&StereoListenerSpec::all_bodies(&plan, 6.0).unwrap(), &plan)
+                .unwrap();
         let mut listened = World::from_plan(plan.clone()).unwrap();
         let mut silent_observer = World::from_plan(plan).unwrap();
         let mut bodies = vec![BodyControls::default()];

@@ -62,11 +62,7 @@ pub fn raster_observer_impulses_reference(
     let width = width.max(1);
     let height = height.max(1);
     let mut output = ReferenceField2D::zero(width, height);
-    for impulse in impulses
-        .iter()
-        .copied()
-        .map(ObserverImpulse2D::sanitized)
-    {
+    for impulse in impulses.iter().copied().map(ObserverImpulse2D::sanitized) {
         let center_x = impulse.position_radius.x * width as f32;
         let center_y = impulse.position_radius.y * height as f32;
         let radius_x = impulse.position_radius.z * width as f32;
@@ -122,8 +118,7 @@ pub fn step_wave_reference(
             let laplacian = left + right + up + down - 4.0 * center[0];
             let source = impulse.get(x, y);
             let velocity = (center[1]
-                + (parameters.integration.z * laplacian
-                    - parameters.integration.w * center[0])
+                + (parameters.integration.z * laplacian - parameters.integration.w * center[0])
                     * dt
                 + source[0] * parameters.constitutive.w)
                 * parameters.integration.y;

@@ -219,11 +219,9 @@ impl ObservationTrace {
         for (index, channel) in self.metadata.schema.channels.iter().enumerate() {
             output[index] = match channel.interpolation {
                 Interpolation::Step => left_frame.values[index],
-                Interpolation::Linear => interpolate(
-                    left_frame.values[index],
-                    right_frame.values[index],
-                    alpha,
-                ),
+                Interpolation::Linear => {
+                    interpolate(left_frame.values[index], right_frame.values[index], alpha)
+                }
             };
         }
         Ok(())
@@ -419,9 +417,7 @@ pub enum TraceError {
     },
     #[error("observation output has width {actual}; expected {expected}")]
     OutputWidth { expected: usize, actual: usize },
-    #[error(
-        "observation frame {tick} channel {channel} expected {expected:?}, found {actual:?}"
-    )]
+    #[error("observation frame {tick} channel {channel} expected {expected:?}, found {actual:?}")]
     ValueType {
         tick: u64,
         channel: usize,

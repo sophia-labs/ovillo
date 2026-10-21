@@ -9,9 +9,7 @@ use serde::{Deserialize, Serialize};
 /// space. `channels = (motion, structure, emission, auxiliary)`; the semantic
 /// bridge that creates the packet is content-addressed separately.
 #[repr(C)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Pod, Zeroable, ShaderType, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable, ShaderType, Serialize, Deserialize)]
 pub struct ObserverImpulse2D {
     pub position_radius: Vec4,
     pub channels: Vec4,
@@ -47,13 +45,19 @@ impl ObserverImpulse2D {
     #[must_use]
     pub fn sanitized(self) -> Self {
         let finite = |value: f32, fallback: f32| {
-            if value.is_finite() { value } else { fallback }
+            if value.is_finite() {
+                value
+            } else {
+                fallback
+            }
         };
         Self {
             position_radius: Vec4::new(
                 finite(self.position_radius.x, 0.5).clamp(-4.0, 5.0),
                 finite(self.position_radius.y, 0.5).clamp(-4.0, 5.0),
-                finite(self.position_radius.z, 0.01).abs().clamp(1.0e-5, 4.0),
+                finite(self.position_radius.z, 0.01)
+                    .abs()
+                    .clamp(1.0e-5, 4.0),
                 finite(self.position_radius.w, 3.0).clamp(0.25, 32.0),
             ),
             channels: Vec4::new(
@@ -68,9 +72,7 @@ impl ObserverImpulse2D {
 
 /// Fixed header for one optical-constitution step.
 #[repr(C)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Pod, Zeroable, ShaderType, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable, ShaderType, Serialize, Deserialize)]
 pub struct OpticalFrameHeader {
     /// `(material_tick_lo, material_tick_hi, event_count, flags)`.
     pub clock: UVec4,
@@ -106,9 +108,7 @@ impl OpticalFrameHeader {
 
 /// Uniform block for one observer wave-sheet integration step.
 #[repr(C)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Pod, Zeroable, ShaderType, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable, ShaderType, Serialize, Deserialize)]
 pub struct WaveSheetParams {
     /// `(width, height, reset_flag, reserved)`.
     pub dimensions: UVec4,
@@ -156,7 +156,11 @@ impl WaveSheetParams {
 
 #[inline]
 fn finite(value: f32, fallback: f32) -> f32 {
-    if value.is_finite() { value } else { fallback }
+    if value.is_finite() {
+        value
+    } else {
+        fallback
+    }
 }
 
 #[must_use]

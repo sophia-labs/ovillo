@@ -21,12 +21,20 @@ fn run() -> Result<(), String> {
     let output = PathBuf::from(args.next().ok_or_else(usage)?);
     let tail_seconds = args
         .next()
-        .map(|value| value.parse::<f64>().map_err(|_| format!("invalid tail {value:?}")))
+        .map(|value| {
+            value
+                .parse::<f64>()
+                .map_err(|_| format!("invalid tail {value:?}"))
+        })
         .transpose()?
         .unwrap_or(4.0);
     let organization = args
         .next()
-        .map(|value| value.parse::<f64>().map_err(|_| format!("invalid organization {value:?}")))
+        .map(|value| {
+            value
+                .parse::<f64>()
+                .map_err(|_| format!("invalid organization {value:?}"))
+        })
         .transpose()?
         .unwrap_or(AriadneControls::default().material_organization);
     if args.next().is_some()
@@ -89,8 +97,8 @@ fn run() -> Result<(), String> {
 }
 
 fn read_wav(path: &Path) -> Result<(Vec<[f32; 2]>, u32), String> {
-    let mut reader = hound::WavReader::open(path)
-        .map_err(|error| format!("{}: {error}", path.display()))?;
+    let mut reader =
+        hound::WavReader::open(path).map_err(|error| format!("{}: {error}", path.display()))?;
     let spec = reader.spec();
     let channels = spec.channels as usize;
     if channels == 0 {
@@ -147,7 +155,9 @@ fn write_wav(path: &Path, sample_rate: u32, frames: &[[f32; 2]]) -> Result<(), S
         .map_err(|error| format!("{}: {error}", path.display()))?;
     for frame in frames {
         for sample in frame {
-            writer.write_sample(*sample).map_err(|error| error.to_string())?;
+            writer
+                .write_sample(*sample)
+                .map_err(|error| error.to_string())?;
         }
     }
     writer.finalize().map_err(|error| error.to_string())
@@ -163,12 +173,20 @@ fn level_stats(frames: &[[f32; 2]]) -> (f64, f64) {
         sum_squares += sample * sample;
         count += 1;
     }
-    let rms = if count == 0 { 0.0 } else { (sum_squares / count as f64).sqrt() };
+    let rms = if count == 0 {
+        0.0
+    } else {
+        (sum_squares / count as f64).sqrt()
+    };
     (peak, rms)
 }
 
 fn amplitude_db(value: f64) -> f64 {
-    if value > 0.0 { 20.0 * value.log10() } else { f64::NEG_INFINITY }
+    if value > 0.0 {
+        20.0 * value.log10()
+    } else {
+        f64::NEG_INFINITY
+    }
 }
 
 fn usage() -> String {

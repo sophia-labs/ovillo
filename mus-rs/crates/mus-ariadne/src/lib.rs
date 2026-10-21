@@ -37,45 +37,40 @@ mod shared_world;
 pub mod space_body;
 
 pub use body::{Body, BodyControls, BodyError, BodyLocalFrame, BodyReconfigurationFrame};
+pub use configuration::{
+    AffineSpec, AreaTermSpec, ConfigurationCoordinate, ConfigurationMapSpec,
+    ConfigurationSpaceSpec, ConnectionPolicy, ContactSpec, DisposalPolicy, RadiatingEndSpec,
+    StiffStringSpec, TubeBranchSpec, TubeNetworkSpec, TubeSpec,
+};
 pub use constitutive_body::{
     ConstitutiveBodyControls, ConstitutiveBodyError, LocalMediumBodyControls,
 };
 pub use coupling::{CouplingControls, CouplingError, CouplingFrame, CouplingNetwork};
 pub use ir::{
-    ApertureSpec, ConfigurationPath, MetricSpec, ReservoirSpec, TransportSpec,
-    WorldConfiguration, ACTIVE_RANKS, MODE_COUNT, SPACE_COURSES,
-    TRANSPORT_PAIRS,
+    ApertureSpec, ConfigurationPath, MetricSpec, ReservoirSpec, TransportSpec, WorldConfiguration,
+    ACTIVE_RANKS, MODE_COUNT, SPACE_COURSES, TRANSPORT_PAIRS,
 };
+pub use law::aero::{AeroFrame, AeroSpec, AeroTotals};
+pub use law::valve::{FlowValveControls, FlowValveFrame, FlowValveSpec};
 pub use observation::{
-    BoundObservationProgram, ListenerError, ObservationProgramError,
-    ObservationRuntimeError, ObservationSource, StereoBodyTap, StereoFrame,
-    StereoListener, StereoListenerSpec, WorldObservationChannel,
-    WorldObservationProgram,
+    BoundObservationProgram, ListenerError, ObservationProgramError, ObservationRuntimeError,
+    ObservationSource, StereoBodyTap, StereoFrame, StereoListener, StereoListenerSpec,
+    WorldObservationChannel, WorldObservationProgram,
 };
 pub use performance::{WorldCostEstimate, WorldLayout};
 pub use plan::{
-    BodyConstitutionSpec, BodyInstanceSpec, BodyPose, BodySpec,
-    ConstitutiveBodyInstanceSpec, ConstitutiveWorldPlan, DirectCouplingSpec,
-    LocalMediumBoundarySpec, LocalMediumPortInputBinding,
-    LocalMediumPortOutputBinding, PlanError, SharedSpaceSpec, SpacePortSpec,
-    WorldPlan, WORLD_PLAN_V3_SCHEMA_VERSION,
-    WORLD_PLAN_SCHEMA_VERSION,
+    BodyConstitutionSpec, BodyInstanceSpec, BodyPose, BodySpec, ConstitutiveBodyInstanceSpec,
+    ConstitutiveWorldPlan, DirectCouplingSpec, LocalMediumBoundarySpec,
+    LocalMediumPortInputBinding, LocalMediumPortOutputBinding, PlanError, SharedSpaceSpec,
+    SpacePortSpec, WorldPlan, WORLD_PLAN_SCHEMA_VERSION, WORLD_PLAN_V3_SCHEMA_VERSION,
 };
+pub use plan::{SpaceBodyLaws, SpaceBodySpec};
 pub use shared_space::{
     SharedSpaceControls, SharedSpaceError, SharedSpaceExchange, SharedSpaceFrame,
 };
 pub use shared_trajectory::{TrajectoryBindError, TrajectoryBinding, WorldCoordinates};
 pub use shared_world::{World, WorldControls, WorldError, WorldFrame, WorldReceipt};
-pub use configuration::{
-    AffineSpec, AreaTermSpec, ConfigurationCoordinate, ContactSpec, ConfigurationMapSpec,
-    ConfigurationSpaceSpec, ConnectionPolicy, DisposalPolicy, RadiatingEndSpec, StiffStringSpec,
-    TubeBranchSpec,
-    TubeNetworkSpec, TubeSpec,
-};
-pub use law::aero::{AeroFrame, AeroSpec, AeroTotals};
-pub use law::valve::{FlowValveControls, FlowValveFrame, FlowValveSpec};
-pub use plan::{SpaceBodyLaws, SpaceBodySpec};
 pub use space_body::{
-    NetworkModes, SpaceBody, SpaceBodyControls, SpaceBodyError, SpaceBodyObservation, SpaceTotals,
-    SpaceReconfigurationFrame,
+    NetworkModes, SpaceBody, SpaceBodyControls, SpaceBodyError, SpaceBodyObservation,
+    SpaceReconfigurationFrame, SpaceTotals,
 };

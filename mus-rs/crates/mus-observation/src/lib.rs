@@ -11,15 +11,12 @@ pub mod run;
 pub mod schema;
 pub mod trace;
 
-pub use run::{
-    digest_json, RunIdentity, RunIdentityError, RUN_IDENTITY_VERSION,
-};
+pub use run::{digest_json, RunIdentity, RunIdentityError, RUN_IDENTITY_VERSION};
 pub use schema::{
-    Aggregation, ChannelSpec, ClaimDomain, Interpolation, ObservationSchema,
-    ScalarType, SchemaError, OBSERVATION_SCHEMA_VERSION,
+    Aggregation, ChannelSpec, ClaimDomain, Interpolation, ObservationSchema, ScalarType,
+    SchemaError, OBSERVATION_SCHEMA_VERSION,
 };
 pub use trace::{
-    decode_trace, encode_trace, ObservationFrame, ObservationTrace,
-    ObservationValue, TraceError, TraceMetadata, TRACE_FORMAT_VERSION,
-    TRACE_MAGIC,
+    decode_trace, encode_trace, ObservationFrame, ObservationTrace, ObservationValue, TraceError,
+    TraceMetadata, TRACE_FORMAT_VERSION, TRACE_MAGIC,
 };

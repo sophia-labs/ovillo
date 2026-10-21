@@ -89,16 +89,24 @@ impl StiffStringSpec {
             let f = n * f0 * (1.0 + b * n * n).sqrt();
             let omega = std::f64::consts::TAU * f;
             frequency_hz[index] = f;
-            t60_seconds[index] = self.t60_numerator / (self.decay_constant_per_s + self.decay_quadratic_s * omega * omega);
+            t60_seconds[index] = self.t60_numerator
+                / (self.decay_constant_per_s + self.decay_quadratic_s * omega * omega);
         }
         WorldConfiguration {
-            metric: MetricSpec { frequency_hz, t60_seconds },
+            metric: MetricSpec {
+                frequency_hz,
+                t60_seconds,
+            },
             aperture: self.aperture,
             radiation_direction: self.radiation_direction,
         }
     }
 
-    fn validate(&self, coordinates: &[ConfigurationCoordinate], sample_rate_hz: f64) -> Result<(), PlanError> {
+    fn validate(
+        &self,
+        coordinates: &[ConfigurationCoordinate],
+        sample_rate_hz: f64,
+    ) -> Result<(), PlanError> {
         let dims = coordinates.len();
         let tension_ok = self.tension_coordinate.is_none_or(|index| {
             index < dims && index != self.fret_coordinate && coordinates[index].lower > 0.0
@@ -126,11 +134,20 @@ impl StiffStringSpec {
         let mut point: Vec<f64> = coordinates.iter().map(|c| c.lower).collect();
         for corner in 0..(1usize << dims) {
             for (axis, coordinate) in coordinates.iter().enumerate() {
-                point[axis] = if corner >> axis & 1 == 1 { coordinate.upper } else { coordinate.lower };
+                point[axis] = if corner >> axis & 1 == 1 {
+                    coordinate.upper
+                } else {
+                    coordinate.lower
+                };
             }
-            self.configuration_at(&point).validate(sample_rate_hz).map_err(|error| {
-                PlanError::new("invalid-stiff-string-band", format!("at {point:?}: {error}"))
-            })?;
+            self.configuration_at(&point)
+                .validate(sample_rate_hz)
+                .map_err(|error| {
+                    PlanError::new(
+                        "invalid-stiff-string-band",
+                        format!("at {point:?}: {error}"),
+                    )
+                })?;
         }
         Ok(())
     }
@@ -206,7 +223,9 @@ impl ConfigurationSpaceSpec {
         if dims == 0 || dims > MAX_CONFIGURATION_DIMENSIONS {
             return Err(PlanError::new(
                 "invalid-configuration-dimensions",
-                format!("a configuration space needs 1..={MAX_CONFIGURATION_DIMENSIONS} coordinates"),
+                format!(
+                    "a configuration space needs 1..={MAX_CONFIGURATION_DIMENSIONS} coordinates"
+                ),
             ));
         }
         let mut names = std::collections::BTreeSet::new();
@@ -217,7 +236,10 @@ impl ConfigurationSpaceSpec {
             {
                 return Err(PlanError::new(
                     "invalid-configuration-coordinate",
-                    format!("coordinate names must be unique and whitespace-free: {:?}", coordinate.name),
+                    format!(
+                        "coordinate names must be unique and whitespace-free: {:?}",
+                        coordinate.name
+                    ),
                 ));
             }
             if !coordinate.lower.is_finite()
@@ -228,7 +250,10 @@ impl ConfigurationSpaceSpec {
             {
                 return Err(PlanError::new(
                     "invalid-configuration-bounds",
-                    format!("coordinate {:?} needs finite lower < upper and initial inside", coordinate.name),
+                    format!(
+                        "coordinate {:?} needs finite lower < upper and initial inside",
+                        coordinate.name
+                    ),
                 ));
             }
         }
@@ -297,12 +322,18 @@ fn validate_multilinear(
     if count > MAX_ANCHORS || anchors.len() != count {
         return Err(PlanError::new(
             "invalid-multilinear-anchors",
-            format!("expected {count} anchors (<= {MAX_ANCHORS}), found {}", anchors.len()),
+            format!(
+                "expected {count} anchors (<= {MAX_ANCHORS}), found {}",
+                anchors.len()
+            ),
         ));
     }
     for (index, anchor) in anchors.iter().enumerate() {
         anchor.validate(sample_rate_hz).map_err(|error| {
-            PlanError::new("invalid-multilinear-anchor", format!("anchor {index}: {error}"))
+            PlanError::new(
+                "invalid-multilinear-anchor",
+                format!("anchor {index}: {error}"),
+            )
         })?;
     }
     // Frequencies, T60s and aperture coefficients stay inside convex domains
@@ -325,9 +356,11 @@ fn validate_multilinear(
                     lo
                 };
             }
-            map.evaluate(&point).validate(sample_rate_hz).map_err(|error| {
-                PlanError::new("invalid-multilinear-interior", error.to_string())
-            })?;
+            map.evaluate(&point)
+                .validate(sample_rate_hz)
+                .map_err(|error| {
+                    PlanError::new("invalid-multilinear-interior", error.to_string())
+                })?;
         }
         let mut axis = dims;
         loop {
@@ -390,7 +423,11 @@ impl MultilinearMap {
                 cell += 1;
             }
             let (lo, hi) = (grid[cell], grid[cell + 1]);
-            t[axis] = if x == hi { 1.0 } else { ((x - lo) / (hi - lo)).clamp(0.0, 1.0) };
+            t[axis] = if x == hi {
+                1.0
+            } else {
+                ((x - lo) / (hi - lo)).clamp(0.0, 1.0)
+            };
             // The legacy path takes `amount` in [0,1] directly: keep that exact.
             if lo == 0.0 && hi == 1.0 {
                 t[axis] = x;
@@ -530,7 +567,10 @@ mod tests {
                 let got = map.evaluate(&[x0, x1]);
                 let want = anchors[i * 3 + j];
                 for m in 0..MODE_COUNT {
-                    assert!((got.metric.frequency_hz[m] / want.metric.frequency_hz[m] - 1.0).abs() < 1e-14);
+                    assert!(
+                        (got.metric.frequency_hz[m] / want.metric.frequency_hz[m] - 1.0).abs()
+                            < 1e-14
+                    );
                 }
             }
         }

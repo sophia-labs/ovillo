@@ -3,10 +3,8 @@
 mod runtime;
 mod types;
 
-pub use types::{
-    SharedSpaceControls, SharedSpaceError, SharedSpaceExchange, SharedSpaceFrame,
-};
 pub(crate) use runtime::SharedSpace;
+pub use types::{SharedSpaceControls, SharedSpaceError, SharedSpaceExchange, SharedSpaceFrame};
 
 #[cfg(test)]
 mod tests;

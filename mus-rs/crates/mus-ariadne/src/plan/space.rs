@@ -53,7 +53,10 @@ pub struct SpaceBodySpec {
 impl SpaceBodySpec {
     pub(crate) fn validate(&self, sample_rate_hz: f64) -> Result<(), PlanError> {
         if self.anatomy_name.trim().is_empty() {
-            return Err(PlanError::new("empty-body-anatomy", "body anatomy_name must be nonempty"));
+            return Err(PlanError::new(
+                "empty-body-anatomy",
+                "body anatomy_name must be nonempty",
+            ));
         }
         self.configuration_space.validate(sample_rate_hz)?;
         match (&self.laws, &self.configuration_space.map) {

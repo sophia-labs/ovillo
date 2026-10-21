@@ -7,8 +7,7 @@ use crate::field::MetricFieldState;
 use crate::ir::{MODE_COUNT, SPACE_COURSES};
 use crate::law::medium::LocalMediumState;
 use crate::plan::{
-    BodyConstitutionSpec, BodyPose, ConstitutiveWorldPlan, PlanError, SpacePortSpec,
-    WorldPlan,
+    BodyConstitutionSpec, BodyPose, ConstitutiveWorldPlan, PlanError, SpacePortSpec, WorldPlan,
 };
 use crate::shared_space::SharedSpace;
 
@@ -225,12 +224,16 @@ impl World {
 
     #[must_use]
     pub fn body_local_medium_state(&self, index: usize) -> Option<&LocalMediumState> {
-        self.bodies.get(index).and_then(WorldBody::local_medium_state)
+        self.bodies
+            .get(index)
+            .and_then(WorldBody::local_medium_state)
     }
 
     #[must_use]
     pub fn body_material_energy(&self, index: usize) -> Option<f64> {
-        self.bodies.get(index).map(WorldBody::material_stored_energy)
+        self.bodies
+            .get(index)
+            .map(WorldBody::material_stored_energy)
     }
 
     #[must_use]
@@ -240,7 +243,9 @@ impl World {
 
     #[must_use]
     pub fn body_configuration_amount(&self, index: usize) -> Option<f64> {
-        self.bodies.get(index).and_then(WorldBody::configuration_amount)
+        self.bodies
+            .get(index)
+            .and_then(WorldBody::configuration_amount)
     }
 
     #[must_use]
@@ -365,7 +370,9 @@ impl World {
         } else if let Some(plan) = self.constitutive_plan.clone() {
             Self::from_constitutive_plan(plan)?
         } else {
-            return Err(WorldError::Plan("world has no construction plan".to_owned()));
+            return Err(WorldError::Plan(
+                "world has no construction plan".to_owned(),
+            ));
         };
         *self = replacement;
         Ok(())

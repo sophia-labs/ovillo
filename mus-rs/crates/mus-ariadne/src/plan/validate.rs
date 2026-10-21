@@ -6,8 +6,8 @@ use crate::ir::{MODE_COUNT, SPACE_COURSES, TRANSPORT_PAIRS};
 
 use super::helpers::*;
 use super::{
-    BodyPose, BodySpec, PlanError, SharedSpaceSpec, SpacePortSpec, WorldPlan,
-    MAX_BODY_INSTANCES, MAX_DIRECT_COUPLINGS, WORLD_PLAN_SCHEMA_VERSION,
+    BodyPose, BodySpec, PlanError, SharedSpaceSpec, SpacePortSpec, WorldPlan, MAX_BODY_INSTANCES,
+    MAX_DIRECT_COUPLINGS, WORLD_PLAN_SCHEMA_VERSION,
 };
 
 const INDEPENDENCE_EPS: f64 = 1.0e-8;
@@ -66,9 +66,7 @@ impl BodySpec {
         for step in 0..=32 {
             path.configuration_at(step as f64 / 32.0)
                 .validate(sample_rate_hz)
-                .map_err(|error| {
-                    PlanError::new("invalid-body-configuration", error.to_string())
-                })?;
+                .map_err(|error| PlanError::new("invalid-body-configuration", error.to_string()))?;
         }
         validate_direction("body source direction", &self.source_direction)?;
         validate_independent("body active directions", &self.active_directions)?;
@@ -84,9 +82,7 @@ impl BodySpec {
             if !weight.is_finite() || weight.abs() > MAX_WEIGHT {
                 return Err(PlanError::new(
                     "invalid-body-transport-weight",
-                    format!(
-                        "transport weight {pair} must be finite with abs <= {MAX_WEIGHT}"
-                    ),
+                    format!("transport weight {pair} must be finite with abs <= {MAX_WEIGHT}"),
                 ));
             }
         }
@@ -106,9 +102,7 @@ impl SharedSpaceSpec {
             if !delay.is_finite() || !(0.000_25..=2.0).contains(&delay) {
                 return Err(PlanError::new(
                     "invalid-shared-space-delay",
-                    format!(
-                        "shared-space course {course} delay {delay} is outside [0.25 ms,2 s]"
-                    ),
+                    format!("shared-space course {course} delay {delay} is outside [0.25 ms,2 s]"),
                 ));
             }
         }
@@ -132,17 +126,12 @@ impl SharedSpaceSpec {
 impl SpacePortSpec {
     pub(crate) fn validate(self) -> Result<(), PlanError> {
         for course in 0..SPACE_COURSES {
-            validate_direction(
-                "body shared-space port",
-                &self.body_directions[course],
-            )?;
+            validate_direction("body shared-space port", &self.body_directions[course])?;
             let weight = self.coupling_weights[course];
             if !weight.is_finite() || weight.abs() > MAX_WEIGHT {
                 return Err(PlanError::new(
                     "invalid-space-port-weight",
-                    format!(
-                        "space-port weight {course} must be finite with abs <= {MAX_WEIGHT}"
-                    ),
+                    format!("space-port weight {course} must be finite with abs <= {MAX_WEIGHT}"),
                 ));
             }
         }

@@ -128,8 +128,7 @@ mod browser {
                     != digest_json(&intervention).map_err(js_error)?
                 || run_identity.observation_program_digest
                     != observation_program.digest().map_err(js_error)?
-                || run_identity.observation_schema_digest
-                    != schema.digest().map_err(js_error)?
+                || run_identity.observation_schema_digest != schema.digest().map_err(js_error)?
                 || run_identity.optical_constitution_digest
                     != optical_plan.digest().map_err(js_error)?
                 || run_identity.sample_rate_hz != schema.sample_rate_hz
@@ -184,11 +183,8 @@ mod browser {
             let second_view = optical
                 .state_view_at(1)
                 .ok_or_else(|| JsValue::from_str("optical field has no second persistent view"))?;
-            let presenter = WorldPresenter::new(
-                &device,
-                [first_view, second_view],
-                surface_config.format,
-            );
+            let presenter =
+                WorldPresenter::new(&device, [first_view, second_view], surface_config.format);
             let sample_values = trace.zero_value_buffer();
             let capability_json = serde_json::to_string(&capability).map_err(js_error)?;
 
@@ -270,8 +266,8 @@ mod browser {
             height: u32,
             absolute_seconds: f64,
         ) -> Result<u32, JsValue> {
-            let material_tick = join_tick(tick_low, tick_high)
-                .min(self.trace.metadata.horizon_ticks);
+            let material_tick =
+                join_tick(tick_low, tick_high).min(self.trace.metadata.horizon_ticks);
             if material_tick < self.requested_tick {
                 self.reset_observer();
             }
@@ -306,12 +302,7 @@ mod browser {
                             label: Some("Ariadne optical constitutive step"),
                         });
                 self.optical
-                    .encode_values_step(
-                        &self.queue,
-                        &mut encoder,
-                        step_tick,
-                        &self.sample_values,
-                    )
+                    .encode_values_step(&self.queue, &mut encoder, step_tick, &self.sample_values)
                     .map_err(js_error)?;
                 // One submit per fixed step is intentional in v1: every step
                 // writes the same uniform/event buffers, and wgpu queue writes
@@ -369,11 +360,11 @@ mod browser {
             let view = frame
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
-            let mut encoder =
-                self.device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                        label: Some("Ariadne World presentation"),
-                    });
+            let mut encoder = self
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Ariadne World presentation"),
+                });
             let aspect =
                 self.surface_config.width as f32 / self.surface_config.height.max(1) as f32;
             let mut parameters = PresentationParams::default();

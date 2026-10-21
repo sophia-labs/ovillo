@@ -10,17 +10,15 @@ use crate::field::{
     ModalMetricWaveField,
 };
 use crate::ir::MODE_COUNT;
+use crate::ir::TRANSPORT_PAIRS;
 use crate::law::active::{
     ActiveInclusionControls, ActiveInclusionFrame, SynchronizedActiveInclusion,
 };
-use crate::law::aperture::{
-    CompliantApertureBoundary, CompliantApertureFrame,
-};
+use crate::law::aperture::{CompliantApertureBoundary, CompliantApertureFrame};
 use crate::law::transport::{
     InternalResonanceTransport, ResonantTransportControls, ResonantTransportFrame,
 };
 use crate::plan::{BodySpec, PlanError};
-use crate::ir::TRANSPORT_PAIRS;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BodyControls {
@@ -109,9 +107,15 @@ impl std::fmt::Display for BodyError {
             Self::InvalidSpec(message) => write!(formatter, "invalid Ariadne body: {message}"),
             Self::Field(message) => write!(formatter, "Ariadne body field error: {message}"),
             Self::Aperture(message) => write!(formatter, "Ariadne body aperture error: {message}"),
-            Self::Active(message) => write!(formatter, "Ariadne body active-material error: {message}"),
-            Self::Transport(message) => write!(formatter, "Ariadne body transport error: {message}"),
-            Self::Radiation(message) => write!(formatter, "Ariadne body radiation error: {message}"),
+            Self::Active(message) => {
+                write!(formatter, "Ariadne body active-material error: {message}")
+            }
+            Self::Transport(message) => {
+                write!(formatter, "Ariadne body transport error: {message}")
+            }
+            Self::Radiation(message) => {
+                write!(formatter, "Ariadne body radiation error: {message}")
+            }
             Self::NonFiniteState => formatter.write_str("Ariadne body entered a non-finite state"),
         }
     }
@@ -309,11 +313,9 @@ impl Body {
         }
 
         let displacement = *self.field.displacement();
-        let transport = self.transport.process(
-            &displacement,
-            self.field.momentum_mut(),
-            controls.transport,
-        );
+        let transport =
+            self.transport
+                .process(&displacement, self.field.momentum_mut(), controls.transport);
         if transport.non_finite_state {
             return Err(BodyError::NonFiniteState);
         }

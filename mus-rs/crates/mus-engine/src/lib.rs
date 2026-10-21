@@ -255,8 +255,7 @@ fn render_inner(
         .filter(|i| !tab_owned.contains(&i.abbrev))
         .cloned()
         .collect();
-    let (voices, warnings) =
-        pack::build_voices(&voice_instruments, pack.as_ref(), score_dir, a4)?;
+    let (voices, warnings) = pack::build_voices(&voice_instruments, pack.as_ref(), score_dir, a4)?;
 
     // ---- bar map (lines 798-826). The inline tempo/time overrides come
     // from a fresh raw-text bar scan, not `proposal.bar_changes` — see
@@ -417,8 +416,7 @@ pub fn render_stems(
         .filter(|i| !tab_owned.contains(&i.abbrev))
         .cloned()
         .collect();
-    let (voices, warnings) =
-        pack::build_voices(&voice_instruments, pack.as_ref(), score_dir, a4)?;
+    let (voices, warnings) = pack::build_voices(&voice_instruments, pack.as_ref(), score_dir, a4)?;
     let abbrevs: Vec<String> = proposal
         .instruments
         .iter()
@@ -837,7 +835,10 @@ mod tests {
 
         // bars 2..=3: 2 bars (2 s) + the 4 s tail = 6 s of audio, 4 notes.
         let slice = render_bars(text, Path::new("."), 2, 3).unwrap();
-        assert_eq!(slice.audio.samples.len(), (6.0 * SAMPLE_RATE as f64) as usize * 2);
+        assert_eq!(
+            slice.audio.samples.len(),
+            (6.0 * SAMPLE_RATE as f64) as usize * 2
+        );
         assert_eq!(slice.stats.notes, 4);
         assert!(slice.audio.peak() > 0.0);
 

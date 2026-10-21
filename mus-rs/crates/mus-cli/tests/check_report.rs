@@ -35,8 +35,7 @@ fn check_verb_emits_report_and_documents_atril_swap() {
         .output()
         .unwrap();
     let help = String::from_utf8(help.stdout).unwrap();
-    assert!(help
-        .contains("MUS_CHECK_CMD=\"<repo>/mus-rs/target/release/mus check\""));
+    assert!(help.contains("MUS_CHECK_CMD=\"<repo>/mus-rs/target/release/mus check\""));
 }
 
 #[test]

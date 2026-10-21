@@ -72,9 +72,15 @@ impl RunIdentity {
             ("physical_world_digest", &self.physical_world_digest),
             ("listener_digest", &self.listener_digest),
             ("intervention_digest", &self.intervention_digest),
-            ("observation_program_digest", &self.observation_program_digest),
+            (
+                "observation_program_digest",
+                &self.observation_program_digest,
+            ),
             ("observation_schema_digest", &self.observation_schema_digest),
-            ("optical_constitution_digest", &self.optical_constitution_digest),
+            (
+                "optical_constitution_digest",
+                &self.optical_constitution_digest,
+            ),
         ] {
             validate_digest(name, digest)?;
         }

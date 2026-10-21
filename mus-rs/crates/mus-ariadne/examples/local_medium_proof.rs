@@ -1,7 +1,7 @@
 use mus_ariadne::law::medium::{
-    LocalConstitutiveMedium, LocalMediumEdgeSpec, LocalMediumInputFrame,
-    LocalMediumObserverSpec, LocalMediumPlan, LocalMediumSiteSpec,
-    LocalMediumSourceDrive, LocalMediumSourceSpec, LOCAL_MEDIUM_SCHEMA_VERSION,
+    LocalConstitutiveMedium, LocalMediumEdgeSpec, LocalMediumInputFrame, LocalMediumObserverSpec,
+    LocalMediumPlan, LocalMediumSiteSpec, LocalMediumSourceDrive, LocalMediumSourceSpec,
+    LOCAL_MEDIUM_SCHEMA_VERSION,
 };
 
 fn site(id: &str) -> LocalMediumSiteSpec {

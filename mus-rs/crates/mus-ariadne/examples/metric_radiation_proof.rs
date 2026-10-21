@@ -1,6 +1,4 @@
-use mus_ariadne::{
-    MetricRadiationAperture, MetricRadiationPlan, METRIC_RADIATION_SCHEMA_VERSION,
-};
+use mus_ariadne::{MetricRadiationAperture, MetricRadiationPlan, METRIC_RADIATION_SCHEMA_VERSION};
 use serde_json::json;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -8,10 +6,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         schema_version: METRIC_RADIATION_SCHEMA_VERSION.to_owned(),
         id: "metric-radiation-proof".to_owned(),
         fraction: 0.25,
-        rows: vec![
-            vec![1.0, 0.0, 0.0, 0.0],
-            vec![0.0, 1.0, 0.0, 0.0],
-        ],
+        rows: vec![vec![1.0, 0.0, 0.0, 0.0], vec![0.0, 1.0, 0.0, 0.0]],
     };
     let aperture = MetricRadiationAperture::from_plan(plan, 4)?;
     let metric = [0.75, 1.25, 2.0, 3.0];

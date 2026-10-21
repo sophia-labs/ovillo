@@ -1,9 +1,6 @@
 use crate::ir::WorldSpec;
 
-use super::{
-    BodyInstanceSpec, BodyPose, BodySpec, SharedSpaceSpec, SpacePortSpec,
-    WorldPlan,
-};
+use super::{BodyInstanceSpec, BodyPose, BodySpec, SharedSpaceSpec, SpacePortSpec, WorldPlan};
 
 impl WorldPlan {
     /// First canonical physical world: one persistent string/brass-capable body

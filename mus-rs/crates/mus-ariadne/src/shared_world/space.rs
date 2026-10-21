@@ -20,13 +20,18 @@ impl World {
             .cloned()
             .ok_or_else(|| WorldError::UnknownBody(format!("index/{index}")))?;
         let energy_before = self.total_stored_energy();
-        let body = self.bodies[index].space_body_mut().ok_or_else(|| WorldError::Body {
-            id: id.clone(),
-            message: "body has no N-D configuration space".to_owned(),
-        })?;
+        let body = self.bodies[index]
+            .space_body_mut()
+            .ok_or_else(|| WorldError::Body {
+                id: id.clone(),
+                message: "body has no N-D configuration space".to_owned(),
+            })?;
         let frame = body
             .set_configuration_point(point)
-            .map_err(|error| WorldError::Body { id, message: error.to_string() })?;
+            .map_err(|error| WorldError::Body {
+                id,
+                message: error.to_string(),
+            })?;
         if self.pending_energy_start.is_none() {
             self.pending_energy_start = Some(energy_before);
         }
@@ -56,13 +61,18 @@ impl World {
             .cloned()
             .ok_or_else(|| WorldError::UnknownBody(format!("index/{index}")))?;
         let energy_before = self.total_stored_energy();
-        let body = self.bodies[index].space_body_mut().ok_or_else(|| WorldError::Body {
-            id: id.clone(),
-            message: "body has no flow valve".to_owned(),
-        })?;
+        let body = self.bodies[index]
+            .space_body_mut()
+            .ok_or_else(|| WorldError::Body {
+                id: id.clone(),
+                message: "body has no flow valve".to_owned(),
+            })?;
         let work = body
             .retune_valve(tuning_hz, adduction)
-            .map_err(|error| WorldError::Body { id, message: error.to_string() })?;
+            .map_err(|error| WorldError::Body {
+                id,
+                message: error.to_string(),
+            })?;
         if work != 0.0 {
             if self.pending_energy_start.is_none() {
                 self.pending_energy_start = Some(energy_before);

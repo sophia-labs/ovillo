@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use mus_observation::{
-    Aggregation, ChannelSpec, ObservationSchema, ScalarType, SchemaError,
-};
+use mus_observation::{Aggregation, ChannelSpec, ObservationSchema, ScalarType, SchemaError};
 
 use crate::ir::{MODE_COUNT, SPACE_COURSES};
 use crate::plan::{PlanError, WorldPlan};
@@ -21,13 +19,28 @@ pub enum ObservationSource {
     WorldRadiation,
     WorldGlobalClosure,
     WorldMaximumLocalResidual,
-    BodyMaterialEnergy { body_id: String },
-    BodyReservoirEnergy { body_id: String },
-    BodyConfiguration { body_id: String },
-    BodyEmission { body_id: String },
-    BodySourceWork { body_id: String },
-    BodyInternalLoss { body_id: String },
-    BodyPosition { body_id: String, axis: usize },
+    BodyMaterialEnergy {
+        body_id: String,
+    },
+    BodyReservoirEnergy {
+        body_id: String,
+    },
+    BodyConfiguration {
+        body_id: String,
+    },
+    BodyEmission {
+        body_id: String,
+    },
+    BodySourceWork {
+        body_id: String,
+    },
+    BodyInternalLoss {
+        body_id: String,
+    },
+    BodyPosition {
+        body_id: String,
+        axis: usize,
+    },
     BodyDisplacementProjection {
         body_id: String,
         direction: [f64; MODE_COUNT],
@@ -40,8 +53,12 @@ pub enum ObservationSource {
     SpaceEmissionLeft,
     SpaceEmissionRight,
     SpaceExchangeIntoBodies,
-    SpaceCourseHead { course: usize },
-    CouplingExchangeIntoLeft { coupling_id: String },
+    SpaceCourseHead {
+        course: usize,
+    },
+    CouplingExchangeIntoLeft {
+        coupling_id: String,
+    },
 }
 
 impl ObservationSource {
@@ -250,7 +267,9 @@ fn integer_clock(sample_rate_hz: f64) -> Result<u32, ObservationProgramError> {
         || rounded <= 0.0
         || rounded > u32::MAX as f64
     {
-        return Err(ObservationProgramError::UnrepresentableClock(sample_rate_hz));
+        return Err(ObservationProgramError::UnrepresentableClock(
+            sample_rate_hz,
+        ));
     }
     Ok(rounded as u32)
 }

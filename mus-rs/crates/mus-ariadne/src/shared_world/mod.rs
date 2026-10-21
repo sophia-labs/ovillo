@@ -14,9 +14,7 @@ use mus_watsn::WorkLedger;
 
 use crate::constitutive_body::WorldBody;
 use crate::coupling::{CouplingFrame, CouplingNetwork};
-use crate::plan::{
-    BodyPose, ConstitutiveWorldPlan, SpacePortSpec, WorldPlan,
-};
+use crate::plan::{BodyPose, ConstitutiveWorldPlan, SpacePortSpec, WorldPlan};
 use crate::shared_space::{SharedSpace, SharedSpaceFrame};
 
 /// Several persistent bodies, one shared field, one coupling graph, and one

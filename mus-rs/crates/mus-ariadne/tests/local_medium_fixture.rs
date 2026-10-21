@@ -1,6 +1,4 @@
-use mus_ariadne::law::medium::{
-    LocalConstitutiveMedium, LocalMediumInputFrame, LocalMediumPlan,
-};
+use mus_ariadne::law::medium::{LocalConstitutiveMedium, LocalMediumInputFrame, LocalMediumPlan};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -104,8 +102,16 @@ fn python_and_rust_replay_the_same_compiled_constitution() {
     {
         close(*actual, *expected, 2.0e-12);
     }
-    close(medium.stored_energy(), fixture.expected.stored_energy, 2.0e-11);
-    close(medium.positive_mass(), fixture.expected.positive_mass, 2.0e-12);
+    close(
+        medium.stored_energy(),
+        fixture.expected.stored_energy,
+        2.0e-11,
+    );
+    close(
+        medium.positive_mass(),
+        fixture.expected.positive_mass,
+        2.0e-12,
+    );
     for (actual, expected) in medium.observe().iter().zip(&fixture.expected.observation) {
         close(*actual, *expected, 2.0e-11);
     }
