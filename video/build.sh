@@ -2,7 +2,7 @@
 # Rebuild the Ovillo release video from the Worlds' renders.
 #
 #   ./build.sh                    renders (only those missing), prep, soundtrack, frames, MP4s, checks
-#   ./build.sh --renders          re-render every World first (mus render, trombone, tract)
+#   ./build.sh --renders          re-render every World first (mus render, trombone, tract, piano trace)
 #   ./build.sh --variant 4x5      one variant (4x5 | 16x9 | all; default all)
 #   ./build.sh --dpr 2 --jobs 3   capture supersampling and parallel pages (defaults 2 and 3)
 #   ./build.sh --no-capture       stop after the soundtrack (data and audio only)
@@ -58,6 +58,10 @@ if [ $renders = 1 ] || [ ! -f data/tract/tract-frames.json ]; then
   node tools/tract-render.mjs "$WASM" data/tract --check-observers
 fi
 python3 tools/piano-status.py
+if [ $renders = 1 ] || [ ! -f data/piano/piano-demo-energy.json ]; then
+  echo "piano: the demo render from the piano branch, its trace re-rendered with the World's books"
+  tools/piano-ledger.sh
+fi
 
 step "prep (build/*.json)"
 uv run --no-project --with numpy python tools/prep.py manifest.json build/

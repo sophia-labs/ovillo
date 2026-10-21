@@ -1,6 +1,7 @@
 # The Ovillo release video
 
-A 42-second video for LinkedIn: a title card, four instruments, an end card. Each
+A 42-second video for LinkedIn: a title card, four instruments (guitar, piano, trombone,
+pink trombone), an end card. Each
 instrument is an Ariadne World, and the video is drawn from that World's own data:
 its WAV is the sound, its trace is the picture, its receipt is the ledger on screen.
 
@@ -24,7 +25,7 @@ SF Mono there).
 ## Rules it keeps
 
 - Every sound is an Ariadne World's WAV. No samples, synths, beds or stock audio.
-  The cards are silent; the piano is silent until its World exists.
+  The cards are silent.
 - The browser never makes a sound: headless Chromium with `--mute-audio`, a page with
   no audio element and no AudioContext, a throwaway profile per capture job. The
   soundtrack is assembled by ffmpeg from the WAVs.
@@ -35,7 +36,7 @@ SF Mono there).
 
 | step | tool | what it does |
 |---|---|---|
-| renders | `build.sh` | `mus render ... --energy` (guitar), `trombone_nd_solo data/trombone solo trace` (trombone), `tools/tract-render.mjs` (tract) |
+| renders | `build.sh` | `mus render ... --energy` (guitar), `trombone_nd_solo data/trombone solo trace` (trombone), `tools/tract-render.mjs` (tract), `tools/piano-ledger.sh` + `tools/piano-sync.sh` (piano) |
 | prep | `tools/prep.py` | cuts each trace to its window for the page (`build/<id>.json`), the timeline (`build/timeline.json`) |
 | soundtrack | `tools/audio.py` | sample-exact excerpts, fades, per-segment loudness match, loudnorm two-pass (`build/audio/`, receipt in `build/audio/receipt.json`) |
 | frames | `tools/capture.mjs` | `page/index.html`, `window.renderFrame(n)` for every frame, PNG screenshots at 2x (`frames/<variant>/`) |
@@ -51,7 +52,7 @@ factor 2 and downscaled with lanczos.
 | | source | window | why this window |
 |---|---|---|---|
 | 01 guitar | `examples/tab/wayfaring-stranger-doc.mus`, steel-string-v0 | 0.00-10.00 s | the intro from the World at rest: alternating thumb, hammer-ons and pull-offs; it ends on the bar-5 downbeat (A minor), faded over its first 0.38 s |
-| 02 piano | PLACEHOLDER, `placeholder/piano-demo-notes.PLACEHOLDER.tsv` | 0-8.5 s | silent synthetic notes until the Ariadne piano World renders |
+| 02 piano | the Ariadne piano's demo, `examples/piano/prelude-c-major.mus` (Bach, BWV 846), piano-v1 | 0.00-8.50 s | the opening from the first strike: bars 1-2 and half of bar 3, faded over 0.4 s |
 | 03 trombone | `trombone_nd_solo` solo (trombone v1) | 14.90-24.50 s | the solo's third phrase: scoop into F4, rip to C5 (partial 10), tongued triplets, smears down to position 5, then the next phrase's smear out to position 7 |
 | 04 pink trombone | `tools/tract-render.mjs` on ovillo-tract-world | 0.00-8.40 s | one scripted take through the tract page's own controls: /a/, a lip closure (pa), /i/, /u/, a nasal (ma), a voiceless alveolar hiss |
 
@@ -108,16 +109,27 @@ column is the turbulence the jet injected in that frame; blue arcs are the World
 radiation at the lips and nostrils. Gaps of the World tract, on screen too: no
 aspiration noise, one jet (`TRACT-WORLD.md`).
 
-### Piano (not yet)
+### Piano
 
-The Ariadne piano is being built in `~/dev/ovillo-piano-20261021`
-(`ariadne/piano-world-v1-20261021`). When `ovillo/renders/piano-demo.wav`,
-`-receipt.json`, `-notes.tsv` (onset s, midi, velocity, release s) and `-energy.json`
-exist and are committed there (`python3 tools/piano-status.py` says), copy them to
-`data/piano/`, point the manifest's piano segment at them (`placeholder: false`,
-`audio`, `events`, `energy`, `receipt`, a window and a caption from the receipt), write
-`energyAdapter` in `page/scenes/piano.js` against the real energy schema, and run
-`./build.sh`. Until then the segment is flagged PLACEHOLDER on screen and silent.
+The render is the piano agent's (`~/dev/ovillo-piano-20261021`, branch
+`ariadne/piano-world-v1-20261021` at `a20d520`; `mus render` of
+`examples/piano/prelude-c-major.mus` on `anatomy=piano-v1`): `piano-demo.wav` (sha256
+`011c2e4b7d716543...`, its receipt's `renderDigest`), its receipt and notes table.
+Its trace books the hammer throws outside the per-hop source flows, so for a running
+ledger `tools/piano-ledger.sh` re-renders the same committed score on
+`site/video-piano-ledger-20261021` (that commit plus `ffb2219`, which only adds
+`ledgerFrames`, `World::receipt` every 10 ms) and refuses unless the WAV is
+bit-identical to the demo's; `tools/piano-sync.sh` then copies the demo files and that
+trace into `data/piano/` with `SOURCE.txt` (branch, commits, sha256s).
+
+On screen: 88 keys (a key is down from onset to release in the notes table; its
+hammer is drawn reaching the string at the onset and falling back, a drawing timed by
+the table), every played key's choir of strings lit by its string bodies' stored energy,
+the soundboard's bridge lit by the 14 board bodies' energy, the grand's case a drawing.
+Readouts: the last strike's hammer velocity and felt contact time (the trace's strikes).
+Caption: board radiation 0.010972 J of 0.010974 J radiated (the receipt).
+`placeholder/piano-demo-notes.PLACEHOLDER.tsv` and the placeholder path in
+`page/scenes/piano.js` were the silent stand-in used before the World existed.
 
 ## Sound
 
