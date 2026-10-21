@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -30,7 +31,11 @@ def main() -> None:
             )
     if "pub mod medium;" not in (ROOT / "mus-rs/crates/mus-ariadne/src/law/mod.rs").read_text():
         failures.append("local medium is not registered under Ariadne's law module")
-    if "LocalConstitutiveMedium" not in lib:
+    # The medium is public as `mus_ariadne::law::medium::LocalConstitutiveMedium`
+    # (the crate-root re-export was folded into the `law` module in 14fd8dc).
+    if not re.search(r"^pub mod law;", lib, re.MULTILINE) or not re.search(
+        r"^pub struct LocalConstitutiveMedium\b", medium, re.MULTILINE
+    ):
         failures.append("local medium is not exported from the canonical Ariadne crate")
 
     if failures:
