@@ -13,15 +13,15 @@
 
 pub mod ariadne_piano;
 pub mod ariadne_tab;
-pub mod receipt;
-pub mod tab_check;
 mod events;
 mod gestures;
 mod layout;
 mod mixbus;
 mod pack;
 mod rawbars;
+pub mod receipt;
 mod source;
+pub mod tab_check;
 mod transforms;
 mod util;
 
@@ -283,7 +283,12 @@ impl StagedRender {
         Self::begin_inner(source, score_dir, None)
     }
 
-    pub fn begin_bars(source: &str, score_dir: &Path, from: u32, to: u32) -> Result<Self, RenderError> {
+    pub fn begin_bars(
+        source: &str,
+        score_dir: &Path,
+        from: u32,
+        to: u32,
+    ) -> Result<Self, RenderError> {
         Self::begin_inner(source, score_dir, Some((from, to)))
     }
 
@@ -460,7 +465,10 @@ impl StagedRender {
 
     /// The tab instruments played on worlds, in render order.
     pub fn world_instruments(&self) -> Vec<String> {
-        self.worlds.iter().map(|w| w.instrument().to_owned()).collect()
+        self.worlds
+            .iter()
+            .map(|w| w.instrument().to_owned())
+            .collect()
     }
 
     /// Simulate up to `max` more world samples (worlds run one after another);
@@ -515,7 +523,12 @@ impl StagedRender {
         stats.sidechain_hits = sidechain_hits;
 
         // ---- reverb + highpass + master (lines 1150-1167)
-        let out = mixbus::finish_bus(self.buffers, self.reverb_s, self.master_rms_db, self.n_total);
+        let out = mixbus::finish_bus(
+            self.buffers,
+            self.reverb_s,
+            self.master_rms_db,
+            self.n_total,
+        );
 
         let mut samples = Vec::with_capacity(self.n_total * 2);
         for (&l, &r) in out[0].iter().zip(out[1].iter()) {
@@ -580,8 +593,7 @@ pub fn render_stems(
         .filter(|i| !tab_owned.contains(&i.abbrev) && !piano_owned.contains(&i.abbrev))
         .cloned()
         .collect();
-    let (voices, warnings) =
-        pack::build_voices(&voice_instruments, pack.as_ref(), score_dir, a4)?;
+    let (voices, warnings) = pack::build_voices(&voice_instruments, pack.as_ref(), score_dir, a4)?;
     let abbrevs: Vec<String> = proposal
         .instruments
         .iter()
@@ -733,7 +745,8 @@ pub fn write_wav(audio: &RenderedAudio, path: &Path) -> Result<(), RenderError> 
 /// digests when there is no file system (the browser).
 pub fn wav_bytes(audio: &RenderedAudio) -> Result<Vec<u8>, RenderError> {
     let mut cursor = std::io::Cursor::new(Vec::with_capacity(44 + audio.samples.len() * 3));
-    let writer = hound::WavWriter::new(&mut cursor, pcm24_spec(audio)).map_err(|e| RenderError::Wav(e.to_string()))?;
+    let writer = hound::WavWriter::new(&mut cursor, pcm24_spec(audio))
+        .map_err(|e| RenderError::Wav(e.to_string()))?;
     write_pcm24(audio, writer)?;
     Ok(cursor.into_inner())
 }
@@ -1019,7 +1032,10 @@ mod tests {
 
         // bars 2..=3: 2 bars (2 s) + the 4 s tail = 6 s of audio, 4 notes.
         let slice = render_bars(text, Path::new("."), 2, 3).unwrap();
-        assert_eq!(slice.audio.samples.len(), (6.0 * SAMPLE_RATE as f64) as usize * 2);
+        assert_eq!(
+            slice.audio.samples.len(),
+            (6.0 * SAMPLE_RATE as f64) as usize * 2
+        );
         assert_eq!(slice.stats.notes, 4);
         assert!(slice.audio.peak() > 0.0);
 

@@ -49,7 +49,9 @@ use std::path::Path;
 
 use mus_engine::receipt::{energy_trace_json, RenderReceipt};
 use mus_engine::tab_check::{self, TabAnchor, TabReport};
-use mus_engine::{sha256_bytes, wav_bytes, RenderOutcome, StagedRender, ENGINE_VERSION, SAMPLE_RATE};
+use mus_engine::{
+    sha256_bytes, wav_bytes, RenderOutcome, StagedRender, ENGINE_VERSION, SAMPLE_RATE,
+};
 use serde::Serialize;
 use serde_json::{json, Value};
 
@@ -58,8 +60,8 @@ pub const ANATOMIES: &[&str] = &["steel-string-v0"];
 
 /// Instrument parameters that make a track something other than an Ariadne World.
 const NOT_ARIADNE_PARAMS: &[&str] = &[
-    "synth", "voice", "sample", "osc2", "mix2", "detune", "sub", "cutoff", "famt", "fdec", "satk", "sdec", "ssus",
-    "srel",
+    "synth", "voice", "sample", "osc2", "mix2", "detune", "sub", "cutoff", "famt", "fdec", "satk",
+    "sdec", "ssus", "srel",
 ];
 /// Headers that bring in audio that is not an Ariadne World's.
 const NOT_ARIADNE_HEADERS: &[(&str, &str)] = &[
@@ -135,18 +137,27 @@ pub fn check(source: &str) -> CheckReport {
             diagnostics.push(Diagnostic {
                 severity: "error",
                 code: "not-ariadne".into(),
-                message: format!("# {key}: brings in {what}, not an Ariadne World. {ONLY_ARIADNE}."),
+                message: format!(
+                    "# {key}: brings in {what}, not an Ariadne World. {ONLY_ARIADNE}."
+                ),
                 anchor: json!({"kind": "header", "key": key}),
                 span: index.header(key),
             });
         }
     }
-    let bases: Vec<&mus_text::ProposalInstrument> =
-        proposal.instruments.iter().filter(|i| i.params.contains_key("anatomy")).collect();
+    let bases: Vec<&mus_text::ProposalInstrument> = proposal
+        .instruments
+        .iter()
+        .filter(|i| i.params.contains_key("anatomy"))
+        .collect();
     for inst in &proposal.instruments {
-        let base = bases
-            .iter()
-            .find(|b| inst.abbrev == b.abbrev || inst.abbrev.strip_prefix(b.abbrev.as_str()).is_some_and(|r| r.starts_with('.')));
+        let base = bases.iter().find(|b| {
+            inst.abbrev == b.abbrev
+                || inst
+                    .abbrev
+                    .strip_prefix(b.abbrev.as_str())
+                    .is_some_and(|r| r.starts_with('.'))
+        });
         let refuse = |code: &str, message: String| Diagnostic {
             severity: "error",
             code: code.into(),
@@ -175,7 +186,10 @@ pub fn check(source: &str) -> CheckReport {
                 };
                 diagnostics.push(refuse(
                     "not-ariadne",
-                    format!("{} = {} is {what}, not an Ariadne World. {ONLY_ARIADNE}.", inst.abbrev, inst.name),
+                    format!(
+                        "{} = {} is {what}, not an Ariadne World. {ONLY_ARIADNE}.",
+                        inst.abbrev, inst.name
+                    ),
                 ));
             }
             Some(base) => {
@@ -207,17 +221,28 @@ pub fn check(source: &str) -> CheckReport {
 
     // ---- SPEC-TAB §6, only on what the browser could read (a refused anatomy is not read)
     let readable = !diagnostics.iter().any(|d| d.code == "anatomy-unavailable");
-    let mut score = json!({"title": proposal.title, "bars": Value::Null, "durationSeconds": Value::Null});
+    let mut score =
+        json!({"title": proposal.title, "bars": Value::Null, "durationSeconds": Value::Null});
     let mut worlds = Vec::new();
     if readable {
         match tab_check::check(source, Path::new(".")) {
-            Ok(TabReport { bars, duration_seconds, instruments, diagnostics: tab }) => {
+            Ok(TabReport {
+                bars,
+                duration_seconds,
+                instruments,
+                diagnostics: tab,
+            }) => {
                 score["bars"] = json!(bars);
                 score["durationSeconds"] = json!(duration_seconds);
                 worlds = instruments;
                 for d in tab {
                     let span = match &d.anchor {
-                        TabAnchor::Event { bar, track, token_index, token } => index.event(*bar, track, *token_index, token),
+                        TabAnchor::Event {
+                            bar,
+                            track,
+                            token_index,
+                            token,
+                        } => index.event(*bar, track, *token_index, token),
                         TabAnchor::Instrument { abbrev } => index.instrument(abbrev),
                     };
                     diagnostics.push(Diagnostic {
@@ -284,7 +309,8 @@ pub struct Rendered {
 
 impl Rendered {
     pub fn receipt_json(&self) -> String {
-        serde_json::to_string(&self.receipt).unwrap_or_else(|e| json!({"error": e.to_string()}).to_string())
+        serde_json::to_string(&self.receipt)
+            .unwrap_or_else(|e| json!({"error": e.to_string()}).to_string())
     }
 
     pub fn energy_json(&self) -> String {
@@ -299,8 +325,12 @@ impl Render {
         if !report.clean {
             return Err(Refusal::Check(Box::new(report)));
         }
-        let staged = StagedRender::begin(source, Path::new(".")).map_err(|e| Refusal::Engine(e.to_string()))?;
-        Ok(Render { source: source.to_owned(), staged })
+        let staged = StagedRender::begin(source, Path::new("."))
+            .map_err(|e| Refusal::Engine(e.to_string()))?;
+        Ok(Render {
+            source: source.to_owned(),
+            staged,
+        })
     }
 
     pub fn total(&self) -> usize {
@@ -322,7 +352,11 @@ impl Render {
         let outcome = self.staged.finish().map_err(|e| e.to_string())?;
         let wav = wav_bytes(&outcome.audio).map_err(|e| e.to_string())?;
         let receipt = RenderReceipt::for_render(&self.source, &outcome, &wav, wall_seconds);
-        Ok(Rendered { outcome, wav, receipt })
+        Ok(Rendered {
+            outcome,
+            wav,
+            receipt,
+        })
     }
 }
 
@@ -349,34 +383,44 @@ impl<'a> SourceIndex<'a> {
     }
 
     fn span(&self, line: usize, from: usize, to: usize) -> Span {
-        Span { from: self.utf16(from), to: self.utf16(to), line: line + 1 }
+        Span {
+            from: self.utf16(from),
+            to: self.utf16(to),
+            line: line + 1,
+        }
     }
 
     /// `# key: value` lines.
     fn header(&self, key: &str) -> Option<Span> {
-        self.lines.iter().enumerate().find_map(|(n, (start, text))| {
-            let body = text.trim_start().strip_prefix('#')?.trim_start();
-            let rest = body.strip_prefix(key)?;
-            if !rest.trim_start().starts_with(':') {
-                return None;
-            }
-            let from = start + (text.len() - text.trim_start().len());
-            Some(self.span(n, from, start + text.len()))
-        })
+        self.lines
+            .iter()
+            .enumerate()
+            .find_map(|(n, (start, text))| {
+                let body = text.trim_start().strip_prefix('#')?.trim_start();
+                let rest = body.strip_prefix(key)?;
+                if !rest.trim_start().starts_with(':') {
+                    return None;
+                }
+                let from = start + (text.len() - text.trim_start().len());
+                Some(self.span(n, from, start + text.len()))
+            })
     }
 
     /// An `#   abbrev = name (...)` line in the instruments block: the abbrev.
     fn instrument(&self, abbrev: &str) -> Option<Span> {
-        self.lines.iter().enumerate().find_map(|(n, (start, text))| {
-            let after_hash = text.trim_start().strip_prefix('#')?;
-            let body = after_hash.trim_start();
-            let rest = body.strip_prefix(abbrev)?;
-            if !rest.trim_start().starts_with('=') {
-                return None;
-            }
-            let from = start + (text.len() - body.len());
-            Some(self.span(n, from, from + abbrev.len()))
-        })
+        self.lines
+            .iter()
+            .enumerate()
+            .find_map(|(n, (start, text))| {
+                let after_hash = text.trim_start().strip_prefix('#')?;
+                let body = after_hash.trim_start();
+                let rest = body.strip_prefix(abbrev)?;
+                if !rest.trim_start().starts_with('=') {
+                    return None;
+                }
+                let from = start + (text.len() - body.len());
+                Some(self.span(n, from, from + abbrev.len()))
+            })
     }
 
     /// The token a `{bar, track, tokenIndex, token}` anchor names, on the last
@@ -420,10 +464,17 @@ impl<'a> SourceIndex<'a> {
         // k-th occurrence in the walk is the k-th in the source, clamped to the last.
         let hits: Vec<(usize, usize)> = pieces
             .iter()
-            .filter_map(|&(a, b)| seg[a..b].find(token).map(|off| (a + off, a + off + token.len())))
+            .filter_map(|&(a, b)| {
+                seg[a..b]
+                    .find(token)
+                    .map(|off| (a + off, a + off + token.len()))
+            })
             .collect();
         let (from, to) = match hits.len() {
-            0 => pieces.get(token_index).copied().or_else(|| pieces.last().copied())?,
+            0 => pieces
+                .get(token_index)
+                .copied()
+                .or_else(|| pieces.last().copied())?,
             _ => hits[occurrence(self, bar, track, token_index, token).min(hits.len() - 1)],
         };
         Some(self.span(n, base + from, base + to))
@@ -431,7 +482,13 @@ impl<'a> SourceIndex<'a> {
 }
 
 /// How many tokens before `token_index` in the track's walked token list have the same text.
-fn occurrence(index: &SourceIndex<'_>, bar: u32, track: &str, token_index: usize, token: &str) -> usize {
+fn occurrence(
+    index: &SourceIndex<'_>,
+    bar: u32,
+    track: &str,
+    token_index: usize,
+    token: &str,
+) -> usize {
     let content = index
         .lines
         .iter()
@@ -443,7 +500,11 @@ fn occurrence(index: &SourceIndex<'_>, bar: u32, track: &str, token_index: usize
         .and_then(|text| text.split_once(':').map(|(_, c)| c))
         .unwrap_or("");
     let walked = segment_tokens(content, track);
-    walked.iter().take(token_index).filter(|t| t.trim() == token).count()
+    walked
+        .iter()
+        .take(token_index)
+        .filter(|t| t.trim() == token)
+        .count()
 }
 
 fn segment_tokens(content: &str, track: &str) -> Vec<String> {
@@ -469,7 +530,9 @@ fn mus_notation_walk(seg: &str) -> Vec<String> {
 /// `bar N[...]:` / `bars N-M[...]:` → (N, M).
 fn bar_range(line: &str) -> Option<(u32, u32)> {
     let body = line.trim();
-    let after = body.strip_prefix("bar ").or_else(|| body.strip_prefix("bars "))?;
+    let after = body
+        .strip_prefix("bar ")
+        .or_else(|| body.strip_prefix("bars "))?;
     let head = &after[..after.find(':')?];
     let range = head.split('[').next()?.trim();
     match range.split_once('-') {
@@ -495,7 +558,11 @@ fn next_assignment(seg: &str) -> Option<usize> {
             b' ' | b'\t' => token_start = i + 1,
             b'=' if depth <= 0 => {
                 let name = &seg[token_start..i];
-                if !name.is_empty() && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'_') {
+                if !name.is_empty()
+                    && name
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'_')
+                {
                     return Some(token_start);
                 }
             }
@@ -568,7 +635,10 @@ fn set_text(state: &mut State, text: String) -> u32 {
 }
 
 fn input_text(state: &State, len: u32) -> Result<String, String> {
-    let bytes = state.input.get(..len as usize).ok_or("input is shorter than the length given")?;
+    let bytes = state
+        .input
+        .get(..len as usize)
+        .ok_or("input is shorter than the length given")?;
     String::from_utf8(bytes.to_vec()).map_err(|e| format!("the score is not UTF-8: {e}"))
 }
 
@@ -613,7 +683,8 @@ pub extern "C" fn mus_info() -> u32 {
 pub extern "C" fn mus_check(len: u32) -> u32 {
     with_state(|s| {
         let text = match input_text(s, len) {
-            Ok(source) => serde_json::to_string(&check(&source)).unwrap_or_else(|e| error_json(&e.to_string())),
+            Ok(source) => serde_json::to_string(&check(&source))
+                .unwrap_or_else(|e| error_json(&e.to_string())),
             Err(e) => error_json(&e),
         };
         set_text(s, text)
@@ -640,7 +711,10 @@ pub extern "C" fn mus_render_begin(len: u32) -> i32 {
                 0
             }
             Err(Refusal::Check(report)) => {
-                set_text(s, serde_json::to_string(&report).unwrap_or_else(|e| error_json(&e.to_string())));
+                set_text(
+                    s,
+                    serde_json::to_string(&report).unwrap_or_else(|e| error_json(&e.to_string())),
+                );
                 1
             }
             Err(Refusal::Engine(e)) => {
@@ -706,17 +780,29 @@ pub extern "C" fn mus_render_finish(wall_seconds: f64) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn mus_render_frames() -> u32 {
-    with_state(|s| s.rendered.as_ref().map_or(0, |r| r.outcome.audio.frames() as u32))
+    with_state(|s| {
+        s.rendered
+            .as_ref()
+            .map_or(0, |r| r.outcome.audio.frames() as u32)
+    })
 }
 
 #[no_mangle]
 pub extern "C" fn mus_render_samples_ptr() -> *const f32 {
-    with_state(|s| s.rendered.as_ref().map_or(std::ptr::null(), |r| r.outcome.audio.samples.as_ptr()))
+    with_state(|s| {
+        s.rendered
+            .as_ref()
+            .map_or(std::ptr::null(), |r| r.outcome.audio.samples.as_ptr())
+    })
 }
 
 #[no_mangle]
 pub extern "C" fn mus_render_wav_ptr() -> *const u8 {
-    with_state(|s| s.rendered.as_ref().map_or(std::ptr::null(), |r| r.wav.as_ptr()))
+    with_state(|s| {
+        s.rendered
+            .as_ref()
+            .map_or(std::ptr::null(), |r| r.wav.as_ptr())
+    })
 }
 
 #[no_mangle]
@@ -727,7 +813,10 @@ pub extern "C" fn mus_render_wav_len() -> u32 {
 #[no_mangle]
 pub extern "C" fn mus_render_energy() -> u32 {
     with_state(|s| {
-        let text = s.rendered.as_ref().map_or_else(|| error_json("no finished render"), |r| r.energy_json());
+        let text = s
+            .rendered
+            .as_ref()
+            .map_or_else(|| error_json("no finished render"), |r| r.energy_json());
         set_text(s, text)
     })
 }

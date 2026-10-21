@@ -211,7 +211,11 @@ fn run_render(
     if let Some(path) = energy_path {
         let trace = energy_trace_json(&outcome.stats);
         let partial = path.with_extension("json.partial");
-        fs::write(&partial, serde_json::to_vec(&trace).map_err(|e| e.to_string())?).map_err(|e| format!("{}: {e}", partial.display()))?;
+        fs::write(
+            &partial,
+            serde_json::to_vec(&trace).map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| format!("{}: {e}", partial.display()))?;
         fs::rename(&partial, path).map_err(|e| format!("{}: {e}", path.display()))?;
     }
 

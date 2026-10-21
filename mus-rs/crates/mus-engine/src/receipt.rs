@@ -6,7 +6,10 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-use crate::{sha256_bytes, AriadneReceipt, EventTrajectoryReceipt, RenderOutcome, RenderStats, ENGINE_VERSION};
+use crate::{
+    sha256_bytes, AriadneReceipt, EventTrajectoryReceipt, RenderOutcome, RenderStats,
+    ENGINE_VERSION,
+};
 
 /// `mus.audio.render-receipt.v1`: peak/RMS/digests (the original WF1
 /// surface, kept for `mus-cli/tests/render_receipt.rs`) extended per the
@@ -97,7 +100,12 @@ impl RenderReceipt {
     }
 
     /// The receipt for a finished render whose WAV bytes are `wav`.
-    pub fn for_render(source: &str, outcome: &RenderOutcome, wav: &[u8], wall_seconds: f64) -> Self {
+    pub fn for_render(
+        source: &str,
+        outcome: &RenderOutcome,
+        wav: &[u8],
+        wall_seconds: f64,
+    ) -> Self {
         Self::from_stats(
             &outcome.stats,
             format!("sha256:{}", sha256_bytes(wav)),
@@ -127,7 +135,10 @@ pub fn head_selection(source: &str) -> serde_json::Value {
     for (lineage, state) in &graph.lineages {
         if state.contested {
             if let Some(head) = state.chosen_head() {
-                selected.insert(lineage.0.clone(), serde_json::Value::String(head.version.0.clone()));
+                selected.insert(
+                    lineage.0.clone(),
+                    serde_json::Value::String(head.version.0.clone()),
+                );
             }
         }
     }

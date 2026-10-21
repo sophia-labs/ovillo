@@ -25,7 +25,9 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use mus_notation::{expand_pattern_repetitions, parse_token, split_attached_dynamics, tokenize_bar_content};
+use mus_notation::{
+    expand_pattern_repetitions, parse_token, split_attached_dynamics, tokenize_bar_content,
+};
 use serde::Serialize;
 
 use crate::ariadne_tab::{self, midi_name, warp, TabInstrument};
@@ -95,7 +97,10 @@ pub struct TabReport {
 
 impl TabReport {
     pub fn errors(&self) -> usize {
-        self.diagnostics.iter().filter(|d| d.severity == "error").count()
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == "error")
+            .count()
     }
 }
 
@@ -159,14 +164,28 @@ fn event(bar: u32, track: &str, token_index: usize, token: &str) -> TabAnchor {
     }
 }
 
-fn diagnostic(severity: &'static str, code: &'static str, message: String, anchor: TabAnchor) -> TabDiagnostic {
-    TabDiagnostic { severity, code, message, anchor }
+fn diagnostic(
+    severity: &'static str,
+    code: &'static str,
+    message: String,
+    anchor: TabAnchor,
+) -> TabDiagnostic {
+    TabDiagnostic {
+        severity,
+        code,
+        message,
+        anchor,
+    }
 }
 
 fn trim_number(value: f64) -> String {
     let text = format!("{value:.4}");
     let text = text.trim_end_matches('0').trim_end_matches('.');
-    if text.is_empty() { "0".into() } else { text.into() }
+    if text.is_empty() {
+        "0".into()
+    } else {
+        text.into()
+    }
 }
 
 /// Check every annotated-tab instrument in `source`. `score_dir` resolves an
@@ -177,14 +196,24 @@ pub fn check(source: &str, score_dir: &Path) -> Result<TabReport, RenderError> {
     let (proposal, _) = mus_text::parse_score_lossy(source);
     let headers = &proposal.headers;
     let (swing_unit_ql, swing_r) = layout::parse_swing(headers.get("swing"));
-    let abbrevs: Vec<String> = proposal.instruments.iter().map(|i| i.abbrev.clone()).collect();
+    let abbrevs: Vec<String> = proposal
+        .instruments
+        .iter()
+        .map(|i| i.abbrev.clone())
+        .collect();
     let raw = rawbars::scan(source, &abbrevs);
     let n_bars = headers
         .get("bars")
         .and_then(|v| v.trim().parse::<u32>().ok())
         .filter(|&n| n != 0)
         .unwrap_or(raw.max_bar);
-    let bar_map = layout::build_bar_map(headers.get("tempo"), headers.get("time"), &raw.inline_tempo, &raw.inline_time, n_bars)?;
+    let bar_map = layout::build_bar_map(
+        headers.get("tempo"),
+        headers.get("time"),
+        &raw.inline_tempo,
+        &raw.inline_time,
+        n_bars,
+    )?;
     let (instruments, _) = ariadne_tab::collect(&proposal.instruments, score_dir)?;
 
     let mut diagnostics = Vec::new();
@@ -198,7 +227,12 @@ pub fn check(source: &str, score_dir: &Path) -> Result<TabReport, RenderError> {
             hands: inst
                 .hands
                 .iter()
-                .map(|h| TabHandSummary { abbrev: h.abbrev.clone(), pos: h.pos, pick: h.pick, palm_mute: h.pm })
+                .map(|h| TabHandSummary {
+                    abbrev: h.abbrev.clone(),
+                    pos: h.pos,
+                    pick: h.pick,
+                    palm_mute: h.pm,
+                })
                 .collect(),
         });
         if inst.hands.is_empty() {
@@ -213,12 +247,17 @@ pub fn check(source: &str, score_dir: &Path) -> Result<TabReport, RenderError> {
             ));
         }
         for b in 1..=n_bars {
-            let Some(content) = raw.bar_content.get(&b).and_then(|m| m.get(&inst.abbrev)) else { continue };
+            let Some(content) = raw.bar_content.get(&b).and_then(|m| m.get(&inst.abbrev)) else {
+                continue;
+            };
             let content = content.trim();
             if content.is_empty() || content == "-" {
                 continue;
             }
-            let token = tokenize_bar_content(content).into_iter().next().unwrap_or_default();
+            let token = tokenize_bar_content(content)
+                .into_iter()
+                .next()
+                .unwrap_or_default();
             diagnostics.push(diagnostic(
                 "error",
                 "tab-notes-on-instrument",
@@ -229,7 +268,15 @@ pub fn check(source: &str, score_dir: &Path) -> Result<TabReport, RenderError> {
                 event(b, &inst.abbrev, 0, &token),
             ));
         }
-        let touches = hand_touches(inst, &bar_map, &raw.bar_content, n_bars, swing_unit_ql, swing_r, &mut diagnostics);
+        let touches = hand_touches(
+            inst,
+            &bar_map,
+            &raw.bar_content,
+            n_bars,
+            swing_unit_ql,
+            swing_r,
+            &mut diagnostics,
+        );
         instrument_checks(&touches, &mut diagnostics);
     }
     Ok(TabReport {
@@ -257,12 +304,18 @@ fn hand_touches(
     for hand in &inst.hands {
         let abbr = hand.abbrev.as_str();
         for b in 1..=n_bars {
-            let Some(content) = bar_content.get(&b).and_then(|m| m.get(abbr)) else { continue };
+            let Some(content) = bar_content.get(&b).and_then(|m| m.get(abbr)) else {
+                continue;
+            };
             if content.trim().is_empty() || content.trim() == "-" {
                 continue;
             }
-            let Some(timing) = bar_map.bars.get(&b) else { continue };
-            let tokens = split_attached_dynamics(&expand_pattern_repetitions(&tokenize_bar_content(content)));
+            let Some(timing) = bar_map.bars.get(&b) else {
+                continue;
+            };
+            let tokens = split_attached_dynamics(&expand_pattern_repetitions(
+                &tokenize_bar_content(content),
+            ));
             let at = |q: f64| timing.start_s + warp(q, swing_unit_ql, swing_r) * timing.spq;
             let mut q = 0.0_f64;
             let mut readable = true;
@@ -317,7 +370,11 @@ fn hand_touches(
                         diagnostics.push(diagnostic(
                             "error",
                             "tab-no-string",
-                            format!("{tk}: {} has no string {string} (it has {})", inst.abbrev, inst.open.len()),
+                            format!(
+                                "{tk}: {} has no string {string} (it has {})",
+                                inst.abbrev,
+                                inst.open.len()
+                            ),
                             event(b, abbr, ti, tk),
                         ));
                         continue;
@@ -386,8 +443,14 @@ fn instrument_checks(touches: &[Touch], diagnostics: &mut Vec<TabDiagnostic>) {
     // When each note lets go of its string: its duration, or the string's next touch, or ([ring]) only that.
     let release = |i: usize| -> f64 {
         let t = &touches[i];
-        let taken = next_on_string[i].map(|n| touches[n].onset).unwrap_or(f64::INFINITY);
-        if t.ring { taken } else { t.end.min(taken) }
+        let taken = next_on_string[i]
+            .map(|n| touches[n].onset)
+            .unwrap_or(f64::INFINITY);
+        if t.ring {
+            taken
+        } else {
+            t.end.min(taken)
+        }
     };
 
     let mut previous: BTreeMap<usize, usize> = BTreeMap::new();
@@ -467,7 +530,9 @@ fn instrument_checks(touches: &[Touch], diagnostics: &mut Vec<TabDiagnostic>) {
         let starting: Vec<usize> = (i..j).filter(|&k| touches[k].stops).collect();
         if !starting.is_empty() {
             let held: Vec<usize> = (0..j)
-                .filter(|&k| touches[k].stops && touches[k].onset <= t0 + EPS && release(k) > t0 + EPS)
+                .filter(|&k| {
+                    touches[k].stops && touches[k].onset <= t0 + EPS && release(k) > t0 + EPS
+                })
                 .collect();
             let low = held.iter().map(|&k| touches[k].fret).min().unwrap_or(0);
             let high = held.iter().map(|&k| touches[k].fret).max().unwrap_or(0);
@@ -476,7 +541,9 @@ fn instrument_checks(touches: &[Touch], diagnostics: &mut Vec<TabDiagnostic>) {
                 let culprit = &touches[starting[0]];
                 let others: Vec<String> = held
                     .iter()
-                    .filter(|&&k| touches[k].token != culprit.token || touches[k].track != culprit.track)
+                    .filter(|&&k| {
+                        touches[k].token != culprit.token || touches[k].track != culprit.track
+                    })
                     .map(|&k| format!("{} on string {}", touches[k].token, touches[k].string))
                     .collect();
                 let (severity, code, verdict) = if span > REACH_FRETS {
@@ -521,7 +588,11 @@ mod tests {
 
     #[test]
     fn position_must_agree_with_pitch() {
-        let report = check(&format!("{HEAD}bar 1: gt.v=C4e@2:3 Re Rh. gt.p=Rw\n"), Path::new(".")).unwrap();
+        let report = check(
+            &format!("{HEAD}bar 1: gt.v=C4e@2:3 Re Rh. gt.p=Rw\n"),
+            Path::new("."),
+        )
+        .unwrap();
         let d = &report.diagnostics[0];
         assert_eq!(d.code, "tab-position-disagrees");
         assert_eq!(d.severity, "error");
@@ -532,49 +603,99 @@ mod tests {
 
     #[test]
     fn every_note_needs_a_position_and_a_real_string() {
-        assert_eq!(codes("bar 1: gt.v=C4w gt.p=Rw\n"), vec!["tab-missing-position"]);
-        assert_eq!(codes("bar 1: gt.v=<A3@3:2 C4>w gt.p=Rw\n"), vec!["tab-missing-position"]);
-        assert_eq!(codes("bar 1: gt.v=C4w@7:0 gt.p=Rw\n"), vec!["tab-no-string"]);
+        assert_eq!(
+            codes("bar 1: gt.v=C4w gt.p=Rw\n"),
+            vec!["tab-missing-position"]
+        );
+        assert_eq!(
+            codes("bar 1: gt.v=<A3@3:2 C4>w gt.p=Rw\n"),
+            vec!["tab-missing-position"]
+        );
+        assert_eq!(
+            codes("bar 1: gt.v=C4w@7:0 gt.p=Rw\n"),
+            vec!["tab-no-string"]
+        );
     }
 
     #[test]
     fn one_string_is_struck_once_per_instant_across_hands() {
-        assert_eq!(codes("bar 1: gt.p=A2w@5:0  gt.v=A2w@5:0\n"), vec!["tab-string-twice"]);
+        assert_eq!(
+            codes("bar 1: gt.p=A2w@5:0  gt.v=A2w@5:0\n"),
+            vec!["tab-string-twice"]
+        );
     }
 
     #[test]
     fn techniques_need_a_sounding_string_and_slides_move() {
-        assert_eq!(codes("bar 1: gt.v=B3w@3:4[ho] gt.p=Rw\n"), vec!["tab-technique-needs-sounding-string"]);
+        assert_eq!(
+            codes("bar 1: gt.v=B3w@3:4[ho] gt.p=Rw\n"),
+            vec!["tab-technique-needs-sounding-string"]
+        );
         // A3 ends at beat 1; the pull-off two beats later finds string 3 silent.
-        assert_eq!(codes("bar 1: gt.v=A3q@3:2 Rq G3h@3:0[po] gt.p=Rw\n"), vec!["tab-technique-needs-sounding-string"]);
+        assert_eq!(
+            codes("bar 1: gt.v=A3q@3:2 Rq G3h@3:0[po] gt.p=Rw\n"),
+            vec!["tab-technique-needs-sounding-string"]
+        );
         assert!(codes("bar 1: gt.v=A3q@3:2[ring] Rq G3h@3:0[po] gt.p=Rw\n").is_empty());
-        assert_eq!(codes("bar 1: gt.v=A3h@3:2 A3h@3:2[sl] gt.p=Rw\n"), vec!["tab-slide-same-fret"]);
+        assert_eq!(
+            codes("bar 1: gt.v=A3h@3:2 A3h@3:2[sl] gt.p=Rw\n"),
+            vec!["tab-slide-same-fret"]
+        );
     }
 
     #[test]
     fn reach_four_is_a_stretch_five_an_error() {
-        assert_eq!(codes("bar 1: gt.p=C3w@5:3  gt.v=Eb4w@2:4\n"), Vec::<&str>::new());
-        assert_eq!(codes("bar 1: gt.p=B2w@5:2  gt.v=E4w@2:5\n"), Vec::<&str>::new());
+        assert_eq!(
+            codes("bar 1: gt.p=C3w@5:3  gt.v=Eb4w@2:4\n"),
+            Vec::<&str>::new()
+        );
+        assert_eq!(
+            codes("bar 1: gt.p=B2w@5:2  gt.v=E4w@2:5\n"),
+            Vec::<&str>::new()
+        );
         // frets 2 and 6: a stretch; 2 and 7: out of reach. Open strings don't count.
-        assert_eq!(codes("bar 1: gt.p=B2w@5:2  gt.v=F4w@2:6\n"), vec!["tab-stretch"]);
-        assert_eq!(codes("bar 1: gt.p=B2w@5:2  gt.v=F#4w@2:7\n"), vec!["tab-reach"]);
-        assert_eq!(codes("bar 1: gt.p=E2w@6:0  gt.v=F#4w@2:7\n"), Vec::<&str>::new());
+        assert_eq!(
+            codes("bar 1: gt.p=B2w@5:2  gt.v=F4w@2:6\n"),
+            vec!["tab-stretch"]
+        );
+        assert_eq!(
+            codes("bar 1: gt.p=B2w@5:2  gt.v=F#4w@2:7\n"),
+            vec!["tab-reach"]
+        );
+        assert_eq!(
+            codes("bar 1: gt.p=E2w@6:0  gt.v=F#4w@2:7\n"),
+            Vec::<&str>::new()
+        );
         // A stop that has ended no longer holds the hand.
-        assert_eq!(codes("bar 1: gt.p=B2q@5:2 Rh.  gt.v=Rh F#4h@2:7\n"), Vec::<&str>::new());
+        assert_eq!(
+            codes("bar 1: gt.p=B2q@5:2 Rh.  gt.v=Rh F#4h@2:7\n"),
+            Vec::<&str>::new()
+        );
     }
 
     #[test]
     fn each_hand_fills_its_bar() {
-        let report = check(&format!("{HEAD}bar 1: gt.p=A2h@5:0  gt.v=A3w@3:2\n"), Path::new(".")).unwrap();
+        let report = check(
+            &format!("{HEAD}bar 1: gt.p=A2h@5:0  gt.v=A3w@3:2\n"),
+            Path::new("."),
+        )
+        .unwrap();
         let d = &report.diagnostics[0];
         assert_eq!(d.code, "tab-voice-duration");
-        assert!(d.message.contains("add up to 2 quarters; the bar holds 4"), "{}", d.message);
+        assert!(
+            d.message.contains("add up to 2 quarters; the bar holds 4"),
+            "{}",
+            d.message
+        );
         assert_eq!(d.anchor, event(1, "gt.p", 0, "A2h@5:0"));
     }
 
     #[test]
     fn notes_on_the_instrument_track_or_without_hands_are_refused() {
-        assert_eq!(codes("bar 1: gt=A2w@5:0 gt.p=Rw gt.v=Rw\n"), vec!["tab-notes-on-instrument"]);
+        assert_eq!(
+            codes("bar 1: gt=A2w@5:0 gt.p=Rw gt.v=Rw\n"),
+            vec!["tab-notes-on-instrument"]
+        );
         let lonely = "# score: t\n# tempo: 120\n# time: 4/4\n# instruments:\n\
             #   gt = steel-string guitar (treble, anatomy=steel-string-v0)\nbar 1: gt=A2w@5:0\n";
         let report = check(lonely, Path::new(".")).unwrap();
@@ -584,7 +705,8 @@ mod tests {
 
     #[test]
     fn swing_and_dynamics_and_patterns_follow_the_renderer() {
-        let swung = format!("# swing: 8 64\n{HEAD}bar 1: gt.p={{p}} (A2e@5:0 E3e@4:2 ×4)  gt.v=Rw\n");
+        let swung =
+            format!("# swing: 8 64\n{HEAD}bar 1: gt.p={{p}} (A2e@5:0 E3e@4:2 ×4)  gt.v=Rw\n");
         let report = check(&swung, Path::new(".")).unwrap();
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
         assert_eq!(report.instruments[0].hands.len(), 2);
@@ -593,7 +715,8 @@ mod tests {
 
     #[test]
     fn the_steel_string_tour_is_clean() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../examples/tab/steel_string_tour.mus");
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../examples/tab/steel_string_tour.mus");
         let text = std::fs::read_to_string(&path).unwrap();
         let report = check(&text, path.parent().unwrap()).unwrap();
         assert!(report.diagnostics.is_empty(), "{:#?}", report.diagnostics);

@@ -320,26 +320,49 @@ fn check_refuses_a_tab_position_that_disagrees_with_its_pitch() {
         .args(["check", score.to_str().unwrap(), "--json"])
         .output()
         .unwrap();
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let report: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(report["clean"], false, "{report:#}");
     let diagnostics = report["diagnostics"].as_array().unwrap();
-    let wrong: Vec<&Value> = diagnostics.iter().filter(|d| d["code"] == "tab-position-disagrees").collect();
+    let wrong: Vec<&Value> = diagnostics
+        .iter()
+        .filter(|d| d["code"] == "tab-position-disagrees")
+        .collect();
     assert_eq!(wrong.len(), 1, "{diagnostics:#?}");
     assert_eq!(wrong[0]["severity"], "error");
     assert_eq!(wrong[0]["anchor"]["bar"], 1);
     assert_eq!(wrong[0]["anchor"]["track"], "gt.v");
     assert_eq!(wrong[0]["anchor"]["tokenIndex"], 0);
     assert_eq!(wrong[0]["anchor"]["token"], "C4e@2:3");
-    assert!(wrong[0]["message"].as_str().unwrap().contains("sounds D4, not C4"));
+    assert!(wrong[0]["message"]
+        .as_str()
+        .unwrap()
+        .contains("sounds D4, not C4"));
     // A tab instrument and its hands are played on a World; they need no samples.
-    assert!(diagnostics.iter().all(|d| d["code"] != "no-samples-for-track"), "{diagnostics:#?}");
-    let sources: Vec<&Value> = report["instruments"].as_array().unwrap().iter().map(|i| &i["source"]["kind"]).collect();
+    assert!(
+        diagnostics
+            .iter()
+            .all(|d| d["code"] != "no-samples-for-track"),
+        "{diagnostics:#?}"
+    );
+    let sources: Vec<&Value> = report["instruments"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| &i["source"]["kind"])
+        .collect();
     assert_eq!(sources, ["ariadne", "ariadne-hand", "ariadne-hand"]);
 
     // Fixed, the same score is clean.
-    let fixed = std::fs::read_to_string(&score).unwrap().replace("C4e@2:3", "C4e@2:1");
-    let path = std::env::temp_dir().join(format!("mus-check-fixed-fret-{}.mus", std::process::id()));
+    let fixed = std::fs::read_to_string(&score)
+        .unwrap()
+        .replace("C4e@2:3", "C4e@2:1");
+    let path =
+        std::env::temp_dir().join(format!("mus-check-fixed-fret-{}.mus", std::process::id()));
     std::fs::write(&path, fixed).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_mus"))
         .args(["check", path.to_str().unwrap(), "--json"])
@@ -348,7 +371,11 @@ fn check_refuses_a_tab_position_that_disagrees_with_its_pitch() {
     std::fs::remove_file(&path).unwrap();
     let report: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(report["clean"], true, "{:#}", report["diagnostics"]);
-    assert!(report["diagnostics"].as_array().unwrap().is_empty(), "{:#}", report["diagnostics"]);
+    assert!(
+        report["diagnostics"].as_array().unwrap().is_empty(),
+        "{:#}",
+        report["diagnostics"]
+    );
 }
 
 /// Wayfaring Stranger has stretches (frets 1 to 5 under the F chords), which
@@ -367,7 +394,10 @@ fn the_tab_examples_check_clean() {
             .as_array()
             .unwrap()
             .iter()
-            .filter(|d| d["code"].as_str().is_some_and(|c| c.starts_with("tab-")) && d["severity"] == "error")
+            .filter(|d| {
+                d["code"].as_str().is_some_and(|c| c.starts_with("tab-"))
+                    && d["severity"] == "error"
+            })
             .collect();
         assert!(tab.is_empty(), "{name}: {tab:#?}");
     }

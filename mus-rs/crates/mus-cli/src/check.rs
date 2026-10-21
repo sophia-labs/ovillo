@@ -136,14 +136,23 @@ fn build_report(
     // Annotated-tab instruments (`anatomy=`) are played on an Ariadne World by
     // their hands; they are not voices and need no samples.
     let tab_owned = tab_owned_instruments(&proposal.instruments);
-    let instruments = instrument_report(&proposal.instruments, &pack_voices, &tab_owned, &mut diagnostics);
+    let instruments = instrument_report(
+        &proposal.instruments,
+        &pack_voices,
+        &tab_owned,
+        &mut diagnostics,
+    );
     // SPEC-TAB §6: what a checker verifies on those instruments, read exactly
     // as `mus render` plays them (`mus_engine::tab_check`).
     if !tab_owned.is_empty() {
         match mus_engine::tab_check::check(source, base) {
             Ok(report) => {
                 // `event_report` already reports tokens nobody can parse.
-                for d in report.diagnostics.into_iter().filter(|d| d.code != "unparseable-token") {
+                for d in report
+                    .diagnostics
+                    .into_iter()
+                    .filter(|d| d.code != "unparseable-token")
+                {
                     diagnostics.push(serde_json::to_value(&d).map_err(|e| e.to_string())?);
                 }
             }
@@ -534,7 +543,12 @@ fn tab_owned_instruments(instruments: &[ProposalInstrument]) -> Vec<String> {
     instruments
         .iter()
         .filter(|i| {
-            bases.iter().any(|b| i.abbrev == *b || i.abbrev.strip_prefix(b).is_some_and(|rest| rest.starts_with('.')))
+            bases.iter().any(|b| {
+                i.abbrev == *b
+                    || i.abbrev
+                        .strip_prefix(b)
+                        .is_some_and(|rest| rest.starts_with('.'))
+            })
         })
         .map(|i| i.abbrev.clone())
         .collect()
