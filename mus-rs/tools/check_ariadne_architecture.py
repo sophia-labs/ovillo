@@ -76,7 +76,9 @@ REQUIRED_WORLD_ENTRY_STAGE_PATTERNS = (
 REQUIRED_WORLD_STAGE_PATTERNS = (
     ("direct body coupling", "self.couplings.process"),
     ("open shared field", "self.space.begin_frame"),
-    ("body/shared-field exchange", "space.exchange_port"),
+    # The World exchanges through each body's compiled port; `exchange_port` (test-only) is the
+    # reference it is checked against bit for bit (`shared_space::tests`).
+    ("body/shared-field exchange", "space.exchange_compiled_port("),
     ("shared-field propagation", "self.space.finish_frame"),
     ("body radiation", ".radiate("),
     ("global ledger", "self.ledger.push"),
