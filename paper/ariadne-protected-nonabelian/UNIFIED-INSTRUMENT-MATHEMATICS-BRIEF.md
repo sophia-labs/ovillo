@@ -214,7 +214,7 @@ sound splitting is part of the assignment. The exact ledger must close
 The current engine's output is an observer tap and therefore is **not** a loss
 term. The strong instrument requires a declared physical radiation port or a
 clear statement that a particular output remains observation-only. See the
-existing distinction in [`WORK-ACCOUNTED-NETWORKS.md`](../../.string-research/WORK-ACCOUNTED-NETWORKS.md).
+existing distinction in `.string-research/WORK-ACCOUNTED-NETWORKS.md` (private lab notes, not in this repository).
 
 ### 3.3 Protection in a driven, lossy instrument
 
@@ -742,7 +742,7 @@ where `B` is an admissible excitation map, `C` a radiation/pickup map, and the
    downstream convolution.
 
 The current state- and pickup-dependent distinction begins at
-[`ARIADNE-MATHEMATICS.md`](../../.string-research/ARIADNE-MATHEMATICS.md#6-discrete-control-holonomy).
+`.string-research/ARIADNE-MATHEMATICS.md` §6, "Discrete control holonomy" (private lab notes, not in this repository).
 It must be lifted to the protected coupled family.
 
 ### M10 — Persistent performance and score semantics
@@ -1240,13 +1240,15 @@ That is not moderation; it is the actual stronger result.
 
 ### Literature and novelty boundary
 
-- [`.string-research/LITERATURE.md`](../../.string-research/LITERATURE.md) —
+The three `.string-research/` notes below are private lab notes, not in this repository.
+
+- `.string-research/LITERATURE.md` —
   waveguides, passive bodies, lossless networks, non-Abelian acoustic
   transport, and immediate reading order.
-- [`.string-research/LITERATURE-ROUND-2.md`](../../.string-research/LITERATURE-ROUND-2.md)
+- `.string-research/LITERATURE-ROUND-2.md`
   — time-varying work, port-Hamiltonian systems, scattering/FDNs,
   differentiable design, and claim matrix.
-- [`.string-research/ACADEMIC-THESIS.md`](../../.string-research/ACADEMIC-THESIS.md)
+- `.string-research/ACADEMIC-THESIS.md`
   — proposed WATSN contribution and required instrument–room evidence.
 
 The mathematics team should update the bibliography with primary sources for

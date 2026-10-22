@@ -44,6 +44,9 @@ modes refuse them.
 | `SPEC.md`, `mus.py` | MUS notation and MusicXML/MIDI round trips |
 | `SPEC-AUDIO.md`, `mus_audio.py`, `aigua/` | sample-bound MUS and worked music |
 | `mus-rs/` | Rust notation, engine, DSP, gesture, trajectory, and protected-path runtime |
+| `SPEC-ARIADNE-STEEL-STRING.md`, `SPEC-ARIADNE-PIANO.md`, `profiles/` | the instruments `mus render` plays on Ariadne Worlds (the steel-string guitar, the piano) and their anatomy plans and receipts |
+| `ovillo/`, `TROMBONE-WORLD.md`, `TRACT-WORLD.md` | the bench app, the trombone v1 World (`ovillo-dsp`), the vocal tract Worlds (`ovillo-tract`, `ovillo-tract-world`) |
+| `site/`, `video/` | the sources of ovillo.sophia-labs.com and of the release video |
 | `paper/` | Ariadne mathematical constructions, oracles, and evidence packets |
 | `mus-rs/SPECS/garganta/`, `mus_analysis/garganta_anatomy.py` | throat and anatomy program |
 | `mus-rs/experiments/threader_poc/` | hierarchical inverse-instrument POC |

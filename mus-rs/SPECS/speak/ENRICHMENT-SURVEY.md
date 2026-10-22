@@ -800,5 +800,3 @@ Tiers, defined by what each license permits *for this project*:
 ---
 
 *Merged from `enrich-A.md` (alignment/prosody/decomposition), `enrich-B.md` (voice-quality/nonverbals/laughter), `enrich-C.md` (affect/hygiene). Section I authored by the synthesis editor. Survey window 2026-08-11/12.*
-
-Written to `/private/tmp/claude-501/-Users-vera-dev-sophia-mus/cabb4478-df39-45dc-8904-49117bfb6f3d/scratchpad/ENRICHMENT-SURVEY.md`
