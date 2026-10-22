@@ -17,7 +17,7 @@ Every piece's sound comes out of an Ariadne World: a steel-string World played b
 
 ```sh
 bash site/bench/build.sh      # bench/ovillo_web.wasm (not committed)
-bash site/tract/build.sh      # tract/tract.wasm (committed: the build the page serves)
+bash site/tract/build.sh      # tract/tract.wasm (committed, so the page runs without a Rust toolchain)
 ```
 
 Serve locally: `python3 -m http.server -d site 8765`, then `/bench/` and `/tract/`.

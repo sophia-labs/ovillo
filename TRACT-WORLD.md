@@ -102,4 +102,5 @@ the ratios carry over to 32-bit ARM. Not run on the device.
   the injected part).
 - The approximations of CHECKPOINT-2A and POC-3 (mode-diagonal losses,
   stepped moves, numerical seal) apply.
-- `tract.wasm` is 630 KB (the tube's is 134 KB), not run through wasm-opt.
+- `tract.wasm` is about 690 KB as committed on 2026-10-21 (630 KB when this was written; the tube's
+  is 134 KB), not run through wasm-opt.
