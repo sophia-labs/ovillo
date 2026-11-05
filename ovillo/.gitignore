@@ -3,3 +3,7 @@ takes/
 renders/
 patches/live.json
 patches/*.tmp
+# ovillo-fart score directories: rendered stems and mixes (from the parts), and source/
+# reference lines (from the MusicXML, by crates/ovillo-fart/tools/musicxml_parts.py).
+scores/fart/*/out/
+scores/fart/*/source/

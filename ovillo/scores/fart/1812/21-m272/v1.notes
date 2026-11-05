@@ -1,0 +1,10 @@
+# u16-m272 p3: Corno in F I (source corno-in-f-i), sounding pitch; tensions from the probe curves
+pre=3 digest=on eat=beans*12 tongue=off
+r:4 | push=0.85 cheeks=0.4 tone=0.4 B3@256.42:2 r:2 |
+r:4 | r:1 B3@256.42:1 r:1 B3@256.42:1 |
+r:1 B3@256.42:1 r:1 B3@256.42:1 | r:4 |
+push=0.85 cheeks=0.4 tone=1.0 Eb4@298.13:4 | Eb4@298.13:2 D4@275.84:2 |
+Eb4@298.13:2 D4@275.84:2 | Eb4@298.13:2 D4@275.84:2 |
+Eb4@298.13:2 D4@275.84:2 | Eb4@298.13:2 D4@275.84:2 |
+Eb4@298.13:2 D4@275.84:2 | Eb4@298.13:2 push=0.7 cheeks=0.4 tone=0.4 F3@173.34:2 |
+G3@195.78:2 F3@173.34:2 | push=0.85 cheeks=0.4 tone=1.0 Eb4@298.13:2 D4@275.84:2 |

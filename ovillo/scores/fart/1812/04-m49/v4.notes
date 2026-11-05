@@ -1,0 +1,5 @@
+# baseline: Viole, top line, -2 octave(s), strays folded into 36-300 Hz
+pre=4 eat=beans*2 eat=soda*2 digest=on push=0.4 cheeks=0.4 tone=0.5
+G2@94.8:3 | Ab2@100.4:3 |
+tongue=on Ab2@100.4:3 | Ab2@100.4:3 |
+tongue=off D2@71.5:3 |

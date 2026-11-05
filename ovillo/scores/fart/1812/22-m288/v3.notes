@@ -1,0 +1,12 @@
+# u17 retune (fart_v1): u17-m288 voice v3
+# tensions from the probe (tone 0.4, push 0.7, cheeks 0.4); see diaries/u17-m288.md
+push=0.7 cheeks=0.4 tone=0.4 tongue=off pre=2 digest=on eat=beans*9
+
+Bb2@112.54:2 Ab2@100.24:2 | Bb2@112.54:2 Ab2@100.24:2 |
+F#2@89.02:2 F2@84.13:2 | F#2@89.02:2 Ab2@100.24:2 |
+F#2@89.02:2 eat=beans*9 Ab2@100.24:2 | F#2@89.02:2 Ab2@100.24:2 |
+F#2@89.02:2 Ab2@100.24:2 | F#2@89.02:2 Ab2@100.24:2 |
+F#2@89.02:2 Ab2@100.24:2 | eat=beans*9 F#2@89.02:2 Ab2@100.24:2 |
+F#2@89.02:2 Ab2@100.24:2 | F#2@89.02:1/2 r:3/2 Eb2@76.38:2~ |
+Eb2@76.38:2 Eb2@76.38:2~ | Eb2@76.38:2 eat=beans*9 Eb2@76.38:2~ |
+Eb2@76.38:2 Eb2@76.38:2 | Eb2@76.38:3 Eb2@76.38:1 |

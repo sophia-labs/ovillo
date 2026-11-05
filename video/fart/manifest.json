@@ -1,0 +1,18 @@
+{
+  "schema": "ovillo.fart-film-manifest.v1",
+  "score": "../../ovillo/scores/fart/1812",
+  "fps": 30,
+  "sampleRate": 48000,
+  "loudness": { "integratedLufs": -16.0, "truePeakDbtp": -1.5, "lra": 11.0 },
+  "variants": {
+    "16x9": { "width": 1920, "height": 1080, "out": "out/1812-for-guts-16x9.mp4" },
+    "9x16": { "width": 1080, "height": 1920, "out": "out/1812-for-guts-short-9x16.mp4" }
+  },
+  "cuts": {
+    "9x16": {
+      "about": "the 30-second short: the finale's first cannon shots (section 46-m380), from the mix at t0..t1 seconds of music, with a title and an end card",
+      "t0": 816.5, "t1": 842.5, "leaderS": 2.0, "trailerS": 2.0,
+      "fadeInS": 0.3, "fadeOutS": 0.8
+    }
+  }
+}

@@ -1,0 +1,11 @@
+# C. Bassi: Bb1 as written, tied chain kept, fed three beans every six seconds
+# tensions from the dense probes at push 0.7 (and 0.9 for onsets) cheeks 0.4 tone 0.4: each note's measured pitch
+push=0.7 cheeks=0.4 tone=0.4 tongue=off digest=on
+eat=beans*3 Bb1@59.25:4~ | Bb1@59.25:4 |
+eat=beans*3 Bb1@59.25:4 | Bb1@59.25:4~ |
+eat=beans*3 Bb1@59.25:4~ | Bb1@59.25:4~ |
+eat=beans*3 Bb1@59.25:4~ | Bb1@59.25:4~ |
+eat=beans*3 Bb1@59.25:4~ | Bb1@59.25:4~ |
+eat=beans*3 Bb1@59.25:4~ | Bb1@59.25:4~ |
+eat=beans*3 Bb1@59.25:4~ | Bb1@59.25:2 r:2 |
+eat=beans*3 r:4 | Bb1@59.25:2 Bb1@59.25:2 |

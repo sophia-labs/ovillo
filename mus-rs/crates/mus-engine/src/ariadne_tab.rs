@@ -98,6 +98,7 @@ struct Touch {
     seconds: f64,
     string: usize,
     fret: f64,
+    intonation_cents: f64,
     db: f64,
     hand: usize,
     kind: TouchKind,
@@ -116,6 +117,8 @@ pub struct AriadneWorldReceipt {
     pub hammer_ons: usize,
     pub pull_offs: usize,
     pub slides: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub intonation_touches: Option<usize>,
     pub simulated_seconds: f64,
     /// Which hand each string answered to, and how that hand touched it.
     pub strings: Vec<StringHandReceipt>,
@@ -185,6 +188,8 @@ pub struct TouchRecord {
     pub seconds: f64,
     pub string: usize,
     pub fret: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub intonation_cents: Option<f64>,
     pub kind: &'static str,
     pub hand: String,
     pub pos: f64,
@@ -232,6 +237,26 @@ pub fn collect(
                 tuning.len()
             )));
         }
+        // The score addresses strings by number, and apply_hands indexes the
+        // tuning with that number. Validate the IDs before either checker or
+        // renderer can accept a plan with a missing, duplicate or invalid course.
+        let mut seen_strings = vec![false; string_bodies];
+        for body in plan.bodies.iter().filter(|b| b.id.starts_with("string/")) {
+            let number = body.id["string/".len()..]
+                .parse::<usize>()
+                .ok()
+                .filter(|&n| n > 0 && n <= string_bodies);
+            let valid =
+                number.is_some_and(|n| body.id == format!("string/{n}") && !seen_strings[n - 1]);
+            if !valid {
+                return Err(invalid(format!(
+                    "anatomy {anatomy}: string body IDs must be unique and contiguous \
+                     string/1 through string/{string_bodies}; found {}",
+                    body.id
+                )));
+            }
+            seen_strings[number.unwrap() - 1] = true;
+        }
         let number = |key: &str,
                       default: f64,
                       params: &BTreeMap<String, String>|
@@ -272,6 +297,35 @@ pub fn collect(
     Ok((found, owned))
 }
 
+/// A per-touch offset of the existing stopped-length coordinate (SPEC-TAB §4.1).
+/// The pitch and integer tab fret remain nominal; zero preserves existing scores.
+pub(crate) fn intonation_cents(
+    params: &BTreeMap<String, String>,
+    capo: f64,
+    fret: u8,
+) -> Result<f64, String> {
+    let Some(value) = params.get("intonation") else {
+        return Ok(0.0);
+    };
+    let cents = value
+        .parse::<f64>()
+        .ok()
+        .filter(|v| v.is_finite() && (-50.0..=50.0).contains(v));
+    let Some(cents) = cents else {
+        return Err(format!(
+            "intonation={value}: expected finite cents in [-50, 50] (SPEC-TAB §4.1)"
+        ));
+    };
+    let stop = capo + f64::from(fret) + cents / 100.0;
+    if cents != 0.0 && (!stop.is_finite() || !(0.0..=12.0).contains(&stop)) {
+        return Err(format!(
+            "intonation={value}: capo + fret + cents/100 is {stop}, outside the \
+             stopped-length path [0, 12] (SPEC-TAB §4.1)"
+        ));
+    }
+    Ok(cents)
+}
+
 /// SPEC-TAB §5: swing as a piecewise-linear warp of each beat pair. It agrees
 /// with `layout::swung` on the grid and carries 16ths proportionally.
 pub(crate) fn warp(q: f64, unit: f64, ratio: f64) -> f64 {
@@ -298,7 +352,7 @@ fn performance(
     swing_unit_ql: f64,
     swing_r: f64,
     stats: &mut RenderStats,
-) -> Vec<Touch> {
+) -> Result<Vec<Touch>, RenderError> {
     let mut touches = Vec::new();
     for (h, hand) in inst.hands.iter().enumerate() {
         let abbr = hand.abbrev.as_str();
@@ -374,6 +428,8 @@ fn performance(
                             .push(format!("b{b} {abbr}: {tk} (no string {string})"));
                         continue;
                     }
+                    let intonation_cents = intonation_cents(&ev.params, inst.capo, at.fret)
+                        .map_err(|e| RenderError::Invalid(format!("b{b} {abbr}: {tk}: {e}")))?;
                     let expected = inst.expected_midi(string, at.fret, flag("harm"));
                     if (midi - expected).abs() > 0.01 {
                         stats.bad.push(format!(
@@ -385,6 +441,7 @@ fn performance(
                         seconds,
                         string,
                         fret: at.fret as f64,
+                        intonation_cents,
                         db: dyn_db(&cur_dyn) + art + gain + hand.gain_db,
                         hand: h,
                         kind,
@@ -397,7 +454,7 @@ fn performance(
         stats.notes += count;
     }
     touches.sort_by(|a, b| a.seconds.total_cmp(&b.seconds));
-    touches
+    Ok(touches)
 }
 
 pub(crate) fn midi_name(midi: f64) -> String {
@@ -519,6 +576,7 @@ pub struct WorldRun {
     stops: Vec<(usize, usize, f64, usize)>,
     pulses: Vec<(usize, usize, f64, usize)>,
     counts: [usize; 4],
+    intonation_touches: usize,
     start: usize,
     n_total: usize,
     k: usize,
@@ -565,7 +623,7 @@ pub fn prepare(
             swing_unit_ql,
             swing_r,
             stats,
-        );
+        )?;
         if touches.is_empty() {
             continue;
         }
@@ -622,6 +680,11 @@ pub fn prepare(
                 .max(3.0) as usize;
             let amp = PLUCK_SCALE * db_to_gain(t.db + 11.0); // mezzo-forte is a unit gesture
             let fretted = inst.capo + t.fret;
+            let fretted = if t.intonation_cents == 0.0 {
+                fretted
+            } else {
+                fretted + t.intonation_cents / 100.0
+            };
             let previous = *amount.get(&t.string).unwrap_or(&inst.capo);
             match t.kind {
                 TouchKind::Pluck => {
@@ -712,6 +775,7 @@ pub fn prepare(
                     seconds: t.seconds,
                     string: t.string,
                     fret: t.fret,
+                    intonation_cents: (t.intonation_cents != 0.0).then_some(t.intonation_cents),
                     kind: match t.kind {
                         TouchKind::Pluck => "pluck",
                         TouchKind::HammerOn => "hammer-on",
@@ -742,6 +806,7 @@ pub fn prepare(
             stops,
             pulses,
             counts,
+            intonation_touches: touches.iter().filter(|t| t.intonation_cents != 0.0).count(),
             start,
             n_total,
             k: start,
@@ -933,6 +998,8 @@ impl WorldRun {
                 hammer_ons: self.counts[1],
                 pull_offs: self.counts[2],
                 slides: self.counts[3],
+                intonation_touches: (self.intonation_touches > 0)
+                    .then_some(self.intonation_touches),
                 simulated_seconds: (self.n_total - self.start) as f64 / self.sample_rate,
                 strings: self.strings,
                 source_work: r.source_work,
@@ -983,6 +1050,155 @@ pub fn render(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn intonation_score(body: &str, capo: f64) -> String {
+        format!(
+            "# score: intonation\n# tempo: 600\n# time: 1/4\n# bars: 1\n\
+             # instruments:\n\
+             #   gt = strings (treble, anatomy=steel-string-v0, capo={capo})\n\
+             #   gt.v = fingers (treble)\nbar 1: gt.v={body}\n"
+        )
+    }
+
+    #[test]
+    fn fine_intonation_transports_all_touch_types_and_zero_preserves_the_world() {
+        let run = |offset: &str| {
+            let extra = if offset.is_empty() {
+                String::new()
+            } else {
+                format!(",intonation={offset}")
+            };
+            let first = if offset.is_empty() {
+                String::new()
+            } else {
+                format!("[intonation={offset}]")
+            };
+            let source = intonation_score(
+                &format!(
+                    "A3s@3:2{first} B3s@3:4[ho{extra}] \
+                     A3s@3:2[po{extra}] B3s@3:4[sl{extra}]"
+                ),
+                0.0,
+            );
+            assert_eq!(
+                crate::tab_check::check(&source, Path::new("."))
+                    .unwrap()
+                    .errors(),
+                0
+            );
+            let mut render = crate::StagedRender::begin(&source, Path::new(".")).unwrap();
+            render.step(9600).unwrap();
+            render.worlds.remove(0)
+        };
+        let plain = run("");
+        let zero = run("0");
+        let bent = run("17");
+        assert_eq!(plain.left, zero.left);
+        assert_eq!(plain.right, zero.right);
+        assert_eq!(plain.world.plan_digest(), zero.world.plan_digest());
+        assert_eq!(plain.world.receipt(), zero.world.receipt());
+        assert_eq!(
+            serde_json::to_value(&plain.trace).unwrap(),
+            serde_json::to_value(&zero.trace).unwrap()
+        );
+        assert_eq!(zero.intonation_touches, 0);
+        assert!(serde_json::to_value(&zero.trace.touches[0])
+            .unwrap()
+            .get("intonationCents")
+            .is_none());
+        assert_ne!(plain.left, bent.left, "the World's observation changes");
+        let (plain_receipt, bent_receipt) = (plain.world.receipt(), bent.world.receipt());
+        assert_ne!(plain_receipt.control_work, bent_receipt.control_work);
+        assert!(bent_receipt.cumulative_closure_residual.abs() < 1e-12);
+        assert_eq!(bent.counts, [1, 1, 1, 1]);
+        assert_eq!(bent.intonation_touches, 4);
+        assert!((bent.current[&3] - 4.17).abs() < 1e-12);
+        assert!(bent
+            .trace
+            .touches
+            .iter()
+            .all(|t| t.intonation_cents == Some(17.0)));
+    }
+
+    #[test]
+    fn invalid_intonation_is_refused_by_checker_and_renderer() {
+        for (value, fret, capo) in [
+            ("NaN", 2, 0.0),
+            ("inf", 2, 0.0),
+            ("no", 2, 0.0),
+            ("", 2, 0.0),
+            ("51", 2, 0.0),
+            ("-51", 2, 0.0),
+            ("-1", 0, 0.0),
+            ("1", 12, 0.0),
+            ("1", 11, 2.0),
+        ] {
+            let pitch = midi_name(55.0 + capo + f64::from(fret));
+            let source = intonation_score(&format!("{pitch}q@3:{fret}[intonation={value}]"), capo);
+            let report = crate::tab_check::check(&source, Path::new(".")).unwrap();
+            assert!(
+                report
+                    .diagnostics
+                    .iter()
+                    .any(|d| d.code == "tab-intonation"),
+                "{source}"
+            );
+            let error = crate::StagedRender::begin(&source, Path::new("."))
+                .err()
+                .unwrap();
+            assert!(error.to_string().contains("intonation="), "{error}");
+        }
+        // Inward offsets at the endpoints are allowed; explicit zero keeps the
+        // legacy treatment of frets above the current configuration path.
+        for (value, fret) in [("50", 0), ("-50", 12), ("0", 14)] {
+            let pitch = midi_name(55.0 + f64::from(fret));
+            let source = intonation_score(&format!("{pitch}q@3:{fret}[intonation={value}]"), 0.0);
+            assert_eq!(
+                crate::tab_check::check(&source, Path::new("."))
+                    .unwrap()
+                    .errors(),
+                0
+            );
+            assert!(crate::StagedRender::begin(&source, Path::new(".")).is_ok());
+        }
+    }
+
+    #[test]
+    fn malformed_custom_string_ids_are_errors_in_check_and_render() {
+        let dir =
+            std::env::temp_dir().join(format!("mus-custom-tab-string-ids-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = "# score: custom strings\n# tempo: 120\n# time: 4/4\n# bars: 1\n\
+            # instruments:\n\
+            #   gt = custom strings (treble, anatomy=custom.plan.json)\n\
+            #   gt.v = fingers (treble)\n\
+            bar 1: gt.v=E2w@6:0\n";
+        let mut plan: serde_json::Value = serde_json::from_str(STEEL_STRING_V0).unwrap();
+        for bad_id in ["string/0", "string/7", "string/5", "string/no", "string/06"] {
+            plan["bodies"][0]["id"] = bad_id.into();
+            std::fs::write(
+                dir.join("custom.plan.json"),
+                serde_json::to_vec(&plan).unwrap(),
+            )
+            .unwrap();
+            let check_error = crate::tab_check::check(source, &dir).err().unwrap();
+            let render_error = crate::StagedRender::begin(source, &dir).err().unwrap();
+            for error in [check_error, render_error] {
+                let message = error.to_string();
+                assert!(message.contains("unique and contiguous"), "{message}");
+                assert!(message.contains(bad_id), "{message}");
+            }
+        }
+        plan["bodies"][0]["id"] = "string/6".into();
+        std::fs::write(
+            dir.join("custom.plan.json"),
+            serde_json::to_vec(&plan).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(crate::tab_check::check(source, &dir).unwrap().errors(), 0);
+        assert!(crate::StagedRender::begin(source, &dir).is_ok());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn swing_warp_matches_the_grid_and_carries_sixteenths() {

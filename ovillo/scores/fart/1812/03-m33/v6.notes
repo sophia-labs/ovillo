@@ -1,0 +1,10 @@
+# baseline: C. Bassi, top line, -1 octave(s), strays folded into 36-300 Hz
+pre=4 eat=beans*4 eat=soda*4 digest=on push=0.4 cheeks=0.4 tone=0.5
+r:3 | G2@95.3:3/2 B1@61.4:1/6 tongue=on B1@61.4:1/6 B1@61.4:1/6 tongue=off D2@71.7:1/6 tongue=on D2@71.7:1/6 D2@71.7:1/6 tongue=off G2@95.3:1/6 tongue=on G2@95.3:1/6 G2@95.3:1/6 |
+tongue=off B1@61.4:1/4 D2@71.7:1/4 G2@95.3:1/4 B1@61.4:1/4 D2@71.7:1/4 G2@95.3:1/4 B1@61.4:1/4 D2@71.7:1/4 G2@95.3:1/2 r:1/2 | C2@65.0:1/2 r:5/2 |
+r:3 | r:1/3 F#2@90.0:1/3 G2@95.3:1/3 C2@65.0:1/3 Eb2@75.8:1/3 F#2@90.0:1/3 G2@95.3:1/3 C2@65.0:1/3 Eb2@75.8:1/3 |
+F#2@90.0:3/4 G2@95.3:1/4 tongue=on G2@95.3:1 tongue=off Ab2@101.4:1 | C2@65.0:1/2 r:5/2 |
+r:3 | r:1/3 G2@95.3:1/3 Ab2@101.4:1/3 C#2@67.8:1/3 E2@81.0:1/3 F2@84.4:1/3 Ab2@101.4:1/3 C#2@67.8:1/3 F2@84.4:1/3 |
+G2@95.3:3/4 Ab2@101.4:1/4 tongue=on Ab2@101.4:1 tongue=off Ab2@101.4:1 | tongue=on Ab2@101.4:1 Ab2@101.4:1 Ab2@101.4:1 |
+tongue=off F#2@90.0:1 tongue=on F#2@90.0:1 F#2@90.0:1 | tongue=off Eb2@75.8:1/2 r:5/2 |
+r:3 | Eb2@75.8:1/2 r:5/2 |

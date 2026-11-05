@@ -1,0 +1,11 @@
+# v5: Celli, source octave (+1 from the baseline: at -1 they unison the basses)
+# pass 1: tensions commanded for measured targets at push 0.7 cheeks 0.4 tone 0.4 (probe); eat 4 beans in the rest, again at bar 9
+pre=4 eat=beans*6 digest=on push=0.7 cheeks=0.4 tone=0.4 tongue=on
+tongue=off D3@145.4:1/2 C#3@137.2:1/2 B2@121.5:1/2 Bb2@114.2:1/2 A2@107.2:1/2 Bb2@114.2:1/2 B2@121.5:1/2 C#3@137.2:1/2 | D3@145.4:1/2 C#3@137.2:1/2 B2@121.5:1/2 A2@107.2:1/2 D3@145.4:1/2 C#3@137.2:1/2 B2@121.5:1/2 A2@107.2:1/2 |
+D3@145.4:1/2 C#3@137.2:1/2 B2@121.5:1/2 A2@107.2:1/2 D3@145.4:1/2 C#3@137.2:1/2 B2@121.5:1/2 A2@107.2:1/2 | tongue=on D3@145.4:4~ |
+eat=beans*6 D3@145.4:4 | C#3@137.2:4 |
+C#3@137.2:4 | C#3@137.2:4 |
+eat=beans*6 C#3@137.2:4 | C#3@137.2:4 |
+C#3@137.2:4 | C#3@137.2:4 |
+eat=beans*6 C#3@137.2:4 | C#3@137.2:4 |
+C#3@137.2:4 | C#3@137.2:4 |

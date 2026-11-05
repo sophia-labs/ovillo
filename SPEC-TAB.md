@@ -91,6 +91,29 @@ before, in any voice of the same instrument. The checker enforces this.
 `slide` (schleifer) and `->` (glissando) keep their SPEC.md meanings; `sl` is
 the guitar slide.
 
+### 4.1 Fine intonation on an Ariadne tab touch
+
+`A3e@3:2[intonation=+8]` keeps `A3` and fret `2` as the **nominal** pitch and
+position checked by §1. The optional `intonation` parameter moves the physical
+stop to `capo + fret + cents/100` through the existing Ariadne configuration
+transport. It is available on plucks, hammer-ons, pull-offs and slides; on a
+chord the same offset applies to every member. A slide uses its existing
+60 ms travel, and the other touches use their existing stop timing. The new
+stop stays until that string's next touch, whose offset defaults to zero.
+
+The value must be finite and in `[-50, 50]` cents. For a nonzero offset the
+resulting physical stop must lie in `[0, 12]`, the current open-to-twelfth-fret
+configuration path. Both checker and renderer reject invalid values or an
+out-of-bounds stop. Omitted or zero intonation preserves existing rendering,
+including how older scores beyond that path are handled.
+
+This is a small control-coordinate displacement, not a claim that the observed
+coupled pitch moves by exactly the requested number of cents. The World's
+ledger includes the resulting transport work. Nonzero offsets are recorded
+as `intonationCents` on energy-trace touches, with `intonationTouches` in the
+world receipt; both fields are absent when zero. It adds no waveform pitch
+shift or independent tone generator.
+
 ## 5. Time: duration is how long the hand lets it ring
 
 - A note's duration is how long the fretting finger stays down, or how long the
@@ -113,6 +136,8 @@ the guitar slide.
 4. Fretting-hand reach: at every instant, the fretted notes that must be held span at most four frets.
    - Spans of five or more are errors; four is reported as a stretch.
 5. Each voice's durations add up to the bar's length.
+6. Fine intonation is finite, within its cents range, and remains inside the
+   physical stop path when nonzero (§4.1).
 
 ## 7. A bar
 

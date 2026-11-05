@@ -1,0 +1,11 @@
+# Clarinetto in Bb I, top line, octave-folded into 36-300 Hz (header restored by the reviewer)
+# retuned on fart_v1 (retune pass): tensions inverted from probe tables; push 1.0 (soprano, alto) or 0.9 (bass) on the note after a rest, else 0.7; cheeks 0.2; tone 0.4 in the middle register and 0.6 at the ends (bass all 0.6); beans, digestion from the first note
+cheeks=0.2 tongue=on
+eat=beans*12 digest=on tongue=off push=1 tone=0.4 B3@256.1:1/2 push=0.7 Eb3@157.2:1/2 Ab3@216.0:1/2 B3@257.9:1/2 F3@177.5:1/2 Ab3@216.0:1/2 Bb2@113.9:1/4 Bb2@113.9:1/4 C3@129.5:1/4 D3@146.8:1/4 | Eb3@157.2:5/4 D3@146.8:1/4 Eb3@157.2:1/4 F3@177.5:1/4 Ab3@216.0:1/4 F#3@189.9:1/4 r:3/4 push=1 tone=0.6 Eb3@147.9:1/4 push=0.7 tone=0.4 F3@177.5:1/4 G3@202.9:1/4 |
+Ab3@216.0:5/4 G3@202.9:1/4 Ab3@216.0:1/4 Bb3@242.7:1/4 C#4@286.9:1/4 B3@257.9:1/4 r:3/4 push=1 tone=0.6 Bb3@231.0:1/4 push=0.7 tone=0.4 B3@257.9:1/4 tone=0.6 D4@300.0:1/4 | tone=0.4 F3@177.5:1/4 Eb3@157.2:1/4 r:3/4 push=1 tone=0.6 D4@300.0:1/4 push=0.7 tone=0.4 Eb3@157.2:1/4 F3@177.5:1/4 Ab3@216.0:1/4 F#3@189.9:1/4 r:3/4 push=1 F3@174.8:1/4 push=0.7 F#3@189.9:1/4 Ab3@216.0:1/4 |
+A3@229.7:4~ | A3@229.7:1/2 F#3@189.9:1/2 G3@202.9:1/2 Ab3@216.0:1/2 A3@229.7:1/2 B3@257.9:1/2 C4@272.1:1/2 C#4@286.9:1/2 |
+tone=0.6 D4@300.0:1/2 tone=0.4 C#4@286.9:1/2 B3@257.9:1/2 Bb3@242.7:1/2 A3@229.7:1/2 G3@202.9:1/2 F#3@189.9:1/2 E3@165.8:1/2 | tone=0.6 D4@300.0:1/2 tone=0.4 C#4@286.9:1/2 B3@257.9:1/2 Bb3@242.7:1/2 A3@229.7:1/2 B3@257.9:1/2 C4@272.1:1/2 C#4@286.9:1/2 |
+tone=0.6 D4@300.0:1/2 tone=0.4 C#4@286.9:1/2 B3@257.9:1/2 Bb3@242.7:1/2 A3@229.7:1/2 G3@202.9:1/2 F#3@189.9:1/2 E3@165.8:1/2 | D3@146.8:1/2 C#3@137.8:1/2 B2@121.8:1/2 Bb2@113.9:1/2 A2@108.0:1/2 r:3/2 |
+push=1 tone=0.6 D2@73.7:1 push=0.7 D2@72.6:1 E2@79.2:1 E2@79.2:1 | tone=0.4 A2@108.0:3/2 tone=0.6 F#2@88.1:1/2 D2@72.6:2 |
+r:4 | push=1 tone=0.4 A3@227.4:3 push=0.7 F#3@189.9:1 |
+tone=0.6 D4@300.0:2 r:2 | r:4 |

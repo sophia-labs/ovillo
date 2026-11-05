@@ -1,0 +1,10 @@
+# u07 (12-m128): source top line, octaves moved into 36-300 Hz (notes under 56 Hz up an octave); tone 0.3 below 215 Hz, 0.4 above; slurred steps pre-compensated for the valve lag; onsets after rests at push 1.0
+push=0.7 cheeks=0.4 tone=0.3 tongue=off pre=4 eat=beans*6 digest=on
+r:4 | r:4 |
+r:4 | r:9/4 push=1 C3@131.7:1/2 push=0.7 C3@129.4:1/4 C3@129.4:1/2 C3@133.2:1/2 |
+eat=beans*6 F3@177.6:1 F3@174.6:1 G3@199.6:1 G3@197.7:1 | tone=0.4 C4@270.1:3/2 A3@223.7:1/2 tone=0.3 F3@177.8:1/2 F3@178.1:1/2 tone=0.4 A3@225.5:1/2 tone=0.3 F3@172.6:1/2 |
+D3@145.3:1 tone=0.4 Bb3@236.6:1 A3@221.2:1 tone=0.3 G3@201.4:1 | F3@176.6:2 r:1/4 push=1 F3@177.6:1/2 push=0.7 F3@178.7:1/4 F3@178.5:1/2 F3@174.6:1/2 |
+tone=0.4 A3@221.2:2 r:1/4 push=1 A3@216.0:1/2 push=0.7 A3@217.9:1/4 A3@217.9:1/2 A3@217.9:1/2 | eat=beans*6 C4@269.5:2 r:1/4 push=1 C4@270.1:1/2 push=0.7 C4@265.5:1/4 C4@271.2:1/2 C4@270.9:1/2 |
+tone=0.3 Eb3@156.3:3/2 Eb3@155.2:1/2 F#3@188.6:3/2 F#3@189.8:1/2 | tone=0.4 A3@221.2:5/2 r:3/2 |
+r:1 push=1 Eb3@157.9:1/2 r:1/2 tone=0.3 Eb3@163.1:1/2 r:1/2 tone=0.4 Eb3@157.9:1/2 r:1/2 | eat=beans*6 Eb3@162.3:1/2 r:1 tone=0.3 Eb3@168.0:1/2 push=0.7 Eb3@155.2:1/2 r:1 push=1 Eb3@161.8:1/2 |
+push=0.7 Eb3@155.2:1/2 Eb3@155.2:1 Eb3@155.2:1 Eb3@155.2:1/2 Eb3@158.6:1/2 r:1/2 | r:1/2 push=1 Eb3@163.3:1/2 push=0.7 Eb3@155.2:1/2 r:2 push=1 tone=0.4 F3@177.6:1/2 |

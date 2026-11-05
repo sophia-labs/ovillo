@@ -1,0 +1,13 @@
+# u22 pass 4: Corno in F II, top line, -1 octave(s), then up where below 95 Hz
+# second run (fart_v1): tensions re-derived at push 0.9 (probe inversion, tone 0.4), then per-note corrected from render 2;
+# notes that did not swing in render 2 are rests of the same length; the rest of the pass-4 header stands.
+# tongue off (slur). Notes below 95 Hz moved up an octave. Notes the valve did not tune in pass 3 (no swing, or more than 100 cents off) are rests of the same length.
+# feeding: pre, then beans at beats 16, 32, 40, 48, 56; digest on
+pre=2 digest=on tongue=off push=0.9 cheeks=0.4 tone=0.4 eat=beans*6 Eb3@162.3:1/2 r:1/4 r:1/4 G2@102.7:1/2 Bb2@112.1:1/2 Eb3@157.6:1/2 Bb2@109.6:1/2 G2@91.5:1/2 Bb2@115.0:1/2 | Eb3@158.9:1/2 r:1/2 r:1/2 r:1/2 G2@94.2:2 |
+eat=beans*6 r:1/2 r:1/4 r:1/4 G2@99.6:1/2 Bb2@112.1:1/2 Eb3@159.1:1/2 Bb2@108.8:1/2 G2@94.2:1/2 Bb2@114.3:1/2 | Eb3@159.2:1/2 r:1/2 r:1/2 r:1/2 G2@94.2:2 |
+r:1/2 r:1/4 Ab2@113.4:1/4 Ab2@99.9:1/2 C3@127.8:1/2 Ab2@97.4:1/2 G2@94.2:1/2 F3@181.3:1/2 r:1/2 | Ab2@108.9:1/2 G2@94.2:1/2 F3@177.7:1/2 r:1/2 Ab2@99.9:2 |
+eat=beans*6 r:1/2 r:1/4 r:1/4 G2@99.2:1/2 Bb2@112.1:1/2 G2@92.5:1/2 F3@183.4:1/2 Eb3@153.5:1/2 F3@177.7:1/2 | r:1/2 r:1/2 Eb3@168.4:1/2 F3@177.7:1/2 G2@94.2:2 |
+eat=beans*6 Bb2@112.1:4 | C3@127.8:2 C3@127.8:2 |
+eat=beans*6 Bb2@112.1:3 G2@94.2:1 | Eb3@153.5:4 |
+eat=beans*6 Eb3@153.5:4 | D3@144.3:2 C3@127.8:2 |
+Bb2@112.1:4 | C3@127.8:4 |

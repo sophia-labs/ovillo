@@ -1,0 +1,10 @@
+# baseline: the Canon part
+push=0.85 cheeks=0.45
+r:4 | r:4 |
+r:4 | r:4 |
+r:4 | r:4 |
+r:4 | r:4 |
+r:3 X:1 | r:2 X:1 r:1 |
+r:1 X:1 r:2 | X:1 r:3 |
+X:1 r:3 | r:4 |
+r:4 | r:4 |

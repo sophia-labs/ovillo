@@ -1,0 +1,11 @@
+# v4: Fagotto II, -1 octave (keeps it under Clarinetto II); the source's F#2 bars 1-3 kept at F#2: F#1 (46 Hz) sagged to 36.9 Hz after rests
+# pass 1: tensions commanded for measured targets at push 0.7 cheeks 0.4 tone 0.4 (probe); eat 4 beans in the rest, again at bar 9
+pre=4 eat=beans*6 digest=on push=0.7 cheeks=0.4 tone=0.4 tongue=on
+F#2@89.4:2 r:2 | r:1 F#2@89.4:1 r:1 F#2@89.4:1 |
+r:1 F#2@89.4:1 r:1 F#2@89.4:1 | r:1 F#2@89.4:3~ |
+eat=beans*6 F#2@89.4:4 | F#2@89.4:2 F2@84.8:2 |
+F#2@89.4:2 F2@84.8:2 | F#2@89.4:2 F2@84.8:2 |
+eat=beans*6 F#2@89.4:2 F2@84.8:2 | F#2@89.4:2 F2@84.8:2 |
+F#2@89.4:2 F2@84.8:2 | F#2@89.4:2 Ab2@100.9:2 |
+eat=beans*6 F#2@89.4:2 F2@84.8:2 | F#2@89.4:2 F2@84.8:2 |
+F#2@89.4:2 F2@84.8:2 | F#2@89.4:2 Ab2@100.9:2 |

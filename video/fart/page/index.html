@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Year 1812, for guts</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "/vendor/three/build/three.module.js",
+  "three/addons/": "/vendor/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="frame">
+  <canvas id="gl"></canvas>
+  <div id="labels"></div>
+  <div id="hud" hidden>
+    <div class="top">
+      <div class="title"><span class="comp">TCHAIKOVSKY</span> · THE YEAR 1812 <span class="dim">· Festival Overture, Op. 49 · for seven guts</span></div>
+      <div class="section" id="h-section"></div>
+      <div class="parts" id="h-parts"></div>
+    </div>
+    <div class="shot" id="h-shot"></div>
+    <div class="guts" id="h-guts"></div>
+    <div class="ledger" id="h-ledger"></div>
+    <div class="caption" id="h-caption"></div>
+  </div>
+  <div id="card" hidden></div>
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>

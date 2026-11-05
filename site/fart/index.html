@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ovillo Fart</title>
+<link rel="icon" href="data:,">
+<meta name="description" content="Apparatus for the study of the other end: the tract World's sphincter, canal and reservoir, fed, digested and played. Same Ariadne World as Ovillo Tract.">
+<style>
+:root {
+  --paper: #efe6d2;
+  --paper-2: #e6dbc2;
+  --card: #f6efdf;
+  --ink: #1a1714;
+  --ink-2: #4a4238;
+  --faint: #8a7d69;
+  --rule: #c9b99a;
+  --oxblood: #6e1f22;
+  --brass: #b8893a;
+  --verdigris: #4f8a72;
+  --vermilion: #d8482b;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font-family: var(--serif); font-size: 15px; line-height: 1.4; }
+body { overflow-x: hidden; }
+a { color: var(--oxblood); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.caps { font-variant: small-caps; letter-spacing: 0.08em; text-transform: lowercase; }
+.bar { display: flex; align-items: baseline; gap: 12px; height: 44px; padding: 0 18px; border-bottom: 1px solid var(--ink); background: var(--paper); position: sticky; top: 0; z-index: 6; }
+.bar a.home { color: var(--ink); text-decoration: none; letter-spacing: 0.22em; font-weight: 700; line-height: 44px; }
+.bar .title { font-style: italic; color: var(--ink-2); }
+.bar .spacer { flex: 1; }
+.bar .credit { color: var(--faint); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-height: calc(100vh - 44px); }
+.stage { position: sticky; top: 44px; align-self: start; height: calc(100vh - 44px); min-height: 460px; border-right: 1px solid var(--ink); overflow: hidden; touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(255,250,238,0.75), rgba(239,230,210,0) 60%),
+    radial-gradient(ellipse at 50% 120%, rgba(110,31,34,0.08), rgba(0,0,0,0) 55%),
+    repeating-linear-gradient(0deg, rgba(26,23,20,0.018) 0 1px, rgba(0,0,0,0) 1px 3px),
+    var(--paper); }
+#gl, #lane { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#lane { pointer-events: none; }
+.labels { position: absolute; inset: 0; pointer-events: none; }
+.labels span { position: absolute; transform: translate(-50%, -50%); font-size: 13px; font-style: italic; color: var(--ink-2); white-space: nowrap; }
+.labels span b { font-style: normal; font-weight: 700; margin-right: 4px; color: var(--ink); }
+.plate { position: absolute; left: 12px; bottom: 38px; background: rgba(239,230,210,0.9); padding: 3px 8px; font-size: 13px; color: var(--ink-2); pointer-events: none; max-width: 52%; }
+.plate i { color: var(--ink); }
+.auditor { position: absolute; right: 12px; bottom: 38px; background: rgba(239,230,210,0.9); padding: 3px 8px; font-size: 14px; font-style: italic; color: var(--oxblood); pointer-events: none; text-align: right; max-width: 46%; transition: opacity 0.4s; }
+.auditor::before { content: "The Auditor: "; font-style: normal; font-variant: small-caps; letter-spacing: 0.08em; color: var(--ink-2); }
+.status { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 18px; font-size: 13px; border-top: 1px solid var(--rule); background: rgba(239,230,210,0.85); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.toast { position: absolute; left: 50%; top: 14px; transform: translate(-50%, -140%); background: var(--card); border: 1px solid var(--ink); padding: 6px 14px; font-size: 14px; box-shadow: 0 2px 0 var(--ink); transition: transform 0.35s cubic-bezier(.2,1.4,.4,1); pointer-events: none; z-index: 4; }
+.toast.on { transform: translate(-50%, 0); }
+.toast b { font-variant: small-caps; letter-spacing: 0.08em; }
+.receipt { position: absolute; right: 18px; top: 18px; width: 250px; background: var(--card); color: var(--ink); padding: 14px 14px 22px; font-family: var(--mono); font-size: 11.5px; line-height: 1.5; box-shadow: 0 3px 10px rgba(26,23,20,0.25); transform: translateY(-130%) rotate(-1.5deg); transition: transform 0.5s cubic-bezier(.2,1.2,.4,1); z-index: 3; pointer-events: auto; cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), 95% 100%, 90% calc(100% - 8px), 85% 100%, 80% calc(100% - 8px), 75% 100%, 70% calc(100% - 8px), 65% 100%, 60% calc(100% - 8px), 55% 100%, 50% calc(100% - 8px), 45% 100%, 40% calc(100% - 8px), 35% 100%, 30% calc(100% - 8px), 25% 100%, 20% calc(100% - 8px), 15% 100%, 10% calc(100% - 8px), 5% 100%, 0 calc(100% - 8px)); }
+.receipt.on { transform: translateY(0) rotate(-1.5deg); }
+.receipt h3 { margin: 0 0 6px; font-family: var(--serif); font-size: 15px; text-align: center; font-variant: small-caps; letter-spacing: 0.1em; border-bottom: 1px dashed var(--ink); padding-bottom: 6px; }
+.receipt .row { display: flex; justify-content: space-between; gap: 8px; }
+.receipt .sep { border-top: 1px dashed var(--ink); margin: 6px 0; }
+.receipt .stamp { margin-top: 8px; text-align: center; font-family: var(--serif); font-weight: 700; letter-spacing: 0.18em; color: var(--verdigris); border: 2px solid currentColor; padding: 2px 4px; transform: rotate(-4deg); }
+.receipt .stamp.bad { color: var(--vermilion); }
+.receipt .grade { font-family: var(--serif); font-size: 34px; text-align: center; line-height: 1.1; color: var(--oxblood); }
+.cover { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: radial-gradient(ellipse at center, rgba(239,230,210,0.55), rgba(239,230,210,0.92)); cursor: default; z-index: 5; text-align: center; padding: 16px; }
+.cover[hidden] { display: none; }
+.cover h1 { margin: 0; font-weight: 400; font-size: 30px; line-height: 1.15; max-width: 520px; }
+.cover h1 i { color: var(--oxblood); }
+#start { font-family: var(--serif); font-size: 17px; font-variant: small-caps; letter-spacing: 0.16em; padding: 12px 26px; border: 1px solid var(--ink); color: var(--paper); background: var(--ink); cursor: pointer; box-shadow: 0 3px 0 var(--oxblood); }
+#start:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--oxblood); }
+.cover .sub { color: var(--ink-2); font-size: 14px; max-width: 360px; font-style: italic; }
+.panel { padding: 14px 18px 28px; display: flex; flex-direction: column; gap: 12px; background: var(--paper-2); min-width: 0; }
+.panel h2 { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; font-variant: small-caps; text-transform: lowercase; margin: 8px 0 0; border-bottom: 1px solid var(--ink); padding-bottom: 3px; display: flex; justify-content: space-between; align-items: baseline; }
+.panel h2 small { font-weight: 400; font-style: italic; letter-spacing: 0; font-variant: normal; text-transform: none; color: var(--faint); font-size: 12px; }
+.panel button { font-family: var(--serif); font-size: 14px; color: var(--ink); background: var(--card); border: 1px solid var(--ink); padding: 6px 10px; cursor: pointer; min-height: 36px; box-shadow: 0 2px 0 var(--ink); }
+.panel button:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--ink); }
+.panel button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.panel button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--vermilion); outline-offset: 2px; }
+.gauges { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.gauge { text-align: center; font-size: 11px; color: var(--ink-2); }
+.gauge svg { width: 100%; height: auto; display: block; }
+.gauge .val { font-family: var(--mono); font-size: 12px; color: var(--ink); }
+.foods { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.foods button { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 5px 2px 4px; }
+.foods .emoji { font-size: 22px; line-height: 1.15; }
+.foods .name { font-size: 12px; }
+.foods .gas { font-family: var(--mono); font-size: 9.5px; color: var(--faint); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row .grow { flex: 1; }
+#digest { min-width: 110px; font-variant: small-caps; letter-spacing: 0.1em; }
+#release { width: 100%; min-height: 54px; font-size: 17px; font-variant: small-caps; letter-spacing: 0.2em; background: var(--oxblood); color: var(--paper); border-color: var(--ink); touch-action: none; }
+#release.held { background: var(--verdigris); }
+.belly { color: var(--ink-2); font-size: 13px; font-style: italic; }
+.slider { display: grid; grid-template-columns: 74px minmax(0, 1fr) 76px; gap: 8px; align-items: center; font-size: 13px; }
+.slider span:first-child { color: var(--ink-2); font-style: italic; }
+.slider output { text-align: right; font-family: var(--mono); font-size: 12px; }
+.slider input { width: 100%; accent-color: var(--oxblood); }
+.tunes { display: grid; gap: 6px; }
+.tunes button { display: flex; justify-content: space-between; align-items: baseline; text-align: left; }
+.tunes button small { font-style: italic; color: var(--faint); font-size: 12px; }
+.tunes button[aria-pressed="true"] small { color: var(--paper-2); }
+.best { font-size: 12px; color: var(--ink-2); font-style: italic; }
+#cycle { width: 100%; height: 64px; display: block; background: var(--card); border: 1px solid var(--rule); }
+.cyc-note { font-size: 12px; color: var(--ink-2); font-style: italic; }
+.ledger { display: grid; grid-template-columns: minmax(0, 1fr) auto; font-size: 13px; }
+.ledger span { padding: 2px 0; border-bottom: 1px solid var(--rule); }
+.ledger span:nth-child(even) { text-align: right; font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ledger .ok { color: var(--verdigris); }
+.ledger .warn { color: var(--vermilion); }
+.about { color: var(--ink-2); font-size: 13.5px; }
+.about p { margin: 0 0 8px; }
+.about b { color: var(--ink); }
+.about code { font-family: var(--mono); font-size: 11.5px; }
+@media (max-width: 860px) {
+  main { grid-template-columns: minmax(0, 1fr); }
+  .stage { position: relative; top: auto; height: 68vh; min-height: 380px; border-right: none; border-bottom: 1px solid var(--ink); }
+  .bar .credit { display: none; }
+  .plate { display: none; }
+  .auditor { max-width: 90%; left: 18px; text-align: left; }
+  .receipt { width: 220px; right: 10px; top: 10px; }
+  .labels span { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast, .receipt { transition: none; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="home" href="../">OVILLO</a>
+  <span class="title">Apparatus for the study of the other end</span>
+  <span class="spacer"></span>
+  <span class="credit">one Ariadne World, as <a href="../tract/">the tract</a> · after Pink Trombone (Neil Thapen, 2017)</span>
+</header>
+<main>
+  <section class="stage" id="stage" aria-label="The apparatus. Hold to release: up and down is sphincter tension, left and right the cheeks.">
+    <canvas id="gl"></canvas>
+    <canvas id="lane"></canvas>
+    <div class="labels" id="labels" aria-hidden="true"></div>
+    <div class="plate"><i>Fig. 1.</i> The apparatus. A digester pays a reservoir; a valve of one mass spends it into a canal of 28 sections. Radii ×3.</div>
+    <div class="auditor" id="auditor" aria-live="polite"></div>
+    <div class="status" id="status">–</div>
+    <div class="toast" id="toast" role="status"></div>
+    <div class="receipt" id="receipt" aria-live="polite" title="click to dismiss"></div>
+    <div class="cover" id="cover">
+      <h1>The tract World, <i>at the other end.</i></h1>
+      <button id="start">Begin the demonstration</button>
+      <div class="sub">Sound on. The reservoir begins full. Hold anywhere on the plate to release; up is higher.</div>
+    </div>
+  </section>
+  <section class="panel" aria-label="Controls">
+    <h2>Instruments <small>read from the World</small></h2>
+    <div class="gauges">
+      <div class="gauge" id="g-res"></div>
+      <div class="gauge" id="g-pa"></div>
+      <div class="gauge" id="g-nose"></div>
+    </div>
+    <h2>I. Provisions <small>gas and time invented</small></h2>
+    <div class="foods" id="foods"></div>
+    <div class="row">
+      <button id="digest" aria-pressed="false">digest</button>
+      <span class="belly grow" id="belly">the digester is empty</span>
+    </div>
+    <h2>II. Release</h2>
+    <button id="release">hold to release</button>
+    <label class="slider"><span>push</span><input id="s-push" type="range" min="0" max="1" step="0.01" value="1"><output id="o-push"></output></label>
+    <label class="slider"><span>tension</span><input id="s-pitch" type="range" min="0" max="1" step="0.001" value="0.35"><output id="o-pitch"></output></label>
+    <label class="slider"><span>cheeks</span><input id="s-cheeks" type="range" min="0" max="1" step="0.01" value="0.55"><output id="o-cheeks"></output></label>
+    <label class="slider"><span>tone</span><input id="s-tone" type="range" min="0" max="1" step="0.01" value="0.75"><output id="o-tone"></output></label>
+    <label class="slider"><span>wobble</span><input id="s-wobble" type="range" min="0" max="1" step="0.01" value="0.4"><output id="o-wobble"></output></label>
+    <div class="row" id="styles"></div>
+    <h2>III. Exercises <small>scored on the measured F0</small></h2>
+    <div class="tunes" id="tunes"></div>
+    <div class="best" id="best"></div>
+    <h2>IV. The valve <small>last measured cycle</small></h2>
+    <canvas id="cycle"></canvas>
+    <div class="cyc-note" id="cyc-note">–</div>
+    <h2>V. The books <small>joules, since the beginning</small></h2>
+    <div class="ledger" id="books"></div>
+    <h2>VI. Notes</h2>
+    <div class="about">
+      <p>The same <b>Ariadne World</b> as <a href="../tract/">the tract</a>, on another anatomy (<code>TractNdAnatomy::fart_v0</code>): a self-oscillating valve (a mass on a tension spring with contact; a jet with viscous and Bernoulli loss) for a sphincter, a canal flaring into a cleft whose 24 modes are recomputed whenever the cheeks move, POC-3's air (exact seals, the jet's separation loss, a turbulent dipole), and one ledger.</p>
+      <p><b>Digesting</b> pays the World's reservoir (its <code>work_input</code>, booked as source work); <b>releasing</b> spends it, and below 40% the push sags by the valve's own law: nothing scripts the end. The valve does not land where it is told: it runs sharp of the commanded tension by up to a few semitones, which is why the exercises score what the World <i>measured</i>.</p>
+      <p><b>Invented:</b> every anatomy number, the provisions, the scores, the Auditor's opinions. The canal is 20 cm, longer than any body's, because the World's 24 modes must fit in its band.</p>
+      <p><b>Not modeled:</b> the cheeks flapping in the flow, a sphincter as a ring, three-dimensional air, and smell.</p>
+    </div>
+  </section>
+</main>
+<script type="module" src="./fart.js"></script>
+</body>
+</html>

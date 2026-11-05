@@ -29,6 +29,10 @@ examples/tab/out/
 # ...and the Ariadne piano's demo and gate probes (SPEC-ARIADNE-PIANO.md).
 !examples/piano/*.mus
 
+# The Sunskip ensemble's authored scores and reproducible custom anatomies.
+!examples/ensemble/sunskip/*.mus
+examples/ensemble/sunskip/out/
+
 # ...and the scores written for ovillo.sophia-labs.com (site/README.md).
 !site/scores/*.mus
 

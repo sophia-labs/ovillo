@@ -1,0 +1,73 @@
+{
+  "schema": "sunskip.final-cut.v1",
+  "instrumentOrder": [
+    "Sunwire",
+    "Tumbler",
+    "Prism",
+    "Pocket",
+    "Ariadne piano"
+  ],
+  "baseGainDb": {
+    "sw": -5,
+    "tb": 0,
+    "pr": -8,
+    "pk": -15,
+    "pn": -20
+  },
+  "highPercussionHandGainDb": {
+    "pk.bead": -5,
+    "pk.seed": -5
+  },
+  "balanceStudy": {
+    "method": "First 1.0 seconds of each 1.875-second bar, stereo sample RMS; common rendered master. Earlier worlds retain decaying tails, so windows after bar1 contain residual previous instruments. Bar3 Prism begins after a quarter rest; window includes that rest. Piano example is bar13 lower-staff p shell, not foreground solo.",
+    "windows": [
+      {
+        "instrument": "Sunwire",
+        "startSeconds": 0.0,
+        "rms": 0.1978603676403205,
+        "rmsDbfs": -14.072823766082507,
+        "peak": 0.877525806427002,
+        "peakDbfs": -1.134802057378478
+      },
+      {
+        "instrument": "Tumbler",
+        "startSeconds": 1.875,
+        "rms": 0.17956435419396236,
+        "rmsDbfs": -14.915597441718269,
+        "peak": 0.8792238235473633,
+        "peakDbfs": -1.1180110546625661
+      },
+      {
+        "instrument": "Prism",
+        "startSeconds": 3.75,
+        "rms": 0.10084737718853,
+        "rmsDbfs": -19.926707846369027,
+        "peak": 0.6883845329284668,
+        "peakDbfs": -3.2433779249163175
+      },
+      {
+        "instrument": "Pocket",
+        "startSeconds": 5.625,
+        "rms": 0.11350659478527836,
+        "rmsDbfs": -18.89957810057982,
+        "peak": 0.882552981376648,
+        "peakDbfs": -1.0851842722565108
+      },
+      {
+        "instrument": "Piano",
+        "startSeconds": 7.5,
+        "rms": 0.18441146277024145,
+        "rmsDbfs": -14.684241745567498,
+        "peak": 0.7964187860488892,
+        "peakDbfs": -1.9771700863746178
+      }
+    ]
+  },
+  "edits": [
+    "Selected lower-register lead replies on G/B paired courses.",
+    "Eighteen paired inflections from -8 to +6 cents.",
+    "Raised quiet bead/seed hands 6/7 dB from initial design.",
+    "Lowered piano/percussion/bass observation levels after shared-master balance studies."
+  ],
+  "verification": "No independent critical listening assessment; see render receipts for numerical evidence."
+}

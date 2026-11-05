@@ -1,0 +1,11 @@
+# Celli: Bb2 as written (an octave above the basses), fed in six-second doses
+# tensions from the dense probes at push 0.7 (and 0.9 for onsets) cheeks 0.4 tone 0.4: each note's measured pitch
+push=0.7 cheeks=0.4 tone=0.4 tongue=off digest=on
+eat=beans*3 Bb2@116.54:4~ | Bb2@116.54:4 |
+eat=beans*3 Bb2@116.54:4 | Bb2@116.54:4~ |
+eat=beans*3 Bb2@116.54:4~ | Bb2@116.54:4~ |
+eat=beans*3 Bb2@116.54:4~ | Bb2@116.54:4~ |
+eat=beans*3 Bb2@116.54:4~ | Bb2@116.54:4~ |
+eat=beans*3 Bb2@116.54:4~ | Bb2@116.54:4~ |
+eat=beans*3 Bb2@116.54:4~ | Bb2@116.54:2 r:2 |
+eat=beans*3 r:4 | Bb2@116.54:2 Bb2@116.54:2 |

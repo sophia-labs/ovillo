@@ -1,0 +1,98 @@
+{
+  "schema": "sunskip.instrument-design.v1",
+  "name": "sunwire",
+  "classification": "design-hypothesis",
+  "baseline": "profiles/ariadne-steel-string-v0.plan.json",
+  "baselineFileSha256": "fa86f89b86a68043e04cb274ef091100c302f1fe220c3cc0b06707583a85c9df",
+  "planFileSha256": "9b891dba8461347d8c40ed4113caa37abf2481cd392d25d08d7ddc08d8677976",
+  "recipe": {
+    "tuning": [
+      50,
+      50,
+      55,
+      55,
+      59,
+      59,
+      64,
+      64
+    ],
+    "cents": [
+      -1.7,
+      1.7,
+      -1.7,
+      1.7,
+      -1.7,
+      1.7,
+      -1.7,
+      1.7
+    ],
+    "inharmonicity": 3.5e-05,
+    "loss_constant": 0.75,
+    "loss_frequency": 8e-08,
+    "resonator_frequency_scale": 1.27,
+    "resonator_decay_scale": 1.35,
+    "bridge_rate_scale": 1.08,
+    "room_length_scale": 0.83,
+    "position": -0.48,
+    "intention": "Paired-course melodic voice, with separately evolving unisons."
+  },
+  "courses": [
+    {
+      "string": 1,
+      "nominalMidi": 64,
+      "designedCents": 1.7,
+      "firstModeHz": 329.9513964686059
+    },
+    {
+      "string": 2,
+      "nominalMidi": 64,
+      "designedCents": -1.7,
+      "firstModeHz": 329.30403519806146
+    },
+    {
+      "string": 3,
+      "nominalMidi": 59,
+      "designedCents": 1.7,
+      "firstModeHz": 247.1842561771279
+    },
+    {
+      "string": 4,
+      "nominalMidi": 59,
+      "designedCents": -1.7,
+      "firstModeHz": 246.6992831906516
+    },
+    {
+      "string": 5,
+      "nominalMidi": 55,
+      "designedCents": 1.7,
+      "firstModeHz": 196.19027414277488
+    },
+    {
+      "string": 6,
+      "nominalMidi": 55,
+      "designedCents": -1.7,
+      "firstModeHz": 195.80535082832057
+    },
+    {
+      "string": 7,
+      "nominalMidi": 50,
+      "designedCents": 1.7,
+      "firstModeHz": 146.97663808124793
+    },
+    {
+      "string": 8,
+      "nominalMidi": 50,
+      "designedCents": -1.7,
+      "firstModeHz": 146.68827141819705
+    }
+  ],
+  "partialRule": "f_n = f1*n*sqrt((1+B*n*n)/(1+B)); 24 modes per course",
+  "lossRule": "T60 = 6.91/(loss_constant + loss_frequency*(2*pi*f)^2)",
+  "limits": [
+    "Fictional modal design; no real-instrument reconstruction claim.",
+    "All inherited steel-string v0 playing limitations still apply.",
+    "Declared mode tuning is not a measurement of the coupled sounding pitch.",
+    "MUS hands overwrite source direction and contact frequency/damping.",
+    "Each instrument is its own canonical World; the ensemble is a studio mix."
+  ]
+}

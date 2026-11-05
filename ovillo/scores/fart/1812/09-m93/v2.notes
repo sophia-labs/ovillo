@@ -1,0 +1,6 @@
+# Viole: the line an octave down
+# tensions from the dense probes at push 0.7 (and 0.9 for onsets) cheeks 0.4 tone 0.4: each note's measured pitch
+push=0.7 cheeks=0.4 tone=0.4 tongue=off
+eat=beans*6 digest=on
+push=0.9 Eb3@150.05:3 push=0.7 r:1 | r:4 |
+r:4 |

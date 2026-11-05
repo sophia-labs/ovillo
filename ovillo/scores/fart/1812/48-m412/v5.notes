@@ -1,0 +1,9 @@
+# Oboi II, top line of the source, octave-folded into 36-300 Hz; tensions inverted through the probe (push 0.7, cheeks 0.4, tone 0.4); 14 beans at the top, digestion on
+push=0.7 cheeks=0.4 tone=0.55 tongue=off digest=on
+eat=beans*14
+Eb3@150.7:1/2 Bb2@109.5:1/4~ Bb2@109.5:1/4 G2@91.9:1/2 Bb2@109.5:1/2 Eb3@150.7:1/2 Bb2@109.5:1/2 G2@91.9:1/2 Bb2@109.5:1/2 | Eb3@150.7:1/2 D2@71.4:1/4~ D2@71.4:1/4 Eb2@74.2:1/2 F2@82.4:1/2 G2@91.9:1/2 F2@82.4:1/2 Eb2@74.2:1/2 F2@82.4:1/2 |
+G2@91.9:1/2 r:3/2 Eb2@74.2:3/2 Eb2@74.2:1/2 | Eb2@74.2:2 G2@91.9:2 |
+Bb2@109.5:2 r:2 | Eb3@150.7:2 r:2 |
+F2@82.4:2 r:2 | Bb2@109.5:2 r:2 |
+G3@197.9:1 r:3 | Eb2@74.2:3 Eb2@74.2:1 |
+Eb2@74.2:4 |

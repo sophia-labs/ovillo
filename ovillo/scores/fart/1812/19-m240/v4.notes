@@ -1,0 +1,12 @@
+# pass 3 (u14): tensions from the tone 0.4 / 0.75 probe curves; slurred throughout; octave up below 48 Hz; beans fed at pre, beat 20, beat 40
+# baseline: Fagotto I, top line, -1 octave(s), strays folded into 36-300 Hz
+# tensions are the targets' own frequencies (naive: the valve runs sharp of them); nothing eaten, no digestion
+pre=2 digest=on eat=beans*12 push=0.7 cheeks=0.4 tone=0.4 tongue=off
+tongue=off D3@149.9:1/2 r:7/2 | r:4 |
+r:4 | r:7/2 C#3@139.0:1/2 |
+C#2@68.5:3/2 B1@61.3:1/2 Bb1@57.7:1/2 G2@95.7:1/2 r:1/2 Bb2@117.0:1/2 | r:1/2 eat=beans*12 C#3@143.5:1/2 r:1/2 push=1 E3@162.1:1/2 r:1/2 G3@197.5:1/2 r:1/2 Bb2@109.9:1/2 |
+push=0.7 Bb1@58.4:3/2 Ab1@53.9:1/2 tone=0.75 G1@51.6:1/2 tone=0.4 E2@83.1:1/2 r:1/2 G2@98.0:1/2 | r:1/2 Bb2@112.9:1/2 r:1/2 C#3@137.5:1/2 r:1/2 push=1 E3@160.6:1/2 r:1/2 E3@162.1:1/2 |
+push=0.7 E2@79.2:3/2 Eb2@75.6:1/2 C#2@67.7:1/2 G2@95.3:1/2 r:1/2 Bb2@113.6:1/2 | C#3@136.8:1/2 r:1/2 push=1 E3@162.1:1/2 r:1/2 G3@190.9:1/2 r:1/2 C#3@132.4:1/2 r:1/2 |
+eat=beans*12 push=0.7 C#2@68.9:3/2 B1@62.3:1/2 Bb1@59.3:1/2 Bb2@115.5:1/2 r:1/2 C#3@140.1:1/2 | C#2@67.6:3/2 B1@61.0:1/2 Bb1@59.3:1/2 Bb2@114.4:1/2 r:1/2 D3@149.4:1/2 |
+D2@72.3:3/2 C#2@67.5:1/2 B1@60.5:1/2 Ab2@102.6:1/2 r:1/2 Eb3@152.7:1/2 | Eb2@76.3:3/2 D2@72.3:1/2 C2@64.1:1/2 A2@108.0:1/2 r:1/2 C3@130.1:1/2 |
+r:7/2 C3@129.1:1/2 | C2@65.5:3/2 C2@64.7:1/2 B1@62.3:3/2 B1@62.3:1/2 |

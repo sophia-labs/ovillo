@@ -1,0 +1,11 @@
+# 02-m17 v6: cello-4-solo
+# one octave below the source (the baseline register), each target held in 41-300 Hz; tensions from the retune probes (tone 0.6 soprano and alto, 0.4 bass; push 0.4 cheeks 0.4)
+push=0.4 cheeks=0.4 tone=0.6 tongue=off digest=on
+eat=beans*6 Bb1@57.7:1 Eb2@74.1:1 Eb2@74.1:1/2 Eb2@74.1:1/2 | Bb1@57.7:1/2 Eb2@74.1:1/2 Ab1@53.0:2~ |
+Ab1@53.0:2 r:1/2 push=0.6 Eb2@74.1:1/2 push=0.4 | Eb2@74.1:2 Eb2@74.1:1/2 Eb2@74.1:1/2 |
+eat=beans*6 Bb1@57.7:2 Bb1@57.7:1 | G1@50.6:3~ |
+G1@50.6:1 r:2 | r:3 |
+eat=beans*6 r:3 | r:1/2 push=0.6 F1@47.3:1/2 push=0.4 F1@46.3:1 F1@46.3:1/2 F1@46.3:1/2 |
+C2@63.8:2 C2@63.8:1 | D2@70.5:2 r:1 |
+eat=beans*6 r:1/2 push=0.6 Ab1@53.0:1/2 push=0.4 Ab1@53.0:1 C#2@66.8:1 | Bb1@57.7:2 r:1 |
+r:1/2 push=0.6 C2@63.8:1/2 push=0.4 C2@63.8:1 F2@82.3:1 | C#2@66.8:2 C#2@66.8:1 |

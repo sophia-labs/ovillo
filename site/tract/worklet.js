@@ -6,6 +6,8 @@
 // Each render quantum asks the World for 128 samples and copies them out of
 // linear memory. Every few quanta it snapshots the World's state for the
 // pictures and posts it to the page with the measured DSP load.
+// processorOptions.anatomy 'fart' boots the same World on fart_v0
+// (fart_init_decimated, site/fart/); anything else, the tract.
 
 const SNAPSHOT_EVERY = 4;
 
@@ -22,8 +24,9 @@ class TractProcessor extends AudioWorkletProcessor {
       ? () => globalThis.performance.now()
       : () => Date.now();
     this.port.onmessage = (e) => this.onMessage(e.data);
-    const { bytes, init, decimate } = options.processorOptions;
+    const { bytes, init, decimate, anatomy } = options.processorOptions;
     this.decimate = decimate === 2 ? 2 : 1;
+    this.anatomy = anatomy === 'fart' ? 'fart' : 'tract';
     this.pending = Array.isArray(init) ? init.slice() : [];
     // Synchronous first, so the World is ready for the very first quantum
     // (an OfflineAudioContext renders before an async compile could finish).
@@ -37,7 +40,8 @@ class TractProcessor extends AudioWorkletProcessor {
   }
 
   boot(x) {
-    const sections = x.tract_init_decimated(sampleRate, this.decimate);
+    const boot = this.anatomy === 'fart' ? x.fart_init_decimated : x.tract_init_decimated;
+    const sections = boot(sampleRate, this.decimate);
     this.x = x;
     this.ready = true;
     for (const m of this.pending) this.apply(m);
@@ -59,6 +63,7 @@ class TractProcessor extends AudioWorkletProcessor {
       case 'impact': x.tract_impact(m.position, m.energy); break;
       case 'constrict': x.tract_constrict(m.slot, m.position, m.degree); break;
       case 'vibrato': x.tract_vibrato(m.rate, m.depth, m.wobble); break;
+      case 'refill': if (x.tract_refill) x.tract_refill(m.watts); break;
       default: break;
     }
   }

@@ -3917,6 +3917,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ovillo-fart"
+version = "0.1.0"
+dependencies = [
+ "hound",
+ "ovillo-tract-world",
+ "realfft",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ovillo-mcp"
 version = "0.1.0"
 dependencies = [

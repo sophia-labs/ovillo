@@ -37,9 +37,38 @@ pub struct Provenance {
     pub source: &'static str,
 }
 
+/// The first tube's resting area function, before the articulation's terms.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OralProfile {
+    /// GARGANTA's neutral vocal tract (`neutral_log_area_cm2`).
+    Garganta,
+    /// A canal of `canal_cm2` opening, from `flare_start` to `flare_end` (0
+    /// valve .. 1 mouth), into a cleft of `cleft_cm2`
+    /// (`TractNdAnatomy::fart_v0`; every number there is invented).
+    Cleft { canal_cm2: f64, cleft_cm2: f64, flare_start: f64, flare_end: f64 },
+}
+
+impl OralProfile {
+    /// ln of the resting area (cm²) at `x` (0 valve .. 1 mouth).
+    #[must_use]
+    pub fn log_area_cm2(&self, x: f64) -> f64 {
+        match *self {
+            Self::Garganta => TractNdAnatomy::neutral_log_area_cm2(x),
+            Self::Cleft { canal_cm2, cleft_cm2, flare_start, flare_end } => {
+                let t = ((x - flare_start) / (flare_end - flare_start)).clamp(0.0, 1.0);
+                let smooth = t * t * (3.0 - 2.0 * t);
+                (canal_cm2 + (cleft_cm2 - canal_cm2) * smooth).ln()
+            }
+        }
+    }
+}
+
 /// The anatomy and its discretization.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TractNdAnatomy {
+    /// The receipt's `anatomy_name`.
+    pub name: &'static str,
+    pub oral_profile: OralProfile,
     pub oral_length_m: f64,
     pub nasal_length_m: f64,
     pub velum_position: f64,
@@ -93,6 +122,8 @@ impl TractNdAnatomy {
     #[must_use]
     pub fn adult_v0(oral: usize, nasal: usize) -> Self {
         Self {
+            name: "tract-nd-v0",
+            oral_profile: OralProfile::Garganta,
             oral_length_m: 0.157,
             nasal_length_m: 0.11,
             velum_position: 0.40,
@@ -159,6 +190,129 @@ impl TractNdAnatomy {
             contact.follow_below_floor = true;
         }
         a.lip_seal = Some(0.02);
+        a
+    }
+
+    /// The same World, other end. The valve is a sphincter, the tube a canal
+    /// flaring into a cleft, `lips` the cheeks (sealed below 0.02, as the
+    /// public lips), the tongue inert (zero depth), the nasal branch a stub
+    /// sealed at velum 0. The reservoir is not refilled (`lung_refill_w` 0):
+    /// it is spent, and the valve's sag law
+    /// (`FlowValveSpec::sag_fraction`) ends the sound. POC-3's air and five
+    /// constriction slots, as `public_v1`.
+    ///
+    /// Every number here is invented for this toy (no measurement, no
+    /// source): the order of magnitude was chosen so that the valve swings
+    /// at 25-300 Hz. The tube is 20 cm, longer than a canal and cleft would
+    /// be, because the World's 24 modes must all lie inside its band
+    /// (`tube-network-band`, 0.48 fs): a 9 cm closed-open tube has about
+    /// twelve.
+    #[must_use]
+    pub fn fart_v0() -> Self {
+        let mut a = Self::adult_v0(28, 3);
+        a.name = "cleft-nd-v0";
+        a.oral_profile = OralProfile::Cleft { canal_cm2: 1.0, cleft_cm2: 5.0, flare_start: 0.15, flare_end: 0.6 };
+        a.oral_length_m = 0.20;
+        a.nasal_length_m = 0.02;
+        a.velum_position = 0.2;
+        a.oral_attenuation_np_per_m = 1.5;
+        a.tongue_depth_low = 0.0;
+        a.tongue_depth_high = 0.0;
+        a.tongue_compensation = 0.0;
+        a.lip_center = 0.97;
+        a.lip_width = 0.05;
+        a.velum_port_max_cm2 = 0.1;
+        a.nasal_peak_cm2 = 0.3;
+        a.nostril_cm2 = 0.1;
+        a.valve = FlowValveSpec {
+            length_m: 0.012,
+            thickness_m: 0.006,
+            mass_kg: 1.0e-3,
+            damping_ratio: 0.15,
+            mucosal_delay_s: 1.2e-3,
+            rest_half_gap_open_m: 1.5e-3,
+            rest_half_gap_closed_m: 5.0e-5,
+            min_tuning_hz: 25.0,
+            max_tuning_hz: 300.0,
+            initial_tuning_hz: 70.0,
+            initial_adduction: 0.75,
+            max_supply_pressure_pa: 2_500.0,
+            sag_fraction: 0.4,
+            ..a.valve
+        };
+        a.lung_capacity_j = 1.5;
+        a.lung_refill_w = 0.0;
+        let mut a = a.with_air();
+        a.constriction_slots = 5;
+        if let Some(contact) = &mut a.contact {
+            contact.contact_area_m2 = 0.0;
+            contact.follow_below_floor = true;
+        }
+        a.lip_seal = Some(0.02);
+        a
+    }
+
+    /// `fart_v0` with a slower slam: the valve 1.3 g instead of 1 g, with a
+    /// slightly softer, more damped contact. Why: `fart_v0`'s held notes
+    /// click once per cycle, since the valve shuts hard and the flow is cut
+    /// at once. Measured on the whole 1812 score (336 parts tuned by their
+    /// composers on `fart_v0`, the house direction on), from `ovillo-fart
+    /// render`'s reports and a click count on the mix (steps over 0.01 full
+    /// scale and six times the local step RMS): with `fart_v0`, 86.7% of
+    /// notes within 50 cents, 43 silent, 2007 loud clicks, the chorale's
+    /// bass note above 0.3 of its peak 10.5% of the time; with this valve
+    /// 63.0% in tune, 419 silent, 971 clicks, 33.1%; a 1.6 g valve 41.5%,
+    /// 1539 silent, 912 clicks, 40.3%; a 2 g valve 19.9%, 3096 silent. The
+    /// heavier the valve, the softer the pulse and the higher its threshold
+    /// (quiet, low-push notes stop swinging), so the parts must be retuned
+    /// on it. The numbers are as invented as `fart_v0`'s.
+    #[must_use]
+    pub fn fart_v1() -> Self {
+        let mut a = Self::fart_v0();
+        a.name = "cleft-nd-v1";
+        a.valve.mass_kg = 1.3e-3;
+        a.valve.contact_stiffness_ratio = 2.5;
+        a.valve.contact_damping_ratio = 1.5;
+        a
+    }
+
+    /// The `fart_v1` family, for an ensemble: the same valve law and canal
+    /// profile at four sizes (invented, like the rest), so that the guts
+    /// differ as instruments do. The canal cannot be shorter than 20 cm
+    /// (the World's 24 modes must fit its band, `fart_v0`); it can be longer.
+    /// The soprano keeps `fart_v0`'s 1 g valve (it plays where that valve's
+    /// pulses are already wide); each gut's parts are tuned on it.
+    #[must_use]
+    pub fn fart_v1_soprano() -> Self {
+        let mut a = Self::fart_v1();
+        a.name = "cleft-nd-v1-soprano";
+        a.valve.mass_kg = 1.0e-3;
+        a.valve.length_m = 0.010;
+        a.oral_profile = OralProfile::Cleft { canal_cm2: 0.8, cleft_cm2: 3.5, flare_start: 0.15, flare_end: 0.6 };
+        a
+    }
+
+    #[must_use]
+    pub fn fart_v1_bass() -> Self {
+        let mut a = Self::fart_v1();
+        a.name = "cleft-nd-v1-bass";
+        a.valve.mass_kg = 1.6e-3;
+        a.valve.length_m = 0.014;
+        a.oral_length_m = 0.28;
+        a.oral_profile = OralProfile::Cleft { canal_cm2: 1.4, cleft_cm2: 8.0, flare_start: 0.15, flare_end: 0.6 };
+        a
+    }
+
+    #[must_use]
+    pub fn fart_v1_cannon() -> Self {
+        let mut a = Self::fart_v1();
+        a.name = "cleft-nd-v1-cannon";
+        a.valve.mass_kg = 2.2e-3;
+        a.valve.length_m = 0.018;
+        a.valve.max_supply_pressure_pa = 3_500.0;
+        a.oral_length_m = 0.40;
+        a.oral_profile = OralProfile::Cleft { canal_cm2: 2.0, cleft_cm2: 14.0, flare_start: 0.15, flare_end: 0.6 };
+        a.lung_capacity_j = 2.5;
         a
     }
 
@@ -236,7 +390,7 @@ impl TractNdAnatomy {
         let n = self.oral_sections;
         let m = self.nasal_sections;
         let oral_base: Vec<f64> = (0..n)
-            .map(|i| Self::neutral_log_area_cm2((i as f64 + 0.5) / n as f64) + (1.0e-4f64).ln())
+            .map(|i| self.oral_profile.log_area_cm2((i as f64 + 0.5) / n as f64) + (1.0e-4f64).ln())
             .collect();
         let nasal_base: Vec<f64> = (0..m)
             .map(|k| {
@@ -360,7 +514,7 @@ impl TractNdAnatomy {
                 id: "tract".into(),
                 constitution: BodyConstitutionSpec::ModalSpace {
                     body: SpaceBodySpec {
-                        anatomy_name: "tract-nd-v0".into(),
+                        anatomy_name: self.name.into(),
                         configuration_space: ConfigurationSpaceSpec {
                             coordinates,
                             map: ConfigurationMapSpec::TubeNetwork { network: self.network() },

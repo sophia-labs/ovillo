@@ -1,0 +1,66 @@
+{
+  "schema": "sunskip.instrument-design.v1",
+  "name": "tumbler",
+  "classification": "design-hypothesis",
+  "baseline": "profiles/ariadne-steel-string-v0.plan.json",
+  "baselineFileSha256": "fa86f89b86a68043e04cb274ef091100c302f1fe220c3cc0b06707583a85c9df",
+  "planFileSha256": "d4d8dc2eb84b5560da303d3ba5d9c1c2b20efbfffdc2d06dc651e6df127488dc",
+  "recipe": {
+    "tuning": [
+      28,
+      33,
+      38,
+      43
+    ],
+    "cents": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "inharmonicity": 9e-05,
+    "loss_constant": 1.35,
+    "loss_frequency": 1e-07,
+    "resonator_frequency_scale": 0.57,
+    "resonator_decay_scale": 0.8,
+    "bridge_rate_scale": 1.1,
+    "room_length_scale": 0.68,
+    "position": -0.08,
+    "intention": "Low-register pulse and melodic bass, with palm loss in the score."
+  },
+  "courses": [
+    {
+      "string": 1,
+      "nominalMidi": 43,
+      "designedCents": 0.0,
+      "firstModeHz": 97.99885899543733
+    },
+    {
+      "string": 2,
+      "nominalMidi": 38,
+      "designedCents": 0.0,
+      "firstModeHz": 73.41619197935188
+    },
+    {
+      "string": 3,
+      "nominalMidi": 33,
+      "designedCents": 0.0,
+      "firstModeHz": 55.0
+    },
+    {
+      "string": 4,
+      "nominalMidi": 28,
+      "designedCents": 0.0,
+      "firstModeHz": 41.20344461410875
+    }
+  ],
+  "partialRule": "f_n = f1*n*sqrt((1+B*n*n)/(1+B)); 24 modes per course",
+  "lossRule": "T60 = 6.91/(loss_constant + loss_frequency*(2*pi*f)^2)",
+  "limits": [
+    "Fictional modal design; no real-instrument reconstruction claim.",
+    "All inherited steel-string v0 playing limitations still apply.",
+    "Declared mode tuning is not a measurement of the coupled sounding pitch.",
+    "MUS hands overwrite source direction and contact frequency/damping.",
+    "Each instrument is its own canonical World; the ensemble is a studio mix."
+  ]
+}

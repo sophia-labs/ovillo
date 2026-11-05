@@ -1,0 +1,4 @@
+# baseline: Corno in F II, top line, -2 octave(s), strays folded into 36-300 Hz
+pre=4 eat=beans*2 eat=soda*2 digest=on push=0.4 cheeks=0.4 tone=0.5
+F2@84.4:1/4 tongue=on F2@84.4:1/4 F2@84.4:1/4 F2@84.4:1/4 F2@84.4:2 | tongue=off A2@107.2:3 |
+B1@61.4:1 tongue=on B1@61.4:1 tongue=off A2@107.2:1 | Bb1@58.5:1 B1@61.4:1 C2@65.0:1 |

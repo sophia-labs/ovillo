@@ -445,6 +445,14 @@ impl TractWorldNd {
         self.target = controls;
     }
 
+    /// The reservoir's refill (W, 0..1, the World's `work_input`; the
+    /// anatomy's `lung_refill_w` until set), booked as source work.
+    pub fn set_refill(&mut self, watts: f64) {
+        if let ConstitutiveBodyControls::ModalSpace(c) = &mut self.controls[0] {
+            c.body.work_input = finite_or(watts, 0.0).clamp(0.0, 1.0);
+        }
+    }
+
     /// Exact-limit knob: 0 removes radiation, 1 is the law.
     pub fn set_radiation_scale(&mut self, scale: f64) {
         if let ConstitutiveBodyControls::ModalSpace(c) = &mut self.controls[0] {

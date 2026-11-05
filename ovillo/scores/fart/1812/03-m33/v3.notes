@@ -1,0 +1,10 @@
+# baseline: Violini I, top line, -1 octave(s), strays folded into 36-300 Hz
+pre=4 eat=beans*6 eat=soda*4 digest=on push=0.5 cheeks=0.4 tone=0.6
+r:3 | G2@91.6:3/2 B2@114.3:1/6 tongue=on B2@114.3:1/6 B2@114.3:1/6 tongue=off D3@139.5:1/6 tongue=on D3@139.5:1/6 D3@139.5:1/6 tongue=off G3@192.4:1/6 tongue=on G3@192.4:1/6 G3@192.4:1/6 |
+tongue=off B2@114.3:1/4 D3@139.5:1/4 G3@192.4:1/4 B3@251.7:1/4 D4@299.5:1/4 G3@192.4:1/4 B3@251.7:1/4 D4@299.5:1/4 G3@192.4:1/4 B3@251.7:1/4 D4@299.5:1/4 G3@192.4:1/4 | C4@265.2:1/4 r:11/4 |
+r:3 | r:3 |
+r:3 | C3@123.2:3 |
+tongue=on C3@123.2:3 | tongue=off B2@114.3:3 |
+tongue=on B2@114.3:3 | tongue=off Bb2@109.1:1 F3@170.5:2 |
+F#3@180.3:2 Ab3@204.7:1 | Bb3@235.4:1/4 Eb3@149.5:1/4 tongue=on Eb3@149.5:1/4 Eb3@149.5:1/4 Eb3@149.5:2 |
+Eb3@149.5:1/4 r:11/4 | r:1 tongue=off Eb3@149.5:1/2 r:1/2 F#3@180.3:1/2 r:1/2 |

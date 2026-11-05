@@ -1,0 +1,11 @@
+# retune (fart_v1): Bb2 at tone 0.4; last four notes at tone 0.6 (probed: tone 0.4 cannot reach Ab3); pass 4 was: pass 4: celli, top line, +0 octave(s), tensions commanded (table p05)
+push=0.5 cheeks=0.4 tone=0.4 tongue=on
+pre=4 eat=beans*9 digest=on
+Bb2@115.9:4~ | Bb2@115.9:4~ |
+Bb2@115.9:4~ | Bb2@115.9:3 Bb2@115.9:1~ |
+Bb2@115.9:4~ | Bb2@115.9:3 Bb2@115.9:1~ |
+Bb2@115.9:4~ | Bb2@115.9:4~ |
+Bb2@115.9:4~ | Bb2@115.9:4~ |
+Bb2@115.9:4~ | Bb2@115.9:1/2 r:7/2 |
+Bb2@115.9:4~ | Bb2@115.9:1/2 r:7/2 |
+r:4 | r:1/2 tone=0.6 Eb3@151.6:1 F3@173.9:1/2 F#3@186.0:1 Ab3@210.4:1 |

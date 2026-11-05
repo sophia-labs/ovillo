@@ -1,0 +1,11 @@
+# v3: Clarinetto in B♭ II, -1 octave (keeps it under Clarinetto I)
+# pass 1: tensions commanded for measured targets at push 0.7 cheeks 0.4 tone 0.4 (probe); eat 4 beans in the rest, again at bar 9
+pre=4 eat=beans*6 digest=on push=0.7 cheeks=0.4 tone=0.4 tongue=on
+D2@71.6:2 r:2 | r:1 F#2@89.4:1 r:1 F#2@89.4:1 |
+r:1 F#2@89.4:1 r:1 F#2@89.4:1 | r:3 A2@106.3:1~ |
+eat=beans*6 A2@106.3:4 | Bb2@113.2:2 B2@120.0:2 |
+Bb2@113.2:2 B2@120.0:2 | Bb2@113.2:2 B2@120.0:2 |
+eat=beans*4 Bb2@113.2:2 B2@120.0:2 | Bb2@113.2:2 B2@120.0:2 |
+Bb2@113.2:2 B2@120.0:2 | Bb2@113.2:2 B2@120.0:2 |
+eat=beans*4 Bb2@113.2:2 B2@120.0:2 | Bb2@113.2:2 B2@120.0:2 |
+Bb2@113.2:2 B2@120.0:2 | Bb2@113.2:2 B2@120.0:2 |

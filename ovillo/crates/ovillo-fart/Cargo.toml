@@ -1,0 +1,26 @@
+[package]
+name = "ovillo-fart"
+description = "The fart_v0 tract World as an ensemble: score directories of NOTE:beats parts, rendered in parallel to cached stems and mixed (ovillo-fart), and an MCP server with a gut (ovillo-fart-mcp). Every joule booked."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "ovillo-fart"
+path = "src/bin/ovillo-fart.rs"
+
+[[bin]]
+name = "ovillo-fart-mcp"
+path = "src/bin/ovillo-fart-mcp.rs"
+
+[dependencies]
+# JSON-RPC over stdio is written by hand, as ovillo-mcp's: no MCP SDK.
+ovillo-tract-world = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+hound = { workspace = true }
+realfft = { workspace = true }

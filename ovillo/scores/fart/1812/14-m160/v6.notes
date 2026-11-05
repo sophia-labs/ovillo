@@ -1,0 +1,11 @@
+# v6: C. Bassi, source octave (the lowest voice)
+# pass 1: tensions commanded for measured targets at push 0.7 cheeks 0.4 tone 0.4 (probe); eat 4 beans in the rest, again at bar 9
+pre=4 eat=beans*6 digest=on push=0.7 cheeks=0.4 tone=0.4 tongue=on
+tongue=off D2@74.1:1/2 C#2@68.9:1/2 B1@61.0:1/2 Bb1@60.2:1/2 A1@55.7:1/2 Bb1@60.2:1/2 B1@61.0:1/2 C#2@68.9:1/2 | D2@74.1:1/2 C#2@68.9:1/2 B1@61.0:1/2 A1@55.7:1/2 D2@74.1:1/2 C#2@68.9:1/2 B1@61.0:1/2 A1@55.7:1/2 |
+D2@74.1:1/2 C#2@68.9:1/2 B1@61.0:1/2 A1@55.7:1/2 D2@74.1:1/2 C#2@68.9:1/2 B1@61.0:1/2 A1@55.7:1/2 | tongue=on D2@72.2:4~ |
+eat=beans*6 D2@72.2:4 | C#2@68.9:4 |
+C#2@68.9:4 | C#2@68.9:4 |
+eat=beans*6 C#2@68.9:4 | C#2@68.9:4 |
+C#2@68.9:4 | C#2@68.9:4 |
+eat=beans*6 C#2@68.9:4 | C#2@68.9:4 |
+C#2@68.9:4 | C#2@68.9:4 |

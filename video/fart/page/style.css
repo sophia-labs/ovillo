@@ -1,0 +1,89 @@
+/* The film's panel: a deadpan concert broadcast over the stage. One monospace
+   face for the instrument readouts (the site's), a serif for the cards. */
+:root {
+  --text: #e6ddd3;
+  --dim: #8f857c;
+  --line: #3a312c;
+  --on: #62d26f;
+  --warn: #ffb000;
+  --bad: #ff5a5a;
+  --pink: #ff8fa6;
+  --gold: #d9b26a;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #000; color: var(--text); font-family: var(--mono); overflow: hidden; }
+#frame { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #000; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#labels, #hud, #card { position: absolute; inset: 0; pointer-events: none; }
+[hidden] { display: none !important; }
+
+/* stand cards, projected from the stage */
+#labels .lab { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; text-align: center; color: var(--text);
+  text-shadow: 0 0 6px #000, 0 0 2px #000; letter-spacing: 0.06em; }
+#labels .lab .n { font-family: var(--serif); font-size: 1.25em; color: var(--gold); letter-spacing: 0.14em; }
+#labels .lab .p { font-size: 0.78em; color: var(--text); opacity: 0.85; margin-top: 2px; }
+
+/* broadcast panel */
+.top { position: absolute; left: 44px; top: 32px; right: 44px; text-shadow: 0 0 8px #000, 0 1px 2px #000; }
+.top .title { font-size: 19px; letter-spacing: 0.18em; color: var(--text); }
+.top .title .comp { font-family: var(--serif); font-size: 24px; letter-spacing: 0.22em; color: var(--gold); }
+.top .title .dim { color: var(--dim); letter-spacing: 0.1em; font-size: 16px; }
+.top .section { margin-top: 12px; font-size: 30px; letter-spacing: 0.08em; color: var(--text); font-variant-numeric: tabular-nums; }
+.top .parts { margin-top: 6px; font-size: 16px; letter-spacing: 0.06em; color: var(--dim); }
+.shot { position: absolute; right: 44px; top: 36px; text-align: right; font-size: 15px; letter-spacing: 0.16em; color: var(--dim); text-shadow: 0 0 8px #000; }
+.shot b { color: var(--text); font-weight: 400; }
+.shot .rec { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--bad); margin-right: 8px; vertical-align: 1px; }
+
+.guts { position: absolute; left: 44px; right: 44px; bottom: 36px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 0 10px;
+  font-variant-numeric: tabular-nums; text-shadow: 0 0 8px #000, 0 1px 2px #000; }
+.guts .g { border-top: 2px solid var(--line); padding-top: 8px; min-width: 0; }
+.guts .g.hot { border-top-color: var(--gold); }
+.guts .g .n { font-family: var(--serif); font-size: 17px; letter-spacing: 0.16em; color: var(--gold); }
+.guts .g .w { font-size: 13px; color: var(--dim); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.guts .g .f { font-size: 26px; color: var(--text); margin-top: 6px; white-space: nowrap; }
+.guts .g .f.still { color: var(--dim); }
+.guts .g .c { font-size: 15px; margin-top: 2px; white-space: nowrap; color: var(--on); }
+.guts .g .c.off { color: var(--bad); }
+.guts .g .c.none { color: var(--dim); }
+.guts .g .bar { position: relative; height: 6px; margin-top: 8px; background: #1a1512; }
+.guts .g .bar .lv { position: absolute; left: 0; top: 0; bottom: 0; background: var(--pink); }
+.guts .g .bar .st { position: absolute; left: 0; top: 0; bottom: 0; border-right: 2px solid var(--warn); opacity: 0.9; }
+.guts .g .k { font-size: 12px; letter-spacing: 0.12em; color: var(--dim); margin-top: 4px; white-space: nowrap; }
+
+.ledger { position: absolute; right: 44px; bottom: 160px; text-align: right; font-size: 14px; letter-spacing: 0.1em; color: var(--dim);
+  text-shadow: 0 0 8px #000; font-variant-numeric: tabular-nums; line-height: 1.5; }
+.ledger .on { color: var(--on); }
+.caption { position: absolute; left: 44px; right: 44px; bottom: 170px; text-align: center; font-family: var(--serif); font-size: 26px; letter-spacing: 0.02em;
+  color: var(--text); text-shadow: 0 0 10px #000, 0 1px 2px #000; }
+.caption i { color: var(--gold); font-style: italic; }
+
+/* cards */
+#card { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-family: var(--serif); color: var(--text);
+  text-shadow: 0 0 14px #000, 0 2px 3px #000; }
+#card .over { font-family: var(--mono); font-size: 18px; letter-spacing: 0.3em; color: var(--dim); }
+#card .comp { font-size: 54px; letter-spacing: 0.28em; color: var(--gold); margin-top: 18px; }
+#card .name { font-size: 110px; letter-spacing: 0.12em; line-height: 1; margin-top: 10px; font-weight: 400; }
+#card .op { font-size: 30px; letter-spacing: 0.1em; color: var(--text); margin-top: 18px; font-style: italic; }
+#card .for { font-size: 40px; letter-spacing: 0.08em; color: var(--pink); margin-top: 26px; }
+#card .by { font-family: var(--mono); font-size: 17px; letter-spacing: 0.16em; color: var(--dim); margin-top: 34px; line-height: 1.7; }
+#card .end-h { font-size: 44px; letter-spacing: 0.1em; color: var(--gold); }
+#card .end-l { font-family: var(--mono); font-size: 19px; letter-spacing: 0.1em; color: var(--text); margin-top: 16px; line-height: 1.75; }
+#card .end-l .d { color: var(--dim); }
+#card .end-l .on { color: var(--on); }
+
+/* portrait (the short) */
+body.v9x16 .top { left: 36px; right: 36px; top: 120px; }
+body.v9x16 .top .title { font-size: 17px; letter-spacing: 0.12em; }
+body.v9x16 .top .title .comp { font-size: 22px; }
+body.v9x16 .top .title .dim { display: block; font-size: 14px; margin-top: 4px; }
+body.v9x16 .top .section { font-size: 28px; }
+body.v9x16 .top .parts { font-size: 15px; }
+body.v9x16 .shot { top: 60px; right: 36px; left: 36px; text-align: left; }
+body.v9x16 .guts { left: 36px; right: 36px; bottom: 150px; grid-template-columns: repeat(4, 1fr); gap: 14px 10px; }
+body.v9x16 .guts .g .f { font-size: 24px; }
+body.v9x16 .ledger { right: 36px; left: 36px; bottom: 90px; text-align: center; }
+body.v9x16 .caption { bottom: 460px; font-size: 30px; }
+body.v9x16 #card .name { font-size: 96px; }
+body.v9x16 #card .comp { font-size: 44px; }

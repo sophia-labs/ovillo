@@ -1,0 +1,13 @@
+{
+  "title": "Ode to Joy (Beethoven, 1824), for three guts and a cannon",
+  "about": "A demonstration of ovillo-fart's score directories: one part per file, rendered in parallel, mixed.",
+  "voices": {
+    "melody": { "pan": 0.0, "gain": 1.0, "about": "the tune, at pitch" },
+    "alto": { "pan": -0.5, "gain": 0.8, "about": "a third below" },
+    "bass": { "pan": 0.5, "gain": 0.9, "legato": true, "about": "roots" },
+    "cannon": { "kind": "cannon", "pan": 0.2, "gain": 0.7 }
+  },
+  "sections": [
+    { "id": "01-theme", "bpm": 100, "beats": 16, "bar": 4, "voices": ["melody", "alto", "bass", "cannon"] }
+  ]
+}

@@ -87,6 +87,7 @@ pub mod layout {
 
 struct Engine {
     world: TractWorldNd,
+    fart: bool,
     out: Vec<f32>,
     state: Vec<f32>,
     pressure_ms: Vec<f64>,
@@ -107,20 +108,36 @@ fn with<R>(default: R, f: impl FnOnce(&mut Engine) -> R) -> R {
     }
 }
 
-fn build(sample_rate: f64, decimate: usize) -> Option<TractWorldNd> {
+/// The fart's listener gain: 2.5 times the tract's (1/2500), as its supply
+/// ceiling is (`TractNdAnatomy::fart_v1`).
+pub const FART_OUTPUT_GAIN: f64 = 1.0 / 1_000.0;
+
+fn build(sample_rate: f64, decimate: usize, fart: bool) -> Option<TractWorldNd> {
+    let (anatomy, rest) = if fart { (TractNdAnatomy::fart_v1(), FART_REST) } else { (TractNdAnatomy::public_v1(), tw::ART_REST) };
     let mut world = TractWorldNd::with(
         sample_rate,
-        TractNdAnatomy::public_v1(),
+        anatomy,
         ConnectionPolicy::MassMomentum { disposal: DisposalPolicy::Dissipate },
-        tw::ART_REST,
+        rest,
     )
     .ok()?;
+    if fart {
+        world.output_gain = FART_OUTPUT_GAIN;
+    }
     let (interval, min_move) = if decimate == 2 { LIGHT_SCHEDULE } else { FULL_SCHEDULE };
     world.update_interval = interval;
     world.min_move = min_move;
-    world.set_controls(TractControls { articulation: tw::ART_REST, ..TractControls::default() });
+    let mut controls = TractControls { articulation: rest, ..TractControls::default() };
+    if fart {
+        controls.pitch_hz = anatomy.valve.initial_tuning_hz;
+        controls.tenseness = anatomy.valve.initial_adduction;
+    }
+    world.set_controls(controls);
     Some(world)
 }
+
+/// The fart at rest: cheeks half open, tongue inert, the stub sealed.
+const FART_REST: tw::Articulation = tw::Articulation { tongue_index: 0.5, tongue_diameter: 0.5, lips: 0.45, velum: 0.0 };
 
 /// Build the World at `sample_rate`. Returns the number of oral sections.
 #[no_mangle]
@@ -132,13 +149,27 @@ pub extern "C" fn tract_init(sample_rate: f32) -> u32 {
 /// rate: its 24 modes need it); 1 the full schedule.
 #[no_mangle]
 pub extern "C" fn tract_init_decimated(sample_rate: f32, decimate: u32) -> u32 {
+    init(sample_rate, decimate, false)
+}
+
+/// The same World on `TractNdAnatomy::fart_v1` (an extra export outside the
+/// shared ABI, like `ndt_*`): the same calls and state layout; `lips` are the
+/// cheeks, the tongue does nothing, the reservoir is not refilled until
+/// `tract_refill`. Returns the number of canal sections.
+#[no_mangle]
+pub extern "C" fn fart_init_decimated(sample_rate: f32, decimate: u32) -> u32 {
+    init(sample_rate, decimate, true)
+}
+
+fn init(sample_rate: f32, decimate: u32, fart: bool) -> u32 {
     let decimate = decimate.clamp(1, 2) as usize;
     let sample_rate = f64::from(sample_rate);
-    let Some(world) = build(sample_rate, decimate) else { return 0 };
+    let Some(world) = build(sample_rate, decimate, fart) else { return 0 };
     let n = world.anatomy().oral_sections;
     let engine = Engine {
         pressure_ms: vec![0.0; n],
         world,
+        fart,
         out: vec![0.0; MAX_FRAMES],
         state: vec![0.0; layout::LEN],
         decimate,
@@ -176,7 +207,7 @@ pub extern "C" fn tract_process(frames: u32) -> u32 {
         if e.world.process(&mut e.out[..n]).is_err() {
             e.out[..n].fill(0.0);
             e.non_finite += 1;
-            if let Some(world) = build(e.sample_rate, e.decimate) {
+            if let Some(world) = build(e.sample_rate, e.decimate, e.fart) {
                 e.world = world;
             }
         }
@@ -247,6 +278,13 @@ pub extern "C" fn tract_preset(id: u32) {
         c.articulation = art;
         e.world.set_controls(c);
     });
+}
+
+/// The reservoir's refill in watts (0..1, the World's `work_input`, booked
+/// as source work); an extra export outside the shared ABI.
+#[no_mangle]
+pub extern "C" fn tract_refill(watts: f32) {
+    with((), |e| e.world.set_refill(f64::from(watts)));
 }
 
 /// Place (`degree` >= 0) or release (`degree` < 0) constriction `slot`
@@ -434,5 +472,26 @@ mod tests {
         assert!(state[layout::F0_HZ] > 60.0, "light schedule voices: {}", state[layout::F0_HZ]);
         assert!(state[layout::MAX_FRAME_RESIDUAL_J].abs() < 1e-12);
         assert_eq!(state[layout::DECIMATE], 2.0);
+        // The other end, through the same calls (one engine: kept in this test).
+        assert_eq!(fart_init_decimated(48_000.0, 1), 28);
+        tract_set(6, 1.0);
+        for _ in 0..400 {
+            assert_eq!(tract_process(128), 128);
+        }
+        tract_snapshot();
+        let state = with(Vec::new(), |e| e.state.clone());
+        assert!(state[layout::F0_HZ] > 25.0 && state[layout::F0_HZ] < 150.0, "fart F0 {}", state[layout::F0_HZ]);
+        let spent = state[layout::LUNG_FRACTION];
+        assert!(spent < 0.9, "the reservoir is spent, not refilled: {spent}");
+        tract_set(6, 0.0);
+        tract_refill(1.0);
+        for _ in 0..400 {
+            tract_process(128);
+        }
+        tract_snapshot();
+        let state = with(Vec::new(), |e| e.state.clone());
+        assert!(state[layout::LUNG_FRACTION] > spent, "refill pays the reservoir back");
+        assert!(state[layout::MAX_FRAME_RESIDUAL_J].abs() < 1e-12);
+        assert_eq!(state[layout::NON_FINITE], 0.0);
     }
 }

@@ -1,0 +1,11 @@
+# v1: Clarinetto in B♭ I, -1 octave (the top line is 370-415 Hz at source octave, past the valve's 300 Hz)
+# pass 1: tensions commanded for measured targets at push 0.7 cheeks 0.4 tone 0.4 (probe); eat 4 beans in the rest, again at bar 9
+pre=4 eat=beans*6 digest=on push=0.7 cheeks=0.4 tone=0.4 tongue=on
+D2@73.8:2 r:2 | r:1 D3@143.5:1 r:1 D3@143.5:1 |
+r:1 D3@143.5:1 r:1 D3@143.5:1 | r:4 |
+eat=beans*6 F#3@182.6:4 | F#3@182.6:2 F3@173.0:2 |
+F#3@182.6:2 F3@173.0:2 | F#3@182.6:2 F3@173.0:2 |
+eat=beans*4 F#3@182.6:2 F3@173.0:2 | F#3@182.6:2 F3@173.0:2 |
+F#3@182.6:2 F3@173.0:2 | F#3@182.6:2 Ab3@207.1:2 |
+F#3@182.6:2 F3@173.0:2 | F#3@182.6:2 F3@173.0:2 |
+F#3@182.6:2 F3@173.0:2 | F#3@182.6:2 F3@173.0:2 |

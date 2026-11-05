@@ -16,12 +16,13 @@
 pub mod abi;
 pub mod anatomy;
 pub mod bench;
+pub mod fart;
 pub mod gestures;
 pub mod measure;
 pub mod modal;
 pub mod world;
 
-pub use anatomy::TractNdAnatomy;
+pub use anatomy::{OralProfile, TractNdAnatomy};
 pub use world::{Articulation, MoveStats, TractControls, TractWorldNd};
 
 #[cfg(target_arch = "wasm32")]

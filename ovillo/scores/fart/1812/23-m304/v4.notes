@@ -1,0 +1,12 @@
+# Corno in F I, top line -2 octave(s) as baseline; u18 pass 4
+# pass 4 (u18-m304): tensions inverted from the probe at this part's push (tone 0.3, cheeks 0.4); notes below 58 Hz or above 250 Hz moved by octaves
+push=0.9 cheeks=0.4 tone=0.3 tongue=off
+pre=2 digest=on eat=beans*6
+r:4 | r:4 |
+eat=beans*6 r:4 | r:2 push=1.0 Bb1@60.3:1 Bb1@60.3:1/2 Bb1@60.3:1/2 |
+eat=beans*6 push=0.9 Eb2@77.3:1 Eb2@77.3:1 F2@86.1:1 F2@86.1:1 | Bb2@114.5:3/2 G2@96.2:1/2 Eb2@77.3:2 |
+eat=beans*6 r:4 | r:2 push=1.0 C2@66.4:1 C2@66.4:1/2 C2@66.4:1/2 |
+eat=beans*6 push=0.9 F2@86.1:1 F2@86.1:1 G2@96.2:1 G2@96.2:1 | C3@129.2:3/2 Ab2@101.8:1/2 F2@86.1:2 |
+eat=beans*6 r:4 | r:2 push=1.0 D2@73.5:1 D2@73.5:1/2 D2@73.5:1/2 |
+eat=beans*6 push=0.9 D2@73.4:1 F#2@90.9:1 G2@96.2:1 F#2@90.9:1 | G2@96.2:1/2 r:3/2 push=1.0 G2@96.0:1 G2@96.0:1/2 G2@96.0:1/2 |
+eat=beans*6 push=0.9 G2@96.2:1 B2@121.5:1 C3@129.2:1 B2@121.5:1 | C3@129.2:1/2 r:7/2 |

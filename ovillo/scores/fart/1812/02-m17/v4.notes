@@ -1,0 +1,11 @@
+# 02-m17 v4: viola-2-solo
+# one octave below the source (the baseline register), each target held in 41-300 Hz; tensions from the retune probes (tone 0.6 soprano and alto, 0.4 bass; push 0.4 cheeks 0.4)
+push=0.4 cheeks=0.4 tone=0.6 tongue=off digest=on
+eat=beans*4 D2@70.2:1 Eb2@73.9:1 r:1 | D2@70.2:1/2 Eb2@73.9:1/2 Eb2@73.9:2~ |
+Eb2@73.9:2 r:1/2 Eb2@73.9:1/2 | Eb2@73.9:2 Eb2@73.9:1/2 Eb2@73.9:1/2 |
+eat=beans*4 D2@70.2:2 D2@70.2:1 | D2@70.2:3~ |
+D2@70.2:1 r:2 | r:3 |
+eat=beans*4 r:3 | r:1/2 Ab2@97.5:1/2 Ab2@97.5:1 Ab2@97.5:1/2 Ab2@97.5:1/2 |
+G2@92.2:2 G2@92.2:1 | D3@141.6:2 r:1 |
+eat=beans*4 r:1/2 Ab2@97.5:1/2 Ab2@97.5:1 C#3@133.5:1 | Bb2@109.9:2 r:1 |
+r:1/2 C4@267.4:1/2 C4@267.4:1 F3@171.9:1 | C#4@282.9:2 C#4@282.9:1 |

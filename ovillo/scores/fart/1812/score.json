@@ -1,0 +1,829 @@
+{
+  "title": "1812 Overture (Tchaikovsky, 1880), for guts: OpenScore (CC0) parts",
+  "about": "from score.mxl by musicxml_parts.py Anatomies: guts I-II soprano, III-IV alto (fart_v1 itself), V-VI bass, the cannon its own (TractNdAnatomy::fart_v1_* family).",
+  "voices": {
+    "v1": {
+      "pan": -0.6,
+      "gain": 0.7,
+      "about": "baseline register 225 Hz",
+      "anatomy": "soprano"
+    },
+    "v2": {
+      "pan": 0.6,
+      "gain": 0.7,
+      "about": "baseline register 171 Hz",
+      "anatomy": "soprano"
+    },
+    "v3": {
+      "pan": -0.3,
+      "gain": 0.7,
+      "about": "baseline register 130 Hz",
+      "anatomy": "alto"
+    },
+    "v4": {
+      "pan": 0.3,
+      "gain": 0.7,
+      "about": "baseline register 99 Hz",
+      "anatomy": "alto"
+    },
+    "v5": {
+      "pan": -0.1,
+      "gain": 0.7,
+      "about": "baseline register 76 Hz",
+      "anatomy": "bass"
+    },
+    "v6": {
+      "pan": 0.1,
+      "gain": 0.7,
+      "about": "baseline register 58 Hz",
+      "anatomy": "bass"
+    },
+    "cannon": {
+      "kind": "cannon",
+      "pan": 0.0,
+      "gain": 0.9,
+      "about": "the Canon part",
+      "anatomy": "cannon"
+    }
+  },
+  "sections": [
+    {
+      "id": "01-m1",
+      "bpm": 60.0,
+      "beats": 48.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m1-16 : Cello 1 solo, Cello 2 solo, Cello 3 solo, Viola 1 solo, Viola 2 solo, Cello 4 solo"
+    },
+    {
+      "id": "02-m17",
+      "bpm": 60.0,
+      "beats": 48.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m17-32 : Cello 1 solo, Cello 2 solo, Viola 1 solo, Viola 2 solo, Cello 3 solo, Cello 4 solo"
+    },
+    {
+      "id": "03-m33",
+      "bpm": 60.0,
+      "beats": 48.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m33-48 : Oboi I, Violini II, Violini I, Viole, Celli, C. Bassi"
+    },
+    {
+      "id": "04-m49",
+      "bpm": 60.0,
+      "beats": 15.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m49-53 : Flauto I, Flauto II, Oboi I, Viole, Violini II, Fagotto I"
+    },
+    {
+      "id": "05-m54",
+      "bpm": 57.0,
+      "beats": 12.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m54-57 : Oboi I, Clarinetto in B♭ I, Corno in F I, Corno in F III, Clarinetto in B♭ II, Corno in F II"
+    },
+    {
+      "id": "06-m58",
+      "bpm": 65.0,
+      "beats": 48.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m58-73 : Oboi I, Viole, Fagotto I, Celli, Fagotto II, C. Bassi"
+    },
+    {
+      "id": "07-m74",
+      "bpm": 65.0,
+      "beats": 9.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m74-76 : Fagotto I, Celli, C. Bassi, Fagotto II"
+    },
+    {
+      "id": "08-m77",
+      "bpm": 80.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m77-92 : Corno in F I, Corno in F III, Corno in F II, Corno in F IV, Celli, C. Bassi"
+    },
+    {
+      "id": "09-m93",
+      "bpm": 80.0,
+      "beats": 12.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m93-95 : Violini II, Viole, Violini I, Celli, C. Bassi"
+    },
+    {
+      "id": "10-m96",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m96-111 : Clarinetto in B♭ I, Violini I, Violini II, Viole, Celli, C. Bassi"
+    },
+    {
+      "id": "11-m112",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m112-127 : Violini II, Clarinetto in B♭ I, Clarinetto in B♭ II, Viole, Celli, Fagotto II"
+    },
+    {
+      "id": "12-m128",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m128-143 : Violini I, Violini II, Trombe E♭ I, Clarinetto in B♭ II, Viole, Celli"
+    },
+    {
+      "id": "13-m144",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m144-159 : Clarinetto in B♭ I, Clarinetto in B♭ II, Corno in F II, Celli, Fagotto I, Fagotto II"
+    },
+    {
+      "id": "14-m160",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m160-175 : Clarinetto in B♭ I, Fagotto I, Clarinetto in B♭ II, Fagotto II, Celli, C. Bassi"
+    },
+    {
+      "id": "15-m176",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m176-191 : Flauto II, Corno in F I, Corno Inglese, Fagotto I, Corno in F II, Fagotto II"
+    },
+    {
+      "id": "16-m192",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m192-207 : Flauto I, Clarinetto in B♭ I, Flauto II, Corno Inglese, Celli, C. Bassi"
+    },
+    {
+      "id": "17-m208",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m208-223 : Flauto I, Corno Inglese, Viole, Celli, Clarinetto in B♭ II, C. Bassi"
+    },
+    {
+      "id": "18-m224",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m224-239 : Violini I, Violini II, Trombe E♭ I, Viole, Celli, C. Bassi"
+    },
+    {
+      "id": "19-m240",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m240-255 : Violini I, Violini II, Viole, Fagotto I, Celli, C. Bassi"
+    },
+    {
+      "id": "20-m256",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m256-271 : Violini I, Violini II, Clarinetto in B♭ I, Clarinetto in B♭ II, Celli, Fagotto I"
+    },
+    {
+      "id": "21-m272",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m272-287 : Corno in F I, Corno in F III, Corno in F II, Corno in F IV, Celli, C. Bassi"
+    },
+    {
+      "id": "22-m288",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m288-303 : Violini I, Violini II, Oboi II, Viole, Fagotto II, C. Bassi"
+    },
+    {
+      "id": "23-m304",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m304-319 : Violini I, Violini II, Viole, Corno in F I, Corno in F II, C. Bassi"
+    },
+    {
+      "id": "24-m320",
+      "bpm": 138.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m320-335 : Flauto I, Flauto II, Oboi I, Clarinetto in B♭ I, Clarinetto in B♭ II, Celli"
+    },
+    {
+      "id": "25-m336",
+      "bpm": 138.0,
+      "beats": 16.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m336-339 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "26-m340",
+      "bpm": 138.0,
+      "beats": 4.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m340-340 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "27-m341",
+      "bpm": 132.0,
+      "beats": 4.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m341-341 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "28-m342",
+      "bpm": 127.0,
+      "beats": 4.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m342-342 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "29-m343",
+      "bpm": 122.0,
+      "beats": 4.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m343-343 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "30-m344",
+      "bpm": 117.0,
+      "beats": 4.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m344-344 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "31-m345",
+      "bpm": 112.0,
+      "beats": 4.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m345-345 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "32-m346",
+      "bpm": 107.0,
+      "beats": 4.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m346-346 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "33-m347",
+      "bpm": 101.0,
+      "beats": 3.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m347-347 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "34-m348",
+      "bpm": 98.0,
+      "beats": 3.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m348-348 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "35-m349",
+      "bpm": 94.0,
+      "beats": 3.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m349-349 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "36-m350",
+      "bpm": 90.0,
+      "beats": 3.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m350-350 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "37-m351",
+      "bpm": 86.0,
+      "beats": 3.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m351-351 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "38-m352",
+      "bpm": 82.0,
+      "beats": 3.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m352-352 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "39-m353",
+      "bpm": 78.0,
+      "beats": 3.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m353-353 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "40-m354",
+      "bpm": 74.0,
+      "beats": 3.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m354-354 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "41-m355",
+      "bpm": 71.0,
+      "beats": 3.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m355-355 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "42-m356",
+      "bpm": 67.0,
+      "beats": 3.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m356-356 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "43-m357",
+      "bpm": 63.0,
+      "beats": 3.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m357-357 : Flauto I, Flauto II, Oboi I, Oboi II, Clarinetto in B♭ I, Clarinetto in B♭ II"
+    },
+    {
+      "id": "44-m358",
+      "bpm": 60.0,
+      "beats": 48.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m358-373 : Flauto I, Flauto II, Clarinetto in B♭ I, Oboi I, Oboi II, Clarinetto in B♭ II"
+    },
+    {
+      "id": "45-m374",
+      "bpm": 60.0,
+      "beats": 18.0,
+      "bar": 3.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m374-379 : Flauto I, Flauto II, Oboi I, Clarinetto in B♭ I, Oboi II, Clarinetto in B♭ II"
+    },
+    {
+      "id": "46-m380",
+      "bpm": 180.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m380-395 : Piccolo, Corno in F I, Corno in F III, Viole, Corno in F II, Corno in F IV"
+    },
+    {
+      "id": "47-m396",
+      "bpm": 180.0,
+      "beats": 64.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m396-411 : Piccolo, Flauto I, Flauto II, Oboi I, Clarinetto in B♭ I, Oboi II"
+    },
+    {
+      "id": "48-m412",
+      "bpm": 180.0,
+      "beats": 44.0,
+      "bar": 4.0,
+      "voices": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "cannon"
+      ],
+      "about": "m412-422 : Flauto I, Flauto II, Oboi I, Clarinetto in B♭ I, Oboi II, Clarinetto in B♭ II"
+    }
+  ],
+  "direction": {
+    "wobble": 0.5,
+    "vibrato": [
+      6.0,
+      0.25
+    ],
+    "jitter": 1.0,
+    "rasp": 0.6,
+    "about": "the director's house style, applied before each part's own tokens (a part that sets wobble/vibrato/jitter/rasp wins): a slow wander, a 6 Hz flutter, +-1 semitone tension jitter every hop, and a 0.6 clench near the exit while sounding so the jet there sputters. Physics only. Auditioned on 01-m1 and 46-m380 against no direction: in tune 93.2% -> 89.2%, part sharpness median 7.8 -> 7.0, centroid median 558 -> 410 Hz (fart_v0 valve)."
+  }
+}

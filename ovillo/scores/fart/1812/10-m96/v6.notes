@@ -1,0 +1,12 @@
+# baseline: C. Bassi, top line, +0 octave(s), strays folded into 36-300 Hz
+# tensions are the targets' own frequencies (naive: the valve runs sharp of them); nothing eaten, no digestion
+tongue=off cheeks=0.4
+pre=4 eat=beans*3,egg digest=on
+r:4 | r:4 |
+r:3/2 tone=0.4 Ab2@103.8:1/2 r:1/2 Eb2@84.9:1/2 D2@70.9:1/2 r:1/2 | r:1/2 F#2@95.9:1/2 F2@83.6:1/2 r:1 Eb2@81.1:1/2 D2@71.3:1/2 r:1/2 |
+r:1/2 C#2@74.6:1/2 eat=beans*3 C2@64.9:1/2 r:1 push=0.95 B1@65.6:1/2 push=0.7 Bb1@58.7:1/2 r:1/2 | r:2 A1@59.3:1 Bb1@59.3:1/2 r:1/2 |
+r:2 D2@74:1 Eb2@77.4:1/2 r:1/2 | r:2 eat=beans*2 F2@89.7:1/2 F#2@90.7:1/2 Ab2@102.9:1/2 A2@108.2:1/2 |
+F2@82.8:1/2 F#2@89.7:1/2 D2@70.6:1/2 Eb2@75.6:1/2 Ab2@101:1/2 A2@107.8:1/2 F2@83.9:1/2 r:1/2 | r:4 |
+eat=beans*3 eat=soda*4 r:3/2 eat=soda*2 Ab2@104.6:1/2 r:1/2 Eb2@79.6:1/2 D2@71.3:1/2 r:1/2 | r:1/2 F#2@94.6:1/2 F2@84.2:1/2 r:1 Eb2@79:1/2 C#2@66.6:1/2 r:1/2 |
+eat=beans*2 r:1/2 B1@67.4:1/2 Bb1@58.7:1/2 r:1 Ab2@105.2:1/2 A2@108.4:1/2 A2@107.3:1/2 | r:1/2 Ab2@109.8:1/2 r:1/2 Eb2@81.4:1/2 r:1/2 Ab2@103.6:1/2 F#2@87.7:1/2 A2@107.8:1/2 |
+r:1/2 Ab2@105.6:1/2 r:1/2 Eb2@82.1:1/2 r:1/2 Ab2@103.6:1/2 F#2@91:1/2 F#2@92.2:1/2 | r:1/2 F#2@96.9:1/2 G2@93.7:1/2 Ab2@101.4:1/2 r:1/2 G2@98.1:1/2 Ab2@103.4:1/2 A2@106.5:1/2 |

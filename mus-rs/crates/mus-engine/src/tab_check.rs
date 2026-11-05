@@ -379,6 +379,16 @@ fn hand_touches(
                         ));
                         continue;
                     }
+                    if let Err(message) =
+                        ariadne_tab::intonation_cents(&ev.params, inst.capo, pos.fret)
+                    {
+                        diagnostics.push(diagnostic(
+                            "error",
+                            "tab-intonation",
+                            format!("{tk}: {message}"),
+                            event(b, abbr, ti, tk),
+                        ));
+                    }
                     let expected = inst.expected_midi(string, pos.fret, flag("harm"));
                     if (midi - expected).abs() > 0.01 {
                         diagnostics.push(diagnostic(

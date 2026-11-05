@@ -1,0 +1,54 @@
+Sunskip pocket — invented passive modal percussion
+
+This is a design hypothesis, not measured drum anatomy. Six source cells use
+canonical tab IDs only to reach the existing finite boundary pulse. Their
+inharmonic spectra, high positive losses, and reciprocal shell couplings are
+invented parameters. The three box bodies are shared resonators; no separate
+noise oscillator, recording, alternate renderer, or new constitutive law exists.
+The baseline space ports and room remain unchanged. The engine's apply_hands
+replaces each source direction, aperture frequency/damping, and palm loss.
+
+Recommended declarations (initial balance; final ensemble judgment remains main):
+pk = invented Sunskip pocket (perc, anatomy=pocket.plan.json,
+     tuning=E2 A2 D3 G3 B3 E4, gain=0, send=0.02)
+pk.low  = low pulse   (perc, pos=0.30, pick=0.16, pm=0.08, gain=0)
+pk.tom  = tom pulse   (perc, pos=0.20, pick=0.32, pm=0.10, gain=-3)
+pk.rim  = rim pulse   (perc, pos=0.08, pick=0.91, pm=0.14, gain=-7)
+pk.side = side pulse  (perc, pos=0.12, pick=0.70, pm=0.12, gain=-6)
+pk.bead = bead pulse  (perc, pos=0.055, pick=0.97, pm=0.07, gain=-11)
+pk.seed = seed pulse  (perc, pos=0.04, pick=0.83, pm=0.06, gain=-12)
+
+Every note is fret zero. First modes retain baseline open-course frequencies so
+apply_hands does not impose an unintended transposition. Both configuration
+endpoints are equal. Duration is score accounting; loss/palm sets decay, since
+SPEC-ARIADNE-STEEL-STRING.md Limits of v0 says there is no note-off damping.
+
+Composition: two-bar low conversation; alternating rim/side structural answers;
+3+3+2 bead cells; seed accents on an ongoing five-16th phase. Quiet 32nd doubles
+appear only in chosen bars. Every section changes density/position/dynamics.
+The middle removes most answers and bead gestures for piano foreground. Phrase
+endings 12/20/28/36/44 have individually written handoffs. The last bar leaves
+silence after the pulse on tick 10 (1.25 quarter-note beats after its start).
+All apparent role names are compositional labels, not resemblance claims.
+
+Validation performed: generator asserts positive modal frequencies/T60s,
+24 modes, both endpoint frequencies below 21600 Hz, normalized declared shapes.
+Earlier track-major temporary probes were invalid verification: the current
+renderer recognized zero events. They establish no sound or ledger evidence.
+Corrected bar-major four-bar probe: mus check clean=true, 52 checked events.
+Render receipt: eventCount=52, pk world plucks=52, nine expected bodies,
+badTokens=[], peakDbfs=-1.0000004, rmsDbfs=-19.973906 (master normalization).
+sourceWork=2.8252823133433026e-08; controlWork=0;
+internalLoss=2.640065936031829e-08; radiation=1.852136542014262e-09;
+cumulativeClosureResidual=-1.1708536429896194e-16;
+maximumFrameResidual=5.98005260761536e-19.
+These are numerical probe results, not a claim of real-drum resemblance.
+All six first-mode frequencies equal their original baseline values exactly.
+
+Balance probe: six consecutive single pulses, 234ms apart, same master
+normalization. 180ms post-touch window RMS/peak dBFS (possible small prior-room
+overlap): low mp -9.78/-1.00; tom pp -16.57/-4.19; rim p -29.66/-7.05;
+side p -22.87/-2.53; bead ppp -43.53/-20.80; seed ppp -45.32/-23.13.
+This supports raising bead hand gain from -11 to -5 and seed from -12 to -5
+for the main agent's final cut. Generator/design retain original values until
+the main balance decision; these metrics do not establish listener perception.

@@ -1,0 +1,10 @@
+# u21-m358 45-m374: clarinetto-in-bb-ii (voice v6), top line
+# voice 6: window 65-147 Hz; push 0.6 to beat 6, 0.8 to beat 12, 1.0 after; tension from the probe at that push (tone 0.4, cheeks 0.4)
+push=0.6 cheeks=0.4 tone=0.4 tongue=off
+pre=4 digest=on eat=beans*8
+C3@131.2:1/4 D3@148.5:1/4 C3@131.2:1/4 Bb2@114.4:1/4 Ab2@102.2:1/4 Bb2@114.4:1/4 Ab2@102.2:1/4 G2@96.5:1/4 F2@86.8:1/4 G2@96.5:1/4 F2@86.8:1/4 Eb2@76.2:1/4 |
+Eb2@76.2:1/2 Eb2@76.2:1/2 Eb2@76.2:1/2 Eb2@76.2:1/2 Eb2@76.2:1~ |
+Eb2@76.2:1 push=0.8 Eb2@75.5:1 eat=beans*6 Eb2@75.5:1 |
+Eb2@75.5:3/2 Eb2@75.5:1/2 Bb2@113.2:1 |
+push=1.0 Eb2@76.7:3/2 Eb2@76.7:1/6 Eb2@76.7:1/6 Eb2@76.7:1/6 Eb2@76.7:1/2 Eb2@76.7:1/2 |
+D2@72.7:3/2 eat=beans*6 Bb2@112.1:1/2 F2@84.3:1/2 Bb2@112.1:1/2 |

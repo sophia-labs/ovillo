@@ -1,0 +1,5 @@
+# baseline: Oboi I, top line, -2 octave(s), strays folded into 36-300 Hz
+# tensions are the targets' own frequencies (naive: the valve runs sharp of them); nothing eaten, no digestion
+push=0.7 cheeks=0.4 tone=0.4 tongue=off eat=beans*8 digest=on
+G3@197.6:1/2 F3@173.3:1/2 Eb3@154.7:1/2 D3@145.1:1/2 F3@173.3:1/2 Eb3@154.7:1/2 D3@145.1:1/2 C3@127.8:1/2 | Eb3@154.7:1/2 D3@145.1:1/2 C3@127.8:1/2 Bb2@112.7:1/2 G3@197.6:1/2 F3@173.3:1/2 Eb3@154.7:1/2 D3@145.1:1/2 |
+F3@173.3:1/2 Eb3@154.7:1/2 D3@145.1:1/2 C3@127.8:1/2 Eb3@154.7:1/2 D3@145.1:1/2 C3@127.8:1/2 Bb2@112.7:1/2 | D3@145.1:1/2 C3@127.8:1/2 Bb2@112.7:1/2 Ab2@99.8:1/2 F3@173.3:1/2 Eb3@154.7:1/2 D3@145.1:1/2 C3@127.8:1/2 |

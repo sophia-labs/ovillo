@@ -1,0 +1,12 @@
+# C. Bassi, top line -2 octave(s) as baseline; u18 pass 4
+# pass 4 (u18-m304): tensions inverted from the probe at this part's push (tone 0.3, cheeks 0.4); notes below 58 Hz or above 250 Hz moved by octaves
+push=0.9 cheeks=0.4 tone=0.3 tongue=off
+pre=2 digest=on eat=beans*6
+push=1.0 Bb1@60.5:1/2 r:7/2 | Bb1@60.5:1 r:3 |
+eat=beans*6 r:1/4 Eb2@78.0:1/2 F2@86.7:1/4 Eb2@78.0:1/2 C#2@70.3:1/2 C2@66.8:1/2 push=0.9 C2@66.8:1/4 C#2@70.3:1/4 C2@66.8:1/2 B1@63.6:1/2 | Bb1@60.5:4~ |
+eat=beans*6 Bb1@60.5:4~ | Bb1@60.5:4~ |
+eat=beans*6 Bb1@60.5:4~ | Bb1@60.5:4~ |
+eat=beans*6 Bb1@60.5:4~ | Bb1@60.5:4~ |
+eat=beans*6 Bb1@60.5:4~ | Bb1@60.5:4 |
+eat=beans*6 Bb1@60.5:4~ | Bb1@60.5:4~ |
+eat=beans*6 Bb1@60.5:4~ | Bb1@60.5:4 |
