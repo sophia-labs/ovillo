@@ -41,6 +41,12 @@ its receipt sits beside it.
   WAVs and note lists are byte-identical to `9bed930`'s, and
   `trombone_nd::tests::the_energy_trace_is_the_worlds_stored_energy` checks the
   parts against the World's material and total stored energy at every sample.
+- **From a note list** (2026-11-05): `examples/trombone_nd_score.rs` plays the
+  same World, player and calibration from a TSV note list (`start_s end_s midi
+  vel vel_end art fx`) and writes the same WAV, notes, receipt and energy trace.
+  A `vel_end` different from `vel` is a hairpin: the player's mouth pressure is
+  moved between the calibrated pressures of the two dynamics on that cell. Its
+  first use is the Doorkeeper in `examples/ensemble/before-the-law/`.
 
 ### The runtime change: a tube length on a coordinate
 

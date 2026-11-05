@@ -46,6 +46,12 @@ bash site/tract/build.sh && python3 -m http.server -d site 8765
 
 The tract and the browser bench need the `wasm32-unknown-unknown` target. Scores to start from: [`examples/tab/steel_string_tour.mus`](examples/tab/steel_string_tour.mus) (nine bars, the steel-string's acceptance score: open strings, hammer-on, pull-off, slide, palm-muted thumb), [`examples/tab/wayfaring-stranger-doc.mus`](examples/tab/wayfaring-stranger-doc.mus) (a full annotated tab), [`examples/piano/prelude-c-major.mus`](examples/piano/prelude-c-major.mus) (the piano's demo, Bach's BWV 846). An energy trace can drive [`blender/`](blender/README.md) to watch the guitar play.
 
+[`Before the Law`](examples/ensemble/before-the-law/README.md) is a set of
+six instruments for a short film: five fictional tab anatomies (a struck iron
+gate, low plucked courses, glass bars over tubes, fleas in a fur collar,
+kettledrums and drums), the trombone v1 World played from a note list, and a
+choir of tract Worlds, each with its receipts and what it does not model.
+
 ## Watch / listen
 
 [ovillo.sophia-labs.com](https://ovillo.sophia-labs.com) is a Sophia app: playlists of pieces played by these Worlds, each with its score, its receipt and where the energy went, the bench and the vocal tract running in the browser, and a score page that renders on the steel-string World in the browser ([`mus-rs/crates/mus-wasm`](mus-rs/crates/mus-wasm)). Agents can read the same data from its read-only graph (`/llms.txt` says how). The site's sources in this repository are under [`site/`](site/README.md); the release video's tools and provenance are under [`video/`](video/README.md).

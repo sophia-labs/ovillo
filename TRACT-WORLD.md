@@ -88,6 +88,24 @@ mode: its probe threshold on TV is 5x). In light mode the World needs 0.25x
 time here, so on the TV expect about 20% to 76% for the same workload, if
 the ratios carry over to 32-bit ARM. Not run on the device.
 
+## A choir, offline
+
+`examples/tract_choir.rs` (2026-11-05) runs one `TractWorldNd` per singer
+from a cast (`singers.tsv`) and a voice list, and mixes their radiations with
+one gain and pan each, outside the Worlds. Each singer's anatomy is
+`public_v1()` with its own declared fields changed: tract lengths, the fold's
+length, thickness, mass and tuning range, and the lungs. The driver's six
+voice types run from bass to child, and every singer is scaled individually.
+The area function stays the adult's, since `TractNdAnatomy` has no area scale.
+The fold tuning is not the sung pitch: the adult tract sang D3's tuning
+2.4 semitones sharp and C5's 3.8 flat. So `--calibrate` plays each singer's
+World over its tuning range per vowel, reading the fold's cycle rate, and the
+singer looks up the tuning that sounded each pitch (a median of 4.6 cents on a
+36-note probe of twelve singers). Above its range a voice stops voicing; the
+lookup refuses those pitches. Its first use is the Light choir in
+`examples/ensemble/before-the-law/` (sung ranges there: E1 for the basses up
+to A5 for a child, on "aah").
+
 ## Gaps
 
 - No glottal aspiration noise (`tract_set(7, _)` is accepted and does
