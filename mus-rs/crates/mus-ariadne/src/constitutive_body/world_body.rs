@@ -203,4 +203,18 @@ impl WorldBody {
             _ => None,
         }
     }
+
+    pub(crate) fn modal_body(&self) -> Option<&Body> {
+        match self {
+            Self::Modal(body) => Some(body),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn modal_body_mut(&mut self) -> Option<&mut Body> {
+        match self {
+            Self::Modal(body) => Some(body),
+            _ => None,
+        }
+    }
 }

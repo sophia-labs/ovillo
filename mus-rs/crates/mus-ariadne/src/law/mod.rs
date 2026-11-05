@@ -3,6 +3,7 @@
 pub mod active;
 pub mod aero;
 pub mod aperture;
+pub mod bow;
 pub mod damper;
 pub mod hammer;
 pub mod medium;

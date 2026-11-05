@@ -173,6 +173,7 @@ impl World {
             hammers: Vec::new(),
             pending_source_work: 0.0,
             pending_contact_loss: 0.0,
+            bows: Vec::new(),
         })
     }
 

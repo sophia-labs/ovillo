@@ -51,6 +51,7 @@ pub use ir::{
     ACTIVE_RANKS, MODE_COUNT, SPACE_COURSES, TRANSPORT_PAIRS,
 };
 pub use law::aero::{AeroFrame, AeroSpec, AeroTotals};
+pub use law::bow::{BowControls, BowFrame, BowSpec, BowTotals};
 pub use law::damper::DamperSpec;
 pub use law::hammer::{HammerContactSpec, HammerFrame, HammerSpec, HammerTotals};
 pub use law::valve::{FlowValveControls, FlowValveFrame, FlowValveSpec};

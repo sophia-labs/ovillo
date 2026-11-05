@@ -1,0 +1,15 @@
+# score: Bowed note
+# summary: 2 bars / 1 guitar, 1 bow / ~0.2 min — a sustained bowed G3 on the Ariadne steel-string
+# tempo: 40    time: 4/4    key: G    bars: 2
+# master: rms=-16
+# tab: standard
+
+# text @b1: one down-bow, mezzo-forte, held six seconds: the string sticks to the hair and slips once a period
+# text @b2: the bow lifts; the string and the box ring down
+
+# instruments:
+#   gt   = steel-string guitar (treble, -12, anatomy=steel-string-v0, tuning=E2 A2 D3 G3 B3 E4, capo=0)
+#   gt.b = bow (treble, pos=0.12)
+
+bar 1: gt.b={mf} G3w@3:0[arco]
+bar 2: gt.b=Rw

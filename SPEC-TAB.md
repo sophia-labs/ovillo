@@ -65,7 +65,7 @@ notation for multi-hand instruments:
   dot-voices are allowed. These names are conventions; what matters is that
   every `gt.*` track plays the **same physical instrument**.
 - Each hand's line declares how it touches the strings:
-  - `pos` is the pluck point, as a fraction of the speaking length measured from the bridge.
+  - `pos` is the pluck point, as a fraction of the speaking length measured from the bridge. For a hand that bows (`[arco]`, §4), it is the bow point.
   - `pick` is contact hardness, from fingertip `0` to plectrum `1`.
   - `pm` is how far the palm rests on the strings this hand plays, from `0` to `1`.
 - Engraved, these are the usual stems-up/stems-down voices of fingerstyle
@@ -84,12 +84,19 @@ notation for multi-hand instruments:
 | `x` | dead note: fretting hand touching, not stopping |
 | `harm` | natural harmonic at the notated fret |
 | `ring` | keep sounding past the notated duration until the string is used again |
+| `arco` | bowed: the hair rests on the string for the note's duration, a down-bow unless `upbow` says otherwise (the steel-string's bow, [`SPEC-ARIADNE-STEEL-STRING.md`](SPEC-ARIADNE-STEEL-STRING.md) "The bow") |
+| `downbow`, `upbow` | the bow's direction; either implies `arco` |
+| `speed=0.6`, `speed=0.2->0.9` | bow speed, `0..1`, held or moved linearly over the note (the arrow of SPEC-AUDIO). Without it, the dynamic sets the speed: `mf` is 0.5, `p` 0.18, `f` 0.79 |
+| `force=0.6`, `force=0.2->0.9` | bow force, `0..1`, likewise. Without it, the force follows the speed |
 | `acc`, `fer`, ... | everything in SPEC.md keeps its meaning |
 
 The flags `ho`, `po` and `sl` need a sounding note on the same string just
 before, in any voice of the same instrument. The checker enforces this.
 `slide` (schleifer) and `->` (glissando) keep their SPEC.md meanings; `sl` is
-the guitar slide.
+the guitar slide. A bowed note is not plucked: its pitch is checked like any
+other, its stop lands like a pluck's, and the bow point is its hand's `pos`.
+Write a tab line's `[...]` without spaces (`[arco,speed=0.2->1.0]`): the bar
+tokenizer splits on whitespace outside `<>` and `{}`.
 
 ### 4.1 Fine intonation on an Ariadne tab touch
 
@@ -117,7 +124,9 @@ shift or independent tone generator.
 ## 5. Time: duration is how long the hand lets it ring
 
 - A note's duration is how long the fretting finger stays down, or how long the
-  open string is left alone. When it ends, the string is damped.
+  open string is left alone. When it ends, the string is damped. For a bowed
+  note it is how long the hair stays on the string; when it ends the bow lifts
+  and the string rings down on its own.
   - If the next event on the same string comes first, that event takes the string over.
   - `[ring]` keeps a note sounding until its string is next used.
   - A renderer that cannot damp yet must say so. The v0 steel-string lets every note ring until its string is next touched; see its limits.

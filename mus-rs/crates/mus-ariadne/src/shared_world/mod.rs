@@ -1,5 +1,6 @@
 //! Canonical multi-body Ariadne physical runtime.
 
+mod bow;
 mod build;
 mod hammer;
 mod observe;
@@ -59,6 +60,8 @@ pub struct World {
     /// (zero for every world without hammers).
     pub(super) pending_source_work: f64,
     pub(super) pending_contact_loss: f64,
+    /// Bows resting on modal strings (empty until `attach_bow`).
+    pub(super) bows: Vec<bow::BowBinding>,
 }
 
 #[cfg(test)]

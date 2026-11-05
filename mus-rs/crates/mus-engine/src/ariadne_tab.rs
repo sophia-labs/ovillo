@@ -14,7 +14,8 @@ use std::f64::consts::PI;
 use std::path::Path;
 
 use mus_ariadne::{
-    BodyControls, StereoListener, StereoListenerSpec, World, WorldControls, WorldPlan, MODE_COUNT,
+    BodyControls, BowControls, BowSpec, BowTotals, StereoListener, StereoListenerSpec, World,
+    WorldControls, WorldPlan, MODE_COUNT,
 };
 use mus_notation::{
     expand_pattern_repetitions, parse_token, split_attached_dynamics, tokenize_bar_content,
@@ -50,6 +51,19 @@ const ENERGY_HOP_SECONDS: f64 = 0.01;
 const PULSE_PICK_SECONDS: f64 = 0.00006;
 const PULSE_FLESH_SECONDS: f64 = 0.0003;
 const STANDARD_TUNING: [f64; 6] = [40.0, 45.0, 50.0, 55.0, 59.0, 64.0];
+/// The bow (`[arco]`, SPEC-TAB §4; the law in `mus_ariadne::law::bow`). Its
+/// velocity and force are in the string body's own units, and these scales
+/// are measured, not derived (`mus-ariadne/tests/bowed_string.rs`): a
+/// mezzo-forte bow (`speed = force = 0.5`) holds G3 at the loudness of a
+/// mezzo-forte pluck's first half second, sticking about 85 % of each period
+/// and releasing once per period.
+const BOW_VELOCITY_UNIT: f64 = 1.6e-5;
+const BOW_FORCE_UNIT: f64 = 0.16;
+/// The knee of the friction curve, in the same velocity units.
+const BOW_SLIP_VELOCITY: f64 = 1.0e-6;
+/// The hair lands and lifts over this time (the force ramps), so a bow
+/// change is not a step.
+const BOW_LANDING_SECONDS: f64 = 0.01;
 
 pub struct TabInstrument {
     pub abbrev: String,
@@ -91,6 +105,18 @@ enum TouchKind {
     HammerOn,
     PullOff,
     Slide,
+    Bow,
+}
+
+/// A bowed note: the hair on the string for the note's duration.
+#[derive(Debug, Clone, Copy)]
+struct BowGesture {
+    up: bool,
+    /// Bow speed (0..1) at the start and the end of the note.
+    speed: (f64, f64),
+    /// Bow force (0..1) at the start and the end of the note.
+    force: (f64, f64),
+    seconds: f64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -102,6 +128,7 @@ struct Touch {
     db: f64,
     hand: usize,
     kind: TouchKind,
+    bow: Option<BowGesture>,
 }
 
 /// What a tab instrument's world did, for the render receipt.
@@ -119,6 +146,10 @@ pub struct AriadneWorldReceipt {
     pub slides: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub intonation_touches: Option<usize>,
+    /// The bow, when the score bowed anything (absent otherwise, so an
+    /// unbowed score's receipt is what it always was).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bow: Option<BowReceipt>,
     pub simulated_seconds: f64,
     /// Which hand each string answered to, and how that hand touched it.
     pub strings: Vec<StringHandReceipt>,
@@ -128,6 +159,34 @@ pub struct AriadneWorldReceipt {
     pub radiation: f64,
     pub cumulative_closure_residual: f64,
     pub maximum_frame_residual: f64,
+}
+
+/// What the bow did: its notes, where it rested, and its part of the ledger.
+/// `sourceWork` here is inside the world's `sourceWork` (the arm is a source);
+/// `frictionLoss` is inside `internalLoss` (heat in the hair).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BowReceipt {
+    pub bowed_notes: usize,
+    pub strings: Vec<BowStringReceipt>,
+    pub source_work: f64,
+    pub friction_loss: f64,
+    pub bowed_seconds: f64,
+    /// Fraction of the bowed samples in which the string stuck to the hair.
+    pub stuck_fraction: f64,
+    /// Stick-to-slip releases over the render (one per period in Helmholtz motion).
+    pub releases: u64,
+    pub peak_force: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BowStringReceipt {
+    pub string: usize,
+    pub hand: String,
+    /// The bow point, as a fraction of the speaking length from the bridge.
+    pub pos: f64,
+    pub bowed_notes: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -168,7 +227,27 @@ pub struct EnergyTrace {
     pub ledger_frames: Vec<[f64; 8]>,
     /// Every touch the score made, as it reached the world.
     pub touches: Vec<TouchRecord>,
+    /// Bows (the string each rests on) and, per hop and per bow, the columns
+    /// of `bow_columns`: the stick-slip signature. Absent without a bow.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub bows: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub bow_columns: Vec<&'static str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub bow_frames: Vec<Vec<f32>>,
 }
+
+/// Column names of [`EnergyTrace::bow_frames`], per bow in `bows` order: the
+/// fraction of the hop's bowed samples in which the string stuck, the
+/// stick-to-slip releases in the hop, the friction force's magnitude at the
+/// hop's last sample, and the bow's source work and friction loss over the hop.
+pub const BOW_COLUMNS: [&str; 5] = [
+    "stuckFraction",
+    "releases",
+    "force",
+    "sourceWork",
+    "frictionLoss",
+];
 
 /// Column names of [`EnergyTrace::ledger_frames`].
 pub const LEDGER_COLUMNS: [&str; 8] = [
@@ -194,6 +273,18 @@ pub struct TouchRecord {
     pub hand: String,
     pub pos: f64,
     pub db: f64,
+    /// A bowed note: its direction, speed and force at its ends, and how long the hair stays.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bow: Option<BowRecord>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BowRecord {
+    pub direction: &'static str,
+    pub speed: [f64; 2],
+    pub force: [f64; 2],
+    pub seconds: f64,
 }
 
 /// The tab instruments in a score, and every abbrev they own (base and hands).
@@ -401,7 +492,10 @@ fn performance(
                     continue;
                 }
                 let flag = |f: &str| ev.flags.iter().any(|x| x == f);
-                let kind = if flag("ho") {
+                let arco = flag("arco") || flag("upbow") || flag("downbow");
+                let kind = if arco {
+                    TouchKind::Bow
+                } else if flag("ho") {
                     TouchKind::HammerOn
                 } else if flag("po") {
                     TouchKind::PullOff
@@ -420,6 +514,42 @@ fn performance(
                     .get("gain")
                     .and_then(|g| g.parse::<f64>().ok())
                     .unwrap_or(0.0);
+                let db = dyn_db(&cur_dyn) + art + gain + hand.gain_db;
+                let bow = if arco {
+                    // The dynamic sets the bow speed (mezzo-forte is 0.5); the
+                    // force follows the speed unless the note says otherwise.
+                    let level = (0.5 * db_to_gain(db + 11.0)).clamp(0.05, 1.0);
+                    let mut bad = None;
+                    let mut ramp = |key: &str, default: (f64, f64)| -> (f64, f64) {
+                        match ev.params.get(key).map(|v| parse_ramp(v)) {
+                            None => default,
+                            Some(Some(r)) => r,
+                            Some(None) => {
+                                bad = Some(key.to_owned());
+                                default
+                            }
+                        }
+                    };
+                    let speed = ramp("speed", (level, level));
+                    // `force = speed` is the centre of the region where the
+                    // string speaks (SPEC-ARIADNE-STEEL-STRING.md, "The bow").
+                    let force = ramp("force", speed);
+                    if let Some(key) = bad {
+                        stats.bad.push(format!(
+                            "b{b} {abbr}: {tk} ({key}= needs a number 0..1 or a->b)"
+                        ));
+                    }
+                    Some(BowGesture {
+                        up: flag("upbow"),
+                        speed,
+                        force,
+                        seconds: (warp(q, swing_unit_ql, swing_r)
+                            - warp(q - ev.ql, swing_unit_ql, swing_r))
+                            * timing.spq,
+                    })
+                } else {
+                    None
+                };
                 for (midi, at) in ev.midis.iter().zip(&ev.tab) {
                     let string = at.string as usize;
                     if string == 0 || string > inst.open.len() {
@@ -442,9 +572,10 @@ fn performance(
                         string,
                         fret: at.fret as f64,
                         intonation_cents,
-                        db: dyn_db(&cur_dyn) + art + gain + hand.gain_db,
+                        db,
                         hand: h,
                         kind,
+                        bow,
                     });
                     count += 1;
                 }
@@ -455,6 +586,21 @@ fn performance(
     }
     touches.sort_by(|a, b| a.seconds.total_cmp(&b.seconds));
     Ok(touches)
+}
+
+/// `0.6` or `0.2->0.9` (SPEC-AUDIO's arrow): a value held, or moved linearly over the note.
+fn parse_ramp(text: &str) -> Option<(f64, f64)> {
+    let value = |s: &str| {
+        s.trim()
+            .parse::<f64>()
+            .ok()
+            .filter(|v| v.is_finite())
+            .map(|v| v.clamp(0.0, 1.0))
+    };
+    match text.split_once("->") {
+        Some((a, b)) => Some((value(a)?, value(b)?)),
+        None => value(text).map(|v| (v, v)),
+    }
 }
 
 pub(crate) fn midi_name(midi: f64) -> String {
@@ -575,8 +721,19 @@ pub struct WorldRun {
     strings: Vec<StringHandReceipt>,
     stops: Vec<(usize, usize, f64, usize)>,
     pulses: Vec<(usize, usize, f64, usize)>,
-    counts: [usize; 4],
     intonation_touches: usize,
+    /// Bowed notes, by start sample: (start, end, bow index, velocity at
+    /// start and end, force at start and end), in the world's units.
+    bow_spans: Vec<BowSpan>,
+    /// Per bow: the string it rests on, the hand, and its notes.
+    bow_strings: Vec<BowStringReceipt>,
+    bow_body: Vec<usize>,
+    /// Per bow: whether the hair was down last sample.
+    bowing: Vec<bool>,
+    bow_hop_start: Vec<BowTotals>,
+    next_bow: usize,
+    active_bows: Vec<BowSpan>,
+    counts: [usize; 5],
     start: usize,
     n_total: usize,
     k: usize,
@@ -596,6 +753,30 @@ pub struct WorldRun {
     next_stop: usize,
     next_pulse: usize,
     active: Vec<(usize, usize, f64, usize)>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct BowSpan {
+    start: usize,
+    end: usize,
+    bow: usize,
+    velocity: (f64, f64),
+    force: (f64, f64),
+}
+
+impl BowSpan {
+    /// The arm at sample `k`: the gesture's linear ramps, with the hair
+    /// landing and lifting over `BOW_LANDING_SECONDS`.
+    fn controls_at(&self, k: usize, landing: usize) -> BowControls {
+        let x = (k - self.start) as f64 / (self.end - self.start).max(1) as f64;
+        let land = ((k + 1 - self.start) as f64 / landing as f64)
+            .min((self.end - k) as f64 / landing as f64)
+            .clamp(0.0, 1.0);
+        BowControls {
+            velocity: self.velocity.0 + (self.velocity.1 - self.velocity.0) * x,
+            force: (self.force.0 + (self.force.1 - self.force.0) * x) * land,
+        }
+    }
 }
 
 /// Compile every tab instrument's performance and build its world. Instruments
@@ -639,7 +820,7 @@ pub fn prepare(
             StereoListenerSpec::all_bodies(&plan, 1.0).map_err(|e| world_err(e.to_string()))?;
         let listener =
             StereoListener::bind(&listener_spec, &plan).map_err(|e| world_err(e.to_string()))?;
-        let world = World::from_plan(plan).map_err(|e| world_err(e.to_string()))?;
+        let mut world = World::from_plan(plan).map_err(|e| world_err(e.to_string()))?;
         let bodies: Vec<String> = (0..world.body_count())
             .map(|i| world.body_id(i).unwrap_or("?").to_owned())
             .collect();
@@ -665,12 +846,54 @@ pub fn prepare(
             })
             .collect();
 
+        // ---- the bow: one per bowed string, at the pos of the hand that bows it most
+        let mut bow_strings: Vec<BowStringReceipt> = Vec::new();
+        let mut bow_body: Vec<usize> = Vec::new();
+        let mut bow_of_string: BTreeMap<usize, usize> = BTreeMap::new();
+        for (&string, &body) in &string_body {
+            let mut votes = vec![0_usize; inst.hands.len()];
+            for t in touches
+                .iter()
+                .filter(|t| t.string == string && t.kind == TouchKind::Bow)
+            {
+                votes[t.hand] += 1;
+            }
+            let Some((h, &n)) = votes
+                .iter()
+                .enumerate()
+                .filter(|(_, &v)| v > 0)
+                .max_by_key(|(_, &v)| v)
+            else {
+                continue;
+            };
+            let pos = inst.hands[h].pos.min(0.49);
+            let bow = world
+                .attach_bow(
+                    body,
+                    pos,
+                    BowSpec {
+                        slip_velocity: BOW_SLIP_VELOCITY,
+                        ..BowSpec::default()
+                    },
+                )
+                .map_err(|e| world_err(e.to_string()))?;
+            bow_of_string.insert(string, bow);
+            bow_body.push(body);
+            bow_strings.push(BowStringReceipt {
+                string,
+                hand: inst.hands[h].abbrev.clone(),
+                pos,
+                bowed_notes: n,
+            });
+        }
+
         // ---- the performance, as per-sample actions on the world
         let start = ((touches[0].seconds - FRET_LEAD_SECONDS).max(0.0) * sample_rate) as usize;
         let mut amount: BTreeMap<usize, f64> = BTreeMap::new(); // current stop per string, in frets
         let mut stops: Vec<(usize, usize, f64, usize)> = Vec::new(); // (sample, string, target fret, ramp samples)
         let mut pulses: Vec<(usize, usize, f64, usize)> = Vec::new(); // (sample, string, amplitude, width samples)
-        let mut counts = [0_usize; 4];
+        let mut bow_spans: Vec<BowSpan> = Vec::new();
+        let mut counts = [0_usize; 5];
         for t in &touches {
             let at = (t.seconds * sample_rate) as usize;
             let hand = &inst.hands[t.hand];
@@ -718,11 +941,36 @@ pub fn prepare(
                     ));
                     counts[3] += 1;
                 }
+                TouchKind::Bow => {
+                    let g = t.bow.expect("a bowed touch carries its gesture");
+                    if (fretted - previous).abs() > 1e-9 {
+                        stops.push((
+                            at.saturating_sub((FRET_LEAD_SECONDS * sample_rate) as usize),
+                            t.string,
+                            fretted,
+                            1,
+                        ));
+                    }
+                    let sign = if g.up { -1.0 } else { 1.0 };
+                    let end = at + ((g.seconds * sample_rate) as usize).max(1);
+                    bow_spans.push(BowSpan {
+                        start: at,
+                        end: end.min(n_total),
+                        bow: bow_of_string[&t.string],
+                        velocity: (
+                            sign * BOW_VELOCITY_UNIT * g.speed.0,
+                            sign * BOW_VELOCITY_UNIT * g.speed.1,
+                        ),
+                        force: (BOW_FORCE_UNIT * g.force.0, BOW_FORCE_UNIT * g.force.1),
+                    });
+                    counts[4] += 1;
+                }
             }
             amount.insert(t.string, fretted);
         }
         stops.sort_by_key(|s| s.0);
         pulses.sort_by_key(|p| p.0);
+        bow_spans.sort_by_key(|s| s.start);
 
         let hop = (ENERGY_HOP_SECONDS * sample_rate) as usize;
         let box_bodies: Vec<usize> = (0..bodies.len())
@@ -781,15 +1029,30 @@ pub fn prepare(
                         TouchKind::HammerOn => "hammer-on",
                         TouchKind::PullOff => "pull-off",
                         TouchKind::Slide => "slide",
+                        TouchKind::Bow => "bow",
                     },
                     hand: inst.hands[t.hand].abbrev.clone(),
                     pos: inst.hands[t.hand].pos,
                     db: t.db,
+                    bow: t.bow.map(|g| BowRecord {
+                        direction: if g.up { "up" } else { "down" },
+                        speed: [g.speed.0, g.speed.1],
+                        force: [g.force.0, g.force.1],
+                        seconds: g.seconds,
+                    }),
                 })
                 .collect(),
+            bows: bow_body.iter().map(|&b| bodies[b].clone()).collect(),
+            bow_columns: if bow_body.is_empty() {
+                Vec::new()
+            } else {
+                BOW_COLUMNS.to_vec()
+            },
+            bow_frames: Vec::new(),
         };
         let n = bodies.len();
         let samples = n_total.saturating_sub(start);
+        let bow_count = bow_body.len();
         runs.push(WorldRun {
             abbrev: inst.abbrev.clone(),
             anatomy: inst.anatomy.clone(),
@@ -805,6 +1068,13 @@ pub fn prepare(
             strings,
             stops,
             pulses,
+            bow_spans,
+            bow_strings,
+            bow_body,
+            bowing: vec![false; bow_count],
+            bow_hop_start: vec![BowTotals::default(); bow_count],
+            next_bow: 0,
+            active_bows: Vec::new(),
             counts,
             intonation_touches: touches.iter().filter(|t| t.intonation_cents != 0.0).count(),
             start,
@@ -901,6 +1171,31 @@ impl WorldRun {
                 }
                 true
             });
+            // The bow: every span whose note is on sets its bow's arm; a bow
+            // whose note has ended is lifted once (force 0 books nothing).
+            while self.next_bow < self.bow_spans.len() && self.bow_spans[self.next_bow].start <= k {
+                self.active_bows.push(self.bow_spans[self.next_bow]);
+                self.next_bow += 1;
+            }
+            if !self.bow_body.is_empty() {
+                let landing = ((BOW_LANDING_SECONDS * self.sample_rate) as usize).max(1);
+                let mut down = vec![false; self.bow_body.len()];
+                self.active_bows.retain(|span| k < span.end);
+                for span in &self.active_bows {
+                    self.world
+                        .set_bow(span.bow, span.controls_at(k, landing))
+                        .map_err(|e| world_err(e.to_string()))?;
+                    down[span.bow] = true;
+                }
+                for (bow, (was, is)) in self.bowing.iter_mut().zip(&down).enumerate() {
+                    if *was && !is {
+                        self.world
+                            .set_bow(bow, BowControls::default())
+                            .map_err(|e| world_err(e.to_string()))?;
+                    }
+                    *was = *is;
+                }
+            }
             let frame = self
                 .world
                 .process_sample(&self.controls, WorldControls::default())
@@ -950,6 +1245,31 @@ impl WorldRun {
                     .push(take(&mut self.radiation_acc));
                 self.trace.loss_frames.push(take(&mut self.loss_acc));
                 self.trace.bridge_frames.push(take(&mut self.bridge_acc));
+                if !self.bow_body.is_empty() {
+                    let mut row = Vec::with_capacity(BOW_COLUMNS.len() * self.bow_body.len());
+                    for (bow, start) in self.bow_hop_start.iter_mut().enumerate() {
+                        let now = world.bow_totals(bow).unwrap_or_default();
+                        let bowed = now.bowed_samples - start.bowed_samples;
+                        let work = now.source_work - start.source_work;
+                        let heat = now.friction_loss - start.friction_loss;
+                        let frame = world.bow_frame(bow).unwrap_or_default();
+                        row.push(if bowed == 0 {
+                            0.0
+                        } else {
+                            (now.stuck_samples - start.stuck_samples) as f32 / bowed as f32
+                        });
+                        row.push((now.slip_onsets - start.slip_onsets) as f32);
+                        row.push(if frame.bowing {
+                            frame.force.abs() as f32
+                        } else {
+                            0.0
+                        });
+                        row.push(work as f32);
+                        row.push(heat as f32);
+                        *start = now;
+                    }
+                    self.trace.bow_frames.push(row);
+                }
                 let books = world.receipt();
                 self.trace.ledger_frames.push([
                     books.source_work,
@@ -986,6 +1306,27 @@ impl WorldRun {
             None,
         );
         let r = self.world.receipt();
+        let bow = (!self.bow_body.is_empty()).then(|| {
+            let totals: Vec<BowTotals> = (0..self.bow_body.len())
+                .map(|b| self.world.bow_totals(b).unwrap_or_default())
+                .collect();
+            let bowed: u64 = totals.iter().map(|t| t.bowed_samples).sum();
+            let stuck: u64 = totals.iter().map(|t| t.stuck_samples).sum();
+            BowReceipt {
+                bowed_notes: self.counts[4],
+                strings: self.bow_strings.clone(),
+                source_work: totals.iter().map(|t| t.source_work).sum(),
+                friction_loss: totals.iter().map(|t| t.friction_loss).sum(),
+                bowed_seconds: bowed as f64 / self.sample_rate,
+                stuck_fraction: if bowed == 0 {
+                    0.0
+                } else {
+                    stuck as f64 / bowed as f64
+                },
+                releases: totals.iter().map(|t| t.slip_onsets).sum(),
+                peak_force: totals.iter().map(|t| t.peak_force).fold(0.0, f64::max),
+            }
+        });
         stats
             .ariadne_worlds
             .push(crate::AriadneReceipt::Tab(AriadneWorldReceipt {
@@ -1000,6 +1341,7 @@ impl WorldRun {
                 slides: self.counts[3],
                 intonation_touches: (self.intonation_touches > 0)
                     .then_some(self.intonation_touches),
+                bow,
                 simulated_seconds: (self.n_total - self.start) as f64 / self.sample_rate,
                 strings: self.strings,
                 source_work: r.source_work,
@@ -1110,7 +1452,7 @@ mod tests {
         let (plain_receipt, bent_receipt) = (plain.world.receipt(), bent.world.receipt());
         assert_ne!(plain_receipt.control_work, bent_receipt.control_work);
         assert!(bent_receipt.cumulative_closure_residual.abs() < 1e-12);
-        assert_eq!(bent.counts, [1, 1, 1, 1]);
+        assert_eq!(bent.counts, [1, 1, 1, 1, 0]);
         assert_eq!(bent.intonation_touches, 4);
         assert!((bent.current[&3] - 4.17).abs() < 1e-12);
         assert!(bent

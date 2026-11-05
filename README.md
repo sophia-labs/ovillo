@@ -14,7 +14,7 @@ Each is an Ariadne World with its own spec, receipts and list of what it does no
 
 | instrument | what it is | played by | spec |
 |---|---|---|---|
-| steel-string guitar | `anatomy=steel-string-v0`: six strings, a top, the air in the box and a room on one World, played from annotated tab by hands (thumb, fingers, fretting hand) | `mus render` | [`SPEC-ARIADNE-STEEL-STRING.md`](SPEC-ARIADNE-STEEL-STRING.md), [`SPEC-TAB.md`](SPEC-TAB.md) |
+| steel-string guitar | `anatomy=steel-string-v0`: six strings, a top, the air in the box and a room on one World, played from annotated tab by hands (thumb, fingers, fretting hand) or bowed (`[arco]`: a friction port whose work is a source in the ledger) | `mus render` | [`SPEC-ARIADNE-STEEL-STRING.md`](SPEC-ARIADNE-STEEL-STRING.md), [`SPEC-TAB.md`](SPEC-TAB.md) |
 | piano | `anatomy=piano-v1`: a World shaped like a 190 cm grand (soundboard with ribs and bridges; for each key the score plays, its stiff wires, felt hammer and damper), played from MUS staves and a sustain pedal | `mus render` | [`SPEC-ARIADNE-PIANO.md`](SPEC-ARIADNE-PIANO.md) |
 | trombone v1 | one N-dimensional body: a 124-volume tube-network bore, the slide as its coordinate, the lips as the runtime's flow valve, the lungs as its reservoir | a Rust example (a note list, not MUS) | [`TROMBONE-WORLD.md`](TROMBONE-WORLD.md) |
 | vocal tract | after Neil Thapen's Pink Trombone (2017), implemented independently as a `mus_ariadne::World`: an oral and a nasal tube network, tongue, lips and velum as coordinates, a flow valve at the glottis, lungs | the browser page `site/tract/` | [`TRACT-WORLD.md`](TRACT-WORLD.md), [`CHECKPOINT-2A.md`](CHECKPOINT-2A.md) |
@@ -73,7 +73,7 @@ choir of tract Worlds, each with its receipts and what it does not model.
 
 Read these before saying what an instrument can do:
 
-- steel-string: [Limits of v0](SPEC-ARIADNE-STEEL-STRING.md#limits-of-v0-said-plainly) (no damping at note-off yet, one pluck point per string, 24 partials per string, a linear model, rigid back and neck, harmonics played as plucks; a guitar-*shaped* body, not a model of any particular guitar);
+- steel-string: [Limits of v0](SPEC-ARIADNE-STEEL-STRING.md#limits-of-v0-said-plainly) (no damping at note-off yet, one pluck point per string, 24 partials per string, a linear model, rigid back and neck, harmonics played as plucks; a guitar-*shaped* body, not a model of any particular guitar) and, for the bow, [what the bow does not model](SPEC-ARIADNE-STEEL-STRING.md#what-the-bow-does-not-model-said-plainly) (a slow attack, a point-contact velocity source with no hair compliance or torsion);
 - piano: [§7](SPEC-ARIADNE-PIANO.md#7-what-it-does-not-model-said-plainly) (one polarization, linear strings, only the score's keys strung, the action a throw, a flat board and rigid frame, no room; not a model of any particular piano);
 - trombone: [Limits](TROMBONE-WORLD.md#limits) (no brightening with loudness, a rubber slide, fitted lips, no room);
 - vocal tract: [Gaps](TRACT-WORLD.md#gaps) (no glottal aspiration noise, one jet).
