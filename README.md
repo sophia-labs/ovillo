@@ -53,6 +53,12 @@ editable performance parts, design provenance and a check/render script that
 writes audio and receipts. Selected lead touches use the fine-intonation
 coordinate in [SPEC-TAB §4.1](SPEC-TAB.md#41-fine-intonation-on-an-ariadne-tab-touch).
 
+[`Before the Law`](examples/ensemble/before-the-law/README.md) is a set of
+six instruments for a short film: five fictional tab anatomies (a struck iron
+gate, low plucked courses, glass bars over tubes, fleas in a fur collar,
+kettledrums and drums), the trombone v1 World played from a note list, and a
+choir of tract Worlds, each with its receipts and what it does not model.
+
 ## Watch / listen
 
 [ovillo.sophia-labs.com](https://ovillo.sophia-labs.com) is a Sophia app: playlists of pieces played by these Worlds, each with its score, its receipt and where the energy went, the bench and the vocal tract running in the browser, and a score page that renders on the steel-string World in the browser ([`mus-rs/crates/mus-wasm`](mus-rs/crates/mus-wasm)). Agents can read the same data from its read-only graph (`/llms.txt` says how). The site's sources in this repository are under [`site/`](site/README.md); the release video's tools and provenance are under [`video/`](video/README.md).

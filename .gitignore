@@ -72,3 +72,6 @@ paper/ariadne-protected-nonabelian/garganta-humana/
 # release archives. Their generators/receipts are committed; binaries and WAVs
 # remain handoff artifacts rather than repository history.
 artifacts/
+
+# Before the Law renders (WAVs, receipts and energy traces from render.py)
+examples/ensemble/before-the-law/out/

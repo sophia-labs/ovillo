@@ -1,0 +1,11 @@
+# Doorkeeper (trombone v1 World). tempo 66; times in seconds from bar 1.
+start_s	end_s	midi	vel	vel_end	art	fx
+0.0000	2.7273	50	0.15	0.85	tongue	vib
+3.6364	4.5455	51	0.55	0.55	tongue	-
+4.5455	6.3636	50	0.55	0.30	slur	vib
+7.2727	7.5000	45	0.80	0.80	tongue	-
+7.7273	7.9545	45	0.80	0.80	tongue	-
+8.4091	8.8636	46	0.90	0.90	tongue	-
+9.0909	10.6818	58	0.85	0.85	tongue	rip
+10.9091	11.8182	57	0.60	0.60	slur	-
+11.8182	14.0909	53	0.55	0.55	tongue	fall
