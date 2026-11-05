@@ -1,0 +1,17 @@
+# score: Bowed swell
+# summary: 3 bars / 1 guitar, 1 bow / ~0.4 min — a slow swell on a bowed D3: crescendo on the down-bow, diminuendo on the up-bow
+# tempo: 30    time: 4/4    key: D    bars: 3
+# master: rms=-16
+# tab: standard
+
+# text @b1: down-bow, the speed rising from 0.2 to 1.0 over eight seconds (force follows); the note swells
+# text @b2: up-bow, the speed falling from 1.0 back to 0.2; the hair lifts and lands in 10 ms between bows
+# text @b3: the bow lifts; the world rings down
+
+# instruments:
+#   gt   = steel-string guitar (treble, -12, anatomy=steel-string-v0, tuning=E2 A2 D3 G3 B3 E4, capo=0)
+#   gt.b = bow (treble, pos=0.12)
+
+bar 1: gt.b=D3w@4:0[arco,speed=0.2->1.0]
+bar 2: gt.b=D3w@4:0[upbow,speed=1.0->0.2]
+bar 3: gt.b=Rw

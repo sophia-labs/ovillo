@@ -156,6 +156,12 @@ impl World {
             }
             internal_loss += self.process_hammers();
         }
+        // Bows, the same way: a world with none attached skips this exactly.
+        if !self.bows.is_empty() {
+            let (bowed, heat) = self.process_bows();
+            source_work += bowed;
+            internal_loss += heat;
+        }
         let coupling = self
             .couplings
             .process_constitutive(

@@ -225,6 +225,16 @@ impl Body {
         self.field.momentum_mut()
     }
 
+    /// The modal field, for contact laws that act on it between the local
+    /// step and the couplings (a bow).
+    pub(crate) fn field(&self) -> &ModalMetricWaveField<MODE_COUNT> {
+        &self.field
+    }
+
+    pub(crate) fn field_mut(&mut self) -> &mut ModalMetricWaveField<MODE_COUNT> {
+        &mut self.field
+    }
+
     pub fn set_configuration_amount(
         &mut self,
         amount: f64,
