@@ -128,6 +128,9 @@ def set_prompts(session, items, intro=""):
     """items: [{id, say, kind?, hint?, target_hz?: [lo, hi], seconds?}]. kind is an analysis key (ah, passage, ...)."""
     for i, p in enumerate(items):
         p.setdefault("id", f"{i + 1:02d}")
+    old = studio.read_json(studio.STUDIO / "prompts.json")
+    if old and old.get("session"):  # keep the outgoing session (its circled takes especially) under sessions/
+        studio.write_json(studio.d("sessions") / f"{old['session']}.json", old)
     P = dict(session=session, intro=intro, prompts=items, current=0)
     studio.write_json(studio.STUDIO / "prompts.json", P); studio.log("prompts", session=session, n=len(items))
     return P

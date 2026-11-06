@@ -18,6 +18,8 @@
     ovillo-voice script <session> R1-01..R1-18,G-01..G-06 [--order character|scene]   the film's lines as prompts
     ovillo-voice select [<take>]                      circle a take for the current line (default: its newest)
     ovillo-voice export-selects [<dir>]               circled takes, trimmed, to <dir>/<line>.wav (default verabot/film/vo/vera)
+    ovillo-voice fx <take> <chain>                    a character chain (mom, hot, vera, gatekeeper): Ariadne Body, then shaping, then the line
+    ovillo-voice scene <session> [--dry] [--gap LINE=s ...]   the session's circled takes end to end, each through its character
     ovillo-voice quick <take>                         fast numbers for one short take
     ovillo-voice index                                the studio as JSON
     ovillo-voice serve [--port 8023]                  the studio page
@@ -50,6 +52,8 @@ def main(argv=None):
     sp.add_parser("presets"); sp.add_parser("describe"); sp.add_parser("index")
     s = sp.add_parser("prompts"); s.add_argument("action", choices=["set", "show", "results"]); s.add_argument("session", nargs="?"); s.add_argument("file", nargs="?")
     s = sp.add_parser("quick"); s.add_argument("take")
+    s = sp.add_parser("fx"); s.add_argument("take"); s.add_argument("chain")
+    s = sp.add_parser("scene"); s.add_argument("session"); s.add_argument("--dry", action="store_true"); s.add_argument("--gap", action="append")
     s = sp.add_parser("script"); s.add_argument("session"); s.add_argument("ids"); s.add_argument("--order", default="scene", choices=["scene", "character"])
     s = sp.add_parser("select"); s.add_argument("take", nargs="?")
     s = sp.add_parser("export-selects"); s.add_argument("dest", nargs="?")
@@ -100,6 +104,12 @@ def main(argv=None):
         res = ops.select_take(x.take)
     elif x.cmd == "export-selects":
         res = ops.export_selects(x.dest)
+    elif x.cmd == "fx":
+        from . import fx
+        res = str(fx.render(x.take, x.chain))
+    elif x.cmd == "scene":
+        from . import fx
+        res = fx.scene(x.session, gaps={k: float(v) for k, v in (g.split("=") for g in (x.gap or []))}, chains=not x.dry)
     elif x.cmd == "quick":
         res = ops.quick(x.take)
     elif x.cmd == "index":
