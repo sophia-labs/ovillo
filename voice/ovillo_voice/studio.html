@@ -55,6 +55,7 @@ pre { white-space:pre-wrap; font-size:11px; color:var(--dim); margin:4px 0 8px; 
 .slate { font-size:12px; letter-spacing:.14em; color:var(--dry); }
 .say { font-size:clamp(20px, 3vw, 30px); line-height:1.3; padding:18px 14px 6px; font-family: ui-serif, Georgia, serif; text-wrap:pretty; white-space:pre-line; }
 .say.long { font-size:19px; line-height:1.5; max-height:60vh; overflow:auto; columns:2 22em; column-gap:2.5em; }
+.phon { padding:2px 14px 10px; font-family:var(--mono); font-size:clamp(15px, 1.9vw, 19px); color:#8fb5a6; letter-spacing:.02em; line-height:1.5; }
 .hint { color:var(--dim); padding:0 14px 12px; max-width:80ch; }
 .controls { display:flex; gap:8px; padding:0 12px 12px; flex-wrap:wrap; align-items:center; }
 .controls .big { font-size:16px; padding:10px 18px; }
@@ -99,6 +100,7 @@ kbd { border:1px solid var(--line); padding:0 4px; font-size:11px; color:var(--d
     <div class="cue" id="pcue" hidden></div>
     <div class="who" id="pwho" hidden></div>
     <div class="say" id="psay"></div>
+    <div class="phon" id="pphon" hidden></div>
     <div class="hint" id="phint"></div>
     <div class="controls">
       <button id="prec" class="go big">● ROLL</button>
@@ -231,7 +233,8 @@ function renderPrompter(ix) {
   $("pcue").hidden = !p.cue; if (p.cue) $("pcue").innerHTML = `<b class="${wcls(p.cue.who)}">${esc(p.cue.who)}</b>${esc(p.cue.say)}`;
   $("pwho").hidden = !p.who; if (p.who) { $("pwho").textContent = `${p.who}  ·  ${p.id}`; $("pwho").className = "who " + wcls(p.who); }
   const sel = (P.selects || {});
-  $("psay").textContent = p.say; $("psay").classList.toggle("long", p.say.length > 200); $("phint").textContent = p.hint || "";
+  $("psay").textContent = p.say; $("psay").classList.toggle("long", p.say.length > 200);
+  $("pphon").hidden = !p.phon; $("pphon").textContent = p.phon || ""; $("phint").textContent = p.hint || "";
   const takes = ix.takes.filter((t) => t.meta && t.meta.prompt && t.meta.prompt.session === P.session && t.meta.prompt.id === p.id).sort((a, b) => b.mtime - a.mtime);
   const btn = $("prec");
   const R = ix.roll;
