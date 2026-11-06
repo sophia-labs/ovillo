@@ -22,6 +22,7 @@
     ovillo-voice scene <session> [--dry] [--gap LINE=s ...]   the session's circled takes end to end, each through its character
     ovillo-voice babel <name> <session|take ...> [--seconds 60]   many takes as many speakers, entering faster and faster
     ovillo-voice unison <take> [--copies 9]          one line as a choir of herself, in Ariadne's cathedral
+    ovillo-voice recut <session> [<dir>]              re-export a rolled session's circled takes cut at the words (faster-whisper)
     ovillo-voice quick <take>                         fast numbers for one short take
     ovillo-voice index                                the studio as JSON
     ovillo-voice serve [--port 8023]                  the studio page
@@ -54,6 +55,7 @@ def main(argv=None):
     sp.add_parser("presets"); sp.add_parser("describe"); sp.add_parser("index")
     s = sp.add_parser("prompts"); s.add_argument("action", choices=["set", "show", "results"]); s.add_argument("session", nargs="?"); s.add_argument("file", nargs="?")
     s = sp.add_parser("quick"); s.add_argument("take")
+    s = sp.add_parser("recut"); s.add_argument("session"); s.add_argument("dest", nargs="?")
     s = sp.add_parser("fx"); s.add_argument("take"); s.add_argument("chain")
     s = sp.add_parser("babel"); s.add_argument("name"); s.add_argument("sources", nargs="+"); s.add_argument("--seconds", type=float, default=60.0)
     s = sp.add_parser("unison"); s.add_argument("take"); s.add_argument("--copies", type=int, default=9)
@@ -127,6 +129,9 @@ def main(argv=None):
     elif x.cmd == "scene":
         from . import fx
         res = fx.scene(x.session, gaps={k: float(v) for k, v in (g.split("=") for g in (x.gap or []))}, chains=not x.dry)
+    elif x.cmd == "recut":
+        from . import align
+        res = align.recut_session(x.session, x.dest)
     elif x.cmd == "quick":
         res = ops.quick(x.take)
     elif x.cmd == "index":

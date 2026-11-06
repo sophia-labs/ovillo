@@ -86,8 +86,16 @@ def stop():
         segs.append((start, c, m["line"])); start = c
     segs.append((start, end, R["line"]))
     P = ops.prompts(); made = []
+    # Marks are pressed by hand and often late, so the words decide the cuts when they can (align.py); the marks
+    # still say which line each stretch is. If transcription isn't available, the mark cuts stand.
+    try:
+        from . import align
+        cc, _ = align.cuts(src, [P["prompts"][i]["say"] for (_, _, i) in segs], cache=studio.STUDIO / "takes" / R["take"] / "transcript.words.json")
+        segs = [(c[0], c[1], i) if c else (a0, a1, i) for (a0, a1, i), c in zip(segs, cc)]; method = "words"
+    except Exception as e:
+        method = f"marks ({e.__class__.__name__}: {str(e)[:80]})"
     for a0, a1, i in segs:
-        if a1 - a0 < 0.4:
+        if a1 - a0 < 0.3:
             continue
         x = analysis.part(s, a0, a1); _, f = analysis.pitch(x, two_pass=False)
         if (f > 0).sum() < 8:  # no voice in it: a double press, or silence
@@ -106,7 +114,7 @@ def stop():
     for m in made:
         P["selects"][m["line"]] = m["take"]
     studio.write_json(studio.STUDIO / "prompts.json", P)
-    studio.log("roll_stop", take=R["take"], seconds=round(end, 1), takes=len(made), marks=len(R["marks"]))
+    studio.log("roll_stop", take=R["take"], seconds=round(end, 1), takes=len(made), marks=len(R["marks"]), cut_by=method)
 
     def measure():
         for m in made:
