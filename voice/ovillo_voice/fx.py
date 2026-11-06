@@ -225,3 +225,96 @@ def scene(session, out_take=None, gaps=None, chains=True):
                                              sections={}, scene=log))
     studio.log("scene", session=session, take=name, lines=len(log))
     return dict(take=name, seconds=round(len(a) / SR, 1), lines=log)
+
+
+# --- babel: the law's voices piling up; unison: one voice becoming many -------------------------------------------------
+BABEL_BODIES = ["coke", "bottle", "beehive", "cathedral", "radio", "neutral", "sitar", "guard_box", "gatekeeper", "v"]
+
+
+def _voice_chain(rng):
+    """A random speaker: an Ariadne body (with its receipts), then a different size and pitch, then a little band."""
+    body = BABEL_BODIES[rng.integers(len(BABEL_BODIES))]
+    formant = float(rng.uniform(0.84, 1.2)); st = float(rng.uniform(-6, 5)); rng_f = float(rng.uniform(0.7, 1.3))
+    lo, hi = int(rng.uniform(80, 400)), int(rng.uniform(2800, 9000))
+    return [("body", body, {}), ("shift_rel", formant, st, rng_f), ("ff", f"highpass=f={lo},lowpass=f={hi}")], dict(body=body, formant=round(formant, 2), semitones=round(st, 1), lo=lo, hi=hi)
+
+
+def _run_chain(src, steps, tmp, tag):
+    cur = pathlib.Path(src)
+    for k, st in enumerate(steps):
+        nxt = pathlib.Path(tmp) / f"{tag}_{k:02d}.wav"
+        if st[0] == "body":
+            step_body(cur, nxt, st[1], st[2])
+        elif st[0] == "shift_rel":   # pitch relative to the take's own median
+            from parselmouth.praat import call
+            s = analysis.load(cur); _, f = analysis.pitch(s); v = f[f > 0]
+            med = float(np.median(v)) if len(v) > 5 else 0.0
+            y = call(s, "Change gender", 60, 600, float(st[1]), med * 2 ** (st[2] / 12) if med else 0.0, float(st[3]), 1.0); y.save(str(nxt), "WAV")
+        elif st[0] == "ff":
+            _ff(cur, nxt, "-af", st[1], "-ac", "1", "-ar", str(SR), "-c:a", "pcm_f32le", str(nxt))
+        cur = nxt
+    return cur
+
+
+def _trimmed(take, tmp):
+    src = ops.dry(take); s = analysis.load(src); seg = [g for g in analysis.segments(s)["segments"] if g["voiced_pct"] >= 20] or analysis.segments(s)["segments"]
+    a0, a1 = (max(0.0, seg[0]["start"] - 0.05), min(s.duration, seg[-1]["end"] + 0.1)) if seg else (0.0, s.duration)
+    out = pathlib.Path(tmp) / f"trim_{take}.wav"; _ff(src, out, "-ss", f"{a0:.3f}", "-to", f"{a1:.3f}", "-ac", "1", "-c:a", "pcm_f32le", str(out)); return out
+
+
+def babel(takes, name="babel", seconds=60.0, first_gap=3.0, last_gap=0.18, seed=1637):
+    """Lay many takes over each other, each as a different speaker, entering faster and faster (gaps shrink
+    geometrically from first_gap to last_gap), panned across the field, louder and brighter as it goes; ends on a
+    hard cut. Writes takes/<name>/dry.wav (stereo) and a placement log."""
+    rng = np.random.default_rng(seed); n = int(seconds * SR); mix = np.zeros((n, 2), np.float32); log = []
+    with tempfile.TemporaryDirectory() as tmp:
+        t, k = 0.0, 0
+        while t < seconds - 0.5:
+            take = takes[k % len(takes)]; k += 1
+            steps, desc = _voice_chain(rng)
+            a = normalise(_read(_run_chain(_trimmed(take, tmp), steps, tmp, f"v{k}")), target_dbfs=-24)
+            x = t / seconds; gain = 10 ** ((-10 + 9 * x ** 1.5 + rng.uniform(-2, 2)) / 20); pan = float(rng.uniform(-0.9, 0.9))
+            i0 = int(t * SR); seg = a[: max(0, min(len(a), n - i0))] * gain
+            mix[i0:i0 + len(seg), 0] += seg * np.sqrt((1 - pan) / 2); mix[i0:i0 + len(seg), 1] += seg * np.sqrt((1 + pan) / 2)
+            log.append(dict(at=round(t, 2), take=take, pan=round(pan, 2), **desc))
+            t += first_gap * (last_gap / first_gap) ** x * float(rng.uniform(0.7, 1.3))
+        # the pressure: a slow brightening tilt, then a limiter
+        b, c = signal.butter(1, 2500 / (SR / 2), "high"); hp = signal.lfilter(b, c, mix, axis=0)
+        mix = mix + hp * np.linspace(0, 1.2, n)[:, None] ** 2
+        mix = np.tanh(mix * 1.4) / 1.4
+        mix = mix * (10 ** (-1 / 20) / (np.max(np.abs(mix)) + 1e-9))
+        d = studio.take_dir(name); p = pathlib.Path(tmp) / "m.wav"; wavfile.write(str(p), SR, mix.astype(np.float32))
+        _ff(p, None, "-c:a", "pcm_s24le", str(d / "dry.wav"))
+    studio.write_json(d / "take.json", dict(take=name, device="assembled (babel)", recorded=time.strftime("%Y-%m-%d %H:%M:%S"),
+                                             notes=f"babel of {len(log)} entries from {len(set(takes))} takes", sections={}, babel=log))
+    studio.log("babel", take=name, entries=len(log), seconds=seconds)
+    return dict(take=name, entries=len(log), voices=len(set(takes)))
+
+
+def unison(take, name=None, copies=9, seed=7):
+    """One line becoming a body: the take plus copies of itself, each a hair different in pitch, size and time,
+    the whole choir in Ariadne's cathedral. Writes takes/<name>/dry.wav (stereo)."""
+    rng = np.random.default_rng(seed); name = name or f"{take}-unison"
+    with tempfile.TemporaryDirectory() as tmp:
+        base = _trimmed(take, tmp); voices = []
+        for k in range(copies):
+            if k == 0:
+                v = _read(base)
+            else:
+                v = _read(_run_chain(base, [("shift_rel", float(rng.uniform(0.97, 1.04)), float(rng.uniform(-0.25, 0.25)), 1.0)], tmp, f"u{k}"))
+            dly = np.zeros(int(rng.uniform(0, 0.035) * SR), np.float32); voices.append(np.concatenate([dly, v]))
+        L = max(len(v) for v in voices); st = np.zeros((L, 2), np.float32)
+        for k, v in enumerate(voices):
+            pan = 0.0 if k == 0 else float(rng.uniform(-1, 1)); g = 1.0 if k == 0 else 0.55
+            st[: len(v), 0] += v * g * np.sqrt((1 - pan) / 2); st[: len(v), 1] += v * g * np.sqrt((1 + pan) / 2)
+        mono = pathlib.Path(tmp) / "uni.wav"; _write(mono, st.mean(axis=1))
+        hall = pathlib.Path(tmp) / "hall.wav"; step_body(mono, hall, "cathedral", {})
+        h = _read(hall); n = max(len(h), L); out = np.zeros((n, 2), np.float32)
+        out[: L] += st * 0.7; out[: len(h)] += h[:, None] * 0.6
+        out = out * (10 ** (-1 / 20) / (np.max(np.abs(out)) + 1e-9))
+        d = studio.take_dir(name); p = pathlib.Path(tmp) / "o.wav"; wavfile.write(str(p), SR, out.astype(np.float32))
+        _ff(p, None, "-c:a", "pcm_s24le", str(d / "dry.wav"))
+    studio.write_json(d / "take.json", dict(take=name, device="assembled (unison)", recorded=time.strftime("%Y-%m-%d %H:%M:%S"),
+                                             notes=f"{take} as a choir of {copies}, in the cathedral", sections={}))
+    studio.log("unison", take=name, source=take, copies=copies)
+    return dict(take=name, copies=copies)

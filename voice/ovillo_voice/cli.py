@@ -20,6 +20,8 @@
     ovillo-voice export-selects [<dir>]               circled takes, trimmed, to <dir>/<line>.wav (default verabot/film/vo/vera)
     ovillo-voice fx <take> <chain>                    a character chain (mom, hot, vera, gatekeeper): Ariadne Body, then shaping, then the line
     ovillo-voice scene <session> [--dry] [--gap LINE=s ...]   the session's circled takes end to end, each through its character
+    ovillo-voice babel <name> <session|take ...> [--seconds 60]   many takes as many speakers, entering faster and faster
+    ovillo-voice unison <take> [--copies 9]          one line as a choir of herself, in Ariadne's cathedral
     ovillo-voice quick <take>                         fast numbers for one short take
     ovillo-voice index                                the studio as JSON
     ovillo-voice serve [--port 8023]                  the studio page
@@ -53,6 +55,8 @@ def main(argv=None):
     s = sp.add_parser("prompts"); s.add_argument("action", choices=["set", "show", "results"]); s.add_argument("session", nargs="?"); s.add_argument("file", nargs="?")
     s = sp.add_parser("quick"); s.add_argument("take")
     s = sp.add_parser("fx"); s.add_argument("take"); s.add_argument("chain")
+    s = sp.add_parser("babel"); s.add_argument("name"); s.add_argument("sources", nargs="+"); s.add_argument("--seconds", type=float, default=60.0)
+    s = sp.add_parser("unison"); s.add_argument("take"); s.add_argument("--copies", type=int, default=9)
     s = sp.add_parser("scene"); s.add_argument("session"); s.add_argument("--dry", action="store_true"); s.add_argument("--gap", action="append")
     s = sp.add_parser("script"); s.add_argument("session"); s.add_argument("ids"); s.add_argument("--order", default="scene", choices=["scene", "character"])
     s = sp.add_parser("select"); s.add_argument("take", nargs="?")
@@ -104,6 +108,19 @@ def main(argv=None):
         res = ops.select_take(x.take)
     elif x.cmd == "export-selects":
         res = ops.export_selects(x.dest)
+    elif x.cmd == "babel":
+        from . import fx
+        takes = []
+        for src in x.sources:   # a session name expands to its takes; anything else is a take
+            ses = studio.read_json(studio.STUDIO / "sessions" / f"{src}.json") or (ops.prompts() if ops.prompts().get("session") == src else None)
+            if ses:
+                takes += [v for v in (ses.get("selects") or {}).values()] or sorted(p.name for p in (studio.STUDIO / "takes").glob(f"{src}-*") if "roll" not in p.name and "scene" not in p.name)
+            else:
+                takes.append(src)
+        res = fx.babel(takes, name=x.name, seconds=x.seconds)
+    elif x.cmd == "unison":
+        from . import fx
+        res = fx.unison(x.take, copies=x.copies)
     elif x.cmd == "fx":
         from . import fx
         res = str(fx.render(x.take, x.chain))
