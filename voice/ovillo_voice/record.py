@@ -4,7 +4,7 @@ start() returns at once and leaves ffmpeg running; stop() ends it cleanly (SIGIN
 finished). A chime plays just before capture starts. Only one recording at a time; its state is
 <studio>/.recording.json.
 """
-import os, re, signal, subprocess, time
+import os, pathlib, re, signal, subprocess, sys, time
 from . import studio
 
 DEFAULT_DEVICE = "MacBook Pro Microphone"
@@ -68,10 +68,10 @@ def start(take, device=None, max_seconds=900, notes="", chime=True, prompt=None)
     out = studio.take_dir(take) / "dry.wav"
     if out.exists():
         raise FileExistsError(f"take {take!r} already has a dry.wav; pick a new name")
-    p = subprocess.Popen(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "avfoundation", "-i", f":{dev['index']}",
-                          "-t", str(max_seconds), "-ac", "1", "-ar", "48000", "-c:a", "pcm_s24le", str(out)],
+    # capture.py (CoreAudio via PortAudio) keeps every buffer; ffmpeg's avfoundation input dropped 7-27% of them
+    p = subprocess.Popen([sys.executable, "-m", "ovillo_voice.capture", dev["name"], str(out), str(max_seconds)],
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=open(out.with_suffix(".log"), "w"),
-                         start_new_session=True)
+                         start_new_session=True, cwd=str(pathlib.Path(__file__).resolve().parent.parent))
     # The device takes 1-7 s to open, so chime only once audio is really arriving (0.25 s of samples on disk).
     # The chime lands in the take as a marker; analysis sections start after it.
     t0 = time.time()
