@@ -176,7 +176,10 @@ def cut(take):
     for m in R["marks"]:
         c = _quiet(a, min(m["t"], end), start + 0.2, end)
         segs.append((start, c, m["line"])); start = c
-    segs.append((start, end, R["line"]))
+    # NEXT on the session's last line can't move on: it closed that line, and what follows is no new take
+    last = R["marks"][-1] if R["marks"] else None
+    if not (last and last["kind"] == "next" and last["line"] == R["line"]):
+        segs.append((start, end, R["line"]))
     P = _session(Rm); made = []
     # Marks are pressed by hand and often late, so the words decide the cuts when they can (align.py); the marks
     # still say which line each stretch is. If transcription isn't available, the mark cuts stand.
