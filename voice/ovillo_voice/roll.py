@@ -77,6 +77,9 @@ def stop():
     if not R:
         raise RuntimeError("not rolling")
     r = record.stop(); path().unlink(missing_ok=True)
+    meta = studio.read_json(studio.STUDIO / "takes" / R["take"] / "take.json", {}) or {}
+    meta["roll"] = dict(marks=R["marks"], first_line=R["marks"][0]["line"] if R["marks"] else R["line"], offset=R["offset"])
+    studio.write_json(studio.STUDIO / "takes" / R["take"] / "take.json", meta)
     src = studio.STUDIO / "takes" / R["take"] / "dry.wav"
     s = analysis.load(src); a = s.values[0]; end = s.duration
     # the stretches: [previous cut, this mark] for the line the mark closed; the last runs to the end
@@ -90,7 +93,8 @@ def stop():
     # still say which line each stretch is. If transcription isn't available, the mark cuts stand.
     try:
         from . import align
-        cc, _ = align.cuts(src, [P["prompts"][i]["say"] for (_, _, i) in segs], cache=studio.STUDIO / "takes" / R["take"] / "transcript.words.json")
+        cc, _ = align.cuts(src, [P["prompts"][i]["say"] for (_, _, i) in segs], cache=studio.STUDIO / "takes" / R["take"] / "transcript.words.json",
+                           seq_who=[P["prompts"][i].get("who") for (_, _, i) in segs])
         segs = [(c[0], c[1], i) if c else (a0, a1, i) for (a0, a1, i), c in zip(segs, cc)]; method = "words"
     except Exception as e:
         method = f"marks ({e.__class__.__name__}: {str(e)[:80]})"

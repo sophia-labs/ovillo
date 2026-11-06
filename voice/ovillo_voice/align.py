@@ -69,29 +69,83 @@ def quietest(a, t0, t1):
     return (i0 + int(np.argmin(e)) + n // 2) / SR
 
 
-def cuts(roll_wav, seq_texts, cache=None):
+def syllables(text):
+    return max(1, len(re.findall(r"[aeiouy]+", text.lower())))
+
+
+def fit_utterances(snd, words, seq_texts, seq_who=None, _prior=None):
+    """Fit the roll's utterances (stretches of sound between pauses) to the performed sequence, in order.
+    Whisper drops repeated phrases (retakes!) and misplaces first words, so the audio's own utterances are the units.
+    Each line gets a contiguous run of them, chosen by dynamic programming. The score rewards transcript text where
+    Whisper heard it, an expected length (syllables), and cutting at long silences. Breaths and blips may be left out.
+    Returns [(start, end) or None] per line."""
+    ch = [g for g in analysis.segments(snd, min_gap=0.35, min_len=0.12)["segments"] if not (g.get("f0_median", 0) > 450 and g["voiced_pct"] > 50)]
+    M, K = len(ch), len(seq_texts)
+    exp = [tokens(x) for x in seq_texts]; dexp = [0.15 + 0.2 * syllables(x) for x in seq_texts]
+    who = seq_who or [None] * K
+    wtok = [(0.5 * (w["start"] + w["end"]), (tokens(w["word"]) or [""])[0]) for w in words]
+    def toks(a, b):
+        lo, hi = ch[a]["start"] - 0.3, ch[b - 1]["end"] + 0.3
+        return [tk for mid, tk in wtok if lo <= mid <= hi]
+    def gf0(a, b):
+        f = [(c["f0_median"], c["seconds"]) for c in ch[a:b] if c.get("f0_median")]
+        return (float(np.exp(sum(np.log(x) * w for x, w in f) / sum(w for _, w in f))), [x for x, _ in f]) if f else (None, [])
+    def group(a, b, k):
+        hyp = toks(a, b); dur = sum(c["seconds"] for c in ch[a:b])
+        s = -1.2 * abs(np.log(max(dur, 0.05) / dexp[k]))
+        f0, fs = gf0(a, b)
+        if f0 is None:
+            s -= 2.0                                                  # a breath or a click is not a line
+        else:
+            if len(fs) > 1:
+                s -= 1.0 * max(0.0, float(np.std(np.log(fs))) - 0.2)   # only jumps beyond normal intonation
+            if _prior and who[k] in _prior:
+                s -= 6.0 * abs(np.log(f0 / _prior[who[k]]))           # the speaker's own pitch, learned from the roll
+        if hyp:
+            m = sum(x.size for x in difflib.SequenceMatcher(None, exp[k], hyp, autojunk=False).get_matching_blocks())
+            s += 3.0 * m / max(1, len(exp[k])) - 2.0 * (len(hyp) - m) / len(hyp)
+        s -= 0.4 * sum(1 for i in range(a + 1, b) if ch[i]["start"] - ch[i - 1]["end"] > 1.5)
+        return s
+    NEG = -1e9; dp = [[NEG] * (M + 1) for _ in range(K + 1)]; back = {}
+    dp[0][0] = 0.0
+    for k in range(K + 1):
+        for j in range(M + 1):
+            v = dp[k][j]
+            if v <= NEG / 2:
+                continue
+            if j < M:                                                 # leave a chunk out (a breath, a click)
+                c = v - (0.3 + 0.8 * ch[j]["seconds"] if ch[j].get("f0_median") else 0.1)
+                if c > dp[k][j + 1]: dp[k][j + 1] = c; back[(k, j + 1)] = ("skip", k, j)
+            if k < K:
+                c = v - 3.0                                           # a line never spoken
+                if c > dp[k + 1][j]: dp[k + 1][j] = c; back[(k + 1, j)] = ("miss", k, j)
+                if j >= M:
+                    continue
+                gap = (ch[j]["start"] - ch[j - 1]["end"]) if j > 0 else 1.0
+                for b in range(j + 1, min(M, j + 40) + 1):
+                    c = v + group(j, b, k) + 0.3 * np.log1p(max(0.0, gap))
+                    if c > dp[k + 1][b]: dp[k + 1][b] = c; back[(k + 1, b)] = ("take", k, j)
+    spans = [None] * K; groups = [None] * K; k, j = K, M
+    while (k, j) != (0, 0):
+        op, pk, pj = back[(k, j)]
+        if op == "take":
+            spans[pk] = (ch[pj]["start"], ch[j - 1]["end"]); groups[pk] = (pj, j)
+        k, j = pk, pj
+    if seq_who and _prior is None:                                    # second pass: each speaker's pitch, from the first
+        per = {}
+        for k2, g in enumerate(groups):
+            f0 = gf0(*g)[0] if g else None
+            if f0: per.setdefault(who[k2], []).append(f0)
+        prior = {w: float(np.median(v)) for w, v in per.items()}
+        return fit_utterances(snd, words, seq_texts, seq_who, prior)
+    return spans
+
+
+def cuts(roll_wav, seq_texts, cache=None, seq_who=None):
     """[(a, b)] per line in roll time: the line's words, padded, never crossing the cut to a neighbour."""
     snd = analysis.load(roll_wav); a = snd.values[0]; dur = len(a) / SR
     words = transcribe(roll_wav, cache)
-    spans = align(words, seq_texts)
-    # Word timestamps say which line a stretch of speech belongs to; the audio says where the speech is. Whisper's
-    # first words can be a second off, so every stretch of actual voice (not clicks or UI blips) joins the line whose
-    # words overlap it most, else the line of the nearest word, and that line's span grows to cover it.
-    owner_spans = [(w, l) for w, l in zip(words, _line_of(words, seq_texts)) if l is not None]
-    for g in analysis.segments(snd, min_gap=0.15, min_len=0.12)["segments"]:
-        if g["voiced_pct"] < 15 or g.get("f0_median", 0) > 450:
-            continue
-        ov = {}
-        for w, l in owner_spans:
-            o = min(g["end"], w["end"]) - max(g["start"], w["start"])
-            if o > 0: ov[l] = ov.get(l, 0) + o
-        if ov:
-            l = max(ov, key=ov.get)
-        elif owner_spans:
-            l = min(owner_spans, key=lambda wl: min(abs(wl[0]["start"] - g["end"]), abs(g["start"] - wl[0]["end"])))[1]
-        else:
-            continue
-        s = spans[l]; spans[l] = (min(s[0], g["start"]), max(s[1], g["end"])) if s else (g["start"], g["end"])
+    spans = fit_utterances(snd, words, seq_texts, seq_who)
     bounds = []                               # the cut between consecutive voiced lines
     voiced = [i for i, s in enumerate(spans) if s]
     for i, j in zip(voiced, voiced[1:]):
@@ -130,7 +184,7 @@ def export_cut(roll_wav, a0, a1, dst):
         raise RuntimeError(f"export of {dst.name} came out silent or short ({len(x) / SR:.2f} s, rms {rms:.1e})")
 
 
-def recut_session(session, dest=None):
+def recut_session(session, dest=None, rewrite_takes=False):
     """Re-export a rolled session's circled takes cut at the words. The takes' own dry.wav are left untouched
     (the studio rule); each gets aligned.json, and the film export gets selects.json with the cut points."""
     S = studio.read_json(studio.STUDIO / "sessions" / f"{session}.json")
@@ -146,7 +200,9 @@ def recut_session(session, dest=None):
     result = {}
     order = [p["id"] for p in S["prompts"]]
     for roll in sorted({r for r, *_ in takes}):
-        seq = sorted([x for x in takes if x[0] == roll], key=lambda x: x[1])
+        # the performed order: session (scene) order, retakes of a line together (-2, -3 after the first)
+        rnum = lambda name: int(name.rsplit("-", 1)[1]) if re.search(r"-[A-Z]-\d+-\d+$", name) else 1
+        seq = sorted([x for x in takes if x[0] == roll], key=lambda x: (order.index(x[3]) if x[3] in order else 999, rnum(x[2])))
         # Lines read straight on without a NEXT press have no take. Slot every prompt skipped between one take's line
         # and the next (and after the last) in after it: the words will say whether they were really spoken.
         full = []
@@ -157,7 +213,8 @@ def recut_session(session, dest=None):
                 if not any(y[3] == lid for y in takes):
                     full.append((roll, None, None, lid))
         wav = studio.STUDIO / "takes" / roll / "dry.wav"
-        cc, spans = cuts(wav, [text[lid] for *_, lid in full], cache=studio.STUDIO / "takes" / roll / "transcript.words.json")
+        whomap = {p["id"]: p.get("who") for p in S["prompts"]}
+        cc, spans = cuts(wav, [text[lid] for *_, lid in full], cache=studio.STUDIO / "takes" / roll / "transcript.words.json", seq_who=[whomap.get(lid) for *_, lid in full])
         for (r, _, take, lid), c, sp in zip(full, cc, spans):
             if take is None:                       # a line spoken without its own take: give it one, cut from the roll
                 if not c:
@@ -170,7 +227,11 @@ def recut_session(session, dest=None):
                                                              notes="read on without a NEXT press; recovered by align.py", sections={},
                                                              prompt=dict(pr, session=session, index=order.index(lid)), from_roll=dict(roll=r, start=c[0], end=c[1])))
                 S.setdefault("selects", {})[lid] = take
-            studio.write_json(studio.STUDIO / "takes" / take / "aligned.json", dict(roll=r, cut=c, words_span=sp, method="faster-whisper small.en words, difflib alignment"))
+            studio.write_json(studio.STUDIO / "takes" / take / "aligned.json", dict(roll=r, cut=c, words_span=sp, method="utterances fitted to the performed sequence (text, length, speaker pitch, silences)"))
+            if rewrite_takes and c:                # a take is cut from its roll, so a wrong cut can be re-derived; the roll is untouched
+                export_cut(wav, c[0], c[1], studio.STUDIO / "takes" / take / "dry.wav")
+                m = studio.read_json(studio.STUDIO / "takes" / take / "take.json", {}); m["from_roll"] = dict(roll=r, start=c[0], end=c[1]); m.pop("quick", None)
+                studio.write_json(studio.STUDIO / "takes" / take / "take.json", m)
             if c and (S.get("selects") or {}).get(lid) == take:
                 export_cut(wav, c[0], c[1], dest / f"{lid}.wav")
                 result[lid] = dict(take=take, roll=r, start=c[0], end=c[1], seconds=round(c[1] - c[0], 2))
