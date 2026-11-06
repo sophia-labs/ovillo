@@ -124,6 +124,15 @@ def prompts():
     return studio.read_json(studio.STUDIO / "prompts.json", {"session": None, "prompts": [], "current": 0})
 
 
+SET_SIZE = 8
+
+
+def set_of(P, i):
+    """The short set line i belongs to: the prompt's own "set" (a movement, a scene) or else blocks of SET_SIZE lines.
+    A roll stops itself when NEXT crosses into another set, so a dead mic or an interruption costs one set at most."""
+    return P["prompts"][i].get("set") or f"Set {i // SET_SIZE + 1}"
+
+
 def set_prompts(session, items, intro=""):
     """items: [{id, say, kind?, hint?, target_hz?: [lo, hi], seconds?}]. kind is an analysis key (ah, passage, ...)."""
     for i, p in enumerate(items):

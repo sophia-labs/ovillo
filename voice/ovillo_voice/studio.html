@@ -132,6 +132,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"
 const file = (p, m) => `/files/${p}?m=${m || 0}`;
 let state = null, cards = {};
 
+let setDone = null;  // the set NEXT just finished: the roll stops itself there and is cut
 async function post(url, body) {
   const r = await fetch(url, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body || {}) });
   const j = await r.json(); if (!r.ok) alert(j.error || r.status); return j;
@@ -228,7 +229,8 @@ function renderPrompter(ix) {
   const P = ix.prompts || {}, list = P.prompts || [];
   $("prompter").hidden = !list.length; if (!list.length) return;
   const i = P.current || 0, p = list[i], rec = ix.recording;
-  $("pslate").textContent = `SESSION ${P.session} · ${i + 1} / ${list.length}${p.kind ? " · " + p.kind : ""}`;
+  const setOf = (j) => list[j].set || `Set ${Math.floor(j / 8) + 1}`, inSet = list.map((_, j) => j).filter((j) => setOf(j) === setOf(i));
+  $("pslate").textContent = `SESSION ${P.session} · ${i + 1} / ${list.length} · ${setOf(i)}: line ${inSet.indexOf(i) + 1} of ${inSet.length}`;
   const wcls = (w) => "w-" + String(w || "").replace(/[^A-Z]/g, "");
   $("pcue").hidden = !p.cue; if (p.cue) $("pcue").innerHTML = `<b class="${wcls(p.cue.who)}">${esc(p.cue.who)}</b>${esc(p.cue.say)}`;
   $("pwho").hidden = !p.who; if (p.who) { $("pwho").textContent = `${p.who}  ·  ${p.id}`; $("pwho").className = "who " + wcls(p.who); }
@@ -246,7 +248,12 @@ function renderPrompter(ix) {
   }
   else if (busyRec) { btn.textContent = "OPENING MIC…"; btn.className = "go big"; $("pstate").textContent = "wait for ROLLING"; }
   else if (ix.busy && ix.busy._roll) { btn.textContent = "CUTTING…"; btn.className = "go big"; $("pstate").textContent = "cutting the roll into takes"; }
-  else { btn.textContent = "● ROLL"; btn.className = "go big"; $("pstate").textContent = takes.length ? `${takes.length} take${takes.length > 1 ? "s" : ""} of this line` : ""; }
+  else {
+    btn.textContent = "● ROLL"; btn.className = "go big";
+    $("pstate").innerHTML = setDone ? `<b>✓ ${esc(setDone.set)} is in the can.</b> ${setDone.next_set ? `Breathe, read the note, then ROLL for ${esc(setDone.next_set)}.` : "That was the last line."}`
+      : takes.length ? `${takes.length} take${takes.length > 1 ? "s" : ""} of this line` : "";
+    if (ix.busy && ix.busy._cut) $("pstate").innerHTML += ` <span class="meta">· cutting ${esc(ix.busy._cut.join(", "))} in the background; roll on</span>`;
+  }
   const t = takes[0], q = t && t.quick, busy = t && ix.busy && ix.busy[t.take];
   let r = "";
   if (t) {
@@ -269,11 +276,16 @@ function renderPrompter(ix) {
 }
 async function recToggle() {
   if (state && state.roll) { $("prec").textContent = "CUTTING…"; await post("/api/roll/stop"); }
+  else if (state && state.busy && state.busy._roll) { return; }
   else if (state && state.recording) { await post("/api/record/stop"); }
-  else if (!busyRec) { busyRec = true; renderPrompter(state); try { await post("/api/roll/start", {}); } finally { busyRec = false; } }
+  else if (!busyRec) { busyRec = true; setDone = null; renderPrompter(state); try { await post("/api/roll/start", {}); } finally { busyRec = false; } }
   poll();
 }
-async function rollMark(kind) { if (state && state.roll) { await post("/api/roll/mark", { kind }); poll(); } }
+async function rollMark(kind) {
+  if (!(state && state.roll)) return;
+  const r = await post("/api/roll/mark", { kind });
+  if (r && r.set_done) { setDone = r; await recToggle(); } else poll();
+}
 $("pagain").onclick = () => rollMark("again"); $("pnextline").onclick = () => rollMark("next");
 async function go(d) { if (state && !state.recording) { await post("/api/prompt/goto", { i: (state.prompts.current || 0) + d }); poll(); } }
 async function keepNext() { if (state && !state.recording) { await post("/api/prompt/select", {}); await go(1); } }

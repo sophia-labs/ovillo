@@ -22,13 +22,14 @@
     ovillo-voice scene <session> [--dry] [--gap LINE=s ...]   the session's circled takes end to end, each through its character
     ovillo-voice babel <name> <session|take ...> [--seconds 60]   many takes as many speakers, entering faster and faster
     ovillo-voice unison <take> [--copies 9]          one line as a choir of herself, in Ariadne's cathedral
+    ovillo-voice cutroll <roll>                       cut a halted roll into per-line takes (the studio runs this itself)
     ovillo-voice recut <session> [<dir>]              re-export a rolled session's circled takes cut at the words (faster-whisper)
     ovillo-voice quick <take>                         fast numbers for one short take
     ovillo-voice index                                the studio as JSON
     ovillo-voice serve [--port 8023]                  the studio page
 """
 import argparse, json, sys
-from . import ops, record, studio
+from . import ops, record, roll, studio
 
 
 def kv(items):
@@ -56,6 +57,7 @@ def main(argv=None):
     s = sp.add_parser("prompts"); s.add_argument("action", choices=["set", "show", "results"]); s.add_argument("session", nargs="?"); s.add_argument("file", nargs="?")
     s = sp.add_parser("quick"); s.add_argument("take")
     s = sp.add_parser("recut"); s.add_argument("session"); s.add_argument("dest", nargs="?")
+    s = sp.add_parser("cutroll"); s.add_argument("roll")
     s = sp.add_parser("fx"); s.add_argument("take"); s.add_argument("chain")
     s = sp.add_parser("babel"); s.add_argument("name"); s.add_argument("sources", nargs="+"); s.add_argument("--seconds", type=float, default=60.0)
     s = sp.add_parser("unison"); s.add_argument("take"); s.add_argument("--copies", type=int, default=9)
@@ -74,7 +76,7 @@ def main(argv=None):
     if x.cmd == "devices":
         res = record.devices()
     elif x.cmd == "record":
-        res = {"start": lambda: record.start(x.take, x.device, x.max, x.notes), "stop": record.stop, "status": lambda: record.status() or "not recording"}[x.action]()
+        res = {"start": lambda: record.start(x.take, x.device, x.max, x.notes), "stop": lambda: (roll.stop() if roll.state() else record.stop()), "status": lambda: record.status() or "not recording"}[x.action]()
     elif x.cmd == "adopt":
         res = record.adopt(x.take, x.wav, x.notes)
     elif x.cmd == "segments":
@@ -129,6 +131,8 @@ def main(argv=None):
     elif x.cmd == "scene":
         from . import fx
         res = fx.scene(x.session, gaps={k: float(v) for k, v in (g.split("=") for g in (x.gap or []))}, chains=not x.dry)
+    elif x.cmd == "cutroll":
+        res = roll.cut(x.roll)
     elif x.cmd == "recut":
         from . import align
         res = align.recut_session(x.session, x.dest)

@@ -5,7 +5,7 @@ tools/list and tools/call, and ignores notifications. Each tool is one function 
 CLI, the studio page and this server all act on the same files.
 """
 import base64, json, sys, traceback
-from . import ops, record, studio
+from . import ops, record, roll, studio
 
 VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"]
 INSTRUCTIONS = """\
@@ -86,7 +86,7 @@ def call(name, a):
     if name == "studio_index": return studio.index(), None
     if name == "devices": return record.devices(), None
     if name == "record_start": return record.start(a["take"], a.get("device"), notes=a.get("notes", "")), None
-    if name == "record_stop": return record.stop(), None
+    if name == "record_stop": return (roll.stop() if roll.state() else record.stop()), None
     if name == "record_status": return record.status() or "not recording", None
     if name == "adopt": return record.adopt(a["take"], a["wav"], a.get("notes", "")), None
     if name == "segments": return ops.segments(a["take"]), None

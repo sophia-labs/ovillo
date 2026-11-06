@@ -11,7 +11,7 @@ POST /api/prompt/rec        {"retake"?}   record the current prompt as <session>
 POST /api/prompt/goto       {"i"}
 POST /api/roll/start | /api/roll/mark {"kind": next|again|back} | /api/roll/stop   one rolling take, cut per line
 """
-import json, pathlib, threading, traceback
+import json, pathlib, subprocess, sys, threading, traceback
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote, urlparse
 from . import studio, record, ops, roll
@@ -33,6 +33,26 @@ def background(take, label, fn):
     threading.Thread(target=run, daemon=True).start()
 
 
+CUTS = {}  # roll take -> the process cutting it
+
+
+def stop_roll():
+    """Halt the roll now and cut it in its own process (cuts queue on a lock): the page stays live, and the next set can
+    roll while this one is transcribed and cut."""
+    h = roll.halt()
+    exe = pathlib.Path(sys.executable).with_name("ovillo-voice")
+    log = open(studio.STUDIO / "takes" / h["roll"] / "cut.log", "w")
+    CUTS[h["roll"]] = subprocess.Popen([str(exe), "cutroll", h["roll"]], stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    return dict(h, cutting=True)
+
+
+def cutting_now():
+    for k, p in list(CUTS.items()):
+        if p.poll() is not None:
+            CUTS.pop(k)
+    return sorted(CUTS)
+
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -49,7 +69,7 @@ class H(BaseHTTPRequestHandler):
         if path == "/api/devices":
             return self.send(200, dict(devices=record.devices(), chosen=record.settings().get("device") or record.DEFAULT_DEVICE))
         if path == "/api/index":
-            ix = studio.index(); ix["busy"] = BUSY; return self.send(200, ix)
+            ix = studio.index(); ix["busy"] = dict(BUSY, **({"_cut": cutting_now()} if cutting_now() else {})); return self.send(200, ix)
         if path.startswith("/files/"):
             p = (studio.STUDIO / path[len("/files/"):]).resolve()
             if studio.STUDIO.resolve() not in p.parents or not p.is_file():
@@ -63,6 +83,8 @@ class H(BaseHTTPRequestHandler):
         try:
             if path == "/api/record/start":
                 return self.send(200, record.start(body["take"], body.get("device"), notes=body.get("notes", "")))
+            if path == "/api/record/stop" and roll.state():
+                return self.send(200, stop_roll())  # a bare stop mid-roll must still cut the roll
             if path == "/api/record/stop":
                 r = record.stop()
                 if (ops.take_meta(r["take"]).get("prompt")):
@@ -73,7 +95,7 @@ class H(BaseHTTPRequestHandler):
             if path == "/api/roll/mark":
                 return self.send(200, roll.mark(body.get("kind", "next")))
             if path == "/api/roll/stop":
-                return self.send(200, roll.stop())
+                return self.send(200, stop_roll())
             if path == "/api/prompt/rec":
                 P = ops.prompts(); i = P["current"]
                 if not P["prompts"]:
