@@ -81,5 +81,5 @@ def index():
     tail = [json.loads(l) for l in logp.read_text().splitlines()[-30:]] if logp.exists() else []
     rec = read_json(STUDIO / ".recording.json")
     prompts = read_json(STUDIO / "prompts.json", {"session": None, "prompts": [], "current": 0})
-    return dict(studio=str(STUDIO), takes=takes, bodies=bodies, log=tail, recording=rec, prompts=prompts,
+    return dict(studio=str(STUDIO), takes=takes, bodies=bodies, log=tail, recording=rec, prompts=prompts, roll=read_json(STUDIO / ".roll.json"),
                 body_bin=str(body_bin()) if body_bin() else None)

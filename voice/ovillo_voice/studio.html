@@ -66,7 +66,9 @@ pre { white-space:pre-wrap; font-size:11px; color:var(--dim); margin:4px 0 8px; 
 .cue { padding:14px 14px 0; color:var(--dim); font-family: ui-serif, Georgia, serif; font-size:17px; }
 .cue b { font-family:var(--mono); font-size:12px; letter-spacing:.12em; font-weight:600; margin-right:6px; }
 .who { padding:12px 14px 0; font-size:13px; letter-spacing:.18em; font-weight:700; }
-.w-V { color:var(--dry); } .w-RADIO { color:#6fb3ff; } .w-GATEKEEPER { color:var(--amber); }
+.w-V, .w-VERA { color:var(--dry); } .w-RADIO, .w-MOMVERONICA { color:#6fb3ff; } .w-HOTVERONICA { color:#ff8a5f; } .w-GATEKEEPER, .w-THEGATEKEEPER { color:var(--amber); }
+.plist button.w-VERA { border-color:#5a2440; } .plist button.w-MOMVERONICA { border-color:#24405a; } .plist button.w-HOTVERONICA { border-color:#5a3020; } .plist button.w-THEGATEKEEPER { border-color:#5a4a1c; }
+.rolling { background:var(--rec); color:#000; padding:2px 8px; font-weight:700; letter-spacing:.12em; animation:blink 1s steps(2) infinite; }
 .plist button.w-V { border-color:#5a2440; } .plist button.w-RADIO { border-color:#24405a; } .plist button.w-GATEKEEPER { border-color:#5a4a1c; }
 .plist button.sel::after { content:" ★"; color:var(--amber); }
 #meter { background:#000; border:1px solid var(--line); margin-bottom:16px; }
@@ -92,13 +94,15 @@ kbd { border:1px solid var(--line); padding:0 4px; font-size:11px; color:var(--d
 <main>
   <div>
   <section id="prompter" hidden>
-    <div class="phead"><span class="slate" id="pslate"></span><span class="meta"><kbd>space</kbd> record / stop · <kbd>enter</kbd> circle the newest take and go on · <kbd>p</kbd> play it · <kbd>←</kbd> <kbd>→</kbd> lines · space again = a retake</span></div>
+    <div class="phead"><span class="slate" id="pslate"></span><span class="meta"><kbd>space</kbd> roll / stop · rolling: <kbd>enter</kbd> or <kbd>→</kbd> next line · <kbd>r</kbd> again · <kbd>←</kbd> back · stopped: <kbd>enter</kbd> circle newest &amp; go on · <kbd>p</kbd> play</span></div>
     <div class="cue" id="pcue" hidden></div>
     <div class="who" id="pwho" hidden></div>
     <div class="say" id="psay"></div>
     <div class="hint" id="phint"></div>
     <div class="controls">
-      <button id="prec" class="go big">● REC</button>
+      <button id="prec" class="go big">● ROLL</button>
+      <button id="pagain" class="big" hidden>↺ AGAIN</button>
+      <button id="pnextline" class="big" hidden>NEXT LINE →</button>
       <button id="pkeep">★ KEEP &amp; NEXT</button>
       <button id="pprev">← PREV</button><button id="pnext">NEXT →</button>
       <span class="meta" id="pstate"></span>
@@ -229,9 +233,16 @@ function renderPrompter(ix) {
   $("psay").textContent = p.say; $("psay").classList.toggle("long", p.say.length > 200); $("phint").textContent = p.hint || "";
   const takes = ix.takes.filter((t) => t.meta && t.meta.prompt && t.meta.prompt.session === P.session && t.meta.prompt.id === p.id).sort((a, b) => b.mtime - a.mtime);
   const btn = $("prec");
-  if (rec) { btn.textContent = "■ STOP"; btn.className = "stop big"; $("pstate").textContent = `SPEAK NOW · ${rec.take} · ${Math.round(rec.elapsed_s || 0)} s`; }
-  else if (busyRec) { btn.textContent = "OPENING MIC…"; btn.className = "go big"; $("pstate").textContent = "wait for SPEAK NOW"; }
-  else { btn.textContent = takes.length ? "● RETAKE" : "● REC"; btn.className = "go big"; $("pstate").textContent = takes.length ? `${takes.length} take${takes.length > 1 ? "s" : ""}` : ""; }
+  const R = ix.roll;
+  $("pagain").hidden = $("pnextline").hidden = !R; $("pkeep").hidden = !!R;
+  if (R && rec) {
+    const k = (R.marks || []).filter((m) => m.line === i).length + 1;
+    btn.textContent = "■ STOP"; btn.className = "stop big";
+    $("pstate").innerHTML = `<span class="rolling">ROLLING</span> take ${k} of ${esc(p.id)} · ${(R.marks || []).length} marks · ${Math.round(rec.elapsed_s || 0)} s`;
+  }
+  else if (busyRec) { btn.textContent = "OPENING MIC…"; btn.className = "go big"; $("pstate").textContent = "wait for ROLLING"; }
+  else if (ix.busy && ix.busy._roll) { btn.textContent = "CUTTING…"; btn.className = "go big"; $("pstate").textContent = "cutting the roll into takes"; }
+  else { btn.textContent = "● ROLL"; btn.className = "go big"; $("pstate").textContent = takes.length ? `${takes.length} take${takes.length > 1 ? "s" : ""} of this line` : ""; }
   const t = takes[0], q = t && t.quick, busy = t && ix.busy && ix.busy[t.take];
   let r = "";
   if (t) {
@@ -253,16 +264,23 @@ function renderPrompter(ix) {
   target = p.target_hz || null;
 }
 async function recToggle() {
-  if (state && state.recording) { await post("/api/record/stop"); }
-  else if (!busyRec) { busyRec = true; renderPrompter(state); try { await post("/api/prompt/rec", {}); } finally { busyRec = false; } }
+  if (state && state.roll) { $("prec").textContent = "CUTTING…"; await post("/api/roll/stop"); }
+  else if (state && state.recording) { await post("/api/record/stop"); }
+  else if (!busyRec) { busyRec = true; renderPrompter(state); try { await post("/api/roll/start", {}); } finally { busyRec = false; } }
   poll();
 }
+async function rollMark(kind) { if (state && state.roll) { await post("/api/roll/mark", { kind }); poll(); } }
+$("pagain").onclick = () => rollMark("again"); $("pnextline").onclick = () => rollMark("next");
 async function go(d) { if (state && !state.recording) { await post("/api/prompt/goto", { i: (state.prompts.current || 0) + d }); poll(); } }
 async function keepNext() { if (state && !state.recording) { await post("/api/prompt/select", {}); await go(1); } }
 $("prec").onclick = recToggle; $("pprev").onclick = () => go(-1); $("pnext").onclick = () => go(1); $("pkeep").onclick = keepNext;
 document.addEventListener("keydown", (e) => {
   if (e.target.matches("input, textarea, select") || $("prompter").hidden) return;
   if (e.code === "Space") { e.preventDefault(); recToggle(); }
+  else if (state && state.roll) {
+    if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); rollMark("next"); }
+    else if (e.key === "r") rollMark("again"); else if (e.key === "ArrowLeft") rollMark("back");
+  }
   else if (e.key === "ArrowRight") go(1); else if (e.key === "ArrowLeft") go(-1);
   else if (e.key === "Enter") { e.preventDefault(); keepNext(); }
   else if (e.key === "p" && $("paudio")) { const a = $("paudio"); a.currentTime = 0; a.play(); }

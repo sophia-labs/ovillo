@@ -9,11 +9,12 @@ POST /api/analyse           {"take"}
 POST /api/sections          {"take", "sections": {name: [t0, t1] | null}}
 POST /api/prompt/rec        {"retake"?}   record the current prompt as <session>-<id>[-n]
 POST /api/prompt/goto       {"i"}
+POST /api/roll/start | /api/roll/mark {"kind": next|again|back} | /api/roll/stop   one rolling take, cut per line
 """
 import json, pathlib, threading, traceback
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote, urlparse
-from . import studio, record, ops
+from . import studio, record, ops, roll
 
 PAGE = pathlib.Path(__file__).with_name("studio.html")
 BUSY = {}
@@ -67,6 +68,12 @@ class H(BaseHTTPRequestHandler):
                 if (ops.take_meta(r["take"]).get("prompt")):
                     background(r["take"], "measuring", ops.quick)
                 return self.send(200, r)
+            if path == "/api/roll/start":
+                return self.send(200, roll.start(body.get("device")))
+            if path == "/api/roll/mark":
+                return self.send(200, roll.mark(body.get("kind", "next")))
+            if path == "/api/roll/stop":
+                return self.send(200, roll.stop())
             if path == "/api/prompt/rec":
                 P = ops.prompts(); i = P["current"]
                 if not P["prompts"]:
