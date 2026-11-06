@@ -1,0 +1,20 @@
+[package]
+name = "ovillo-body"
+description = "A Body to speak through: one mus_ariadne tube-network World whose only source work is a voice streamed in as a volume velocity at one of its volumes. Side branches, bumps, apertures, a flap, the air's jet and turbulence, a room, and a geometric listener; every joule booked."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "ovillo-body"
+path = "src/main.rs"
+
+[dependencies]
+mus-ariadne = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+hound = { workspace = true }

@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ovillo Voice Studio</title>
+<style>
+/* A bench instrument's page: black screens, thin strokes, colour as meaning.
+   pink = Vera (dry), green = the Body (wet), amber = attention, red = recording. */
+:root { color-scheme: dark; --bg:#07080a; --panel:#0e1013; --line:#22262c; --fg:#d8dde3; --dim:#7d858f;
+  --dry:#ff5fa2; --wet:#5fe0a0; --amber:#f0b429; --rec:#ff3b3b; --mono: ui-monospace, "SF Mono", Menlo, monospace; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 var(--mono); }
+header { position:sticky; top:0; z-index:2; background:#000; border-bottom:1px solid var(--line); padding:10px 16px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+h1 { font-size:14px; letter-spacing:.18em; margin:0; font-weight:600; }
+h1 b { color:var(--dry); font-weight:600; }
+.rec { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+select { background:#000; color:var(--fg); border:1px solid var(--line); padding:5px 6px; font:inherit; max-width:16em; }
+input { background:#000; color:var(--fg); border:1px solid var(--line); padding:6px 8px; font:inherit; width:12em; }
+input.notes { width:18em; }
+button { background:#000; color:var(--fg); border:1px solid var(--dim); padding:6px 12px; font:inherit; letter-spacing:.08em; cursor:pointer; }
+button:hover { border-color:var(--fg); }
+button.go { border-color:var(--rec); color:var(--rec); }
+button.stop { background:var(--rec); color:#000; border-color:var(--rec); }
+.light { width:10px; height:10px; border-radius:50%; background:#333; display:inline-block; }
+.light.on { background:var(--rec); box-shadow:0 0 10px var(--rec); animation:blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity:.35; } }
+.meta { color:var(--dim); font-size:12px; }
+main { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:16px; padding:16px; max-width:1500px; margin:0 auto; }
+@media (max-width: 1000px) { main { grid-template-columns:minmax(0,1fr); } }
+.take { background:var(--panel); border:1px solid var(--line); margin-bottom:16px; }
+.take > .head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:10px 12px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+.take h2 { margin:0; font-size:15px; color:var(--dry); }
+.row { padding:10px 12px; display:grid; gap:8px; }
+audio { width:100%; height:32px; filter: invert(.9) hue-rotate(180deg); }
+.chips { display:flex; gap:6px; flex-wrap:wrap; }
+.chip { border:1px solid var(--line); padding:2px 7px; font-size:12px; white-space:nowrap; }
+.chip b { font-weight:600; }
+.chip.dry b { color:var(--dry); } .chip.wet b { color:var(--wet); } .chip.warn b { color:var(--amber); }
+img.plot { width:100%; max-width:100%; display:block; border:1px solid var(--line); cursor:zoom-out; background:#fff; }
+img.plot.small { width:auto; max-height:240px; cursor:zoom-in; }
+.render { border-top:1px dashed var(--line); }
+.render h3 { margin:0; font-size:13px; color:var(--wet); }
+aside section { background:var(--panel); border:1px solid var(--line); margin-bottom:16px; }
+aside h4 { margin:0; padding:8px 12px; border-bottom:1px solid var(--line); font-size:12px; letter-spacing:.14em; color:var(--dim); font-weight:600; }
+.log { max-height:60vh; overflow:auto; padding:6px 12px; font-size:12px; }
+.log div { padding:3px 0; border-bottom:1px solid #15181c; overflow-wrap:anywhere; }
+.log .ev { color:var(--amber); }
+details { padding:4px 12px; } summary { cursor:pointer; color:var(--wet); }
+pre { white-space:pre-wrap; font-size:11px; color:var(--dim); margin:4px 0 8px; }
+.empty { color:var(--dim); padding:20px 12px; }
+/* the prompter: what Claude asks Vera to say */
+#prompter { background:#000; border:1px solid var(--dry); margin-bottom:16px; }
+#prompter .phead { display:flex; justify-content:space-between; gap:10px; padding:8px 12px; border-bottom:1px solid var(--line); flex-wrap:wrap; align-items:center; }
+.slate { font-size:12px; letter-spacing:.14em; color:var(--dry); }
+.say { font-size:clamp(20px, 3vw, 30px); line-height:1.3; padding:18px 14px 6px; font-family: ui-serif, Georgia, serif; text-wrap:pretty; white-space:pre-line; }
+.say.long { font-size:19px; line-height:1.5; max-height:60vh; overflow:auto; columns:2 22em; column-gap:2.5em; }
+.hint { color:var(--dim); padding:0 14px 12px; max-width:80ch; }
+.controls { display:flex; gap:8px; padding:0 12px 12px; flex-wrap:wrap; align-items:center; }
+.controls .big { font-size:16px; padding:10px 18px; }
+.result { padding:10px 12px; border-top:1px solid var(--line); display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.plist { display:flex; gap:4px; flex-wrap:wrap; padding:8px 12px; border-top:1px solid var(--line); }
+.plist button { padding:2px 7px; font-size:11px; border-color:var(--line); color:var(--dim); }
+.plist button.done { color:var(--wet); border-color:#24543d; }
+.plist button.cur { color:#000; background:var(--dry); border-color:var(--dry); }
+#meter { background:#000; border:1px solid var(--line); margin-bottom:16px; }
+#meter .phead { display:flex; justify-content:space-between; gap:10px; padding:8px 12px; border-bottom:1px solid var(--line); align-items:center; flex-wrap:wrap; }
+#hz { font-size:22px; color:var(--dry); min-width:9ch; display:inline-block; }
+canvas { display:block; width:100%; height:180px; }
+kbd { border:1px solid var(--line); padding:0 4px; font-size:11px; color:var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <h1>OVILLO · <b>VOICE</b> STUDIO</h1>
+  <div class="rec">
+    <span class="light" id="light"></span>
+    <input id="take" placeholder="take name" autocomplete="off">
+    <input id="notes" class="notes" placeholder="notes (optional)" autocomplete="off">
+    <button id="recbtn" class="go">● REC</button>
+    <span class="meta" id="recmeta"></span>
+  </div>
+  <span class="meta">MIC <select id="device"></select> <button id="devrefresh" title="look for newly plugged-in mics">↻</button></span>
+  <span class="meta" id="bin"></span>
+</header>
+<main>
+  <div>
+  <section id="prompter" hidden>
+    <div class="phead"><span class="slate" id="pslate"></span><span class="meta"><kbd>space</kbd> record / stop · <kbd>←</kbd> <kbd>→</kbd> prompts · space again on a done prompt = a retake</span></div>
+    <div class="say" id="psay"></div>
+    <div class="hint" id="phint"></div>
+    <div class="controls">
+      <button id="prec" class="go big">● REC</button>
+      <button id="pprev">← PREV</button><button id="pnext">NEXT →</button>
+      <span class="meta" id="pstate"></span>
+    </div>
+    <div class="result" id="presult"></div>
+    <div class="plist" id="plist"></div>
+  </section>
+  <section id="meter">
+    <div class="phead"><span class="slate">PITCH</span><span><span id="hz">—</span> <span class="meta" id="hzinfo">a live meter from the browser's own mic access; it doesn't record</span></span>
+      <span class="chip" id="weight" title="H1-H2: the first harmonic against the second. Higher = airier and thinner, lower = firmer and heavier. Everyday you read about -6 dB, the Prufrock V. take about +11.">weight <b>—</b></span>
+      <button id="meterbtn">TURN ON METER</button></div>
+    <canvas id="trace" width="1200" height="180"></canvas>
+  </section>
+  <div id="takes"><div class="empty">No takes yet. Name one and press REC.</div></div>
+  </div>
+  <aside>
+    <section><h4>WHAT HAPPENED</h4><div class="log" id="log"></div></section>
+    <section><h4>BODIES</h4><div id="bodies" class="row meta">none yet</div></section>
+  </aside>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+const file = (p, m) => `/files/${p}?m=${m || 0}`;
+let state = null, cards = {};
+
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body || {}) });
+  const j = await r.json(); if (!r.ok) alert(j.error || r.status); return j;
+}
+$("recbtn").onclick = async () => {
+  if (state && state.recording) { await post("/api/record/stop"); }
+  else {
+    const take = $("take").value.trim().replace(/\s+/g, "-");
+    if (!take) { $("take").focus(); return; }
+    $("recbtn").textContent = "OPENING MIC…"; $("recmeta").textContent = "speak after the chime";
+    await post("/api/record/start", { take, notes: $("notes").value });
+  }
+  poll();
+};
+const chip = (k, v, cls = "") => v == null ? "" : `<span class="chip ${cls}">${esc(k)} <b>${esc(v)}</b></span>`;
+const pair = (a) => a && a[0] != null ? `${a[0]} → ${a[1]}` : null;
+
+function takeCard(t, busy) {
+  const s = t.summary || {}, m = t.meta || {};
+  const secs = Object.keys(m.sections || {});
+  let h = `<div class="head"><h2>${esc(t.take)}</h2><span class="meta">${esc(m.recorded || "")} · ${esc(m.device || "")}${m.notes ? " · " + esc(m.notes) : ""}</span></div>
+  <div class="row">
+    <audio controls preload="none" src="${file(`takes/${t.take}/dry.wav`, t.mtime)}"></audio>
+    <div class="chips">
+      ${chip("F0", s.f0_median_hz != null ? s.f0_median_hz + " Hz" : null, "dry")}
+      ${chip("tract", s.apparent_vtl_cm != null ? s.apparent_vtl_cm + " cm" : null, "dry")}
+      ${chip("alpha", s.alpha_ratio_db != null ? s.alpha_ratio_db + " dB" : null, "dry")}
+      ${chip("CPPS", s.cpps_db, "dry")}
+      ${chip("level", s.level_dbfs != null ? s.level_dbfs + " dBFS" : null, "dry")}
+      ${secs.length ? chip("sections", secs.length) : ""}
+      <button data-analyse="${esc(t.take)}">${busy ? "ANALYSING…" : t.analysed ? "RE-ANALYSE" : "ANALYSE"}</button>
+    </div>
+    ${t.analysed ? `<img class="plot small" src="${file(`takes/${t.take}/analysis/overview.png`, Date.now() >> 14)}" alt="analysis of ${esc(t.take)}">` : ""}
+  </div>`;
+  for (const r of t.renders) {
+    const c = r.summary || {};
+    h += `<div class="row render"><h3>${r.body.startsWith("praat-") ? `${esc(r.body)} <span class="meta">(not Ovillo, not physics: a Praat formant shift for comparison)</span>` : `through ${esc(r.body)}`}</h3>
+      <audio controls preload="none" src="${file(`renders/${t.take}/${r.body}/wet.wav`, r.mtime)}"></audio>
+      <div class="chips">
+        ${chip("tract", pair(c.vtl_cm) && pair(c.vtl_cm) + " cm", "wet")}
+        ${chip("alpha", pair(c.alpha_db) && pair(c.alpha_db) + " dB", "wet")}
+        ${chip("F0", pair(c.f0_hz) && pair(c.f0_hz) + " Hz", "wet")}
+        ${chip("coherence", c.coherence, c.coherence != null && c.coherence < 0.8 ? "warn" : "wet")}
+        ${chip("delay", c.delay_ms != null ? c.delay_ms + " ms" : null)}
+      </div>
+      ${r.compare ? `<img class="plot small" src="${file(`renders/${t.take}/${r.body}/compare.png`, r.mtime)}" alt="${esc(r.body)} compared">` : ""}
+      ${r.receipt ? `<details><summary>receipt</summary><pre>${esc(JSON.stringify(r.receipt, null, 1))}</pre></details>` : ""}
+    </div>`;
+  }
+  return h;
+}
+
+function render(ix) {
+  const light = $("light"), btn = $("recbtn");
+  if (ix.recording) {
+    light.classList.add("on"); btn.textContent = "■ STOP"; btn.className = "stop";
+    $("recmeta").textContent = `${ix.recording.take} · ${Math.round(ix.recording.elapsed_s || 0)} s · ${ix.recording.device}`;
+  } else { light.classList.remove("on"); btn.textContent = "● REC"; btn.className = "go"; $("recmeta").textContent = ""; }
+  $("bin").textContent = ix.body_bin ? "Body renderer ready" : "Body renderer not built yet";
+  const box = $("takes"), takes = [...ix.takes].sort((a, b) => b.mtime - a.mtime);
+  if (!takes.length) { box.innerHTML = `<div class="empty">No takes yet. Name one and press REC.</div>`; cards = {}; }
+  else {
+    if (box.querySelector(".empty")) box.innerHTML = "";
+    const seen = new Set();
+    takes.forEach((t, i) => {
+      seen.add(t.take);
+      const busy = ix.busy && ix.busy[t.take];
+      const key = JSON.stringify([t, busy]);
+      let el = cards[t.take];
+      if (!el) { el = document.createElement("article"); el.className = "take"; cards[t.take] = el; }
+      if (el.dataset.key !== key) { el.innerHTML = takeCard(t, busy); el.dataset.key = key; }
+      if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null);
+    });
+    for (const k of Object.keys(cards)) if (!seen.has(k)) { cards[k].remove(); delete cards[k]; }
+  }
+  $("log").innerHTML = [...(ix.log || [])].reverse().map((e) => {
+    const { t, event, ...rest } = e;
+    return `<div><span class="meta">${esc(t.slice(11))}</span> <span class="ev">${esc(event)}</span> ${esc(Object.entries(rest).map(([k, v]) => `${k}=${typeof v === "object" ? JSON.stringify(v) : v}`).join(" "))}</div>`;
+  }).join("") || `<div class="meta">nothing yet</div>`;
+  $("bodies").innerHTML = ix.bodies.length ? ix.bodies.map((b) => `<span class="chip">${esc(b)}</span>`).join(" ") : "none yet";
+}
+
+// ---------- which microphone
+async function devices() {
+  const r = await (await fetch("/api/devices")).json();
+  $("device").innerHTML = r.devices.map((d) => `<option ${r.chosen && d.name.toLowerCase().includes(r.chosen.toLowerCase()) ? "selected" : ""}>${esc(d.name)}</option>`).join("");
+}
+$("device").onchange = () => post("/api/device", { device: $("device").value });
+$("devrefresh").onclick = devices; devices();
+
+// ---------- the prompter
+let busyRec = false;
+function renderPrompter(ix) {
+  const P = ix.prompts || {}, list = P.prompts || [];
+  $("prompter").hidden = !list.length; if (!list.length) return;
+  const i = P.current || 0, p = list[i], rec = ix.recording;
+  $("pslate").textContent = `SESSION ${P.session} · ${i + 1} / ${list.length}${p.kind ? " · " + p.kind : ""}`;
+  $("psay").textContent = p.say; $("psay").classList.toggle("long", p.say.length > 200); $("phint").textContent = p.hint || "";
+  const takes = ix.takes.filter((t) => t.meta && t.meta.prompt && t.meta.prompt.session === P.session && t.meta.prompt.id === p.id).sort((a, b) => b.mtime - a.mtime);
+  const btn = $("prec");
+  if (rec) { btn.textContent = "■ STOP"; btn.className = "stop big"; $("pstate").textContent = `SPEAK NOW · ${rec.take} · ${Math.round(rec.elapsed_s || 0)} s`; }
+  else if (busyRec) { btn.textContent = "OPENING MIC…"; btn.className = "go big"; $("pstate").textContent = "wait for SPEAK NOW"; }
+  else { btn.textContent = takes.length ? "● RETAKE" : "● REC"; btn.className = "go big"; $("pstate").textContent = takes.length ? `${takes.length} take${takes.length > 1 ? "s" : ""}` : ""; }
+  const t = takes[0], q = t && t.quick, busy = t && ix.busy && ix.busy[t.take];
+  let r = "";
+  if (t) {
+    r += `<span class="meta">${esc(t.take)}</span><audio controls preload="none" style="width:260px" src="${file(`takes/${t.take}/dry.wav`, t.mtime)}"></audio>`;
+    if (busy) r += `<span class="meta">${esc(busy)}…</span>`;
+    if (q) {
+      const f = q.f0 || {};
+      r += chip("F0", f.median_hz != null ? `${f.median_hz} Hz` : "unvoiced", "dry") + chip("5–95%", f.p5_hz != null ? `${f.p5_hz}–${f.p95_hz}` : null, "dry");
+      r += chip("swing", f.sd_st != null ? `${f.sd_st} st` : null, "dry") + chip("tract", q.apparent_vtl_cm != null ? `${q.apparent_vtl_cm} cm` : null, "dry");
+      r += chip("formants", q.formants_hz ? q.formants_hz.join(" / ") : q.formant_medians_hz ? q.formant_medians_hz.join(" / ") : null, "dry");
+      r += chip("alpha", q.alpha_ratio_db != null ? `${q.alpha_ratio_db} dB` : null, "dry") + chip("level", `${q.level_dbfs} dBFS`, q.level_dbfs < -35 ? "warn" : "dry");
+      if (p.target_hz && f.median_hz) r += chip("target", `${p.target_hz[0]}–${p.target_hz[1]} Hz`, f.median_hz >= p.target_hz[0] && f.median_hz <= p.target_hz[1] ? "wet" : "warn");
+    }
+  }
+  const pr = $("presult"), key = JSON.stringify([t && t.take, q, busy]);
+  if (pr.dataset.key !== key) { pr.innerHTML = r || `<span class="meta">not recorded yet</span>`; pr.dataset.key = key; }
+  const done = new Set(ix.takes.filter((t) => t.meta && t.meta.prompt && t.meta.prompt.session === P.session).map((t) => t.meta.prompt.id));
+  $("plist").innerHTML = list.map((q, j) => `<button data-goto="${j}" class="${j === i ? "cur" : done.has(q.id) ? "done" : ""}" title="${esc(q.say)}">${esc(q.id)}</button>`).join("");
+  target = p.target_hz || null;
+}
+async function recToggle() {
+  if (state && state.recording) { await post("/api/record/stop"); }
+  else if (!busyRec) { busyRec = true; renderPrompter(state); try { await post("/api/prompt/rec", {}); } finally { busyRec = false; } }
+  poll();
+}
+async function go(d) { if (state && !state.recording) { await post("/api/prompt/goto", { i: (state.prompts.current || 0) + d }); poll(); } }
+$("prec").onclick = recToggle; $("pprev").onclick = () => go(-1); $("pnext").onclick = () => go(1);
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input, textarea") || $("prompter").hidden) return;
+  if (e.code === "Space") { e.preventDefault(); recToggle(); }
+  else if (e.key === "ArrowRight") go(1); else if (e.key === "ArrowLeft") go(-1);
+});
+
+// ---------- the pitch meter (YIN on the browser's mic, 2x decimated; it only displays, never records)
+let target = null, baseline = 111, trace = [];
+$("meterbtn").onclick = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  const ctx = new AudioContext(); const an = ctx.createAnalyser(); an.fftSize = 4096; ctx.createMediaStreamSource(stream).connect(an);
+  const buf = new Float32Array(an.fftSize), sr = ctx.sampleRate / 2, d = new Float32Array(2048);
+  an.smoothingTimeConstant = 0.3; const spec = new Float32Array(an.frequencyBinCount), bw = ctx.sampleRate / an.fftSize, hs = [];
+  function h1h2(f0) {  // the strongest bin within 8% of F0, against the same around 2 F0
+    an.getFloatFrequencyData(spec);
+    const pk = (fc) => { let m = -Infinity; for (let k = Math.floor(fc * 0.92 / bw); k <= Math.ceil(fc * 1.08 / bw); k++) m = Math.max(m, spec[k]); return m; };
+    return pk(f0) - pk(2 * f0);
+  }
+  $("meterbtn").hidden = true; $("hzinfo").textContent = "";
+  const NOTES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+  function yin() {
+    an.getFloatTimeDomainData(buf);
+    for (let i = 0; i < 2048; i++) d[i] = (buf[2 * i] + buf[2 * i + 1]) / 2;
+    let e = 0; for (let i = 0; i < 2048; i++) e += d[i] * d[i]; if (Math.sqrt(e / 2048) < 0.004) return null;
+    const W = 1024, minL = Math.floor(sr / 600), maxL = Math.min(Math.floor(sr / 55), 2048 - W - 2), cm = new Float32Array(maxL + 2);
+    let run = 0; cm[0] = 1;
+    for (let tau = 1; tau <= maxL + 1; tau++) { let s = 0; for (let i = 0; i < W; i++) { const v = d[i] - d[i + tau]; s += v * v; } run += s; cm[tau] = run ? s * tau / run : 1; }
+    for (let tau = minL; tau <= maxL; tau++) if (cm[tau] < 0.12) {
+      while (tau + 1 <= maxL && cm[tau + 1] < cm[tau]) tau++;
+      const a = cm[tau - 1], b = cm[tau], c = cm[tau + 1], den = a - 2 * b + c;
+      return sr / (tau + (den ? (a - c) / (2 * den) : 0));
+    }
+    return null;
+  }
+  setInterval(() => {
+    const f = yin(); trace.push(f); if (trace.length > 160) trace.shift();
+    if (f) { hs.push(h1h2(f)); if (hs.length > 25) hs.shift(); }
+    if (hs.length > 8) {
+      const h = [...hs].sort((a, b) => a - b)[hs.length >> 1], el = $("weight");
+      el.innerHTML = `weight <b>${h >= 0 ? "+" : ""}${h.toFixed(1)} dB · ${h > 8 ? "airy" : h < -2 ? "heavy" : "light, connected"}</b>`;
+      el.className = "chip " + (h > 8 || h < -2 ? "warn" : "wet");
+    }
+    const v = trace.slice(-20).filter(Boolean).sort((a, b) => a - b), med = v.length > 4 ? v[v.length >> 1] : null;
+    if (med) { const m = Math.round(69 + 12 * Math.log2(med / 440)); $("hz").textContent = `${Math.round(med)} Hz`; const w = trace.slice(-75).filter(Boolean).sort((a, b) => a - b), fl = w.length > 10 ? w[Math.floor(w.length * 0.1)] : null;
+      $("hzinfo").textContent = `${NOTES[(m % 12 + 12) % 12]}${Math.floor(m / 12) - 1} · ${(12 * Math.log2(med / baseline)).toFixed(1)} st above your usual${fl ? ` · floor (last 3 s) ${Math.round(fl)} Hz` : ""}`; }
+    draw();
+  }, 40);
+};
+function draw() {
+  const c = $("trace"), g = c.getContext("2d"), W = c.width, H = c.height, lo = 55, hi = 450;
+  const y = (f) => H - (Math.log(f / lo) / Math.log(hi / lo)) * H;
+  g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+  if (target) { g.fillStyle = "rgba(255,95,162,.14)"; g.fillRect(0, y(target[1]), W, y(target[0]) - y(target[1])); }
+  g.font = "11px ui-monospace, Menlo, monospace";
+  for (const f of [60, 80, 100, 150, 200, 300, 400]) { g.strokeStyle = "#1c2026"; g.beginPath(); g.moveTo(0, y(f)); g.lineTo(W, y(f)); g.stroke(); g.fillStyle = "#59616b"; g.fillText(f + " Hz", 4, y(f) - 3); }
+  g.setLineDash([4, 4]); g.strokeStyle = "#3060c0"; g.beginPath(); g.moveTo(0, y(baseline)); g.lineTo(W, y(baseline)); g.stroke(); g.setLineDash([]);
+  g.fillStyle = "#3f6fd0"; g.fillText("your usual " + baseline + " Hz", W - 150, y(baseline) - 3);
+  g.fillStyle = "#ff5fa2"; trace.forEach((f, i) => { if (f) g.fillRect((i / 160) * W, y(f) - 2, W / 160, 4); });
+}
+draw();
+
+document.addEventListener("click", async (e) => {
+  const gt = e.target.closest("[data-goto]");
+  if (gt && state && !state.recording) { await post("/api/prompt/goto", { i: +gt.dataset.goto }); poll(); }
+  const a = e.target.closest("[data-analyse]");
+  if (a) { await post("/api/analyse", { take: a.dataset.analyse }); poll(); }
+  const img = e.target.closest("img.plot");
+  if (img) img.classList.toggle("small");
+});
+async function poll() {
+  try { const r = await fetch("/api/index"); const ix = await r.json(); const k = JSON.stringify(ix); if (!state || k !== state._k) { ix._k = k; state = ix; render(ix); renderPrompter(ix); } } catch (e) {}
+}
+poll(); setInterval(poll, 1500);
+</script>
+</body>
+</html>

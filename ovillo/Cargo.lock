@@ -3955,6 +3955,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ovillo-body"
+version = "0.1.0"
+dependencies = [
+ "hound",
+ "mus-ariadne",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ovillo-dsp"
 version = "0.1.0"
 dependencies = [
