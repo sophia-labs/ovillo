@@ -278,15 +278,19 @@ def select_take(take=None, prompt_id=None):
 
 
 def export_selects(dest=None, pad=0.15):
-    """Copy each line's circled take, trimmed to its sound with a little air, to <dest>/<line>.wav (48 kHz mono 24-bit)."""
-    P = prompts(); dest = pathlib.Path(dest or pathlib.Path.home() / "dev/verabot/film/vo/vera"); dest.mkdir(parents=True, exist_ok=True)
+    """Copy each line's circled take, trimmed to its sound with a little air, to <dest>/<line>.wav (48 kHz mono 24-bit).
+    dest defaults to verabot/film/vo/vera/<session>, next to the other sessions; re-exporting bumps the version."""
+    P = prompts(); dest = pathlib.Path(dest or pathlib.Path.home() / "dev/verabot/film/vo/vera" / P["session"]); dest.mkdir(parents=True, exist_ok=True)
+    prev = studio.read_json(dest / "selects.json", {}) or {}
     done = {}
     for pid, take in (P.get("selects") or {}).items():
         s = analysis.load(dry(take)); seg = analysis.segments(s)["segments"]
         a, b = (max(0, seg[0]["start"] - pad), min(s.duration, seg[-1]["end"] + pad)) if seg else (0, s.duration)
         subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(dry(take)), "-ss", f"{a:.3f}", "-to", f"{b:.3f}",
                         "-ac", "1", "-ar", "48000", "-c:a", "pcm_s24le", str(dest / f"{pid}.wav")], check=True)
-        done[pid] = dict(take=take, seconds=round(b - a, 2))
-    studio.write_json(dest / "selects.json", dict(session=P["session"], exported=time.strftime("%Y-%m-%d %H:%M:%S"), lines=done))
+        fr = (studio.read_json(studio.take_dir(take) / "take.json", {}) or {}).get("from_roll") or {}
+        done[pid] = dict(take=take, roll=fr.get("roll"), start=fr.get("start"), end=fr.get("end"), seconds=round(b - a, 2))
+    studio.write_json(dest / "selects.json", dict(session=P["session"], version=prev.get("version", 0) + 1, exported=time.strftime("%Y-%m-%d %H:%M:%S"),
+                                                  method="circled takes, trimmed to their sound with 150 ms of air", lines=done))
     studio.log("export_selects", dest=str(dest), n=len(done))
     return dict(dest=str(dest), lines=done)
