@@ -1,0 +1,169 @@
+{
+  "anatomy": "sunwire.plan.json",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "Everything in the steel-string's \"Limits of v0\" applies: no note-off damping, one touch point per cell, 24 modes per body, a linear model. A fictional design: every changed number is a design hypothesis in its *.design.json.",
+      "Its numbers are parameter choices, not measurements of the coupled sounding pitch."
+    ],
+    "see": "examples/ensemble/sunskip/README.md"
+  },
+  "events": {
+    "applied": 12,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "tab",
+  "frames": 192000,
+  "kind": "sunwire",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": 3.199541784693522e-13,
+    "cumulativeClosureResidual": -4.119968255444917e-18,
+    "currentEnergy": 0.0000110000143337399,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": -3.914986282209376e-18,
+    "initialEnergy": 0.000011000000000000001,
+    "internalLoss": 3.241699981336538e-7,
+    "maximumFrameResidual": 1.794015782284608e-18,
+    "radiation": 3.5702400108630916e-10,
+    "sampleFrames": 192000,
+    "sourceWork": 3.2454103592437586e-7,
+    "throughput": 0.000011324541355878555
+  },
+  "options": {},
+  "output": {
+    "about": "mus render mixes the same observation, times the same gain, into its bus; here there is no bus, master or limiter",
+    "channels": "two listening directions",
+    "gain": 300.0,
+    "observes": "the stereo listener's observation of every body (World units)"
+  },
+  "outputDigest": "sha256:9b6f0e155acf8d2ee6ef026a64defe3363a6dc51cd2a273ee10b8b7079e08bbb",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "sha256:746fbbc1090f2d6400ee8b52151af555363009518a67fbb7c7f67eeb9284768d",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000.0,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 4.0,
+  "world": {
+    "anatomy": "sunwire.plan.json",
+    "bodies": [
+      "string/1",
+      "string/2",
+      "string/3",
+      "string/4",
+      "string/5",
+      "string/6",
+      "string/7",
+      "string/8",
+      "box/0",
+      "box/1",
+      "box/2"
+    ],
+    "bow": {
+      "bowedSeconds": 1.005,
+      "bows": [
+        {
+          "body": "string/1",
+          "pos": 0.12
+        }
+      ],
+      "frictionLoss": 2.5361251595033515e-7,
+      "peakForce": 0.063974882501889,
+      "releases": 822,
+      "sourceWork": 2.840356424012962e-7,
+      "stuckFraction": 0.6184494195688226
+    },
+    "bowedNotes": 1,
+    "capo": 0.0,
+    "controlWork": 3.199541784693522e-13,
+    "cumulativeClosureResidual": -4.119968255444917e-18,
+    "currentEnergy": 0.0000110000143337399,
+    "globalClosureResidual": -3.914986282209376e-18,
+    "hammerOns": 0,
+    "initialEnergy": 0.000011000000000000001,
+    "internalLoss": 3.241699981336538e-7,
+    "intonationTouches": 0,
+    "listenerDigest": "sha256:b96e3764623c2d589a3b9530c4f291337520ccd3495fe4cdeaba59473b56bf87",
+    "maximumFrameResidual": 1.794015782284608e-18,
+    "originFrame": 0,
+    "planDigest": "sha256:746fbbc1090f2d6400ee8b52151af555363009518a67fbb7c7f67eeb9284768d",
+    "plucks": 8,
+    "pullOffs": 0,
+    "radiation": 3.5702400108630916e-10,
+    "sampleFrames": 192000,
+    "simulatedSeconds": 4.0,
+    "slides": 1,
+    "sourceWork": 3.2454103592437586e-7,
+    "strings": [
+      {
+        "hand": "string1",
+        "open": "E4",
+        "palmMute": 0.035,
+        "pick": 0.68,
+        "pos": 0.105,
+        "string": 1
+      },
+      {
+        "hand": "string2",
+        "open": "E4",
+        "palmMute": 0.035,
+        "pick": 0.68,
+        "pos": 0.105,
+        "string": 2
+      },
+      {
+        "hand": "string3",
+        "open": "B3",
+        "palmMute": 0.035,
+        "pick": 0.68,
+        "pos": 0.105,
+        "string": 3
+      },
+      {
+        "hand": "string4",
+        "open": "B3",
+        "palmMute": 0.035,
+        "pick": 0.68,
+        "pos": 0.105,
+        "string": 4
+      },
+      {
+        "hand": "string5",
+        "open": "G3",
+        "palmMute": 0.035,
+        "pick": 0.68,
+        "pos": 0.105,
+        "string": 5
+      },
+      {
+        "hand": "string6",
+        "open": "G3",
+        "palmMute": 0.035,
+        "pick": 0.68,
+        "pos": 0.105,
+        "string": 6
+      },
+      {
+        "hand": "string7",
+        "open": "D3",
+        "palmMute": 0.035,
+        "pick": 0.68,
+        "pos": 0.105,
+        "string": 7
+      },
+      {
+        "hand": "string8",
+        "open": "D3",
+        "palmMute": 0.035,
+        "pick": 0.68,
+        "pos": 0.105,
+        "string": 8
+      }
+    ]
+  }
+}

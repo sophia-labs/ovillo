@@ -222,6 +222,24 @@ impl Web {
         self.send(Command::ResetWorld);
     }
 
+    pub fn set_tempo(&mut self, bpm: f64) {
+        self.send(Command::Tempo(bpm));
+    }
+
+    pub fn mute_strings(&mut self) {
+        self.send(Command::MuteStrings);
+    }
+
+    /// The rig, to read (its World's books); reading changes nothing.
+    pub fn rig(&self) -> &Rig {
+        &self.rig
+    }
+
+    /// The pattern the guitarist plays.
+    pub fn pattern(&self) -> Pattern {
+        self.pattern
+    }
+
     pub fn set_master(&mut self, gain: f32, mute: bool) {
         self.master_target = if gain.is_finite() { gain.clamp(0.0, 1.0) } else { 0.0 };
         self.master_mute = mute;

@@ -239,7 +239,7 @@ impl Gut {
 
     /// Set the refill for the next hop from the stomach (0 when it is empty
     /// or the reservoir is full) and take that hop's share out of the food.
-    fn pay_hop(&mut self) {
+    pub fn pay_hop(&mut self) {
         let want: f64 = self.stomach.iter().map(|(f, _)| f.gas_j / f.seconds).sum();
         if self.gas_fraction() >= 0.995 {
             self.world.set_refill(0.0);

@@ -1,0 +1,24 @@
+{
+  "name": "ovillo",
+  "version": "0.1.0",
+  "description": "Every Ovillo World (Ariadne physical-modelling Worlds) behind one WebAssembly module: AudioWorklet nodes for the browser and three.js, offline renders in Node, receipts with energy ledgers.",
+  "type": "module",
+  "license": "MIT",
+  "main": "./ovillo.js",
+  "types": "./ovillo.d.ts",
+  "exports": {
+    ".": { "types": "./ovillo.d.ts", "default": "./ovillo.js" },
+    "./core": { "types": "./ovillo.d.ts", "default": "./core.js" },
+    "./worklet": "./ovillo-worklet.js",
+    "./ovillo.wasm": "./ovillo.wasm",
+    "./ovillo-catalog.json": "./ovillo-catalog.json"
+  },
+  "files": ["ovillo.js", "core.js", "ovillo-worklet.js", "ovillo.d.ts", "ovillo.wasm", "ovillo-catalog.json", "README.md", "THREE.md"],
+  "scripts": {
+    "build": "bash build.sh",
+    "test": "node --test test/node.test.mjs",
+    "rtf": "node tools/rtf.mjs ovillo.wasm",
+    "serve": "python3 -m http.server -d . 8766"
+  },
+  "repository": "https://github.com/sophia-labs/ovillo"
+}

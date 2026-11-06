@@ -3210,6 +3210,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "mus-engine"
+version = "0.1.0"
+dependencies = [
+ "hound",
+ "mus-ariadne",
+ "mus-dsp",
+ "mus-notation",
+ "mus-text",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
+name = "mus-graph"
+version = "0.1.0"
+dependencies = [
+ "mus-oplog",
+]
+
+[[package]]
+name = "mus-notation"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "serde",
+]
+
+[[package]]
 name = "mus-observation"
 version = "0.1.0"
 dependencies = [
@@ -3217,6 +3247,26 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "mus-oplog"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
+name = "mus-text"
+version = "0.1.0"
+dependencies = [
+ "mus-graph",
+ "mus-notation",
+ "mus-oplog",
+ "regex",
+ "serde",
 ]
 
 [[package]]
@@ -3941,6 +3991,21 @@ name = "ovillo-mcp"
 version = "0.1.0"
 dependencies = [
  "serde_json",
+]
+
+[[package]]
+name = "ovillo-portable"
+version = "0.1.0"
+dependencies = [
+ "mus-ariadne",
+ "mus-engine",
+ "ovillo-dsp",
+ "ovillo-game-sound",
+ "ovillo-tract-world",
+ "ovillo-web",
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]

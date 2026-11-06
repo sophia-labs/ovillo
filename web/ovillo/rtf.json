@@ -1,0 +1,216 @@
+{
+  "schema": "ovillo.portable.rtf.v1",
+  "sampleRate": 48000,
+  "quantum": 128,
+  "machine": {
+    "node": "v22.23.2",
+    "cpus": 16,
+    "cpu": "Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz",
+    "loadAverage": [
+      6.95654296875,
+      6.90625,
+      6.6025390625
+    ],
+    "date": "2026-11-06T00:49:36.868Z"
+  },
+  "rows": [
+    {
+      "kind": "steel-string",
+      "audioSeconds": 6,
+      "wallSeconds": 6.830612384,
+      "realTimeFactor": 0.8783985479917403,
+      "worstQuantumMs": 31.834851999999955,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 62.73140000000001,
+      "cumulativeClosureResidual": -2.810116505810867e-17,
+      "maximumFrameResidual": 3.4304834363799164e-18
+    },
+    {
+      "kind": "gate",
+      "audioSeconds": 4,
+      "wallSeconds": 5.0211958150000005,
+      "realTimeFactor": 0.7966229853157001,
+      "worstQuantumMs": 4.549085000000559,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 12.210392999999385,
+      "cumulativeClosureResidual": -8.944667923005412e-19,
+      "maximumFrameResidual": 1.2756316185649763e-18
+    },
+    {
+      "kind": "waiting",
+      "audioSeconds": 4,
+      "wallSeconds": 4.558332323999999,
+      "realTimeFactor": 0.8775139054560956,
+      "worstQuantumMs": 5.807983000000604,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 10.308136999999988,
+      "cumulativeClosureResidual": -5.437951521372608e-18,
+      "maximumFrameResidual": 2.795208725939191e-18
+    },
+    {
+      "kind": "glass-bells",
+      "audioSeconds": 4,
+      "wallSeconds": 6.068023160000001,
+      "realTimeFactor": 0.6591932651753425,
+      "worstQuantumMs": 5.015477000000828,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 14.246323999999731,
+      "cumulativeClosureResidual": 9.374960660210596e-18,
+      "maximumFrameResidual": 2.2632720350634905e-18
+    },
+    {
+      "kind": "fleas",
+      "audioSeconds": 4,
+      "wallSeconds": 4.943857884000001,
+      "realTimeFactor": 0.8090847459319888,
+      "worstQuantumMs": 4.14192600000024,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 11.942900000001828,
+      "cumulativeClosureResidual": -1.1177446771967747e-17,
+      "maximumFrameResidual": 8.267041565201971e-19
+    },
+    {
+      "kind": "slam-drums",
+      "audioSeconds": 4,
+      "wallSeconds": 3.856199091999999,
+      "realTimeFactor": 1.037290841206391,
+      "worstQuantumMs": 3.872896999997465,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 9.33924300000217,
+      "cumulativeClosureResidual": 1.4535085374883794e-18,
+      "maximumFrameResidual": 2.169251377918263e-18
+    },
+    {
+      "kind": "sunwire",
+      "audioSeconds": 4,
+      "wallSeconds": 6.243306574000002,
+      "realTimeFactor": 0.6406861416445315,
+      "worstQuantumMs": 21.904082000000926,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 14.62129300000015,
+      "cumulativeClosureResidual": -4.118274189550408e-18,
+      "maximumFrameResidual": 1.794015782284608e-18
+    },
+    {
+      "kind": "tumbler",
+      "audioSeconds": 4,
+      "wallSeconds": 3.978400948000002,
+      "realTimeFactor": 1.0054290787384956,
+      "worstQuantumMs": 34.14752600000065,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 9.127642999999807,
+      "cumulativeClosureResidual": -1.4738373282224826e-19,
+      "maximumFrameResidual": 1.088437337221776e-18
+    },
+    {
+      "kind": "prism",
+      "audioSeconds": 4,
+      "wallSeconds": 5.032220624000002,
+      "realTimeFactor": 0.7948777088434743,
+      "worstQuantumMs": 4.437568000001193,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 12.002040999999736,
+      "cumulativeClosureResidual": -3.847223646429032e-18,
+      "maximumFrameResidual": 1.2807138162485021e-18
+    },
+    {
+      "kind": "pocket",
+      "audioSeconds": 4,
+      "wallSeconds": 5.29559347,
+      "realTimeFactor": 0.7553449906342603,
+      "worstQuantumMs": 4.739371999996365,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 11.490881999998237,
+      "cumulativeClosureResidual": -5.154534297221319e-17,
+      "maximumFrameResidual": 1.650020181251377e-18
+    },
+    {
+      "kind": "piano",
+      "audioSeconds": 4,
+      "wallSeconds": 7.911220285999996,
+      "realTimeFactor": 0.5056109999968723,
+      "worstQuantumMs": 12.586212000001979,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 52.55980800000543,
+      "cumulativeClosureResidual": -4.702611726675049e-15,
+      "maximumFrameResidual": 1.3877787807814457e-17
+    },
+    {
+      "kind": "trombone",
+      "audioSeconds": 8,
+      "wallSeconds": 10.509848699000003,
+      "realTimeFactor": 0.7611907867675762,
+      "worstQuantumMs": 48.459046999996644,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 31.86444599999959,
+      "cumulativeClosureResidual": -2.7142732506035827e-12,
+      "maximumFrameResidual": 3.552713678800501e-15
+    },
+    {
+      "kind": "tract",
+      "audioSeconds": 4,
+      "wallSeconds": 0.4822822920000035,
+      "realTimeFactor": 8.293897715821528,
+      "worstQuantumMs": 2.5917570000019623,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 6.936273999992409,
+      "cumulativeClosureResidual": -1.006750238730092e-12,
+      "maximumFrameResidual": 8.881784197001252e-16
+    },
+    {
+      "kind": "fart",
+      "audioSeconds": 5,
+      "wallSeconds": 0.36518491399999764,
+      "realTimeFactor": 13.691693737381584,
+      "worstQuantumMs": 0.5747899999987567,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 3.3604960000084247,
+      "cumulativeClosureResidual": -1.4765966227514582e-14,
+      "maximumFrameResidual": 4.440892098500626e-16
+    },
+    {
+      "kind": "bench",
+      "audioSeconds": 4,
+      "wallSeconds": 1.6598320470000034,
+      "realTimeFactor": 2.4098823776957667,
+      "worstQuantumMs": 3.61119399999734,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 3.973280000005616,
+      "cumulativeClosureResidual": 2.0816681711721685e-17,
+      "maximumFrameResidual": 1.3010426069826053e-18
+    },
+    {
+      "kind": "kart_engine",
+      "audioSeconds": 6,
+      "wallSeconds": 0.6556763740000024,
+      "realTimeFactor": 9.150855876347281,
+      "worstQuantumMs": 2.4469289999979082,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 1.9907680000032997,
+      "cumulativeClosureResidual": -7.916163373564597e-9,
+      "maximumFrameResidual": 1.1368683772161603e-12
+    },
+    {
+      "kind": "race_props",
+      "audioSeconds": 9,
+      "wallSeconds": 0.27136723699999854,
+      "realTimeFactor": 33.16538908490286,
+      "worstQuantumMs": 0.5348030000022845,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 0.48309800001152325,
+      "cumulativeClosureResidual": 3.788830028869505e-13,
+      "maximumFrameResidual": 6.938893903907228e-17
+    },
+    {
+      "kind": "f16",
+      "audioSeconds": 4,
+      "wallSeconds": 0.829862408999994,
+      "realTimeFactor": 4.8200761434899855,
+      "worstQuantumMs": 1.065231999993557,
+      "quantumBudgetMs": 2.6666666666666665,
+      "createMs": 2.644358999998076,
+      "cumulativeClosureResidual": 5.325274765968259e-10,
+      "maximumFrameResidual": 1.7053025658242404e-13
+    }
+  ]
+}

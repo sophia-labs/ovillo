@@ -1,0 +1,65 @@
+{
+  "anatomy": "string-brass-v1",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "The guitar is a signal model (waveguide strings, pickup-position combs, a coil-and-cable resonance under a tone knob, hum): not an Ariadne World and not under the pure-physics constitution; only what it drives is.",
+      "The World's Output stage clamps at +-1 (the plug-in's safety limiter), and the runaway guard fades and rests the World when it is held there.",
+      "The canonical World's controls are the plug-in's twenty parameters; their behaviour is the plug-in's (ovillo_dsp::ariadne, lifted line for line)."
+    ],
+    "see": "ovillo/README.md"
+  },
+  "events": {
+    "applied": 2,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "bench",
+  "frames": 192000,
+  "kind": "bench",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": 0,
+    "cumulativeClosureResidual": 2.0816681711721685e-17,
+    "currentEnergy": 0.002000678545904462,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": 4.336808689942018e-19,
+    "initialEnergy": 0.002,
+    "internalLoss": 0.000021128674184183627,
+    "maximumFrameResidual": 1.3010426069826053e-18,
+    "radiation": 3.7660561859148607e-8,
+    "sampleFrames": 192000,
+    "sourceWork": 0.000021844880650504468,
+    "throughput": 0.0020218448806505044
+  },
+  "options": {
+    "seed": 7
+  },
+  "output": {
+    "about": "the bench's master (monitor) is at unity; its runaway guard may fade the output (telemetry guard)",
+    "channels": "two listening directions",
+    "gain": 1,
+    "observes": "the World's stereo listener times Listener Scale, mixed with the DI by Mix, times Output, safety-limited at +-1 (the plug-in's own stages)"
+  },
+  "outputDigest": "sha256:a5861404a16315cede38f11320b29847b2387d61c06980412106801708b7e93d",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "sha256:5ba57a4d3f0bfe26d12a546385c5aae8d3cb9f00e5e05e6fd95ea1bb2a05a192",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 4,
+  "world": {
+    "anatomy": "string-brass-v1",
+    "guardTrips": 0,
+    "pattern": "wander",
+    "planDigest": "sha256:5ba57a4d3f0bfe26d12a546385c5aae8d3cb9f00e5e05e6fd95ea1bb2a05a192",
+    "safetyLimitedFrames": 0,
+    "seed": 7,
+    "simulatedGuitar": "a signal model (not a World): its DI drives the World",
+    "worldErrors": 0
+  }
+}

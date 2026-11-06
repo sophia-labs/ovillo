@@ -1,0 +1,95 @@
+{
+  "anatomy": "",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "Not a mus_ariadne plan: a standalone World on ovillo-game-sound's wave-network runtime, booking a mus_watsn WorkLedger (same receipt fields). Not under the steel-string/piano/tract specs.",
+      "No coil or circuit: the pull is a declared force whose work is the buzzer's only source; no contact bounce beyond the gate, no housing cavity.",
+      "The bell's ratios are a design choice after the minor-third church bell series; the pairs' splits and the shapes at the strike point are invented; the clapper's swing is not a pendulum (its arrival speed is the control); no stand."
+    ],
+    "see": "ovillo/crates/ovillo-game-sound (module headers); the request ~/dev/verabot/requests/2026-11-05-sound-sources.md"
+  },
+  "events": {
+    "applied": 6,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "game-sound",
+  "frames": 432000,
+  "kind": "race_props",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": 0.594,
+    "cumulativeClosureResidual": 3.82421160655758e-13,
+    "currentEnergy": 0.00013931785088021017,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": 3.6968713680585186e-13,
+    "initialEnergy": 0.0,
+    "internalLoss": 3.519911596259752,
+    "maximumFrameResidual": 6.938893903907228e-17,
+    "radiation": 0.15962519119123691,
+    "sampleFrames": 432000,
+    "sourceWork": 3.0856761053014994,
+    "throughput": 3.6796761053014992
+  },
+  "options": {},
+  "output": {
+    "about": "the World's own pressure over its OUTPUT_SCALE_PA; propagation delay, Doppler, distance, directivity toward the listener (except f16's declared aspect readout), ground and air are the engine's",
+    "channels": "one point (left = right)",
+    "gain": 0.05,
+    "observes": "pressure at the reference distance (Pa)"
+  },
+  "outputDigest": "sha256:c5748c96da180d6a7e695f07db1f70219b6d6d19db9d0d193f420b09f7d61f5a",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "none (not a plan): ovillo-game-sound race_props seed 1",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000.0,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 9.0,
+  "world": {
+    "armatureImpacts": 7781,
+    "bellStrokes": 10,
+    "declaredSources": [
+      "armature pull force (constant while the contact gate is closed)",
+      "clapper thrown at a set speed (control)"
+    ],
+    "ledger": {
+      "controlWork": 0.594,
+      "cumulativeClosureResidual": 3.82421160655758e-13,
+      "finalEnergy": 0.00013931785088021017,
+      "frames": 432000,
+      "globalResidual": 3.6968713680585186e-13,
+      "initialEnergy": 0.0,
+      "internalLoss": 3.519911596259752,
+      "lines": {
+        "control:clapper_thrown": 0.594,
+        "control:return_spring_retuned": 7.438337403597821e-31,
+        "loss:armature_air_damping": 2.5170095760119238,
+        "loss:armature_contact_damping": 0.014965676832908309,
+        "loss:bell_damping": 0.33213298987447976,
+        "loss:clapper_carries_away": 0.22439839142622736,
+        "loss:clapper_contact_damping": 0.016129322771772845,
+        "loss:plate_damping": 0.41527563934241396,
+        "radiation:bell": 0.02119997807709409,
+        "radiation:buzzer_housing": 0.13842521311413727,
+        "source:armature_pull_force": 3.0856761053014994
+      },
+      "maxStoredEnergy": 0.09726330389265234,
+      "maximumFrameResidual": 6.938893903907228e-17,
+      "outputWork": 0.0,
+      "radiation": 0.15962519119123691,
+      "relativeGlobalResidual": 1.0046730370459088e-13,
+      "sourceWork": 3.0856761053014994
+    },
+    "outputScalePa": 20.0,
+    "runtime": "ovillo-game-sound (not a mus_ariadne plan)",
+    "sampleRate": 48000.0,
+    "seed": 1,
+    "stochastic": false,
+    "world": "race_props"
+  }
+}

@@ -11,6 +11,7 @@
 //! superseded here — this stage's whole point is to stop refusing those
 //! constructs and render them instead.
 
+pub mod ariadne_live;
 pub mod ariadne_piano;
 pub mod ariadne_tab;
 mod events;

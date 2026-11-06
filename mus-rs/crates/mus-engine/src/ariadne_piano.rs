@@ -38,12 +38,13 @@ use crate::util::{ART_GAIN, ART_SHORTEN};
 use crate::{RenderError, RenderStats};
 
 /// `anatomy=piano-v1`: the grand compiled by `mus_analysis.piano_anatomy`.
-const PIANO_V1: &str = include_str!("../../../../profiles/ariadne-piano-v1.anatomy.json");
+pub(crate) const PIANO_V1: &str =
+    include_str!("../../../../profiles/ariadne-piano-v1.anatomy.json");
 /// Hammer velocity at the string for each written dynamic (m/s). Chabassier,
 /// Chaigne & Joly (2016) play p at 0.5 m/s and ff at 4 to 4.5 m/s; Bank (2000)
 /// puts the largest a piano reaches near 6 to 7 m/s. Steps of x1.47 between
 /// marks (design-hypothesis).
-const VELOCITY: &[(&str, f64)] = &[
+pub(crate) const VELOCITY: &[(&str, f64)] = &[
     ("ppp", 0.34),
     ("pp", 0.5),
     ("p", 0.74),
@@ -62,10 +63,10 @@ const ARTICULATION_DB_PER_DOUBLING: f64 = 12.0;
 /// felt leaves the wire over `DAMPER_LIFT_SECONDS`. After release the damper
 /// falls for `DAMPER_FALL_SECONDS` and its felt settles over
 /// `DAMPER_LAND_SECONDS` (design-hypothesis).
-const DAMPER_LEAD_SECONDS: f64 = 0.015;
-const DAMPER_LIFT_SECONDS: f64 = 0.004;
-const DAMPER_FALL_SECONDS: f64 = 0.008;
-const DAMPER_LAND_SECONDS: f64 = 0.012;
+pub(crate) const DAMPER_LEAD_SECONDS: f64 = 0.015;
+pub(crate) const DAMPER_LIFT_SECONDS: f64 = 0.004;
+pub(crate) const DAMPER_FALL_SECONDS: f64 = 0.008;
+pub(crate) const DAMPER_LAND_SECONDS: f64 = 0.012;
 /// A pedal mark goes down this long after its written onset (the foot waits for
 /// the new harmony's keys, then catches them: syncopated pedalling).
 const PEDAL_LAG_SECONDS: f64 = 0.08;
@@ -73,7 +74,7 @@ const PEDAL_LAG_SECONDS: f64 = 0.08;
 const TENSION_RANGE: (f64, f64) = (0.98, 1.02);
 /// The listener hears pressure (Pa at 1 m from the board). This brings a
 /// mezzo-forte piano near the engine's other voices.
-const OBSERVATION_GAIN: f64 = 0.1;
+pub(crate) const OBSERVATION_GAIN: f64 = 0.1;
 const ENERGY_HOP_SECONDS: f64 = 0.01;
 
 pub fn is_piano_anatomy(value: &str) -> bool {
@@ -84,13 +85,13 @@ pub fn is_piano_anatomy(value: &str) -> bool {
 // ---------------------------------------------------------------- the anatomy (data)
 
 #[derive(Debug, Clone, Deserialize)]
-struct Anatomy {
-    schema: String,
-    sample_rate_hz: f64,
+pub(crate) struct Anatomy {
+    pub(crate) schema: String,
+    pub(crate) sample_rate_hz: f64,
     wire: WireMaterial,
-    notes: Vec<KeyAnatomy>,
+    pub(crate) notes: Vec<KeyAnatomy>,
     board: BoardAnatomy,
-    room: SharedSpaceSpec,
+    pub(crate) room: SharedSpaceSpec,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -104,28 +105,28 @@ struct WireMaterial {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct KeyAnatomy {
-    key: usize,
-    name: String,
-    speaking_length_m: f64,
-    strike_fraction: f64,
-    core_diameter_m: f64,
-    outer_diameter_m: f64,
-    linear_density_kg_m: f64,
-    hammer: HammerAnatomy,
-    damper: Option<DamperSpec>,
+pub(crate) struct KeyAnatomy {
+    pub(crate) key: usize,
+    pub(crate) name: String,
+    pub(crate) speaking_length_m: f64,
+    pub(crate) strike_fraction: f64,
+    pub(crate) core_diameter_m: f64,
+    pub(crate) outer_diameter_m: f64,
+    pub(crate) linear_density_kg_m: f64,
+    pub(crate) hammer: HammerAnatomy,
+    pub(crate) damper: Option<DamperSpec>,
     wires: Vec<WireAnatomy>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct HammerAnatomy {
-    mass_kg: f64,
-    felt_stiffness: f64,
-    felt_exponent: f64,
-    felt_relaxation_s: f64,
-    contact_width_m: f64,
-    letoff_m: f64,
-    catch_m: f64,
+pub(crate) struct HammerAnatomy {
+    pub(crate) mass_kg: f64,
+    pub(crate) felt_stiffness: f64,
+    pub(crate) felt_exponent: f64,
+    pub(crate) felt_relaxation_s: f64,
+    pub(crate) contact_width_m: f64,
+    pub(crate) letoff_m: f64,
+    pub(crate) catch_m: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -168,11 +169,11 @@ struct Readout {
 pub struct PianoInstrument {
     pub abbrev: String,
     pub anatomy_name: String,
-    anatomy: Anatomy,
+    pub(crate) anatomy: Anatomy,
     staves: Vec<Staff>,
     pedal: Option<Pedal>,
-    gain_db: f64,
-    send: f64,
+    pub(crate) gain_db: f64,
+    pub(crate) send: f64,
 }
 
 struct Staff {
@@ -187,12 +188,12 @@ struct Pedal {
 
 /// One key going down: when the hammer meets the strings, how hard, and when the key is let go.
 #[derive(Debug, Clone, Copy)]
-struct KeyPress {
-    onset_s: f64,
-    key: usize,
-    velocity: f64,
-    release_s: f64,
-    staff: usize,
+pub(crate) struct KeyPress {
+    pub(crate) onset_s: f64,
+    pub(crate) key: usize,
+    pub(crate) velocity: f64,
+    pub(crate) release_s: f64,
+    pub(crate) staff: usize,
 }
 
 /// What a piano's world did, for the render receipt.
@@ -407,7 +408,7 @@ fn velocity_of(dynamic: &str) -> f64 {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn performance(
+pub(crate) fn performance(
     inst: &PianoInstrument,
     bar_map: &BarMap,
     bar_content: &BTreeMap<u32, BTreeMap<String, String>>,
@@ -635,26 +636,26 @@ fn space_body(
 }
 
 /// Where each key's strings and hammer sit in the composed world.
-struct KeyBodies {
-    strings: Vec<usize>,
-    hammer: usize,
-    damped: bool,
+pub(crate) struct KeyBodies {
+    pub(crate) strings: Vec<usize>,
+    pub(crate) hammer: usize,
+    pub(crate) damped: bool,
 }
 
-struct Composition {
-    plan: ConstitutiveWorldPlan,
-    listener: StereoListenerSpec,
-    radiation_fraction: Vec<f64>,
-    keys: BTreeMap<usize, KeyBodies>,
-    board_bodies: Vec<usize>,
-    string_bodies: Vec<usize>,
-    receipts: Vec<KeyReceipt>,
+pub(crate) struct Composition {
+    pub(crate) plan: ConstitutiveWorldPlan,
+    pub(crate) listener: StereoListenerSpec,
+    pub(crate) radiation_fraction: Vec<f64>,
+    pub(crate) keys: BTreeMap<usize, KeyBodies>,
+    pub(crate) board_bodies: Vec<usize>,
+    pub(crate) string_bodies: Vec<usize>,
+    pub(crate) receipts: Vec<KeyReceipt>,
 }
 
 /// One world for the keys a score plays: the soundboard bodies, each key's
 /// strings (stiff wires with their dampers) and hammer, one bridge edge per
 /// string and board body, and the room.
-fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, String> {
+pub(crate) fn compose(anatomy: &Anatomy, keys: &BTreeSet<usize>) -> Result<Composition, String> {
     let fs = anatomy.sample_rate_hz;
     let mut bodies = Vec::new();
     let mut radiation_fraction = Vec::new();

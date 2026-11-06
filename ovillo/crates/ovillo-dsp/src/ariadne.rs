@@ -342,6 +342,12 @@ impl AriadneEngine {
         self.world.plan_digest()
     }
 
+    /// The World itself, to read (its receipt, its bodies); reading changes nothing.
+    #[must_use]
+    pub fn world(&self) -> &World {
+        &self.world
+    }
+
     /// Cheap reads of the World's own state (no allocation).
     #[must_use]
     pub fn readings(&self) -> WorldReadings {

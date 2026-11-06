@@ -1,0 +1,95 @@
+{
+  "anatomy": "",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "Not a mus_ariadne plan: a standalone World on ovillo-game-sound's wave-network runtime, booking a mus_watsn WorkLedger (same receipt fields). Not under the steel-string/piano/tract specs.",
+      "No coil or circuit: the pull is a declared force whose work is the buzzer's only source; no contact bounce beyond the gate, no housing cavity.",
+      "The bell's ratios are a design choice after the minor-third church bell series; the pairs' splits and the shapes at the strike point are invented; the clapper's swing is not a pendulum (its arrival speed is the control); no stand."
+    ],
+    "see": "ovillo/crates/ovillo-game-sound (module headers); the request ~/dev/verabot/requests/2026-11-05-sound-sources.md"
+  },
+  "events": {
+    "applied": 6,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "game-sound",
+  "frames": 432000,
+  "kind": "race_props",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": 0.594,
+    "cumulativeClosureResidual": 3.788830028869505e-13,
+    "currentEnergy": 0.0001393178508803775,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": 3.7790357323465307e-13,
+    "initialEnergy": 0,
+    "internalLoss": 3.5085591264213787,
+    "maximumFrameResidual": 6.938893903907228e-17,
+    "radiation": 0.15888823817471454,
+    "sampleFrames": 432000,
+    "sourceWork": 3.073586682446596,
+    "throughput": 3.6675866824465957
+  },
+  "options": {},
+  "output": {
+    "about": "the World's own pressure over its OUTPUT_SCALE_PA; propagation delay, Doppler, distance, directivity toward the listener (except f16's declared aspect readout), ground and air are the engine's",
+    "channels": "one point (left = right)",
+    "gain": 0.05,
+    "observes": "pressure at the reference distance (Pa)"
+  },
+  "outputDigest": "sha256:0a48325ac97138e578b57e8beb0d8b1f3ce88e34af4bbd73a4148262eea973a8",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "none (not a plan): ovillo-game-sound race_props seed 1",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 9,
+  "world": {
+    "armatureImpacts": 7795,
+    "bellStrokes": 10,
+    "declaredSources": [
+      "armature pull force (constant while the contact gate is closed)",
+      "clapper thrown at a set speed (control)"
+    ],
+    "ledger": {
+      "controlWork": 0.594,
+      "cumulativeClosureResidual": 3.788830028869505e-13,
+      "finalEnergy": 0.0001393178508803775,
+      "frames": 432000,
+      "globalResidual": 3.7790357323465307e-13,
+      "initialEnergy": 0,
+      "internalLoss": 3.5085591264213787,
+      "lines": {
+        "control:clapper_thrown": 0.594,
+        "control:return_spring_retuned": 4.054735237649926e-31,
+        "loss:armature_air_damping": 2.507997264443619,
+        "loss:armature_contact_damping": 0.014836377612413161,
+        "loss:bell_damping": 0.33213298987448175,
+        "loss:clapper_carries_away": 0.22439839142622658,
+        "loss:clapper_contact_damping": 0.016129322771772786,
+        "loss:plate_damping": 0.41306478029284227,
+        "radiation:bell": 0.021199978077094228,
+        "radiation:buzzer_housing": 0.13768826009761473,
+        "source:armature_pull_force": 3.073586682446596
+      },
+      "maxStoredEnergy": 0.09726330389265256,
+      "maximumFrameResidual": 6.938893903907228e-17,
+      "outputWork": 0,
+      "radiation": 0.15888823817471454,
+      "relativeGlobalResidual": 1.0303875707787195e-13,
+      "sourceWork": 3.073586682446596
+    },
+    "outputScalePa": 20,
+    "runtime": "ovillo-game-sound (not a mus_ariadne plan)",
+    "sampleRate": 48000,
+    "seed": 1,
+    "stochastic": false,
+    "world": "race_props"
+  }
+}

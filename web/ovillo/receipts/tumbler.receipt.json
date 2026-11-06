@@ -1,0 +1,132 @@
+{
+  "anatomy": "tumbler.plan.json",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "Everything in the steel-string's \"Limits of v0\" applies: no note-off damping, one touch point per cell, 24 modes per body, a linear model. A fictional design: every changed number is a design hypothesis in its *.design.json."
+    ],
+    "see": "examples/ensemble/sunskip/README.md"
+  },
+  "events": {
+    "applied": 8,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "tab",
+  "frames": 192000,
+  "kind": "tumbler",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": 2.677869417593278e-12,
+    "cumulativeClosureResidual": -1.4738373282224826e-19,
+    "currentEnergy": 0.0000070000008675024775,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": 1.2188804110989382e-18,
+    "initialEnergy": 0.000006999999999999999,
+    "internalLoss": 3.4518322893370907e-7,
+    "maximumFrameResidual": 1.088437337221776e-18,
+    "radiation": 1.9166822386727313e-9,
+    "sampleFrames": 192000,
+    "sourceWork": 3.470981008042242e-7,
+    "throughput": 0.000007347100778673641
+  },
+  "options": {},
+  "output": {
+    "about": "mus render mixes the same observation, times the same gain, into its bus; here there is no bus, master or limiter",
+    "channels": "two listening directions",
+    "gain": 300,
+    "observes": "the stereo listener's observation of every body (World units)"
+  },
+  "outputDigest": "sha256:77e0d38cf9a6bdf85fcda878737d1547b0d46f30c3622f6c319aa76a363cf50d",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "sha256:36378b3016e6917acb1b3f6469cd870e9adb49058c5e2f30a4893551803d8214",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 4,
+  "world": {
+    "anatomy": "tumbler.plan.json",
+    "bodies": [
+      "string/1",
+      "string/2",
+      "string/3",
+      "string/4",
+      "box/0",
+      "box/1",
+      "box/2"
+    ],
+    "bow": {
+      "bowedSeconds": 1.005,
+      "bows": [
+        {
+          "body": "string/1",
+          "pos": 0.12
+        }
+      ],
+      "frictionLoss": 2.2053061634167775e-7,
+      "peakForce": 0.06399803521350848,
+      "releases": 114,
+      "sourceWork": 3.19255596794153e-7,
+      "stuckFraction": 0.831488391376451
+    },
+    "bowedNotes": 1,
+    "capo": 0,
+    "controlWork": 2.677869417593278e-12,
+    "cumulativeClosureResidual": -1.4738373282224826e-19,
+    "currentEnergy": 0.0000070000008675024775,
+    "globalClosureResidual": 1.2188804110989382e-18,
+    "hammerOns": 0,
+    "initialEnergy": 0.000006999999999999999,
+    "internalLoss": 3.4518322893370907e-7,
+    "intonationTouches": 0,
+    "listenerDigest": "sha256:c76501331457bbafb0aa9cd24a98ae770a49a6f382bfc76a1600723d87e83314",
+    "maximumFrameResidual": 1.088437337221776e-18,
+    "originFrame": 0,
+    "planDigest": "sha256:36378b3016e6917acb1b3f6469cd870e9adb49058c5e2f30a4893551803d8214",
+    "plucks": 4,
+    "pullOffs": 0,
+    "radiation": 1.9166822386727313e-9,
+    "sampleFrames": 192000,
+    "simulatedSeconds": 4,
+    "slides": 1,
+    "sourceWork": 3.470981008042242e-7,
+    "strings": [
+      {
+        "hand": "string1",
+        "open": "G2",
+        "palmMute": 0.22,
+        "pick": 0.6,
+        "pos": 0.14,
+        "string": 1
+      },
+      {
+        "hand": "string2",
+        "open": "D2",
+        "palmMute": 0.22,
+        "pick": 0.6,
+        "pos": 0.14,
+        "string": 2
+      },
+      {
+        "hand": "string3",
+        "open": "A1",
+        "palmMute": 0.22,
+        "pick": 0.6,
+        "pos": 0.14,
+        "string": 3
+      },
+      {
+        "hand": "string4",
+        "open": "E1",
+        "palmMute": 0.22,
+        "pick": 0.6,
+        "pos": 0.14,
+        "string": 4
+      }
+    ]
+  }
+}

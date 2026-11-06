@@ -249,6 +249,12 @@ impl Rig {
         self.ariadne.plan_digest()
     }
 
+    /// The Ariadne engine, to read (the World's books); reading changes nothing.
+    #[must_use]
+    pub fn ariadne(&self) -> &AriadneEngine {
+        &self.ariadne
+    }
+
     /// Give the rig a live input (samples pushed by an input stream at the
     /// same sample rate) and switch to it.
     pub fn attach_input(&mut self, input: rtrb::Consumer<f32>) {

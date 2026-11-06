@@ -1,0 +1,122 @@
+{
+  "anatomy": "slam.plan.json",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "Everything in the steel-string's \"Limits of v0\" applies: no note-off damping, one touch point per cell, 24 modes per body, a linear model. A fictional design: every changed number is a design hypothesis in its *.design.json.",
+      "No snare wires, no noise source: the field drum's roll is tom-like. No second head on the bass drum. The kettle's air is a ratio table, not a cavity.",
+      "The touch pulse is at most 0.36 ms, much shorter than a felt mallet's contact: strikes are brighter than real timpani.",
+      "Frets move only the kettledrums (their pedal); the bass and field drums are fixed geometry."
+    ],
+    "see": "examples/ensemble/before-the-law/README.md#slam"
+  },
+  "events": {
+    "applied": 5,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "tab",
+  "frames": 192000,
+  "kind": "slam-drums",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": 2.8678163191188324e-12,
+    "cumulativeClosureResidual": 1.4535085374883794e-18,
+    "currentEnergy": 0.0000070000007084853214,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": 3.6337713437209485e-18,
+    "initialEnergy": 0.000006999999999999999,
+    "internalLoss": 4.83485424086747e-8,
+    "maximumFrameResidual": 2.169251377918263e-18,
+    "radiation": 1.5652703249133479e-9,
+    "sampleFrames": 192000,
+    "sourceWork": 4.991165339895745e-8,
+    "throughput": 0.000007049914521215276
+  },
+  "options": {},
+  "output": {
+    "about": "mus render mixes the same observation, times the same gain, into its bus; here there is no bus, master or limiter",
+    "channels": "two listening directions",
+    "gain": 300,
+    "observes": "the stereo listener's observation of every body (World units)"
+  },
+  "outputDigest": "sha256:e3f797c3a9d66daa164e667a26a58e6fb6145988236bb25e20d672fac43c85d3",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "sha256:bf288d4e9cfc3216d4b651b51f9d627db2dc0c4c597a4ef490d51003aa415d83",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 4,
+  "world": {
+    "anatomy": "slam.plan.json",
+    "bodies": [
+      "string/1",
+      "string/2",
+      "string/3",
+      "string/4",
+      "box/0",
+      "box/1",
+      "box/2"
+    ],
+    "bow": null,
+    "bowedNotes": 0,
+    "capo": 0,
+    "controlWork": 2.8678163191188324e-12,
+    "cumulativeClosureResidual": 1.4535085374883794e-18,
+    "currentEnergy": 0.0000070000007084853214,
+    "globalClosureResidual": 3.6337713437209485e-18,
+    "hammerOns": 0,
+    "initialEnergy": 0.000006999999999999999,
+    "internalLoss": 4.83485424086747e-8,
+    "intonationTouches": 0,
+    "listenerDigest": "sha256:5119f719ef3eece980c4c1bd33abad14818bff3eb1590d284524fa8dbd988209",
+    "maximumFrameResidual": 2.169251377918263e-18,
+    "originFrame": 0,
+    "planDigest": "sha256:bf288d4e9cfc3216d4b651b51f9d627db2dc0c4c597a4ef490d51003aa415d83",
+    "plucks": 4,
+    "pullOffs": 0,
+    "radiation": 1.5652703249133479e-9,
+    "sampleFrames": 192000,
+    "simulatedSeconds": 4,
+    "slides": 1,
+    "sourceWork": 4.991165339895745e-8,
+    "strings": [
+      {
+        "hand": "string1",
+        "open": "G3",
+        "palmMute": 0,
+        "pick": 0.85,
+        "pos": 0.08,
+        "string": 1
+      },
+      {
+        "hand": "string2",
+        "open": "A2",
+        "palmMute": 0,
+        "pick": 0.3,
+        "pos": 0.13,
+        "string": 2
+      },
+      {
+        "hand": "string3",
+        "open": "D2",
+        "palmMute": 0,
+        "pick": 0.3,
+        "pos": 0.13,
+        "string": 3
+      },
+      {
+        "hand": "string4",
+        "open": "A1",
+        "palmMute": 0,
+        "pick": 0.2,
+        "pos": 0.2,
+        "string": 4
+      }
+    ]
+  }
+}

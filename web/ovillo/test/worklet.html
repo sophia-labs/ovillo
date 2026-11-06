@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>ovillo worklet test</title></head>
+<body><pre id="out">running</pre>
+<script type="module">
+// The worklet path in a browser: three Worlds of different kinds as AudioWorkletNodes of one
+// OfflineAudioContext (one shared wasm instance), rendered, each compared with the same World
+// rendered offline through core.js; a receipt fetched through the node's port.
+// Serve the repository root and open /web/ovillo/test/worklet.html (headless: document.title).
+import { Ovillo, renderOffline } from "../ovillo.js";
+const out = document.getElementById("out");
+const results = {};
+try {
+  const sr = 48000, seconds = 1.0, frames = sr * seconds;
+  const ctx = new OfflineAudioContext({ numberOfChannels: 2, length: frames, sampleRate: sr });
+  const ov = await Ovillo.load(ctx, { wasmUrl: new URL("../ovillo.wasm", import.meta.url), workletUrl: new URL("../ovillo-worklet.js", import.meta.url) });
+  const specs = [
+    { kind: "steel-string", events: [{ at: 0.3, name: "pluck", args: { string: 6, fret: 0, velocity: 0.8 } }] },
+    { kind: "tract", controls: [{ at: 0.25, name: "breath", value: 0.6 }], events: [{ at: 0.25, name: "preset", args: { vowel: "a" } }] },
+    { kind: "race_props", events: [{ at: 0.35, name: "go" }] },
+  ];
+  const worlds = [];
+  for (const s of specs) {
+    const w = await ov.create(s.kind, { channels: 2 });
+    // Schedule on the context clock (frame = at * sr while the World's clock starts with the context's).
+    for (const e of s.events ?? []) w.event(e.name, e.args, { at: e.at });
+    for (const c of s.controls ?? []) w.set(c.name, c.value, { at: c.at });
+    w.node.connect(ctx.destination);
+    worlds.push({ s, w });
+  }
+  const t0 = performance.now();
+  const buffer = await ctx.startRendering();
+  results.renderMs = Math.round(performance.now() - t0);
+  const mix = buffer.getChannelData(0);
+  results.mixPeak = mix.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+  // Each World offline, through core.js, summed: the worklet's mix should be that sum.
+  const sum = new Float32Array(frames);
+  for (const { s } of worlds) {
+    const r = renderOffline(ov.core, { ...s, seconds });
+    for (let i = 0; i < frames; i++) sum[i] += r.left[i];
+    results[s.kind] = { ledgerCloses: r.receipt.ledger.closes, peak: r.left.reduce((m, v) => Math.max(m, Math.abs(v)), 0) };
+  }
+  let maxDiff = 0;
+  for (let i = 0; i < frames; i++) maxDiff = Math.max(maxDiff, Math.abs(sum[i] - mix[i]));
+  results.maxDiffWorkletVsOffline = maxDiff;
+  const receipt = await worlds[0].w.receipt();
+  results.workletReceipt = { kind: receipt.kind, frames: receipt.frames, closes: receipt.ledger.closes, applied: receipt.events.applied, refused: receipt.events.refused };
+  results.telemetryNames = worlds[1].w.info.telemetry.length;
+  results.ok = maxDiff < 1e-6 && receipt.ledger.closes && receipt.events.refused === 0;
+} catch (err) {
+  results.error = String(err && (err.stack || err.message) || err);
+  results.ok = false;
+}
+out.textContent = JSON.stringify(results, null, 2);
+document.title = results.ok ? "PASS" : "FAIL";
+</script></body></html>

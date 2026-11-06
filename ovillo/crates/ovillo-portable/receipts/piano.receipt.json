@@ -1,0 +1,137 @@
+{
+  "anatomy": "piano-v1",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "One transverse polarization: no horizontal string motion, no longitudinal waves or phantom partials, no tension modulation (the strings are linear).",
+      "No sympathetic strings beyond the keys strung: with the pedal down the rest of the scale does not ring along.",
+      "The action is a throw: no key, wippen, escapement dynamics, repetition lever, key bounce or action noise; a key cannot be re-thrown while its felt still presses (refused and counted).",
+      "The board is flat and the frame rigid: no crown, downbearing, taper, rim, lid or frame resonances; board modes above 3 kHz are sampled every 4th.",
+      "Radiation is baffled and diagonal in the modes; heard at two far-field points, dry, with no room.",
+      "The felt is a power law with relaxation; its parameters away from C4 are design-hypotheses, as is the damper away from A#4.",
+      "Pitch is set per string, alone: where a partial sits on a board resonance the coupled pitch moves (C4 -5.6 cents); the piano is not re-tuned after it is built.",
+      "It is a piano-shaped Ariadne world, not a model of the Estonia or of any particular piano."
+    ],
+    "see": "SPEC-ARIADNE-PIANO.md#7-what-it-does-not-model-said-plainly"
+  },
+  "events": {
+    "applied": 8,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "piano",
+  "frames": 192000,
+  "kind": "piano",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": 0.0,
+    "cumulativeClosureResidual": -4.5737170290254675e-15,
+    "currentEnergy": 0.000026005189652246472,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": -5.963623556570416e-15,
+    "initialEnergy": 0.00002600000000000001,
+    "internalLoss": 0.07253113916545154,
+    "maximumFrameResidual": 2.7755575615628914e-17,
+    "radiation": 0.006188416620486989,
+    "sampleFrames": 192000,
+    "sourceWork": 0.07871956097559674,
+    "throughput": 0.07874556097559673
+  },
+  "options": {
+    "keys": [
+      "C4",
+      "E4",
+      "G4",
+      "C5"
+    ]
+  },
+  "output": {
+    "about": "mus render mixes the same pressure, times the same gain, into its bus (with its 28 Hz high-pass and master); here there is neither",
+    "channels": "two listening points",
+    "gain": 0.1,
+    "observes": "far-field pressure (Pa) at two points 1 m from the board, 30 degrees off its normal, toward the bass and the treble"
+  },
+  "outputDigest": "sha256:0cf86e01861fda49a24ce039e9e81edbec8a21068fd85a9c84d7eb44be3a1b7e",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "sha256:8f9d42fea835018781bdb4c519f499e0a0d42db747632f90000ae1b0b95a7e53",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000.0,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 4.0,
+  "world": {
+    "anatomy": "piano-v1",
+    "boardRadiation": 0.006187720768465896,
+    "bodies": 30,
+    "contactMsMax": 2.1458333333333335,
+    "contactMsMin": 1.4166666666666667,
+    "controlWork": 0.0,
+    "cumulativeClosureResidual": -4.5737170290254675e-15,
+    "currentEnergy": 0.000026005189652246472,
+    "damperFalls": 5,
+    "globalClosureResidual": -5.963623556570416e-15,
+    "initialEnergy": 0.00002600000000000001,
+    "internalLoss": 0.07253113916545154,
+    "keys": [
+      {
+        "damped": true,
+        "fundamentalHz": 261.58254605137023,
+        "hammerMassKg": 0.0089,
+        "inharmonicity": 0.00032894233426518805,
+        "key": 40,
+        "name": "C4",
+        "retainedPartials": 24,
+        "strikeFraction": 0.12288401253918496,
+        "strings": 3
+      },
+      {
+        "damped": true,
+        "fundamentalHz": 329.54874466973376,
+        "hammerMassKg": 0.008671794871794872,
+        "inharmonicity": 0.000478361204307615,
+        "key": 44,
+        "name": "E4",
+        "retainedPartials": 24,
+        "strikeFraction": 0.12270058708414873,
+        "strings": 3
+      },
+      {
+        "damped": true,
+        "fundamentalHz": 391.8607670550359,
+        "hammerMassKg": 0.008500641025641027,
+        "inharmonicity": 0.0006874485968087167,
+        "key": 47,
+        "name": "G4",
+        "retainedPartials": 24,
+        "strikeFraction": 0.11635514018691588,
+        "strings": 3
+      },
+      {
+        "damped": true,
+        "fundamentalHz": 522.9586044192829,
+        "hammerMassKg": 0.008215384615384617,
+        "inharmonicity": 0.001119048407651744,
+        "key": 52,
+        "name": "C5",
+        "retainedPartials": 24,
+        "strikeFraction": 0.10365853658536585,
+        "strings": 3
+      }
+    ],
+    "listenerDigest": "sha256:dff3a34d1f109468b9c1dcc7ce6360465f462e6bc09e509d9904a7b44939959f",
+    "maximumFrameResidual": 2.7755575615628914e-17,
+    "originFrame": 0,
+    "pedalSpans": 1,
+    "planDigest": "sha256:8f9d42fea835018781bdb4c519f499e0a0d42db747632f90000ae1b0b95a7e53",
+    "radiation": 0.006188416620486989,
+    "refusedStrikes": 0,
+    "sampleFrames": 192000,
+    "simulatedSeconds": 4.0,
+    "sourceWork": 0.07871956097559674,
+    "strikes": 4,
+    "stringRadiation": 6.958520210193055e-7
+  }
+}

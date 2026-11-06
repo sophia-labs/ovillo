@@ -42,6 +42,9 @@ bash site/tract/build.sh && python3 -m http.server -d site 8765
 
 # the bench (GPUI; the first build takes a while)
 (cd ovillo && cargo run -p ovillo-app --release)
+
+# every World behind one wasm and one JS API (AudioWorklet nodes, Node renders, three.js): web/ovillo
+bash web/ovillo/build.sh && (cd web/ovillo && npm test)
 ```
 
 The tract and the browser bench need the `wasm32-unknown-unknown` target. Scores to start from: [`examples/tab/steel_string_tour.mus`](examples/tab/steel_string_tour.mus) (nine bars, the steel-string's acceptance score: open strings, hammer-on, pull-off, slide, palm-muted thumb), [`examples/tab/wayfaring-stranger-doc.mus`](examples/tab/wayfaring-stranger-doc.mus) (a full annotated tab), [`examples/piano/prelude-c-major.mus`](examples/piano/prelude-c-major.mus) (the piano's demo, Bach's BWV 846). An energy trace can drive [`blender/`](blender/README.md) to watch the guitar play.
@@ -96,6 +99,7 @@ The repository is a set of plateaus. Each one stands on its own, and you can ent
 | [`aigua/README.md`](aigua/README.md) | the Aigua studies |
 | [`ovillo/README.md`](ovillo/README.md) | the bench: a native app for playing a guitar through the world and watching inside it |
 | [`site/README.md`](site/README.md), [`video/README.md`](video/README.md) | the sources of ovillo.sophia-labs.com and of the release video |
+| [`web/ovillo/README.md`](web/ovillo/README.md) | every World in one portable wasm: many Worlds per module, events and controls to the sample, receipts; its catalog, an audition page, and [using it from a three.js game](web/ovillo/THREE.md) |
 | [`docs/INSTRUMENT.md`](docs/INSTRUMENT.md) | the long map of the whole instrument and its repository |
 
 Agents: start at [`AGENTS.md`](AGENTS.md). Code comments that cite `.string-research/...` point at research notes in a private repository; they are not needed to build or run anything here.

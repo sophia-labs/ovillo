@@ -1,0 +1,116 @@
+{
+  "anatomy": "",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "Not a mus_ariadne plan: a standalone World on ovillo-game-sound's wave-network runtime, booking a mus_watsn WorkLedger (same receipt fields). Not under the steel-string/piano/tract specs.",
+      "No real thermodynamics: the gas is a linear compliance charged by a fitted burn law; no temperature, no mean flow in ducts, no convective Doppler.",
+      "No crank/rod inertia beyond a flywheel, no valve or gear noise, no clutch or drivetrain, no tyre/ground in rolling.",
+      "Heat release, port timing, areas, volumes and modal numbers are design choices, not measured from any engine.",
+      "Declared stochastic source: ground roughness force on the tread blocks (seeded), only while skid > 0."
+    ],
+    "see": "ovillo/crates/ovillo-game-sound (module headers); the request ~/dev/verabot/requests/2026-11-05-sound-sources.md"
+  },
+  "events": {
+    "applied": 12,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "game-sound",
+  "frames": 288000,
+  "kind": "kart_engine",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1.2684507519588069e-7,
+    "controlWork": -57343.96032950692,
+    "cumulativeClosureResidual": -7.940889039523721e-9,
+    "currentEnergy": 1803.1987342381412,
+    "frameTolerance": 1.268450751958807e-10,
+    "globalClosureResidual": -8.75638761499431e-9,
+    "initialEnergy": 71.06115168784336,
+    "internalLoss": 10352.769817249029,
+    "maximumFrameResidual": 1.1368683772161603e-12,
+    "radiation": 1.1859853709255495,
+    "sampleFrames": 288000,
+    "sourceWork": 69430.05371468593,
+    "throughput": 126845.0751958807
+  },
+  "options": {
+    "seed": 3
+  },
+  "output": {
+    "about": "the World's own pressure over its OUTPUT_SCALE_PA; propagation delay, Doppler, distance, directivity toward the listener (except f16's declared aspect readout), ground and air are the engine's",
+    "channels": "one point (left = right)",
+    "gain": 0.016666666666666666,
+    "observes": "pressure at 1 m (Pa)"
+  },
+  "outputDigest": "sha256:89580017e54ad0bac3093903164a25ae941b03c32a2fdbb4f6d218763f5cf4aa",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "none (not a plan): ovillo-game-sound kart_engine seed 3",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000.0,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 6.0,
+  "world": {
+    "declaredSources": [
+      "combustion heat release (fitted Wiebe burn, charge-proportional)",
+      "crank servo / load (control)",
+      "pull rope",
+      "boost blower pressure",
+      "tyre slip work"
+    ],
+    "ignitions": 489,
+    "ledger": {
+      "controlWork": -57343.96032950692,
+      "cumulativeClosureResidual": -7.940889039523721e-9,
+      "finalEnergy": 1803.1987342381412,
+      "frames": 288000,
+      "globalResidual": -8.75638761499431e-9,
+      "initialEnergy": 71.06115168784336,
+      "internalLoss": 10352.769817249029,
+      "lines": {
+        "control:crank_servo_or_load": -51734.836037361536,
+        "control:impact_thrown_striker": -361.6675753514871,
+        "control:pull_rope": -5247.456716794191,
+        "loss:backward_euler_dissipation": 98.1281680347241,
+        "loss:bearing_friction": 2295.373197108856,
+        "loss:chassis_damping": 3.330724560448881,
+        "loss:contact_damping": 9.701006839322828,
+        "loss:duct_wall_loss": 56.87628678137002,
+        "loss:intake_filter_foam": 1.813061621280698,
+        "loss:port_and_throat_jets": 4427.404514385359,
+        "loss:shell_damping": 0.09945795447149178,
+        "loss:striker_carries_away": 15.4325273075738,
+        "loss:tread_damping": 155.49103537248672,
+        "loss:tread_friction": 3289.1198372820118,
+        "radiation:chassis": 0.17530129265520142,
+        "radiation:engine_shell": 0.005234629182710233,
+        "radiation:exhaust_mouth": 0.7772803021818419,
+        "radiation:intake_mouth": 0.07252246485122602,
+        "radiation:tyre": 0.1556466820545401,
+        "source:boost_blower": 682.2923600498559,
+        "source:combustion_heat_release": 65301.04350706186,
+        "source:ground_roughness_stochastic": 322.40966751521154,
+        "source:tyre_slip_work": 3124.3081800591663
+      },
+      "maxStoredEnergy": 1923.0401182275027,
+      "maximumFrameResidual": 1.1368683772161603e-12,
+      "outputWork": 0.0,
+      "radiation": 1.1859853709255495,
+      "relativeGlobalResidual": 6.903214493327586e-14,
+      "sourceWork": 69430.05371468593
+    },
+    "misfires": 1,
+    "outputScalePa": 60.0,
+    "peakCylinderGaugePa": 2595481.5744493054,
+    "revolutions": 591,
+    "runtime": "ovillo-game-sound (not a mus_ariadne plan)",
+    "sampleRate": 48000.0,
+    "seed": 3,
+    "stochastic": "ground roughness force on tread blocks (seeded), only while skid > 0",
+    "world": "kart_engine"
+  }
+}

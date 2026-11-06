@@ -29,52 +29,52 @@ use crate::util::{dyn_db, note_to_midi, ART_GAIN};
 use crate::{RenderError, RenderStats};
 
 /// `anatomy=steel-string-v0`: the dreadnought compiled by `mus_analysis.steel_string_anatomy`.
-const STEEL_STRING_V0: &str =
+pub(crate) const STEEL_STRING_V0: &str =
     include_str!("../../../../profiles/ariadne-steel-string-v0.plan.json");
 /// A unit hand gesture reaches the string through the plan's reciprocal contact
 /// port (a gentle 80 Hz exchange, so the port does not damp a ringing string);
 /// this scales the gesture to a pluck of ordinary loudness.
-const PLUCK_SCALE: f64 = 25.0;
+pub(crate) const PLUCK_SCALE: f64 = 25.0;
 /// World observation is in the world's own energy units. This brings a mezzo-forte guitar near the engine's other voices.
-const OBSERVATION_GAIN: f64 = 300.0;
+pub(crate) const OBSERVATION_GAIN: f64 = 300.0;
 /// Strings barely radiate; the box does the speaking.
-const STRING_RADIATION: f64 = 2.0e-6;
+pub(crate) const STRING_RADIATION: f64 = 2.0e-6;
 const BOX_RADIATION: f64 = 0.02;
 /// Radiation efficiency grows toward the top's coincidence frequency: a box body
 /// whose modes sit higher radiates proportionally faster (relative to 1 kHz).
 const RADIATION_REFERENCE_HZ: f64 = 1000.0;
-const SLIDE_SECONDS: f64 = 0.06;
+pub(crate) const SLIDE_SECONDS: f64 = 0.06;
 /// The fretting finger lands a little before the other hand plucks.
-const FRET_LEAD_SECONDS: f64 = 0.008;
+pub(crate) const FRET_LEAD_SECONDS: f64 = 0.008;
 const ENERGY_HOP_SECONDS: f64 = 0.01;
 /// Contact time of a pluck: a plectrum's, plus the flesh a softer touch adds.
-const PULSE_PICK_SECONDS: f64 = 0.00006;
-const PULSE_FLESH_SECONDS: f64 = 0.0003;
-const STANDARD_TUNING: [f64; 6] = [40.0, 45.0, 50.0, 55.0, 59.0, 64.0];
+pub(crate) const PULSE_PICK_SECONDS: f64 = 0.00006;
+pub(crate) const PULSE_FLESH_SECONDS: f64 = 0.0003;
+pub(crate) const STANDARD_TUNING: [f64; 6] = [40.0, 45.0, 50.0, 55.0, 59.0, 64.0];
 /// The bow (`[arco]`, SPEC-TAB §4; the law in `mus_ariadne::law::bow`). Its
 /// velocity and force are in the string body's own units, and these scales
 /// are measured, not derived (`mus-ariadne/tests/bowed_string.rs`): a
 /// mezzo-forte bow (`speed = force = 0.5`) holds G3 at the loudness of a
 /// mezzo-forte pluck's first half second, sticking about 85 % of each period
 /// and releasing once per period.
-const BOW_VELOCITY_UNIT: f64 = 1.6e-5;
-const BOW_FORCE_UNIT: f64 = 0.16;
+pub(crate) const BOW_VELOCITY_UNIT: f64 = 1.6e-5;
+pub(crate) const BOW_FORCE_UNIT: f64 = 0.16;
 /// The knee of the friction curve, in the same velocity units.
-const BOW_SLIP_VELOCITY: f64 = 1.0e-6;
+pub(crate) const BOW_SLIP_VELOCITY: f64 = 1.0e-6;
 /// The hair lands and lifts over this time (the force ramps), so a bow
 /// change is not a step.
-const BOW_LANDING_SECONDS: f64 = 0.01;
+pub(crate) const BOW_LANDING_SECONDS: f64 = 0.01;
 
 pub struct TabInstrument {
     pub abbrev: String,
     pub anatomy: String,
     pub hands: Vec<Hand>,
-    plan: WorldPlan,
+    pub(crate) plan: WorldPlan,
     /// Open pitch of each string, string 1 (highest) first.
     pub(crate) open: Vec<f64>,
     pub(crate) capo: f64,
-    gain_db: f64,
-    send: f64,
+    pub(crate) gain_db: f64,
+    pub(crate) send: f64,
 }
 
 pub struct Hand {
@@ -82,7 +82,7 @@ pub struct Hand {
     pub(crate) pos: f64,
     pub(crate) pick: f64,
     pub(crate) pm: f64,
-    gain_db: f64,
+    pub(crate) gain_db: f64,
 }
 
 impl TabInstrument {
@@ -100,7 +100,7 @@ impl TabInstrument {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum TouchKind {
+pub(crate) enum TouchKind {
     Pluck,
     HammerOn,
     PullOff,
@@ -110,25 +110,25 @@ enum TouchKind {
 
 /// A bowed note: the hair on the string for the note's duration.
 #[derive(Debug, Clone, Copy)]
-struct BowGesture {
-    up: bool,
+pub(crate) struct BowGesture {
+    pub(crate) up: bool,
     /// Bow speed (0..1) at the start and the end of the note.
-    speed: (f64, f64),
+    pub(crate) speed: (f64, f64),
     /// Bow force (0..1) at the start and the end of the note.
-    force: (f64, f64),
-    seconds: f64,
+    pub(crate) force: (f64, f64),
+    pub(crate) seconds: f64,
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Touch {
-    seconds: f64,
-    string: usize,
-    fret: f64,
-    intonation_cents: f64,
-    db: f64,
-    hand: usize,
-    kind: TouchKind,
-    bow: Option<BowGesture>,
+pub(crate) struct Touch {
+    pub(crate) seconds: f64,
+    pub(crate) string: usize,
+    pub(crate) fret: f64,
+    pub(crate) intonation_cents: f64,
+    pub(crate) db: f64,
+    pub(crate) hand: usize,
+    pub(crate) kind: TouchKind,
+    pub(crate) bow: Option<BowGesture>,
 }
 
 /// What a tab instrument's world did, for the render receipt.
@@ -292,6 +292,17 @@ pub fn collect(
     instruments: &[ProposalInstrument],
     score_dir: &Path,
 ) -> Result<(Vec<TabInstrument>, Vec<String>), RenderError> {
+    collect_with(instruments, score_dir, &|_| None)
+}
+
+/// [`collect`], with `resolve` asked first for an anatomy's plan text (a
+/// caller with no file system, such as `ariadne_live` in a browser, hands in
+/// the plans it carries); `None` falls through to the file beside the score.
+pub(crate) fn collect_with(
+    instruments: &[ProposalInstrument],
+    score_dir: &Path,
+    resolve: &dyn Fn(&str) -> Option<String>,
+) -> Result<(Vec<TabInstrument>, Vec<String>), RenderError> {
     let mut found = Vec::new();
     let mut owned = Vec::new();
     // A piano's anatomy is not a tab instrument's (`ariadne_piano`).
@@ -304,6 +315,8 @@ pub fn collect(
         let anatomy = base.params["anatomy"].trim().to_owned();
         let text = if anatomy == "steel-string-v0" {
             STEEL_STRING_V0.to_owned()
+        } else if let Some(text) = resolve(&anatomy) {
+            text
         } else {
             std::fs::read_to_string(score_dir.join(&anatomy))
                 .map_err(|e| invalid(format!("anatomy {anatomy}: {e}")))?
@@ -435,7 +448,7 @@ pub(crate) fn warp(q: f64, unit: f64, ratio: f64) -> f64 {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn performance(
+pub(crate) fn performance(
     inst: &TabInstrument,
     bar_map: &BarMap,
     bar_content: &BTreeMap<u32, BTreeMap<String, String>>,
@@ -616,7 +629,7 @@ pub(crate) fn midi_name(midi: f64) -> String {
 }
 
 /// The mean mode frequency of body `index` as built.
-fn world_plan_band(plan: &WorldPlan, index: usize) -> f64 {
+pub(crate) fn world_plan_band(plan: &WorldPlan, index: usize) -> f64 {
     let f = &plan.bodies[index]
         .body
         .configuration_path
@@ -626,7 +639,7 @@ fn world_plan_band(plan: &WorldPlan, index: usize) -> f64 {
     f.iter().sum::<f64>() / f.len() as f64
 }
 
-fn box_radiation(mean_hz: &f64) -> f64 {
+pub(crate) fn box_radiation(mean_hz: &f64) -> f64 {
     (BOX_RADIATION * (mean_hz / RADIATION_REFERENCE_HZ).max(1.0)).min(0.5)
 }
 
@@ -642,7 +655,7 @@ fn harmonic_offset(fret: u8) -> Option<f64> {
 /// Fold each string's hand into its body: where it is plucked (the source
 /// direction is the modal shape at the pluck point), how hard the contact is,
 /// and how much a resting palm damps it. The law matches `steel_string_anatomy.py`.
-fn apply_hands(
+pub(crate) fn apply_hands(
     plan: &mut WorldPlan,
     inst: &TabInstrument,
     touches: &[Touch],
@@ -713,7 +726,7 @@ pub struct WorldRun {
     send: f64,
     gain_db: f64,
     sample_rate: f64,
-    world: World,
+    pub(crate) world: World,
     listener: StereoListener,
     bodies: Vec<String>,
     string_body: BTreeMap<usize, usize>,
@@ -734,7 +747,7 @@ pub struct WorldRun {
     next_bow: usize,
     active_bows: Vec<BowSpan>,
     counts: [usize; 5],
-    start: usize,
+    pub(crate) start: usize,
     n_total: usize,
     k: usize,
     hop: usize,
@@ -746,8 +759,8 @@ pub struct WorldRun {
     radiation_acc: Vec<f64>,
     loss_acc: Vec<f64>,
     bridge_acc: Vec<f64>,
-    left: Vec<f32>,
-    right: Vec<f32>,
+    pub(crate) left: Vec<f32>,
+    pub(crate) right: Vec<f32>,
     current: BTreeMap<usize, f64>,
     ramps: BTreeMap<usize, (f64, f64, usize, usize)>,
     next_stop: usize,
@@ -756,18 +769,18 @@ pub struct WorldRun {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct BowSpan {
-    start: usize,
-    end: usize,
-    bow: usize,
-    velocity: (f64, f64),
-    force: (f64, f64),
+pub(crate) struct BowSpan {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) bow: usize,
+    pub(crate) velocity: (f64, f64),
+    pub(crate) force: (f64, f64),
 }
 
 impl BowSpan {
     /// The arm at sample `k`: the gesture's linear ramps, with the hair
     /// landing and lifting over `BOW_LANDING_SECONDS`.
-    fn controls_at(&self, k: usize, landing: usize) -> BowControls {
+    pub(crate) fn controls_at(&self, k: usize, landing: usize) -> BowControls {
         let x = (k - self.start) as f64 / (self.end - self.start).max(1) as f64;
         let land = ((k + 1 - self.start) as f64 / landing as f64)
             .min((self.end - k) as f64 / landing as f64)

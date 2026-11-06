@@ -1,0 +1,84 @@
+{
+  "anatomy": "public-v1",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "No glottal aspiration noise: a breathy voice and the aspiration after a stop's release are missing.",
+      "One jet (the narrowest column), not one per narrow junction; an impact does not dent the wall; the stop gestures hold pa's closure only about 13 ms.",
+      "The turbulent source's net work includes a zero-mean cross term with the flow already in its column.",
+      "The approximations of CHECKPOINT-2A and POC-3 apply (mode-diagonal losses, stepped moves, numerical seal).",
+      "Choir voices keep the adult's cross-sectional area function (only lengths, folds and lungs change); the voice types are design hypotheses, not measured singers; a voice's top is where its World stops voicing.",
+      "Not intelligible speech, not a biological reconstruction."
+    ],
+    "see": "TRACT-WORLD.md#gaps"
+  },
+  "events": {
+    "applied": 8,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "tract",
+  "frames": 192000,
+  "kind": "tract",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": -0.00004348582085398912,
+    "cumulativeClosureResidual": -1.006750238730092e-12,
+    "currentEnergy": 3.0000000000003815,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": 2.2248869413488137e-13,
+    "initialEnergy": 3,
+    "internalLoss": 0.3773821979501702,
+    "maximumFrameResidual": 8.881784197001252e-16,
+    "radiation": 0.002221667069429159,
+    "sampleFrames": 192000,
+    "sourceWork": 0.37964735084061224,
+    "throughput": 3.3796908366614664
+  },
+  "options": {},
+  "output": {
+    "about": "TractWorldNd::output_gain; the tract's own listener clamps to [-1, 1] and counts it (telemetry clamped)",
+    "channels": "one point (left = right)",
+    "gain": 0.0004,
+    "observes": "the pressure at the two radiating volumes (lips and nostrils), summed (Pa)"
+  },
+  "outputDigest": "sha256:33a7e85b451ec52b4189303812883b59543149348ca65d1d5e9a579bbe8d8811",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "sha256:d0aefa305937e758da217e5f783d9f922bcc7f498ebcf217e9b3a53edc19bbf2",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 4,
+  "world": {
+    "anatomy": "public-v1",
+    "anatomyName": "tract-nd-v0",
+    "disposal": 5.458213064626638e-7,
+    "foldLoss": 0.008366271499290711,
+    "impacts": 1,
+    "moveControlWork": -0.000031435452617318096,
+    "moves": 500,
+    "outputGain": 0.0004,
+    "planDigest": "sha256:d0aefa305937e758da217e5f783d9f922bcc7f498ebcf217e9b3a53edc19bbf2",
+    "radiationByEnd": [
+      0.0022187557482957203,
+      0.0000029113211334350627,
+      0,
+      0
+    ],
+    "safetyLimited": 0,
+    "schedule": {
+      "interval": 32,
+      "minMove": 0.001
+    },
+    "singer": null,
+    "turbulenceInjected": 0.00039814080975285814,
+    "valveJetLoss": 0.11599087442979591,
+    "valveRetunes": 1517,
+    "valveWork": -0.000012050368236671063,
+    "wallLoss": 0.0876033806537063
+  }
+}

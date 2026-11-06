@@ -1,0 +1,108 @@
+{
+  "anatomy": "",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "Not a mus_ariadne plan: a standalone World on ovillo-game-sound's wave-network runtime, booking a mus_watsn WorkLedger (same receipt fields). Not under the steel-string/piano/tract specs.",
+      "\"F-16C, F100-PW-229 class\" is the request's label for the scale: nothing is measured from or fitted to that engine; every dimension, blade count and gain is a design choice.",
+      "No mean flow in the ducts, one mixed stream (no bypass), no real blade counts or cut-off, no buzz-saw, no shock-cell noise; the spool is a prescribed speed (the cycle and shaft energy are outside the ledger).",
+      "Declared stochastic source terms, not derived from the Navier-Stokes equations: jet mixing noise (Lighthill U^8, fitted eta), airframe noise (U^6), reheat crackle (Poisson pops); their energy is in the ledger.",
+      "Probed only: no audition yet."
+    ],
+    "see": "ovillo/crates/ovillo-game-sound (module headers); the request ~/dev/verabot/requests/2026-11-05-sound-sources.md"
+  },
+  "events": {
+    "applied": 5,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "game-sound",
+  "frames": 192000,
+  "kind": "f16",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 2.3009455013469492e-8,
+    "controlWork": 0.0,
+    "cumulativeClosureResidual": 5.326668169589911e-10,
+    "currentEnergy": 75.47717763616446,
+    "frameTolerance": 2.300945501346949e-11,
+    "globalClosureResidual": 4.5791637148795417e-10,
+    "initialEnergy": 0.0,
+    "internalLoss": 11394.77214939728,
+    "maximumFrameResidual": 1.7053025658242404e-13,
+    "radiation": 11539.205686436504,
+    "sampleFrames": 192000,
+    "sourceWork": 23009.45501346949,
+    "throughput": 23009.45501346949
+  },
+  "options": {
+    "seed": 5
+  },
+  "output": {
+    "about": "the World's own pressure over its OUTPUT_SCALE_PA; propagation delay, Doppler, distance, directivity toward the listener (except f16's declared aspect readout), ground and air are the engine's",
+    "channels": "one point (left = right)",
+    "gain": 0.0025,
+    "observes": "pressure at 50 m (Pa)"
+  },
+  "outputDigest": "sha256:6518d659a47f3f5ee238762ea4ef511daa35b295fcaf7556b00aa4cad34054d7",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "none (not a plan): ovillo-game-sound f16 seed 5",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000.0,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 4.0,
+  "world": {
+    "declaredSources": [
+      "fan, compressor and turbine blade rows: series pressure sources (Gutin-style loading harmonics)",
+      "reheat flame: parallel volume source with in-phase delayed feedback (Rayleigh)"
+    ],
+    "fanBladePassageHz": 4021.429522092569,
+    "jetAcousticPowerW": 14239.315892349892,
+    "jetVelocityMs": 466.57788880980416,
+    "ledger": {
+      "controlWork": 0.0,
+      "cumulativeClosureResidual": 5.326668169589911e-10,
+      "finalEnergy": 75.47717763616446,
+      "frames": 192000,
+      "globalResidual": 4.5791637148795417e-10,
+      "initialEnergy": 0.0,
+      "internalLoss": 11394.77214939728,
+      "lines": {
+        "loss:airframe_eddy_decay": 83.33278080954543,
+        "loss:duct_wall_loss": 0.43681643868503006,
+        "loss:jet_eddy_decay": 11311.002552148944,
+        "radiation:airframe_eddies": 83.33278080954543,
+        "radiation:inlet_mouth": 67.01498890243708,
+        "radiation:jet_eddies": 11311.002552148944,
+        "radiation:nozzle_mouth": 77.85536457536006,
+        "source:airframe_turbulence_stochastic": 166.70642832675628,
+        "source:blade_rows_and_planes": 139.56534870131213,
+        "source:jet_turbulence_stochastic": 22695.954320965793,
+        "source:reheat_crackle_stochastic": 6.444318902320113,
+        "source:reheat_flame_volume_source": 0.784596573465263
+      },
+      "maxStoredEnergy": 143.94388038637126,
+      "maximumFrameResidual": 1.7053025658242404e-13,
+      "outputWork": 0.0,
+      "radiation": 11539.205686436504,
+      "relativeGlobalResidual": 1.990122630978851e-14,
+      "sourceWork": 23009.45501346949
+    },
+    "outputScalePa": 400.0,
+    "peakFlamePlanePressurePa": 3650.7105350370493,
+    "referenceDistanceM": 50.0,
+    "runtime": "ovillo-game-sound (not a mus_ariadne plan)",
+    "sampleRate": 48000.0,
+    "seed": 5,
+    "spoolN1Fraction": 0.9666897889645599,
+    "stochastic": [
+      "jet mixing noise (eddy bank, Lighthill U^8 power law, fitted eta)",
+      "airframe boundary-layer noise (eddy bank, U^6)",
+      "reheat crackle (Poisson pops)"
+    ],
+    "world": "f16"
+  }
+}

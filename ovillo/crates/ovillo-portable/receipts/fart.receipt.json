@@ -1,0 +1,72 @@
+{
+  "anatomy": "alto",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "Every number (anatomy, foods, styles) is invented: no measurement, no source.",
+      "The canal is 20 cm or longer because the World's 24 modes must lie inside its band; a real one is shorter.",
+      "Digestion is a reservoir refill rate, not chemistry; the gas is energy, not a fluid with composition or temperature.",
+      "Everything the tract does not model applies (one jet, mode-diagonal losses, stepped moves)."
+    ],
+    "see": "ovillo/crates/ovillo-tract-world/src/fart.rs"
+  },
+  "events": {
+    "applied": 3,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "fart",
+  "frames": 240000,
+  "kind": "fart",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": -2.4270278506628992e-6,
+    "cumulativeClosureResidual": -1.0852430065710905e-14,
+    "currentEnergy": 0.2771981504050469,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": 8.308354004782359e-13,
+    "initialEnergy": 1.5,
+    "internalLoss": 1.6872299095805388,
+    "maximumFrameResidual": 4.440892098500626e-16,
+    "radiation": 0.006819512987169272,
+    "sampleFrames": 240000,
+    "sourceWork": 0.4712499999997748,
+    "throughput": 1.9712524270276255
+  },
+  "options": {},
+  "output": {
+    "about": "fart.rs's listener: pressure x 1/1000, clamped to [-1, 1] by the tract's listener, then its 20 Hz one-pole DC blocker (a listening stage, not part of the World; the ledger is untouched)",
+    "channels": "one point (left = right)",
+    "gain": 0.001,
+    "observes": "the radiated pressure at the cleft and the stub (Pa)"
+  },
+  "outputDigest": "sha256:b692aeb3545d62d7408496653c707a7a75e1b387f46443cf63166e69be5fb76e",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "sha256:e87611968ce5e8f483488c68d0105e25ca6dcd10558af1997e50814de877bd3a",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000.0,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 5.0,
+  "world": {
+    "anatomy": "alto",
+    "anatomyName": "cleft-nd-v1",
+    "dcBlockHz": 20.0,
+    "gasFraction": 0.18479876693669783,
+    "listenerGain": 0.001,
+    "moves": 0,
+    "planDigest": "sha256:e87611968ce5e8f483488c68d0105e25ca6dcd10558af1997e50814de877bd3a",
+    "safetyLimited": 0,
+    "stomach": [
+      {
+        "food": "beans",
+        "leftJ": 0.3787500000000006
+      }
+    ],
+    "valveRetunes": 4499,
+    "valveWork": -2.4270278506628992e-6
+  }
+}

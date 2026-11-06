@@ -1,0 +1,135 @@
+{
+  "anatomy": "trombone-v1",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "No brightening with loudness: the bore is linear acoustics (real brass brightens at ff through wave steepening in the bore).",
+      "The grid (124 volumes, dx 7-43 mm) flattens the upper modes; series junctions join through the downstream half-column only.",
+      "A rubber slide (all slide sections stretch), not a telescope.",
+      "The lips are copied glottis mechanics with fitted mass, thickness and delay; the aerodynamic work on the lips is booked to the lungs.",
+      "Partial 3 has the narrowest windows; a cell's dynamic range is a few calibration grid points (a swell spans about 6 dB).",
+      "No room: the World is heard dry."
+    ],
+    "see": "TROMBONE-WORLD.md#limits"
+  },
+  "events": {
+    "applied": 0,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "trombone",
+  "frames": 384000,
+  "kind": "trombone",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": -0.0010706978622911255,
+    "cumulativeClosureResidual": -2.7142732506035827e-12,
+    "currentEnergy": 14.208480849435793,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": 3.1318592164097936e-10,
+    "initialEnergy": 15,
+    "internalLoss": 8.135097081767016,
+    "maximumFrameResidual": 3.552713678800501e-15,
+    "radiation": 0.5230703597182859,
+    "sampleFrames": 384000,
+    "sourceWork": 7.867718988470203,
+    "throughput": 22.868789686332494
+  },
+  "options": {
+    "score": {
+      "bytes": 445,
+      "sha256": "89a935c19633b9245b64f522a19d57009748206d4034b0a5ca8dc984bfa82387"
+    }
+  },
+  "output": {
+    "about": "OUTPUT_SCALE (1/300) is set once, never per render; the raw emission can exceed 1 on an attack (the film's audition peaked at +2.6 dBFS)",
+    "channels": "one point (left = right)",
+    "gain": 0.0033333333333333335,
+    "observes": "the bell volume's pressure (Pa): the World's own emission"
+  },
+  "outputDigest": "sha256:3a3781fccf5b7fee2b1c515a46dce8b5bd365524476c426afe98d805f11ae6bd",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "sha256:ab14b31b73acb7828872cd81ee0269d97ddbeaa8c6d3f83424c85411c661a662",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [
+    {
+      "format": "trombone-notes-tsv",
+      "hairpins": 2,
+      "notes": 9,
+      "placed": [
+        {
+          "partial": 3,
+          "position": 4,
+          "slideM": 0.24235890107426133
+        },
+        {
+          "partial": 3,
+          "position": 3,
+          "slideM": 0.15199136413542497
+        },
+        {
+          "partial": 3,
+          "position": 4,
+          "slideM": 0.24235890107426133
+        },
+        {
+          "partial": 2,
+          "position": 1,
+          "slideM": 0.026915534918614398
+        },
+        {
+          "partial": 2,
+          "position": 1,
+          "slideM": 0.026915534918614398
+        },
+        {
+          "partial": 3,
+          "position": 7,
+          "slideM": 0.6733510799827649
+        },
+        {
+          "partial": 5,
+          "position": 5,
+          "slideM": 0.35199537972645956
+        },
+        {
+          "partial": 4,
+          "position": 2,
+          "slideM": 0.07850160402560513
+        },
+        {
+          "partial": 4,
+          "position": 6,
+          "slideM": 0.4655520061978978
+        }
+      ],
+      "samples": 676363,
+      "startFrame": 0
+    }
+  ],
+  "seconds": 8,
+  "world": {
+    "anatomy": "trombone-v1",
+    "moves": {
+      "lip_retunes": 1683,
+      "lip_work": -0.000004388372444901706,
+      "slide_disposal": 2.152621200699662e-7,
+      "slide_moves": 16303,
+      "slide_work": -0.0010663094898462275
+    },
+    "notes": 9,
+    "outputScale": 0.0033333333333333335,
+    "planDigest": "sha256:ab14b31b73acb7828872cd81ee0269d97ddbeaa8c6d3f83424c85411c661a662",
+    "simulatedSeconds": 8,
+    "storedEnergy": {
+      "air": 0.0023563268819159515,
+      "lips": 0.000004540744581637592,
+      "lungs": 14.206119981809294
+    }
+  }
+}

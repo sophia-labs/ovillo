@@ -1,0 +1,139 @@
+{
+  "anatomy": "fleas.plan.json",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "Everything in the steel-string's \"Limits of v0\" applies: no note-off damping, one touch point per cell, 24 modes per body, a linear model. A fictional design: every changed number is a design hypothesis in its *.design.json.",
+      "No law at all: an invented click. The fur is a lossy modal body, not a material model.",
+      "Nothing hops: a flea landing on the clasp is a fixed coupling weight."
+    ],
+    "see": "examples/ensemble/before-the-law/README.md#fleas"
+  },
+  "events": {
+    "applied": 6,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "tab",
+  "frames": 192000,
+  "kind": "fleas",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": 0.0,
+    "cumulativeClosureResidual": -1.1177446771967747e-17,
+    "currentEnergy": 9.000000000263145e-6,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": -4.929731753020028e-19,
+    "initialEnergy": 9e-6,
+    "internalLoss": 4.745946675320314e-9,
+    "maximumFrameResidual": 8.267041565201971e-19,
+    "radiation": 5.555305515134753e-12,
+    "sampleFrames": 192000,
+    "sourceWork": 4.751502244472809e-9,
+    "throughput": 9.004751502244473e-6
+  },
+  "options": {},
+  "output": {
+    "about": "mus render mixes the same observation, times the same gain, into its bus; here there is no bus, master or limiter",
+    "channels": "two listening directions",
+    "gain": 300.0,
+    "observes": "the stereo listener's observation of every body (World units)"
+  },
+  "outputDigest": "sha256:277c51389977e8244e259eda555cb2eeef83a2efe2b820d5e1af29d097cfdbf1",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "sha256:75bed050724483c7fb9b28fc8d8b201457be91df9986eb35a90435dad691ba03",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000.0,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 4.0,
+  "world": {
+    "anatomy": "fleas.plan.json",
+    "bodies": [
+      "string/1",
+      "string/2",
+      "string/3",
+      "string/4",
+      "string/5",
+      "string/6",
+      "box/0",
+      "box/1",
+      "box/2"
+    ],
+    "bow": null,
+    "bowedNotes": 0,
+    "capo": 0.0,
+    "controlWork": 0.0,
+    "cumulativeClosureResidual": -1.1177446771967747e-17,
+    "currentEnergy": 9.000000000263145e-6,
+    "globalClosureResidual": -4.929731753020028e-19,
+    "hammerOns": 0,
+    "initialEnergy": 9e-6,
+    "internalLoss": 4.745946675320314e-9,
+    "intonationTouches": 0,
+    "listenerDigest": "sha256:bd3bb793c49b1f1b7eb9ab1509160d6151379dc661f7dcc8f13f84bc7ac1db6b",
+    "maximumFrameResidual": 8.267041565201971e-19,
+    "originFrame": 0,
+    "planDigest": "sha256:75bed050724483c7fb9b28fc8d8b201457be91df9986eb35a90435dad691ba03",
+    "plucks": 6,
+    "pullOffs": 0,
+    "radiation": 5.555305515134753e-12,
+    "sampleFrames": 192000,
+    "simulatedSeconds": 4.0,
+    "slides": 0,
+    "sourceWork": 4.751502244472809e-9,
+    "strings": [
+      {
+        "hand": "string1",
+        "open": "Bb6",
+        "palmMute": 0.0,
+        "pick": 1.0,
+        "pos": 0.03,
+        "string": 1
+      },
+      {
+        "hand": "string2",
+        "open": "Ab6",
+        "palmMute": 0.0,
+        "pick": 1.0,
+        "pos": 0.03,
+        "string": 2
+      },
+      {
+        "hand": "string3",
+        "open": "F#6",
+        "palmMute": 0.0,
+        "pick": 1.0,
+        "pos": 0.03,
+        "string": 3
+      },
+      {
+        "hand": "string4",
+        "open": "E6",
+        "palmMute": 0.0,
+        "pick": 1.0,
+        "pos": 0.03,
+        "string": 4
+      },
+      {
+        "hand": "string5",
+        "open": "D6",
+        "palmMute": 0.0,
+        "pick": 1.0,
+        "pos": 0.03,
+        "string": 5
+      },
+      {
+        "hand": "string6",
+        "open": "C6",
+        "palmMute": 0.0,
+        "pick": 1.0,
+        "pos": 0.03,
+        "string": 6
+      }
+    ]
+  }
+}

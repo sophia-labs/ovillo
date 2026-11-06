@@ -1,0 +1,150 @@
+{
+  "anatomy": "prism.plan.json",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "Everything in the steel-string's \"Limits of v0\" applies: no note-off damping, one touch point per cell, 24 modes per body, a linear model. A fictional design: every changed number is a design hypothesis in its *.design.json."
+    ],
+    "see": "examples/ensemble/sunskip/README.md"
+  },
+  "events": {
+    "applied": 10,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "tab",
+  "frames": 192000,
+  "kind": "prism",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": 4.370256735389631e-15,
+    "cumulativeClosureResidual": -3.852305844112558e-18,
+    "currentEnergy": 9.00000000705152e-6,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": 1.8566962203814263e-18,
+    "initialEnergy": 9e-6,
+    "internalLoss": 3.1752440206688366e-7,
+    "maximumFrameResidual": 1.2807138162485021e-18,
+    "radiation": 9.849229774933973e-11,
+    "sampleFrames": 192000,
+    "sourceWork": 3.176228970440411e-7,
+    "throughput": 9.317622901414298e-6
+  },
+  "options": {},
+  "output": {
+    "about": "mus render mixes the same observation, times the same gain, into its bus; here there is no bus, master or limiter",
+    "channels": "two listening directions",
+    "gain": 300.0,
+    "observes": "the stereo listener's observation of every body (World units)"
+  },
+  "outputDigest": "sha256:a660c427a37442f5a913c7d5e48d7bc62e9f988cc9fa7eddaaeae0315fbe7731",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "sha256:40ff11d34da50574c4d5568cb097124610f121b1c62823cb89edb54100471f1a",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000.0,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 4.0,
+  "world": {
+    "anatomy": "prism.plan.json",
+    "bodies": [
+      "string/1",
+      "string/2",
+      "string/3",
+      "string/4",
+      "string/5",
+      "string/6",
+      "box/0",
+      "box/1",
+      "box/2"
+    ],
+    "bow": {
+      "bowedSeconds": 1.005,
+      "bows": [
+        {
+          "body": "string/1",
+          "pos": 0.12
+        }
+      ],
+      "frictionLoss": 2.482917347452292e-7,
+      "peakForce": 0.06399268637644166,
+      "releases": 922,
+      "sourceWork": 3.0755571073501447e-7,
+      "stuckFraction": 0.525891376451078
+    },
+    "bowedNotes": 1,
+    "capo": 0.0,
+    "controlWork": 4.370256735389631e-15,
+    "cumulativeClosureResidual": -3.852305844112558e-18,
+    "currentEnergy": 9.00000000705152e-6,
+    "globalClosureResidual": 1.8566962203814263e-18,
+    "hammerOns": 0,
+    "initialEnergy": 9e-6,
+    "internalLoss": 3.1752440206688366e-7,
+    "intonationTouches": 0,
+    "listenerDigest": "sha256:29289c4174f1f0d169ba2069b21d6dad94cdb9c97fee21001cd32e4bbd4c42c4",
+    "maximumFrameResidual": 1.2807138162485021e-18,
+    "originFrame": 0,
+    "planDigest": "sha256:40ff11d34da50574c4d5568cb097124610f121b1c62823cb89edb54100471f1a",
+    "plucks": 6,
+    "pullOffs": 0,
+    "radiation": 9.849229774933973e-11,
+    "sampleFrames": 192000,
+    "simulatedSeconds": 4.0,
+    "slides": 1,
+    "sourceWork": 3.176228970440411e-7,
+    "strings": [
+      {
+        "hand": "string1",
+        "open": "G4",
+        "palmMute": 0.12,
+        "pick": 0.88,
+        "pos": 0.065,
+        "string": 1
+      },
+      {
+        "hand": "string2",
+        "open": "E4",
+        "palmMute": 0.12,
+        "pick": 0.88,
+        "pos": 0.065,
+        "string": 2
+      },
+      {
+        "hand": "string3",
+        "open": "C4",
+        "palmMute": 0.12,
+        "pick": 0.88,
+        "pos": 0.065,
+        "string": 3
+      },
+      {
+        "hand": "string4",
+        "open": "A3",
+        "palmMute": 0.12,
+        "pick": 0.88,
+        "pos": 0.065,
+        "string": 4
+      },
+      {
+        "hand": "string5",
+        "open": "F3",
+        "palmMute": 0.12,
+        "pick": 0.88,
+        "pos": 0.065,
+        "string": 5
+      },
+      {
+        "hand": "string6",
+        "open": "C3",
+        "palmMute": 0.12,
+        "pick": 0.88,
+        "pos": 0.065,
+        "string": 6
+      }
+    ]
+  }
+}

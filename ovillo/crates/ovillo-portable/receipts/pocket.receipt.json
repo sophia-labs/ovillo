@@ -1,0 +1,138 @@
+{
+  "anatomy": "pocket.plan.json",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "Everything in the steel-string's \"Limits of v0\" applies: no note-off damping, one touch point per cell, 24 modes per body, a linear model. A fictional design: every changed number is a design hypothesis in its *.design.json.",
+      "Its named cells are compositional roles: no real membrane, snare-wire or shaker is simulated."
+    ],
+    "see": "examples/ensemble/sunskip/README.md"
+  },
+  "events": {
+    "applied": 6,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "tab",
+  "frames": 192000,
+  "kind": "pocket",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": 0.0,
+    "cumulativeClosureResidual": -5.1508073522534004e-17,
+    "currentEnergy": 9.00000002956403e-6,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": -4.997494388800372e-19,
+    "initialEnergy": 9e-6,
+    "internalLoss": 2.960934628022236e-8,
+    "maximumFrameResidual": 1.650020181251377e-18,
+    "radiation": 1.8025451282440343e-9,
+    "sampleFrames": 192000,
+    "sourceWork": 3.141192097299537e-8,
+    "throughput": 9.031411920972996e-6
+  },
+  "options": {},
+  "output": {
+    "about": "mus render mixes the same observation, times the same gain, into its bus; here there is no bus, master or limiter",
+    "channels": "two listening directions",
+    "gain": 300.0,
+    "observes": "the stereo listener's observation of every body (World units)"
+  },
+  "outputDigest": "sha256:aa18c10a857a0132172a114dd5d1395216c01d7cf7029b7812e97c7bc5ed7c20",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "sha256:8d18166566cbf63fbc25c052c2b10e64721c12a5f15290a2ab03ae3c5b047736",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000.0,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [],
+  "seconds": 4.0,
+  "world": {
+    "anatomy": "pocket.plan.json",
+    "bodies": [
+      "string/6",
+      "string/5",
+      "string/4",
+      "string/3",
+      "string/2",
+      "string/1",
+      "box/0",
+      "box/1",
+      "box/2"
+    ],
+    "bow": null,
+    "bowedNotes": 0,
+    "capo": 0.0,
+    "controlWork": 0.0,
+    "cumulativeClosureResidual": -5.1508073522534004e-17,
+    "currentEnergy": 9.00000002956403e-6,
+    "globalClosureResidual": -4.997494388800372e-19,
+    "hammerOns": 0,
+    "initialEnergy": 9e-6,
+    "internalLoss": 2.960934628022236e-8,
+    "intonationTouches": 0,
+    "listenerDigest": "sha256:3c1ecdd4da35bafd62864e6917917d62b16b310b60bccec335c857ce7517026c",
+    "maximumFrameResidual": 1.650020181251377e-18,
+    "originFrame": 0,
+    "planDigest": "sha256:8d18166566cbf63fbc25c052c2b10e64721c12a5f15290a2ab03ae3c5b047736",
+    "plucks": 6,
+    "pullOffs": 0,
+    "radiation": 1.8025451282440343e-9,
+    "sampleFrames": 192000,
+    "simulatedSeconds": 4.0,
+    "slides": 0,
+    "sourceWork": 3.141192097299537e-8,
+    "strings": [
+      {
+        "hand": "string1",
+        "open": "E4",
+        "palmMute": 0.06,
+        "pick": 0.83,
+        "pos": 0.04,
+        "string": 1
+      },
+      {
+        "hand": "string2",
+        "open": "B3",
+        "palmMute": 0.07,
+        "pick": 0.97,
+        "pos": 0.055,
+        "string": 2
+      },
+      {
+        "hand": "string3",
+        "open": "G3",
+        "palmMute": 0.12,
+        "pick": 0.7,
+        "pos": 0.12,
+        "string": 3
+      },
+      {
+        "hand": "string4",
+        "open": "D3",
+        "palmMute": 0.14,
+        "pick": 0.91,
+        "pos": 0.08,
+        "string": 4
+      },
+      {
+        "hand": "string5",
+        "open": "A2",
+        "palmMute": 0.1,
+        "pick": 0.32,
+        "pos": 0.2,
+        "string": 5
+      },
+      {
+        "hand": "string6",
+        "open": "E2",
+        "palmMute": 0.08,
+        "pick": 0.16,
+        "pos": 0.3,
+        "string": 6
+      }
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+[package]
+name = "ovillo-portable"
+description = "Every Ovillo World behind one plain-C-ABI WebAssembly module: many World instances per module, each with a handle; events and continuous controls scheduled to the sample; stereo render; telemetry; the World's own ledger as a receipt."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+mus-ariadne = { workspace = true }
+# The steel-string and the piano: the same plans, laws and constants `mus render` plays (no libsoxr).
+mus-engine = { path = "../../../mus-rs/crates/mus-engine", default-features = false }
+# The trombone v1 World and its player; the bench rig.
+ovillo-dsp = { path = "../ovillo-dsp", default-features = false }
+ovillo-web = { path = "../ovillo-web" }
+ovillo-tract-world = { workspace = true }
+# The game's in-world sources: standalone Worlds behind its GameWorld trait (not mus_ariadne plans).
+ovillo-game-sound = { path = "../ovillo-game-sound" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = "0.10"

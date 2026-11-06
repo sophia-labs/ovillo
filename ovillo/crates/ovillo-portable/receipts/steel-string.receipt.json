@@ -1,0 +1,159 @@
+{
+  "anatomy": "steel-string-v0",
+  "claimBoundary": "A successful render is not by itself a theorem about transport, a biological reconstruction, intelligible speech, or listener perception.",
+  "clamped": 0,
+  "doesNotModel": {
+    "items": [
+      "No damping at note-off: a note rings until its string is touched again or its own losses and the palm take it ([stac] and lifted fingers cannot be heard).",
+      "Each string has one pluck point, its hand's (set at create): a per-touch pluck point is not modelled.",
+      "24 partials per string: the low E reaches about 2 kHz, the high E about 8 kHz.",
+      "The back, ribs and neck are rigid; bracing is folded into the plate's stiffness; radiation is monopole-weighted with no directivity.",
+      "Linear: no tension modulation, no fret buzz.",
+      "High frequencies cross the bridge weakly (the band-rising bridge rate is a fit, not a law): the guitar is warm.",
+      "Harmonics are played as ordinary plucks.",
+      "The bow: a slow attack (0.25-0.7 s before Helmholtz motion locks), secondary slips below speed 0.4, pitch flattening at heavy force; a velocity source with no bow mass, hair compliance or width, no torsion; one bow per string at one point.",
+      "It is a guitar-shaped Ariadne body, not a model of any particular guitar."
+    ],
+    "see": "SPEC-ARIADNE-STEEL-STRING.md"
+  },
+  "events": {
+    "applied": 0,
+    "errors": 0,
+    "lastError": "",
+    "refused": 0
+  },
+  "family": "tab",
+  "frames": 288000,
+  "kind": "steel-string",
+  "ledger": {
+    "closes": true,
+    "closureTolerance": 1e-9,
+    "controlWork": 0.0,
+    "cumulativeClosureResidual": -2.8102859124003177e-17,
+    "currentEnergy": 9.000570839696383e-6,
+    "frameTolerance": 1e-12,
+    "globalClosureResidual": -2.207029047365805e-17,
+    "initialEnergy": 9e-6,
+    "internalLoss": 4.3469808798040254e-8,
+    "maximumFrameResidual": 3.4304834363799164e-18,
+    "radiation": 2.09832237255749e-9,
+    "sampleFrames": 288000,
+    "sourceWork": 4.61389708890501e-8,
+    "throughput": 9.046138970889051e-6
+  },
+  "options": {
+    "score": {
+      "bytes": 1516,
+      "sha256": "edf6a33102e92e0b88047a8618305cd47acb0494e0882fd625b51d41c683fb3d"
+    }
+  },
+  "output": {
+    "about": "mus render mixes the same observation, times the same gain, into its bus; here there is no bus, master or limiter",
+    "channels": "two listening directions",
+    "gain": 300.0,
+    "observes": "the stereo listener's observation of every body (World units)"
+  },
+  "outputDigest": "sha256:b43fc39dd0fac0184573039f5d4d8b945d7828e4f8c8156da27ea9b3572c6f5f",
+  "outputDigestCovers": "every frame rendered, interleaved left/right, f32 little-endian",
+  "planDigest": "sha256:9c7feb612c813cac447c2e02e2d0c8660ff0702cd9e492e3369c4cd230661ff7",
+  "producer": "ovillo-portable 0.1.0",
+  "sampleRate": 48000.0,
+  "schema": "ovillo.portable.receipt.v1",
+  "scores": [
+    {
+      "badTokens": [],
+      "format": "mus",
+      "instrument": "gt",
+      "notes": 48,
+      "samples": 1272000,
+      "startFrame": 0
+    }
+  ],
+  "seconds": 6.0,
+  "world": {
+    "anatomy": "steel-string-v0",
+    "bodies": [
+      "string/6",
+      "string/5",
+      "string/4",
+      "string/3",
+      "string/2",
+      "string/1",
+      "box/0",
+      "box/1",
+      "box/2"
+    ],
+    "bow": null,
+    "bowedNotes": 0,
+    "capo": 0.0,
+    "controlWork": 0.0,
+    "cumulativeClosureResidual": -2.8102859124003177e-17,
+    "currentEnergy": 9.000570839696383e-6,
+    "globalClosureResidual": -2.207029047365805e-17,
+    "hammerOns": 2,
+    "initialEnergy": 9e-6,
+    "internalLoss": 4.3469808798040254e-8,
+    "intonationTouches": 0,
+    "listenerDigest": "sha256:a7d1e2742777c32b7ec5362064ac74d2ea151384c149193781fdde1b68ad5515",
+    "maximumFrameResidual": 3.4304834363799164e-18,
+    "originFrame": 0,
+    "planDigest": "sha256:9c7feb612c813cac447c2e02e2d0c8660ff0702cd9e492e3369c4cd230661ff7",
+    "plucks": 43,
+    "pullOffs": 2,
+    "radiation": 2.09832237255749e-9,
+    "sampleFrames": 288000,
+    "simulatedSeconds": 6.0,
+    "slides": 1,
+    "sourceWork": 4.61389708890501e-8,
+    "strings": [
+      {
+        "hand": "gt.v",
+        "open": "E4",
+        "palmMute": 0.0,
+        "pick": 0.45,
+        "pos": 0.2,
+        "string": 1
+      },
+      {
+        "hand": "gt.v",
+        "open": "B3",
+        "palmMute": 0.0,
+        "pick": 0.45,
+        "pos": 0.2,
+        "string": 2
+      },
+      {
+        "hand": "gt.v",
+        "open": "G3",
+        "palmMute": 0.0,
+        "pick": 0.45,
+        "pos": 0.2,
+        "string": 3
+      },
+      {
+        "hand": "gt.p",
+        "open": "D3",
+        "palmMute": 0.45,
+        "pick": 0.85,
+        "pos": 0.1,
+        "string": 4
+      },
+      {
+        "hand": "gt.p",
+        "open": "A2",
+        "palmMute": 0.45,
+        "pick": 0.85,
+        "pos": 0.1,
+        "string": 5
+      },
+      {
+        "hand": "gt.p",
+        "open": "E2",
+        "palmMute": 0.45,
+        "pick": 0.85,
+        "pos": 0.1,
+        "string": 6
+      }
+    ]
+  }
+}
