@@ -3917,6 +3917,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ovillo-game-sound"
+version = "0.1.0"
+dependencies = [
+ "hound",
+ "mus-watsn",
+ "serde_json",
+]
+
+[[package]]
 name = "ovillo-mcp"
 version = "0.1.0"
 dependencies = [
