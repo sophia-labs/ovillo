@@ -221,7 +221,7 @@ def script_lines(path=SCRIPT):
     return out
 
 
-def script_session(session, ids, order="character", path=SCRIPT):
+def script_session(session, ids, order="scene", path=SCRIPT):
     """Prompts for script lines `ids` (a list, or 'R1-01..R1-18,G-01..G-06'). order: 'character' groups each part's
     lines together (V. first) so a voice can be held; 'scene' keeps the script's order. Every prompt carries its cue
     (the line before it in the scene)."""

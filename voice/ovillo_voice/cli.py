@@ -50,7 +50,7 @@ def main(argv=None):
     sp.add_parser("presets"); sp.add_parser("describe"); sp.add_parser("index")
     s = sp.add_parser("prompts"); s.add_argument("action", choices=["set", "show", "results"]); s.add_argument("session", nargs="?"); s.add_argument("file", nargs="?")
     s = sp.add_parser("quick"); s.add_argument("take")
-    s = sp.add_parser("script"); s.add_argument("session"); s.add_argument("ids"); s.add_argument("--order", default="character", choices=["character", "scene"])
+    s = sp.add_parser("script"); s.add_argument("session"); s.add_argument("ids"); s.add_argument("--order", default="scene", choices=["scene", "character"])
     s = sp.add_parser("select"); s.add_argument("take", nargs="?")
     s = sp.add_parser("export-selects"); s.add_argument("dest", nargs="?")
     s = sp.add_parser("render"); s.add_argument("take"); s.add_argument("body"); s.add_argument("--as", dest="as_name"); s.add_argument("--set", action="append")

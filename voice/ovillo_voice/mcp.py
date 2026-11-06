@@ -109,7 +109,7 @@ def call(name, a):
         r = ops.compare(a["take"], a["body"]); return r, (r["png"] if img else None)
     if name == "set_prompts": return ops.set_prompts(a["session"], a["prompts"], a.get("intro", "")), None
     if name == "prompt_results": return ops.prompt_results(a.get("session")), None
-    if name == "script_session": return ops.script_session(a["session"], a["ids"], a.get("order", "character")), None
+    if name == "script_session": return ops.script_session(a["session"], a["ids"], a.get("order", "scene")), None
     if name == "select_take": return ops.select_take(a.get("take")), None
     if name == "export_selects": return ops.export_selects(a.get("dest")), None
     if name == "quick": return ops.quick(a["take"]), None
