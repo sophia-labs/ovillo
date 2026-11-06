@@ -117,10 +117,17 @@ def cuts(roll_wav, seq_texts, cache=None):
 
 
 def export_cut(roll_wav, a0, a1, dst):
+    """Trim inside the filter graph and reset the clock BEFORE fading. (An output-side -ss leaves the filters on the
+    roll's own timeline, so the fade-out fired at the line's length into the roll and zeroed the rest: that shipped
+    silent files once.) Refuses to leave a silent file behind."""
     d = a1 - a0
-    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(roll_wav), "-ss", f"{a0:.3f}", "-to", f"{a1:.3f}",
-                    "-af", f"afade=t=in:d={FADE},afade=t=out:st={max(0, d - FADE):.3f}:d={FADE}", "-ac", "1", "-ar", str(SR),
-                    "-c:a", "pcm_s24le", str(dst)], check=True)
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(roll_wav),
+                    "-af", f"atrim=start={a0:.3f}:end={a1:.3f},asetpts=PTS-STARTPTS,afade=t=in:d={FADE},afade=t=out:st={max(0, d - FADE):.3f}:d={FADE}",
+                    "-ac", "1", "-ar", str(SR), "-c:a", "pcm_s24le", str(dst)], check=True)
+    x = analysis.load(dst).values[0]
+    rms = float(np.sqrt(np.mean(x ** 2))) if len(x) else 0.0
+    if len(x) < int(0.8 * d * SR) or rms < 1e-4:
+        raise RuntimeError(f"export of {dst.name} came out silent or short ({len(x) / SR:.2f} s, rms {rms:.1e})")
 
 
 def recut_session(session, dest=None):
@@ -137,15 +144,37 @@ def recut_session(session, dest=None):
             takes.append((m["from_roll"]["roll"], m["from_roll"]["start"], t.name, m["prompt"]["id"]))
     dest = studio.pathlib.Path(dest or studio.pathlib.Path.home() / f"dev/verabot/film/vo/vera/{session}"); dest.mkdir(parents=True, exist_ok=True)
     result = {}
+    order = [p["id"] for p in S["prompts"]]
     for roll in sorted({r for r, *_ in takes}):
         seq = sorted([x for x in takes if x[0] == roll], key=lambda x: x[1])
+        # Lines read straight on without a NEXT press have no take. Slot every prompt skipped between one take's line
+        # and the next (and after the last) in after it: the words will say whether they were really spoken.
+        full = []
+        for k, x in enumerate(seq):
+            full.append(x)
+            i = order.index(x[3]); j = order.index(seq[k + 1][3]) if k + 1 < len(seq) else len(order)
+            for lid in order[i + 1:j]:
+                if not any(y[3] == lid for y in takes):
+                    full.append((roll, None, None, lid))
         wav = studio.STUDIO / "takes" / roll / "dry.wav"
-        cc, spans = cuts(wav, [text[lid] for *_, lid in seq], cache=studio.STUDIO / "takes" / roll / "transcript.words.json")
-        for (r, _, take, lid), c, sp in zip(seq, cc, spans):
+        cc, spans = cuts(wav, [text[lid] for *_, lid in full], cache=studio.STUDIO / "takes" / roll / "transcript.words.json")
+        for (r, _, take, lid), c, sp in zip(full, cc, spans):
+            if take is None:                       # a line spoken without its own take: give it one, cut from the roll
+                if not c:
+                    continue
+                take = f"{session}-{lid}"; td = studio.take_dir(take)
+                if not (td / "dry.wav").exists():
+                    export_cut(wav, c[0], c[1], td / "dry.wav")
+                    pr = next(p for p in S["prompts"] if p["id"] == lid)
+                    studio.write_json(td / "take.json", dict(take=take, device="cut from the roll by its words", recorded=time.strftime("%Y-%m-%d %H:%M:%S"),
+                                                             notes="read on without a NEXT press; recovered by align.py", sections={},
+                                                             prompt=dict(pr, session=session, index=order.index(lid)), from_roll=dict(roll=r, start=c[0], end=c[1])))
+                S.setdefault("selects", {})[lid] = take
             studio.write_json(studio.STUDIO / "takes" / take / "aligned.json", dict(roll=r, cut=c, words_span=sp, method="faster-whisper small.en words, difflib alignment"))
             if c and (S.get("selects") or {}).get(lid) == take:
                 export_cut(wav, c[0], c[1], dest / f"{lid}.wav")
                 result[lid] = dict(take=take, roll=r, start=c[0], end=c[1], seconds=round(c[1] - c[0], 2))
+    studio.write_json(studio.STUDIO / "sessions" / f"{session}.json", S)
     old = studio.read_json(dest / "selects.json", {}) or {}
     studio.write_json(dest / "selects.json", dict(session=session, version=int(old.get("version", 1)) + 1, exported=time.strftime("%Y-%m-%d %H:%M:%S"),
                                                   method="cut at the words: faster-whisper word timestamps aligned to the script; cuts at the quietest 20 ms between lines; 150 ms before, 250 ms after, 30 ms fades",
