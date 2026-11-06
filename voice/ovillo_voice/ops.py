@@ -197,3 +197,84 @@ def formant_shift(take, ratio, as_name=None, do_compare=True):
         res["compare"] = compare(take, name)["summary"]
     studio.log("formant_shift", take=take, body=name, ratio=ratio, non_physics=True, summary=res.get("compare"))
     return res
+
+
+# ---------- dialogue: the film's script as prompts, one line per take, with its cue line and a chosen ("circled") take
+
+SCRIPT = pathlib.Path.home() / "dev/verabot/film/script/before_the_law.md"
+VOICES = {  # how Vera has been playing each part tonight (measured on her takes), shown as the hint
+    "V.": ("v_line", [150, 175], "V.: the pocket. Around 155-165 Hz, the weight chip 0 to +6, buzzy and close. Snake-style: deadpan, repeating the last word."),
+    "RADIO": ("radio_line", None, "RADIO: the commander. Your biggest, lowest man, even and unhurried (your 'biggest man' take sat around 108 Hz). The Body will put him down a speaking tube."),
+    "GATEKEEPER": ("gate_line", None, "GATEKEEPER: your weird man (around 98 Hz), slow and proprietorial. The Body gives him the nose and the fleas."),
+}
+
+
+def script_lines(path=SCRIPT):
+    import re
+    out = []
+    for m in re.finditer(r"^\| ([A-Z0-9]+-\d\d) \| (RADIO|V\.|GATEKEEPER|[A-Z .]+?) \| (.+?) \|$", pathlib.Path(path).read_text(), re.M):
+        lid, who, text = m.groups()
+        dirs = [d.strip() for d in re.findall(r"\*\(([^)]*)\)\*", text)]
+        perf = [d for d in dirs if not re.match(r"(adapted|Kafka|moved)", d, re.I)]
+        say = re.sub(r"\*\([^)]*\)\*", "", text).replace("*", "").strip()
+        out.append(dict(id=lid, who=who.strip(), say=say, direction="; ".join(perf)))
+    return out
+
+
+def script_session(session, ids, order="character", path=SCRIPT):
+    """Prompts for script lines `ids` (a list, or 'R1-01..R1-18,G-01..G-06'). order: 'character' groups each part's
+    lines together (V. first) so a voice can be held; 'scene' keeps the script's order. Every prompt carries its cue
+    (the line before it in the scene)."""
+    lines = script_lines(path); idx = {l["id"]: i for i, l in enumerate(lines)}
+    if isinstance(ids, str):
+        want = []
+        for part in ids.split(","):
+            a, _, b = part.strip().partition("..")
+            want += [l["id"] for l in lines[idx[a]: idx[b or a] + 1]]
+        ids = want
+    chosen = [lines[idx[i]] for i in ids]
+    if order == "character":
+        rank = {"V.": 0, "RADIO": 1, "GATEKEEPER": 2}
+        chosen = sorted(chosen, key=lambda l: (rank.get(l["who"], 3), idx[l["id"]]))
+    prompts = []
+    for l in chosen:
+        kind, target, hint = VOICES.get(l["who"], ("line", None, ""))
+        prev = lines[idx[l["id"]] - 1] if idx[l["id"]] > 0 else None
+        p = dict(id=l["id"], who=l["who"], say=l["say"], kind=kind, hint=hint + (f"  Direction: {l['direction']}." if l["direction"] else ""),
+                 cue=dict(id=prev["id"], who=prev["who"], say=prev["say"]) if prev else None)
+        if target:
+            p["target_hz"] = target
+        prompts.append(p)
+    P = set_prompts(session, prompts, intro=f"Dialogue: {len(prompts)} lines, {order} order.")
+    P["mode"] = "dialogue"; P["selects"] = {}
+    studio.write_json(studio.STUDIO / "prompts.json", P)
+    return P
+
+
+def select_take(take=None, prompt_id=None):
+    """Circle a take for a line (default: the newest take of the current prompt)."""
+    P = prompts(); pid = prompt_id or P["prompts"][P["current"]]["id"]
+    if not take:
+        mine = sorted((studio.STUDIO / "takes").glob(f"{P['session']}-{pid}*"), key=lambda t: (t / "dry.wav").stat().st_mtime if (t / "dry.wav").exists() else 0)
+        mine = [t for t in mine if (t / "dry.wav").exists()]
+        if not mine:
+            raise RuntimeError(f"no take yet for {pid}")
+        take = mine[-1].name
+    P.setdefault("selects", {})[pid] = take
+    studio.write_json(studio.STUDIO / "prompts.json", P); studio.log("select", line=pid, take=take)
+    return dict(line=pid, take=take)
+
+
+def export_selects(dest=None, pad=0.15):
+    """Copy each line's circled take, trimmed to its sound with a little air, to <dest>/<line>.wav (48 kHz mono 24-bit)."""
+    P = prompts(); dest = pathlib.Path(dest or pathlib.Path.home() / "dev/verabot/film/vo/vera"); dest.mkdir(parents=True, exist_ok=True)
+    done = {}
+    for pid, take in (P.get("selects") or {}).items():
+        s = analysis.load(dry(take)); seg = analysis.segments(s)["segments"]
+        a, b = (max(0, seg[0]["start"] - pad), min(s.duration, seg[-1]["end"] + pad)) if seg else (0, s.duration)
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(dry(take)), "-ss", f"{a:.3f}", "-to", f"{b:.3f}",
+                        "-ac", "1", "-ar", "48000", "-c:a", "pcm_s24le", str(dest / f"{pid}.wav")], check=True)
+        done[pid] = dict(take=take, seconds=round(b - a, 2))
+    studio.write_json(dest / "selects.json", dict(session=P["session"], exported=time.strftime("%Y-%m-%d %H:%M:%S"), lines=done))
+    studio.log("export_selects", dest=str(dest), n=len(done))
+    return dict(dest=str(dest), lines=done)

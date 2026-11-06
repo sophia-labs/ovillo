@@ -60,6 +60,10 @@ TOOLS = [
      "Each prompt is {id, say, kind (an analysis key, so the take measures itself: ah, ee, passage, passage_v, man_low ...), hint (how to say it), target_hz [lo, hi] (drawn on her live pitch meter)}.",
      {"session": {"type": "string"}, "prompts": {"type": "array", "items": {"type": "object"}}, "intro": {"type": "string"}}, ["session", "prompts"]),
     ("prompt_results", "Every prompt of a session with its takes' quick numbers (F0 stats, tract length, formants, alpha, level), newest first.", {"session": {"type": "string"}}),
+    ("script_session", "Turn the film's script lines into a dialogue session on Vera's page: ids like 'R1-01..R1-18,G-01..G-06'; order 'character' groups each part (V., then RADIO, then GATEKEEPER) so she can hold a voice, or 'scene'. Each prompt shows its cue line.",
+     {"session": {"type": "string"}, "ids": {"type": "string"}, "order": {"type": "string", "enum": ["character", "scene"]}}, ["session", "ids"]),
+    ("select_take", "Circle a take for the current line (default its newest), or a named take.", {"take": {"type": "string"}}),
+    ("export_selects", "Copy every circled take, trimmed, to <dest>/<line>.wav for the film (default ~/dev/verabot/film/vo/vera).", {"dest": {"type": "string"}}),
     ("quick", "Fast numbers for one short take (pitch, then formants or tract length depending on its kind).", {"take": {"type": "string"}}, ["take"]),
     ("play", "Play a take (or its render through a body) on the Mac's speakers.", {"take": {"type": "string"}, "body": {"type": "string"}}, ["take"]),
 ]
@@ -105,6 +109,9 @@ def call(name, a):
         r = ops.compare(a["take"], a["body"]); return r, (r["png"] if img else None)
     if name == "set_prompts": return ops.set_prompts(a["session"], a["prompts"], a.get("intro", "")), None
     if name == "prompt_results": return ops.prompt_results(a.get("session")), None
+    if name == "script_session": return ops.script_session(a["session"], a["ids"], a.get("order", "character")), None
+    if name == "select_take": return ops.select_take(a.get("take")), None
+    if name == "export_selects": return ops.export_selects(a.get("dest")), None
     if name == "quick": return ops.quick(a["take"]), None
     if name == "play": return ops.play(a["take"], a.get("body")), None
     raise KeyError(f'unknown tool "{name}"')

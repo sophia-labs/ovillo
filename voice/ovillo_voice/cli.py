@@ -15,6 +15,9 @@
     ovillo-voice play <take> [<body>]
     ovillo-voice prompts set <session> <file.json>    what Vera is asked to say next (a JSON list of {id, say, kind, hint, target_hz})
     ovillo-voice prompts show | results [<session>]
+    ovillo-voice script <session> R1-01..R1-18,G-01..G-06 [--order character|scene]   the film's lines as prompts
+    ovillo-voice select [<take>]                      circle a take for the current line (default: its newest)
+    ovillo-voice export-selects [<dir>]               circled takes, trimmed, to <dir>/<line>.wav (default verabot/film/vo/vera)
     ovillo-voice quick <take>                         fast numbers for one short take
     ovillo-voice index                                the studio as JSON
     ovillo-voice serve [--port 8023]                  the studio page
@@ -47,6 +50,9 @@ def main(argv=None):
     sp.add_parser("presets"); sp.add_parser("describe"); sp.add_parser("index")
     s = sp.add_parser("prompts"); s.add_argument("action", choices=["set", "show", "results"]); s.add_argument("session", nargs="?"); s.add_argument("file", nargs="?")
     s = sp.add_parser("quick"); s.add_argument("take")
+    s = sp.add_parser("script"); s.add_argument("session"); s.add_argument("ids"); s.add_argument("--order", default="character", choices=["character", "scene"])
+    s = sp.add_parser("select"); s.add_argument("take", nargs="?")
+    s = sp.add_parser("export-selects"); s.add_argument("dest", nargs="?")
     s = sp.add_parser("render"); s.add_argument("take"); s.add_argument("body"); s.add_argument("--as", dest="as_name"); s.add_argument("--set", action="append")
     s.add_argument("--no-compare", action="store_true")
     s = sp.add_parser("compare"); s.add_argument("take"); s.add_argument("body")
@@ -88,6 +94,12 @@ def main(argv=None):
             res = ops.set_prompts(x.session, items, intro)
         else:
             res = ops.prompts() if x.action == "show" else ops.prompt_results(x.session)
+    elif x.cmd == "script":
+        res = ops.script_session(x.session, x.ids, x.order)
+    elif x.cmd == "select":
+        res = ops.select_take(x.take)
+    elif x.cmd == "export-selects":
+        res = ops.export_selects(x.dest)
     elif x.cmd == "quick":
         res = ops.quick(x.take)
     elif x.cmd == "index":

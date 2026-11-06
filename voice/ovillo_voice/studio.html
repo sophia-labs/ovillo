@@ -63,6 +63,12 @@ pre { white-space:pre-wrap; font-size:11px; color:var(--dim); margin:4px 0 8px; 
 .plist button { padding:2px 7px; font-size:11px; border-color:var(--line); color:var(--dim); }
 .plist button.done { color:var(--wet); border-color:#24543d; }
 .plist button.cur { color:#000; background:var(--dry); border-color:var(--dry); }
+.cue { padding:14px 14px 0; color:var(--dim); font-family: ui-serif, Georgia, serif; font-size:17px; }
+.cue b { font-family:var(--mono); font-size:12px; letter-spacing:.12em; font-weight:600; margin-right:6px; }
+.who { padding:12px 14px 0; font-size:13px; letter-spacing:.18em; font-weight:700; }
+.w-V { color:var(--dry); } .w-RADIO { color:#6fb3ff; } .w-GATEKEEPER { color:var(--amber); }
+.plist button.w-V { border-color:#5a2440; } .plist button.w-RADIO { border-color:#24405a; } .plist button.w-GATEKEEPER { border-color:#5a4a1c; }
+.plist button.sel::after { content:" ★"; color:var(--amber); }
 #meter { background:#000; border:1px solid var(--line); margin-bottom:16px; }
 #meter .phead { display:flex; justify-content:space-between; gap:10px; padding:8px 12px; border-bottom:1px solid var(--line); align-items:center; flex-wrap:wrap; }
 #hz { font-size:22px; color:var(--dry); min-width:9ch; display:inline-block; }
@@ -86,11 +92,14 @@ kbd { border:1px solid var(--line); padding:0 4px; font-size:11px; color:var(--d
 <main>
   <div>
   <section id="prompter" hidden>
-    <div class="phead"><span class="slate" id="pslate"></span><span class="meta"><kbd>space</kbd> record / stop · <kbd>←</kbd> <kbd>→</kbd> prompts · space again on a done prompt = a retake</span></div>
+    <div class="phead"><span class="slate" id="pslate"></span><span class="meta"><kbd>space</kbd> record / stop · <kbd>enter</kbd> circle the newest take and go on · <kbd>p</kbd> play it · <kbd>←</kbd> <kbd>→</kbd> lines · space again = a retake</span></div>
+    <div class="cue" id="pcue" hidden></div>
+    <div class="who" id="pwho" hidden></div>
     <div class="say" id="psay"></div>
     <div class="hint" id="phint"></div>
     <div class="controls">
       <button id="prec" class="go big">● REC</button>
+      <button id="pkeep">★ KEEP &amp; NEXT</button>
       <button id="pprev">← PREV</button><button id="pnext">NEXT →</button>
       <span class="meta" id="pstate"></span>
     </div>
@@ -213,6 +222,10 @@ function renderPrompter(ix) {
   $("prompter").hidden = !list.length; if (!list.length) return;
   const i = P.current || 0, p = list[i], rec = ix.recording;
   $("pslate").textContent = `SESSION ${P.session} · ${i + 1} / ${list.length}${p.kind ? " · " + p.kind : ""}`;
+  const wcls = (w) => "w-" + String(w || "").replace(/[^A-Z]/g, "");
+  $("pcue").hidden = !p.cue; if (p.cue) $("pcue").innerHTML = `<b class="${wcls(p.cue.who)}">${esc(p.cue.who)}</b>${esc(p.cue.say)}`;
+  $("pwho").hidden = !p.who; if (p.who) { $("pwho").textContent = `${p.who}  ·  ${p.id}`; $("pwho").className = "who " + wcls(p.who); }
+  const sel = (P.selects || {});
   $("psay").textContent = p.say; $("psay").classList.toggle("long", p.say.length > 200); $("phint").textContent = p.hint || "";
   const takes = ix.takes.filter((t) => t.meta && t.meta.prompt && t.meta.prompt.session === P.session && t.meta.prompt.id === p.id).sort((a, b) => b.mtime - a.mtime);
   const btn = $("prec");
@@ -222,7 +235,7 @@ function renderPrompter(ix) {
   const t = takes[0], q = t && t.quick, busy = t && ix.busy && ix.busy[t.take];
   let r = "";
   if (t) {
-    r += `<span class="meta">${esc(t.take)}</span><audio controls preload="none" style="width:260px" src="${file(`takes/${t.take}/dry.wav`, t.mtime)}"></audio>`;
+    r += `<span class="meta">${sel[p.id] === t.take ? "★ " : ""}${esc(t.take)}</span><audio id="paudio" controls preload="auto" style="width:260px" src="${file(`takes/${t.take}/dry.wav`, t.mtime)}"></audio>`;
     if (busy) r += `<span class="meta">${esc(busy)}…</span>`;
     if (q) {
       const f = q.f0 || {};
@@ -233,10 +246,10 @@ function renderPrompter(ix) {
       if (p.target_hz && f.median_hz) r += chip("target", `${p.target_hz[0]}–${p.target_hz[1]} Hz`, f.median_hz >= p.target_hz[0] && f.median_hz <= p.target_hz[1] ? "wet" : "warn");
     }
   }
-  const pr = $("presult"), key = JSON.stringify([t && t.take, q, busy]);
+  const pr = $("presult"), key = JSON.stringify([t && t.take, q, busy, sel[p.id]]);
   if (pr.dataset.key !== key) { pr.innerHTML = r || `<span class="meta">not recorded yet</span>`; pr.dataset.key = key; }
   const done = new Set(ix.takes.filter((t) => t.meta && t.meta.prompt && t.meta.prompt.session === P.session).map((t) => t.meta.prompt.id));
-  $("plist").innerHTML = list.map((q, j) => `<button data-goto="${j}" class="${j === i ? "cur" : done.has(q.id) ? "done" : ""}" title="${esc(q.say)}">${esc(q.id)}</button>`).join("");
+  $("plist").innerHTML = list.map((q, j) => `<button data-goto="${j}" class="${j === i ? "cur" : done.has(q.id) ? "done" : ""} ${q.who ? wcls(q.who) : ""} ${sel[q.id] ? "sel" : ""}" title="${esc((q.who ? q.who + ": " : "") + q.say)}">${esc(q.id)}</button>`).join("");
   target = p.target_hz || null;
 }
 async function recToggle() {
@@ -245,11 +258,14 @@ async function recToggle() {
   poll();
 }
 async function go(d) { if (state && !state.recording) { await post("/api/prompt/goto", { i: (state.prompts.current || 0) + d }); poll(); } }
-$("prec").onclick = recToggle; $("pprev").onclick = () => go(-1); $("pnext").onclick = () => go(1);
+async function keepNext() { if (state && !state.recording) { await post("/api/prompt/select", {}); await go(1); } }
+$("prec").onclick = recToggle; $("pprev").onclick = () => go(-1); $("pnext").onclick = () => go(1); $("pkeep").onclick = keepNext;
 document.addEventListener("keydown", (e) => {
-  if (e.target.matches("input, textarea") || $("prompter").hidden) return;
+  if (e.target.matches("input, textarea, select") || $("prompter").hidden) return;
   if (e.code === "Space") { e.preventDefault(); recToggle(); }
   else if (e.key === "ArrowRight") go(1); else if (e.key === "ArrowLeft") go(-1);
+  else if (e.key === "Enter") { e.preventDefault(); keepNext(); }
+  else if (e.key === "p" && $("paudio")) { const a = $("paudio"); a.currentTime = 0; a.play(); }
 });
 
 // ---------- the pitch meter (YIN on the browser's mic, 2x decimated; it only displays, never records)
@@ -307,6 +323,8 @@ function draw() {
 }
 draw();
 
+// a clicked button keeps focus, and space would then press it as well as recording: drop focus after every click
+document.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) b.blur(); }, true);
 document.addEventListener("click", async (e) => {
   const gt = e.target.closest("[data-goto]");
   if (gt && state && !state.recording) { await post("/api/prompt/goto", { i: +gt.dataset.goto }); poll(); }

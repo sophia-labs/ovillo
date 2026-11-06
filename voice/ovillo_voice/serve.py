@@ -76,6 +76,8 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, record.start(take, body.get("device"), chime=False, prompt=pr))
             if path == "/api/device":
                 return self.send(200, record.set_device(body["device"]))
+            if path == "/api/prompt/select":
+                return self.send(200, ops.select_take(body.get("take")))
             if path == "/api/prompt/goto":
                 return self.send(200, ops.goto_prompt(body["i"]))
             if path == "/api/sections":
