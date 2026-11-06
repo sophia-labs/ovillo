@@ -25,7 +25,10 @@
 //!   The area function (cross-sections) is the adult's for every singer: the
 //!   anatomy has no area scale.
 //! - Between vowels a singer's target articulation moves over 0.2 s
-//!   (`ART_GLIDE_S`).
+//!   (`ART_GLIDE_S`), unless the note's optional `glide_s` column says how long
+//!   (a short glide out of a hum's sealed lips is the choir's "b"/"d": the
+//!   lips are released fast, and the World's articulators follow at their own
+//!   speed, every move booked).
 //! - The rest is the singer's own way of singing, all World controls: a
 //!   constant lateness (`timing_ms`) and a per-note scatter
 //!   (`timing_jitter_ms`); a constant intonation offset and a per-note scatter
@@ -337,6 +340,8 @@ struct Sung {
     vowel: char,
     breath: f64,
     vib: f64,
+    /// Seconds the target articulation takes to move from the previous vowel.
+    glide_s: f64,
 }
 
 fn voices(path: &str) -> Result<BTreeMap<String, Vec<Sung>>, String> {
@@ -355,6 +360,10 @@ fn voices(path: &str) -> Result<BTreeMap<String, Vec<Sung>>, String> {
             vowel: v,
             breath: num(&row, "breath")?.clamp(0.0, 1.0),
             vib: num(&row, "vib_depth")?.clamp(0.0, 2.0),
+            glide_s: match row.get("glide_s") {
+                Some(v) if !v.trim().is_empty() && v.trim() != "-" => num(&row, "glide_s")?.clamp(0.005, 2.0),
+                _ => ART_GLIDE_S,
+            },
         };
         if !(s.end_s > s.start_s) {
             return Err(format!("{name}: end_s must exceed start_s"));
@@ -580,6 +589,7 @@ struct Performed {
     vowel: char,
     breath: f64,
     vib: f64,
+    glide_s: f64,
 }
 
 fn perform(s: &Singer, notes: &[Sung], skill: &SkillTable) -> Result<Vec<Performed>, String> {
@@ -605,6 +615,7 @@ fn perform(s: &Singer, notes: &[Sung], skill: &SkillTable) -> Result<Vec<Perform
             vowel: n.vowel,
             breath: (n.breath * s.breath_scale).clamp(0.0, 1.0),
             vib: n.vib,
+            glide_s: n.glide_s,
         });
     }
     Ok(out)
@@ -636,7 +647,7 @@ fn sing(s: &Singer, notes: &[Performed], n: usize) -> (Vec<f64>, Value) {
         if t >= note.start_s && t < note.end_s {
             let art = match k.checked_sub(1).map(|j| &notes[j]) {
                 Some(prev) if prev.vowel != note.vowel => {
-                    mix_art(prev.art, note.art, (t - note.start_s) / ART_GLIDE_S)
+                    mix_art(prev.art, note.art, (t - note.start_s) / note.glide_s)
                 }
                 _ => note.art,
             };
@@ -670,7 +681,7 @@ fn sing(s: &Singer, notes: &[Performed], n: usize) -> (Vec<f64>, Value) {
                    "intonationCents": s.intonation_cents, "intonationJitterCents": s.intonation_jitter_cents, "breathScale": s.breath_scale,
                    "tongueOffset": s.tongue_offset, "lipsOffset": s.lips_offset},
         "notes": notes.iter().map(|x| json!({"start_s": x.start_s, "end_s": x.end_s, "targetHz": x.target_hz, "foldTuningHz": x.tuning_hz,
-                                             "vowel": x.vowel.to_string(), "breath": x.breath, "vibDepthSemitones": x.vib})).collect::<Vec<_>>(),
+                                             "vowel": x.vowel.to_string(), "breath": x.breath, "vibDepthSemitones": x.vib, "glideS": x.glide_s})).collect::<Vec<_>>(),
         "pan": s.pan, "gainDb": s.gain_db,
         "peak": peak, "rms": (sq / (n - begin).max(1) as f64).sqrt(),
         "outputGain": w.output_gain,

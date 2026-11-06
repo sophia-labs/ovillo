@@ -75,3 +75,5 @@ artifacts/
 
 # Before the Law renders (WAVs, receipts and energy traces from render.py)
 examples/ensemble/before-the-law/out/
+
+examples/ensemble/rule-britannia/out/
